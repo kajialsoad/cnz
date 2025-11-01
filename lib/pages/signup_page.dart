@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import '../repositories/auth_repository.dart';
+import '../services/api_client.dart';
 import 'dart:math' as math;
 
 class SignUpPage extends StatefulWidget {
@@ -17,6 +20,14 @@ class _SignUpPageState extends State<SignUpPage> {
   bool _obscure = true;
   bool _agree = false;
   bool _nidAttached = false;
+  late final AuthRepository _auth;
+
+  @override
+  void initState() {
+    super.initState();
+    final baseUrl = kIsWeb ? 'http://localhost:4000' : 'http://10.0.2.2:4000';
+    _auth = AuthRepository(ApiClient(baseUrl));
+  }
 
   @override
   void dispose() {
@@ -27,7 +38,7 @@ class _SignUpPageState extends State<SignUpPage> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     final valid = _formKey.currentState?.validate() ?? false;
     if (!valid) return;
     if (!_nidAttached) {
@@ -42,10 +53,25 @@ class _SignUpPageState extends State<SignUpPage> {
       );
       return;
     }
+    final name = _nameController.text.trim();
+    final phone = _phoneController.text.trim();
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('সাইনআপ রিকোয়েস্ট পাঠানো হয়েছে')),
+      const SnackBar(content: Text('রেজিস্ট্রেশন করা হচ্ছে...')),
     );
-    // TODO: এখানে আপনার ব্যাকএন্ড/অথ ইন্টিগ্রেশন করুন।
+    try {
+      await _auth.register(name: name, phone: phone, email: email, password: password);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('রেজিস্ট্রেশন সফল')),
+      );
+      Navigator.pushReplacementNamed(context, '/login');
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('রেজিস্ট্রেশন ব্যর্থ: ${e.toString()}')),
+      );
+    }
   }
 
   void _pickFromCamera() {

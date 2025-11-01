@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import '../repositories/auth_repository.dart';
 import '../services/api_client.dart';
 
@@ -19,7 +20,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   void initState() {
     super.initState();
-    const baseUrl = 'http://localhost:4000';
+    final baseUrl = kIsWeb ? 'http://localhost:4000' : 'http://10.0.2.2:4000';
     _auth = AuthRepository(ApiClient(baseUrl));
   }
 
