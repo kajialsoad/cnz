@@ -1,6 +1,11 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
+// Support multiple origins via comma-separated env (CORS_ORIGINS),
+// falling back to single CORS_ORIGIN or '*'.
+const rawCorsOrigins = process.env.CORS_ORIGINS ?? process.env.CORS_ORIGIN ?? '*';
+const CORS_ORIGINS = rawCorsOrigins.split(',').map((s) => s.trim()).filter(Boolean);
+
 const env = {
   PORT: Number(process.env.PORT ?? 4000),
   DATABASE_URL: process.env.DATABASE_URL ?? '',
@@ -9,6 +14,7 @@ const env = {
   ACCESS_TTL: process.env.ACCESS_TTL ?? '15m',
   REFRESH_TTL: process.env.REFRESH_TTL ?? '30d',
   CORS_ORIGIN: process.env.CORS_ORIGIN ?? '*',
+  CORS_ORIGINS,
   DEMO_MODE: (process.env.DEMO_MODE === 'true'),
 };
 
