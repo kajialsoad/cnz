@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../repositories/auth_repository.dart';
+import '../services/api_client.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -12,6 +14,14 @@ class _LoginPageState extends State<LoginPage> {
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscure = true;
+  late final AuthRepository _auth;
+
+  @override
+  void initState() {
+    super.initState();
+    const baseUrl = 'http://localhost:4000';
+    _auth = AuthRepository(ApiClient(baseUrl));
+  }
 
   @override
   void dispose() {
@@ -20,12 +30,24 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  void _submit() {
-    if (_formKey.currentState?.validate() ?? false) {
+  Future<void> _submit() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    final phone = _phoneController.text.trim();
+    final password = _passwordController.text;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('লগইন করা হচ্ছে...')),
+    );
+    try {
+      await _auth.login(phone, password);
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('লগইন রিকোয়েস্ট পাঠানো হয়েছে')),
+        const SnackBar(content: Text('লগইন সফল')),
       );
-      // TODO: ব্যাকএন্ড/অথ ইন্টিগ্রেশন যোগ করুন।
+      Navigator.pushReplacementNamed(context, '/home');
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('লগইন ব্যর্থ: ${e.toString()}')),
+      );
     }
   }
 
@@ -159,6 +181,11 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ),
                       ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'ডেমো: ফোন 01700000000, পাসওয়ার্ড 123456',
+                      style: TextStyle(color: Colors.white70, fontSize: 12),
                     ),
                     const SizedBox(height: 8),
                     SizedBox(
