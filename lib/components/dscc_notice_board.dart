@@ -107,27 +107,37 @@ class _DSCCNoticeBoardState extends State<DSCCNoticeBoard>
             ],
           ),
           const SizedBox(height: 12),
-          SizedBox(
+          Container(
             height: 30,
+            width: double.infinity,
             child: ClipRect(
               child: AnimatedBuilder(
                 animation: _scrollAnimation,
                 builder: (context, child) {
-                  return SlideTransition(
-                    position: _scrollAnimation,
-                    child: Row(
-                      children: [
-                        for (String notice in notices) ...[
-                          Text(
-                            notice,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: Color(0xFF333333),
-                            ),
+                  // Create a single scrolling text string
+                  final String scrollingText = notices.join(' • ') + ' • ' + notices.join(' • ');
+                  
+                  return SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    physics: const NeverScrollableScrollPhysics(),
+                    child: Transform.translate(
+                      offset: Offset(
+                        _scrollAnimation.value.dx * MediaQuery.of(context).size.width,
+                        0,
+                      ),
+                      child: Container(
+                        height: 30,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          scrollingText,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Color(0xFF333333),
                           ),
-                          const SizedBox(width: 100),
-                        ],
-                      ],
+                          maxLines: 1,
+                          overflow: TextOverflow.visible,
+                        ),
+                      ),
                     ),
                   );
                 },
