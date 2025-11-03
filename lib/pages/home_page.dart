@@ -72,7 +72,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             padding: const EdgeInsets.only(
               left: 16,
               right: 16,
-              bottom: 140, // Extra padding for bottom navigation
+              bottom: 100, // Reduced padding to match new bottom nav height
             ),
             child: Column(
               children: [
@@ -82,7 +82,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 const DSCCNoticeBoard(),
                 const SizedBox(height: 20),
                 _buildStatsCards(),
-                const SizedBox(height: 20), // Reduced since we have padding
+                const SizedBox(height: 30), // Extra space at bottom
               ],
             ),
           ),
@@ -407,10 +407,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     final double diameter = screenWidth < 360
         ? 100
         : (screenWidth < 480 ? 120 : 140);
-    final double clusterHeight = diameter * 3 + 60; // room for 3 rows + gaps
 
-    return Container(
-      height: clusterHeight,
+    // Remove fixed height container to prevent overflow
+    return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
       child: _buildFlowerPetalLayout(diameter),
     );
