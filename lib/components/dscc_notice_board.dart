@@ -1,0 +1,145 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+
+class DSCCNoticeBoard extends StatefulWidget {
+  const DSCCNoticeBoard({super.key});
+
+  @override
+  State<DSCCNoticeBoard> createState() => _DSCCNoticeBoardState();
+}
+
+class _DSCCNoticeBoardState extends State<DSCCNoticeBoard>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _scrollController;
+  late Animation<Offset> _scrollAnimation;
+
+  final List<String> notices = [
+    "🗓️ এই শুক্রবার রমনা পার্কে ✨ Clean Dhaka Campaign",
+    "🌱 নতুন রিসাইক্লিং বিন স্থাপন - ওয়ার্ড ১৫",
+    "🚛 বর্জ্য সংগ্রহের সময় পরিবর্তন - সকাল ৬টা",
+    "🌳 বৃক্ষরোপণ কর্মসূচি - আগামী রবিবার",
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = AnimationController(
+      duration: const Duration(seconds: 20),
+      vsync: this,
+    );
+
+    _scrollAnimation = Tween<Offset>(
+      begin: const Offset(1.0, 0.0),
+      end: const Offset(-1.0, 0.0),
+    ).animate(CurvedAnimation(
+      parent: _scrollController,
+      curve: Curves.linear,
+    ));
+
+    _startScrolling();
+  }
+
+  void _startScrolling() {
+    _scrollController.repeat();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.95),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            offset: const Offset(0, 3),
+            blurRadius: 10,
+            spreadRadius: 0,
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      offset: const Offset(0, 1),
+                      blurRadius: 2,
+                      spreadRadius: 0,
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.asset(
+                    'assets/logo.png',
+                    width: 24,
+                    height: 24,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                "🇧🇩 DSCC Notice Board",
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF2E8B57),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 30,
+            child: ClipRect(
+              child: AnimatedBuilder(
+                animation: _scrollAnimation,
+                builder: (context, child) {
+                  return SlideTransition(
+                    position: _scrollAnimation,
+                    child: Row(
+                      children: [
+                        for (String notice in notices) ...[
+                          Text(
+                            notice,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Color(0xFF333333),
+                            ),
+                          ),
+                          const SizedBox(width: 100),
+                        ],
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
+      ),
+    ).animate().fadeIn(duration: 800.ms).slideY(
+          begin: 0.3,
+          duration: 600.ms,
+          curve: Curves.easeOut,
+        );
+  }
+}
