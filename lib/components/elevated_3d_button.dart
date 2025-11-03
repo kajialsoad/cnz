@@ -125,7 +125,7 @@ class _Elevated3DButtonState extends State<Elevated3DButton>
                   borderRadius: widget.isOval
                       ? BorderRadius.all(Radius.elliptical(
                           widget.width / 2, widget.height / 2.2))
-                      : BorderRadius.circular(widget.width / 2),
+                      : BorderRadius.circular(50), // Much higher radius for very rounded petal shape
                   boxShadow: widget.isFlat
                       ? []
                       : [

@@ -411,7 +411,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
     return Container(
       height: clusterHeight,
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8), // Reduced padding to prevent clipping
       child: _buildFlowerPetalLayout(diameter),
     );
   }
@@ -465,7 +465,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   Widget _buildFlowerPetalLayout(double diameter) {
-    final double gap = diameter * 0.18; // vertical gap between rows
+    // Using fixed dimensions for consistent mobile experience
 
     Widget buildCircleButton({
       required String title,
@@ -476,79 +476,133 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       required VoidCallback onTap,
       double? size,
     }) {
-      final double s = size ?? diameter;
       return Elevated3DButton(
         title: title,
         subtitle: subtitle,
         icon: icon,
         primaryColor: primary,
         secondaryColor: secondary,
-        width: s,
-        height: s,
-        isOval: false, // perfect circle
+        width: double.infinity, // Let Flexible control the width
+        height: 135, // Fixed height for consistent petal shape
+        isOval: false, // use rounded rectangle petal shape
         isFlat: true, // remove 3D and make 2D flat
         onTap: onTap,
       );
     }
 
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
+    return Stack(
+      alignment: Alignment.center,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        // Background petal layout with tight spacing
+        Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            buildCircleButton(
-              title: "Customer Care",
-              subtitle: "24/7 Support",
-              icon: Icons.headset_mic,
-              primary: green,
-              secondary: greenLight,
-              onTap: () => _navigateToPage('/customer-care'),
+            Row(
+              children: [
+                Flexible(
+                  child: buildCircleButton(
+                    title: "Customer Care",
+                    subtitle: "24/7 Support",
+                    icon: Icons.headset_mic,
+                    primary: green,
+                    secondary: greenLight,
+                    onTap: () => _navigateToPage('/customer-care'),
+                  ),
+                ),
+                SizedBox(width: 12), // Fixed 12px gap
+                Flexible(
+                  child: buildCircleButton(
+                    title: "Live Chat",
+                    subtitle: "Instant Help",
+                    icon: Icons.chat_bubble_outline,
+                    primary: green,
+                    secondary: greenLight,
+                    onTap: () => _navigateToPage('/live-chat'),
+                  ),
+                ),
+              ],
             ),
-            buildCircleButton(
-              title: "Live Chat",
-              subtitle: "Instant Help",
-              icon: Icons.chat_bubble_outline,
-              primary: green,
-              secondary: greenLight,
-              onTap: () => _navigateToPage('/live-chat'),
+            SizedBox(height: 8), // Tight spacing - center button will overlap this area
+            
+            Row(
+              children: [
+                Flexible(
+                  child: buildCircleButton(
+                    title: "Payment Gateway",
+                    subtitle: "Pay Bills",
+                    icon: Icons.credit_card,
+                    primary: yellow,
+                    secondary: yellowLight,
+                    onTap: () => _navigateToPage('/payment'),
+                  ),
+                ),
+                SizedBox(width: 12), // Fixed 12px gap
+                Flexible(
+                  child: buildCircleButton(
+                    title: "Donation",
+                    subtitle: "Help City",
+                    icon: Icons.favorite_border,
+                    primary: yellow,
+                    secondary: yellowLight,
+                    onTap: () => _navigateToPage('/donation'),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
-        SizedBox(height: gap),
-        Elevated3DButton(
-          title: "অভিযোগ",
-          subtitle: "Complaint",
-          icon: Icons.warning,
-          primaryColor: red,
-          secondaryColor: redLight,
-          width: diameter * 0.9,
-          height: diameter * 0.9,
-          isOval: false,
-          isFlat: true,
-          onTap: () => _navigateToPage('/complaint'),
-        ),
-        SizedBox(height: gap),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            buildCircleButton(
-              title: "Payment Gateway",
-              subtitle: "Pay Bills",
-              icon: Icons.credit_card,
-              primary: yellow,
-              secondary: yellowLight,
-              onTap: () => _navigateToPage('/payment'),
+        
+        // Center complaint button - perfect circle with black background
+        Container(
+          width: 120,
+          height: 120,
+          decoration: BoxDecoration(
+            color: Colors.black,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 15,
+                offset: const Offset(0, 5),
+                spreadRadius: 2,
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(60),
+              onTap: () => _navigateToPage('/complaint'),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.warning,
+                    color: Colors.white,
+                    size: 32,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    "অভিযোগ",
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  Text(
+                    "Complaint",
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 10,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
             ),
-            buildCircleButton(
-              title: "Donation",
-              subtitle: "Help City",
-              icon: Icons.favorite_border,
-              primary: yellow,
-              secondary: yellowLight,
-              onTap: () => _navigateToPage('/donation'),
-            ),
-          ],
+          ),
         ),
       ],
     );
