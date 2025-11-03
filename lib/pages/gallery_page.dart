@@ -28,7 +28,12 @@ class GalleryPage extends StatelessWidget {
         ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.only(
+          left: 16,
+          right: 16,
+          top: 16,
+          bottom: 100, // Extra padding for bottom navigation
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

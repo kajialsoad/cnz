@@ -13,90 +13,98 @@ class CustomBottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
     
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        // Bottom navigation bar with perfect circular cutout
-        ClipPath(
-          clipper: CircularNotchClipper(),
-          child: Container(
-            height: 75, // Increased height for better proportions like image 2
-            decoration: const BoxDecoration(
-              color: Color.fromARGB(255, 7, 85, 7), // More vibrant green like image 2
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black26,
-                  blurRadius: 15,
-                  offset: Offset(0, -5),
+    return Container(
+      height: 60 + bottomPadding, // Further reduced height + safe area
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          // Bottom navigation bar with perfect circular cutout
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: ClipPath(
+              clipper: CircularNotchClipper(),
+              child: Container(
+                height: 60 + bottomPadding, // Significantly reduced height
+                decoration: const BoxDecoration(
+                  color: Color.fromARGB(255, 7, 85, 7),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 15,
+                      offset: Offset(0, -5),
+                    ),
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 25,
+                      offset: Offset(0, -8),
+                    ),
+                  ],
                 ),
-                BoxShadow(
-                  color: Colors.black12,
-                  blurRadius: 25,
-                  offset: Offset(0, -8),
+                child: Padding(
+                  padding: EdgeInsets.only(bottom: bottomPadding),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      _buildNavItem(Icons.home, "Home", 0),
+                      _buildNavItem(Icons.phone, "Emergency", 1),
+                      SizedBox(width: screenWidth * 0.2), // Further reduced space
+                      _buildNavItem(Icons.recycling, "Borja", 2),
+                      _buildNavItem(Icons.photo_library, "Gallery", 3),
+                    ],
+                  ),
                 ),
-              ],
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _buildNavItem(Icons.home, "Home", 0),
-                _buildNavItem(Icons.phone, "Emergency", 1),
-                SizedBox(width: screenWidth * 0.28), // More space for larger cutout
-                _buildNavItem(Icons.recycling, "Borja", 2),
-                _buildNavItem(Icons.photo_library, "Gallery", 3),
-              ],
+              ),
             ),
           ),
-        ),
-        // Perfect floating camera button positioned exactly like image 2
-        Positioned(
-          top: -15, // Perfect floating position like image 2
-          left: (screenWidth / 2) - 35, // Perfect center alignment for 70px button
-          child: Container(
-            width: 70, // Larger size like image 2
-            height: 70,
-            decoration: BoxDecoration(
-              color: const Color(0xFFFF4444), // Bright red like image 2
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: Colors.white,
-                width: 4, // Thicker white border like image 2
-              ),
-              boxShadow: const [
-                BoxShadow(
-                  color: Colors.black45,
-                  blurRadius: 15,
-                  offset: Offset(0, 8),
-                ),
-                BoxShadow(
-                  color: Colors.red,
-                  blurRadius: 25,
-                  offset: Offset(0, 0),
-                  spreadRadius: -5,
-                ),
-                BoxShadow(
-                  color: Colors.black26,
-                  blurRadius: 30,
-                  offset: Offset(0, 12),
-                ),
-              ],
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(35),
-                onTap: () => onTap(4), // Camera/QR Scanner action
-                child: const Icon(
-                  Icons.camera_alt,
+          // Perfect floating camera button positioned to prevent overflow
+          Positioned(
+            top: -8, // Reduced floating position to prevent overflow
+            left: (screenWidth / 2) - 28, // Perfect center alignment for 56px button
+            child: Container(
+              width: 56, // Further reduced size to prevent overflow
+              height: 56,
+              decoration: BoxDecoration(
+                color: const Color(0xFFFF4444),
+                shape: BoxShape.circle,
+                border: Border.all(
                   color: Colors.white,
-                  size: 35, // Larger icon size like image 2
+                  width: 3, // Reduced border width
+                ),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black45,
+                    blurRadius: 12,
+                    offset: Offset(0, 6),
+                  ),
+                  BoxShadow(
+                    color: Colors.red,
+                    blurRadius: 20,
+                    offset: Offset(0, 0),
+                    spreadRadius: -5,
+                  ),
+                ],
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(28),
+                  onTap: () => onTap(4),
+                  child: const Icon(
+                    Icons.camera_alt,
+                    color: Colors.white,
+                    size: 26, // Reduced icon size to fit properly
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -107,30 +115,35 @@ class CustomBottomNav extends StatelessWidget {
       child: GestureDetector(
         onTap: () => onTap(index),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8), // Better padding
+          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2), // Further reduced padding
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
                 icon,
                 color: isSelected ? Colors.white : Colors.white70,
-                size: isSelected ? 30 : 26, // Slightly larger icons
+                size: isSelected ? 20 : 18, // Further reduced icon size
               ),
-              const SizedBox(height: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  color: isSelected ? Colors.white : Colors.white70,
-                  fontSize: isSelected ? 12 : 11,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+              const SizedBox(height: 1), // Minimal spacing
+              Flexible(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : Colors.white70,
+                    fontSize: isSelected ? 9 : 8, // Further reduced font size
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                  ),
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                 ),
-                textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 1), // Minimal spacing
               // White dot indicator for selected state
               Container(
-                width: isSelected ? 8 : 0,
-                height: isSelected ? 8 : 0,
+                width: isSelected ? 4 : 0, // Further reduced dot size
+                height: isSelected ? 4 : 0,
                 decoration: BoxDecoration(
                   color: isSelected ? Colors.white : Colors.transparent,
                   shape: BoxShape.circle,
@@ -144,14 +157,14 @@ class CustomBottomNav extends StatelessWidget {
   }
 }
 
-// Perfect circular notch clipper exactly like image 2
+// Perfect circular notch clipper with optimized dimensions
 class CircularNotchClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
     final path = Path();
     
-    // Perfect proportions for image 2 style
-    final notchRadius = 52.0; // Larger radius for perfect circular cutout like image 2
+    // Optimized proportions to prevent overflow
+    final notchRadius = 40.0; // Further reduced radius
     final notchCenter = size.width / 2;
     final notchStart = notchCenter - notchRadius;
     final notchEnd = notchCenter + notchRadius;
@@ -162,7 +175,7 @@ class CircularNotchClipper extends CustomClipper<Path> {
     // Draw to the start of the notch
     path.lineTo(notchStart, 0);
     
-    // Create perfect smooth circular arc exactly like image 2
+    // Create perfect smooth circular arc
     path.arcToPoint(
       Offset(notchEnd, 0),
       radius: Radius.circular(notchRadius),

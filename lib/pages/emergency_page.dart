@@ -58,7 +58,12 @@ class _EmergencyPageState extends State<EmergencyPage>
             _buildHeader(),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.only(
+                  left: 16,
+                  right: 16,
+                  top: 16,
+                  bottom: 100, // Extra padding for bottom navigation
+                ),
                 child: Column(
                   children: [
                     _buildEmergencyAlert(),

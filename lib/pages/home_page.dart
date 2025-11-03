@@ -66,7 +66,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           ),
         ),
         child: SafeArea(
+          bottom: false, // Don't apply SafeArea to bottom to avoid conflict with bottom nav
           child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.only(
+              left: 16,
+              right: 16,
+              bottom: 140, // Extra padding for bottom navigation
+            ),
             child: Column(
               children: [
                 const SizedBox(height: 20),
@@ -75,7 +82,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 const DSCCNoticeBoard(),
                 const SizedBox(height: 20),
                 _buildStatsCards(),
-                const SizedBox(height: 100), // Space for bottom nav
+                const SizedBox(height: 20), // Reduced since we have padding
               ],
             ),
           ),
@@ -108,8 +115,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             return Transform.rotate(
               angle: _backgroundController.value * 2 * math.pi,
               child: Container(
-                width: 48,
-                height: 48,
+                width: .25,
+                height: 0.25,
                 decoration: BoxDecoration(
                   color: Colors.white,
                   shape: BoxShape.circle,
@@ -125,7 +132,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 child: const Icon(
                   Icons.recycling,
                   color: Color(0xFF4CAF50),
-                  size: 24,
+                  size: 40,
                 ),
               ),
             );

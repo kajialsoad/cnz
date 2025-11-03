@@ -65,6 +65,9 @@ class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
         children: [
           Expanded(
             child: SingleChildScrollView(
+              padding: const EdgeInsets.only(
+                bottom: 100, // Extra padding for bottom navigation
+              ),
               child: Column(
                 children: [
                   // Calendar Widget

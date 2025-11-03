@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import '../components/custom_bottom_nav.dart';
 
 class PaymentPage extends StatefulWidget {
   const PaymentPage({super.key});
@@ -16,9 +17,12 @@ class _PaymentPageState extends State<PaymentPage>
   final _formKey = GlobalKey<FormState>();
   final _amountController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _donationAmountController = TextEditingController();
 
   String selectedService = 'পরিচ্ছন্নতা সেবা';
-  String selectedPaymentMethod = 'বিকাশ';
+  String selectedPaymentMethod = 'Bank';
+  String? selectedDonationPaymentMethod;
+  int? selectedDonationAmount;
 
   final List<String> services = [
     'পরিচ্ছন্নতা সেবা',
@@ -30,10 +34,10 @@ class _PaymentPageState extends State<PaymentPage>
   ];
 
   final List<PaymentMethod> paymentMethods = [
-    PaymentMethod('বিকাশ', 'assets/bkash.png', const Color(0xFFE2136E)),
-    PaymentMethod('নগদ', 'assets/nagad.png', const Color(0xFFEC1C24)),
-    PaymentMethod('রকেট', 'assets/rocket.png', const Color(0xFF8B4A9C)),
-    PaymentMethod('উপায়', 'assets/upay.png', const Color(0xFF1976D2)),
+    PaymentMethod('bKash', 'assets/bkash.png', const Color(0xFFE2136E)),
+    PaymentMethod('Nagad', 'assets/nagad.png', const Color(0xFFEC1C24)),
+    PaymentMethod('Card', 'assets/card.png', const Color(0xFF424242)),
+    PaymentMethod('Bank', 'assets/bank.png', const Color(0xFF1976D2)),
   ];
 
   final List<PaymentHistory> paymentHistory = [
@@ -71,7 +75,7 @@ class _PaymentPageState extends State<PaymentPage>
       vsync: this,
     )..repeat();
 
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -80,6 +84,7 @@ class _PaymentPageState extends State<PaymentPage>
     _tabController.dispose();
     _amountController.dispose();
     _phoneController.dispose();
+    _donationAmountController.dispose();
     super.dispose();
   }
 
@@ -108,6 +113,7 @@ class _PaymentPageState extends State<PaymentPage>
                   controller: _tabController,
                   children: [
                     _buildPaymentTab(),
+                    _buildDonationTab(),
                     _buildHistoryTab(),
                   ],
                 ),
@@ -115,6 +121,37 @@ class _PaymentPageState extends State<PaymentPage>
             ],
           ),
         ),
+      ),
+      bottomNavigationBar: CustomBottomNav(
+        currentIndex: 2, // Camera icon highlighted (center position)
+        onTap: (index) {
+          switch (index) {
+            case 0:
+              Navigator.pushNamedAndRemoveUntil(
+                context, 
+                '/home', 
+                (route) => false,
+              );
+              break;
+            case 1:
+              Navigator.pushNamedAndRemoveUntil(
+                context, 
+                '/emergency', 
+                (route) => false,
+              );
+              break;
+            case 2:
+              // Current page (Payment), do nothing
+              break;
+            case 3:
+              Navigator.pushNamedAndRemoveUntil(
+                context, 
+                '/gallery', 
+                (route) => false,
+              );
+              break;
+          }
+        },
       ),
     );
   }
@@ -174,7 +211,7 @@ class _PaymentPageState extends State<PaymentPage>
           const SizedBox(width: 12),
           const Expanded(
             child: Text(
-              'পেমেন্ট',
+              'Payment & Donation',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
@@ -212,8 +249,9 @@ class _PaymentPageState extends State<PaymentPage>
         labelColor: Colors.white,
         unselectedLabelColor: const Color(0xFF2E8B57),
         tabs: const [
-          Tab(text: 'পেমেন্ট করুন'),
-          Tab(text: 'ইতিহাস'),
+          Tab(text: 'Payment'),
+          Tab(text: 'Donation'),
+          Tab(text: 'History'),
         ],
       ),
     );
@@ -221,65 +259,219 @@ class _PaymentPageState extends State<PaymentPage>
 
   Widget _buildPaymentTab() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.only(
+        left: 16,
+        right: 16,
+        top: 16,
+        bottom: 100, // Extra padding for bottom navigation
+      ),
       child: Form(
         key: _formKey,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSectionCard(
-              title: 'সেবা নির্বাচন',
-              icon: Icons.miscellaneous_services,
-              child: _buildServiceDropdown(),
-            ),
-            const SizedBox(height: 16),
-            _buildSectionCard(
-              title: 'পেমেন্ট পদ্ধতি',
-              icon: Icons.payment,
-              child: _buildPaymentMethods(),
-            ),
-            const SizedBox(height: 16),
-            _buildSectionCard(
-              title: 'পেমেন্ট তথ্য',
-              icon: Icons.info,
-              child: Column(
-                children: [
-                  _buildTextField(
-                    controller: _amountController,
-                    label: 'পরিমাণ (টাকা)',
-                    hint: 'পেমেন্টের পরিমাণ লিখুন',
-                    keyboardType: TextInputType.number,
-                    validator: (value) {
-                      if (value?.isEmpty ?? true) {
-                        return 'পরিমাণ প্রয়োজন';
-                      }
-                      if (double.tryParse(value!) == null) {
-                        return 'সঠিক পরিমাণ লিখুন';
-                      }
-                      return null;
-                    },
+            // Bill Payment Section
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    offset: const Offset(0, 2),
+                    blurRadius: 8,
                   ),
-                  const SizedBox(height: 16),
-                  _buildTextField(
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Bill Payment',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  
+                  // Bill ID / Reference Number
+                  const Text(
+                    'Bill ID / Reference Number',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
                     controller: _phoneController,
-                    label: 'মোবাইল নম্বর',
-                    hint: '01XXXXXXXXX',
-                    keyboardType: TextInputType.phone,
-                    validator: (value) {
-                      if (value?.isEmpty ?? true) {
-                        return 'মোবাইল নম্বর প্রয়োজন';
-                      }
-                      if (value!.length != 11) {
-                        return 'সঠিক মোবাইল নম্বর লিখুন';
-                      }
-                      return null;
-                    },
+                    decoration: InputDecoration(
+                      hintText: 'Enter your bill ID',
+                      hintStyle: TextStyle(color: Colors.grey.shade500),
+                      filled: true,
+                      fillColor: Colors.grey.shade50,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 16,
+                      ),
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 20),
+                  
+                  // Amount
+                  const Text(
+                    'Amount (BDT)',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _amountController,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      hintText: '0.00',
+                      hintStyle: TextStyle(color: Colors.grey.shade500),
+                      filled: true,
+                      fillColor: Colors.grey.shade50,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 16,
+                      ),
+                    ),
                   ),
                 ],
               ),
             ),
+            
             const SizedBox(height: 24),
-            _buildPayButton(),
+            
+            // Select Payment Method
+            const Text(
+              'Select Payment Method',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 16),
+            
+            // Payment Methods Grid
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                childAspectRatio: 2.8,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+              ),
+              itemCount: paymentMethods.length,
+              itemBuilder: (context, index) {
+                final method = paymentMethods[index];
+                final isSelected = selectedPaymentMethod == method.name;
+                final isBank = method.name == 'Bank';
+
+                return GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      selectedPaymentMethod = method.name;
+                    });
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: isBank && isSelected 
+                          ? const Color(0xFFE3F2FD) 
+                          : Colors.white,
+                      border: Border.all(
+                        color: isBank && isSelected 
+                            ? const Color(0xFF1976D2) 
+                            : Colors.grey.shade300,
+                        width: isBank && isSelected ? 2 : 1,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          offset: const Offset(0, 2),
+                          blurRadius: 4,
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          method.name == 'bKash' ? Icons.phone_android :
+                          method.name == 'Nagad' ? Icons.phone_android :
+                          method.name == 'Card' ? Icons.credit_card :
+                          Icons.account_balance,
+                          color: isBank && isSelected 
+                              ? const Color(0xFF1976D2) 
+                              : Colors.grey.shade600,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          method.name,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: isBank && isSelected 
+                                ? const Color(0xFF1976D2) 
+                                : Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+            
+            const SizedBox(height: 32),
+            
+            // Proceed to Pay Button
+            SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: ElevatedButton(
+                onPressed: _processPayment,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF4CAF50),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  elevation: 0,
+                ),
+                child: const Text(
+                  'Proceed to Pay',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -288,7 +480,12 @@ class _PaymentPageState extends State<PaymentPage>
 
   Widget _buildHistoryTab() {
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.only(
+        left: 16,
+        right: 16,
+        top: 16,
+        bottom: 100, // Extra padding for bottom navigation
+      ),
       itemCount: paymentHistory.length,
       itemBuilder: (context, index) {
         return _buildHistoryCard(paymentHistory[index], index);
@@ -713,6 +910,343 @@ class _PaymentPageState extends State<PaymentPage>
         _tabController.animateTo(1);
       });
     }
+  }
+
+  Widget _buildDonationTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.only(
+        left: 16,
+        right: 16,
+        top: 16,
+        bottom: 100, // Extra padding for bottom navigation
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Support Clean Dhaka Header Card
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF2E8B57), Color(0xFF3CB371)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Support Clean Dhaka',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Your donation helps us maintain a cleaner, greener city for everyone.',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.white,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          const SizedBox(height: 24),
+          
+          // Quick Amounts
+          const Text(
+            'Quick Amounts',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF2E8B57),
+            ),
+          ),
+          const SizedBox(height: 12),
+          
+          Row(
+            children: [
+              Expanded(
+                child: _buildQuickAmountButton('৳500', 500),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildQuickAmountButton('৳1000', 1000),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildQuickAmountButton('৳2000', 2000),
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 24),
+          
+          // Custom Amount
+          const Text(
+            'Custom Amount (BDT)',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF2E8B57),
+            ),
+          ),
+          const SizedBox(height: 8),
+          
+          TextField(
+            controller: _donationAmountController,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(
+              hintText: 'Enter custom amount',
+              prefixText: '৳ ',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFF2E8B57)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFF2E8B57), width: 2),
+              ),
+            ),
+            onChanged: (value) {
+              setState(() {
+                selectedDonationAmount = null; // Clear quick amount selection
+              });
+            },
+          ),
+          
+          const SizedBox(height: 24),
+          
+          // Payment Method Selection
+          const Text(
+            'Select Payment Method',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF2E8B57),
+            ),
+          ),
+          const SizedBox(height: 12),
+          
+          Row(
+            children: [
+              Expanded(
+                child: _buildDonationPaymentMethodCard('bKash', 'assets/images/bkash.png'),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildDonationPaymentMethodCard('Nagad', 'assets/images/nagad.png'),
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 32),
+          
+          // Donate Now Button
+          SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: ElevatedButton(
+              onPressed: _processDonation,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF2E8B57),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                elevation: 4,
+              ),
+              child: const Text(
+                'Donate Now',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickAmountButton(String text, int amount) {
+    final isSelected = selectedDonationAmount == amount;
+    
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          selectedDonationAmount = amount;
+          _donationAmountController.text = amount.toString();
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF2E8B57) : Colors.white,
+          border: Border.all(
+            color: isSelected ? const Color(0xFF2E8B57) : Colors.grey.shade300,
+            width: 2,
+          ),
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: isSelected ? [
+            BoxShadow(
+              color: const Color(0xFF2E8B57).withOpacity(0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ] : null,
+        ),
+        child: Text(
+          text,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: isSelected ? Colors.white : const Color(0xFF2E8B57),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDonationPaymentMethodCard(String name, String iconPath) {
+    final isSelected = selectedDonationPaymentMethod == name;
+    
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          selectedDonationPaymentMethod = name;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(
+            color: Colors.grey.shade300,
+            width: 1,
+          ),
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              offset: const Offset(0, 2),
+              blurRadius: 4,
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                color: isSelected ? const Color(0xFF2E8B57) : Colors.transparent,
+                border: Border.all(
+                  color: isSelected ? const Color(0xFF2E8B57) : Colors.grey.shade400,
+                  width: 2,
+                ),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: isSelected
+                  ? const Icon(
+                      Icons.check,
+                      size: 14,
+                      color: Colors.white,
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 12),
+            Text(
+              name,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _processDonation() {
+    final amount = selectedDonationAmount?.toString() ?? _donationAmountController.text;
+    
+    if (amount.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter donation amount'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (selectedDonationPaymentMethod == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a payment method'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Show processing dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 16),
+            Text('Processing donation...'),
+          ],
+        ),
+      ),
+    );
+
+    // Simulate donation processing
+    Future.delayed(const Duration(seconds: 3), () {
+      Navigator.pop(context); // Close processing dialog
+      
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Donation successful! Thank you for supporting Clean Dhaka.'),
+          backgroundColor: Color(0xFF2E8B57),
+        ),
+      );
+
+      // Clear form
+      _donationAmountController.clear();
+      setState(() {
+        selectedDonationAmount = null;
+        selectedDonationPaymentMethod = null;
+      });
+
+      // Switch to history tab
+      _tabController.animateTo(2);
+    });
   }
 }
 

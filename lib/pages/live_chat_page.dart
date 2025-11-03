@@ -381,6 +381,40 @@ class _LiveChatPageState extends State<LiveChatPage>
       ),
       child: Row(
         children: [
+          // Location Share Button
+          GestureDetector(
+            onTap: _shareLocation,
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2E8B57).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Icon(
+                Icons.location_on,
+                color: Color(0xFF2E8B57),
+                size: 20,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Photo Share Button
+          GestureDetector(
+            onTap: _sharePhoto,
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2E8B57).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Icon(
+                Icons.photo_camera,
+                color: Color(0xFF2E8B57),
+                size: 20,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
           Expanded(
             child: Container(
               decoration: BoxDecoration(
@@ -455,6 +489,166 @@ class _LiveChatPageState extends State<LiveChatPage>
           isTyping = false;
           messages.add(ChatMessage(
             text: _getBotResponse(message.text),
+            isUser: false,
+            timestamp: DateTime.now(),
+          ));
+        });
+        _scrollToBottom();
+      }
+    });
+  }
+
+  void _shareLocation() {
+    // Show location sharing confirmation dialog
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('লোকেশন শেয়ার করুন'),
+          content: const Text('আপনি কি আপনার বর্তমান লোকেশন শেয়ার করতে চান?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('বাতিল'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _sendLocationMessage();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF2E8B57),
+              ),
+              child: const Text('শেয়ার করুন', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _sendLocationMessage() {
+    final locationMessage = ChatMessage(
+      text: '📍 আমার বর্তমান লোকেশন: ঢাকা, বাংলাদেশ\n(অক্ষাংশ: 23.8103, দ্রাঘিমাংশ: 90.4125)',
+      isUser: true,
+      timestamp: DateTime.now(),
+    );
+
+    setState(() {
+      messages.add(locationMessage);
+      isTyping = true;
+    });
+
+    _scrollToBottom();
+
+    // Simulate bot response for location
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        setState(() {
+          isTyping = false;
+          messages.add(ChatMessage(
+            text: 'ধন্যবাদ আপনার লোকেশন শেয়ার করার জন্য। আমরা আপনার এলাকার সেবা সম্পর্কে তথ্য দিতে পারব।',
+            isUser: false,
+            timestamp: DateTime.now(),
+          ));
+        });
+        _scrollToBottom();
+      }
+    });
+  }
+
+  void _sharePhoto() {
+    // Show photo sharing options dialog
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('ছবি শেয়ার করুন'),
+          content: const Text('আপনি কোন উপায়ে ছবি শেয়ার করতে চান?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('বাতিল'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _selectPhotoFromGallery();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF2E8B57),
+              ),
+              child: const Text('গ্যালারি থেকে', style: TextStyle(color: Colors.white)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _takePhoto();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF3CB371),
+              ),
+              child: const Text('ক্যামেরা', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _selectPhotoFromGallery() {
+    // Simulate photo selection from gallery
+    final photoMessage = ChatMessage(
+      text: '📷 ছবি শেয়ার করা হয়েছে\n(গ্যালারি থেকে নির্বাচিত)',
+      isUser: true,
+      timestamp: DateTime.now(),
+    );
+
+    setState(() {
+      messages.add(photoMessage);
+      isTyping = true;
+    });
+
+    _scrollToBottom();
+
+    // Simulate bot response for photo
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        setState(() {
+          isTyping = false;
+          messages.add(ChatMessage(
+            text: 'ছবিটি পেয়েছি। আমরা এটি পর্যালোচনা করে আপনাকে সাহায্য করার চেষ্টা করব।',
+            isUser: false,
+            timestamp: DateTime.now(),
+          ));
+        });
+        _scrollToBottom();
+      }
+    });
+  }
+
+  void _takePhoto() {
+    // Simulate taking photo with camera
+    final photoMessage = ChatMessage(
+      text: '📸 ছবি তোলা হয়েছে\n(ক্যামেরা ব্যবহার করে)',
+      isUser: true,
+      timestamp: DateTime.now(),
+    );
+
+    setState(() {
+      messages.add(photoMessage);
+      isTyping = true;
+    });
+
+    _scrollToBottom();
+
+    // Simulate bot response for photo
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        setState(() {
+          isTyping = false;
+          messages.add(ChatMessage(
+            text: 'নতুন ছবিটি পেয়েছি। আমরা এটি বিশ্লেষণ করে আপনাকে উপযুক্ত সাহায্য প্রদান করব।',
             isUser: false,
             timestamp: DateTime.now(),
           ));

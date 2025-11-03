@@ -210,7 +210,12 @@ class _ComplaintPageState extends State<ComplaintPage>
 
   Widget _buildNewComplaintTab() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.only(
+        left: 16,
+        right: 16,
+        top: 16,
+        bottom: 100, // Extra padding for bottom navigation
+      ),
       child: Form(
         key: _formKey,
         child: Column(
@@ -304,7 +309,12 @@ class _ComplaintPageState extends State<ComplaintPage>
 
   Widget _buildMyComplaintsTab() {
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.only(
+        left: 16,
+        right: 16,
+        top: 16,
+        bottom: 100, // Extra padding for bottom navigation
+      ),
       itemCount: complaints.length,
       itemBuilder: (context, index) {
         return _buildComplaintCard(complaints[index], index);
