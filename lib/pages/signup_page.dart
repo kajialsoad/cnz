@@ -60,6 +60,20 @@ class _SignUpPageState extends State<SignUpPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('রেজিস্ট্রেশন করা হচ্ছে...')),
     );
+    
+    // Demo mode - simulate successful registration
+    await Future.delayed(const Duration(seconds: 1));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('ডেমো রেজিস্ট্রেশন সফল! $name এর জন্য একাউন্ট তৈরি হয়েছে 📱'),
+        backgroundColor: Colors.green,
+      ),
+    );
+    Navigator.pushReplacementNamed(context, '/login');
+    
+    // Uncomment this section when backend is ready
+    /*
     try {
       await _auth.register(name: name, phone: phone, email: email, password: password);
       if (!mounted) return;
@@ -72,6 +86,7 @@ class _SignUpPageState extends State<SignUpPage> {
         SnackBar(content: Text('রেজিস্ট্রেশন ব্যর্থ: ${e.toString()}')),
       );
     }
+    */
   }
 
   void _pickFromCamera() {

@@ -482,12 +482,14 @@ class _EmergencyPageState extends State<EmergencyPage>
                 ),
               ),
               const SizedBox(width: 12),
-              const Text(
-                'When to Call DSCC Emergency',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF38A169),
+              Expanded(
+                child: const Text(
+                  'When to Call DSCC Emergency',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF38A169),
+                  ),
                 ),
               ),
             ],

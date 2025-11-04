@@ -38,6 +38,18 @@ class _LoginPageState extends State<LoginPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('লগইন করা হচ্ছে...')),
     );
+    
+    // Demo mode login - bypass backend for testing
+    if (phone == "01700000000" && password == "123456") {
+      await Future.delayed(const Duration(seconds: 1)); // Simulate network delay
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('ডেমো লগইন সফল! 🎉'), backgroundColor: Colors.green),
+      );
+      Navigator.pushReplacementNamed(context, '/home');
+      return;
+    }
+    
     try {
       await _auth.login(phone, password);
       if (!mounted) return;
@@ -46,8 +58,23 @@ class _LoginPageState extends State<LoginPage> {
       );
       Navigator.pushReplacementNamed(context, '/home');
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('লগইন ব্যর্থ: ${e.toString()}')),
+        SnackBar(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('লগইন ব্যর্থ: ${e.toString()}'),
+              const SizedBox(height: 4),
+              const Text(
+                'ডেমো: ফোন 01700000000, পাসওয়ার্ড 123456 ব্যবহার করুন',
+                style: TextStyle(fontSize: 12, color: Colors.white70),
+              ),
+            ],
+          ),
+          duration: const Duration(seconds: 4),
+        ),
       );
     }
   }
