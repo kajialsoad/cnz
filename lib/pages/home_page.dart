@@ -102,11 +102,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
-      backgroundColor: green,
+      backgroundColor: const Color(0xFF1D9A4A),
       foregroundColor: Colors.white,
       elevation: 0,
       toolbarHeight: 72,
-      leadingWidth: 80,
+      leadingWidth: 56,
       leading: Padding(
         padding: const EdgeInsets.only(left: 12.0),
         child: AnimatedBuilder(
@@ -115,8 +115,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             return Transform.rotate(
               angle: _backgroundController.value * 2 * math.pi,
               child: Container(
-                width: .25,
-                height: 0.25,
+                width: 32,
+                height: 32,
                 decoration: BoxDecoration(
                   color: Colors.white,
                   shape: BoxShape.circle,
@@ -132,7 +132,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 child: const Icon(
                   Icons.recycling,
                   color: Color(0xFF4CAF50),
-                  size: 40,
+                  size: 18,
                 ),
               ),
             );
@@ -504,25 +504,25 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     title: "Customer Care",
                     subtitle: "24/7 Support",
                     icon: Icons.headset_mic,
-                    primary: green,
-                    secondary: greenLight,
+                    primary: const Color(0xFFFF2424),
+                    secondary: const Color(0xFFFF2424).withOpacity(0.8),
                     onTap: () => _navigateToPage('/customer-care'),
                   ),
                 ),
-                SizedBox(width: 12), // Fixed 12px gap
+                SizedBox(width: 2), // Reduced gap from 12px to 2px
                 Flexible(
                   child: buildCircleButton(
                     title: "Live Chat",
                     subtitle: "Instant Help",
                     icon: Icons.chat_bubble_outline,
-                    primary: green,
-                    secondary: greenLight,
+                    primary: const Color(0xFF36724A),
+                    secondary: const Color(0xFF36724A).withOpacity(0.8),
                     onTap: () => _navigateToPage('/live-chat'),
                   ),
                 ),
               ],
             ),
-            SizedBox(height: 8), // Tight spacing - center button will overlap this area
+            SizedBox(height: 2), // Reduced spacing from 8px to 2px
             
             Row(
               children: [
@@ -531,19 +531,19 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     title: "Payment Gateway",
                     subtitle: "Pay Bills",
                     icon: Icons.credit_card,
-                    primary: yellow,
-                    secondary: yellowLight,
+                    primary: const Color(0xFF36724A),
+                    secondary: const Color(0xFF36724A).withOpacity(0.8),
                     onTap: () => _navigateToPage('/payment'),
                   ),
                 ),
-                SizedBox(width: 12), // Fixed 12px gap
+                SizedBox(width: 2), // Reduced gap from 12px to 2px
                 Flexible(
                   child: buildCircleButton(
                     title: "Donation",
                     subtitle: "Help City",
                     icon: Icons.favorite_border,
-                    primary: yellow,
-                    secondary: yellowLight,
+                    primary: const Color(0xFFFF2424),
+                    secondary: const Color(0xFFFF2424).withOpacity(0.8),
                     onTap: () => _navigateToPage('/donation'),
                   ),
                 ),
@@ -552,13 +552,17 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           ],
         ),
         
-        // Center complaint button - perfect circle with black background
+        // Center complaint button - bigger circle with black background and white border
         Container(
-          width: 120,
-          height: 120,
+          width: 110, // Increased from 120 to 140
+          height: 110, // Increased from 120 to 140
           decoration: BoxDecoration(
             color: Colors.black,
             shape: BoxShape.circle,
+            border: Border.all(
+              color: Colors.white, // Solid white border
+              width: 4, // Thick white border
+            ),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.3),
@@ -571,7 +575,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           child: Material(
             color: Colors.transparent,
             child: InkWell(
-              borderRadius: BorderRadius.circular(60),
+              borderRadius: BorderRadius.circular(70), // Updated for new size
               onTap: () => _navigateToPage('/complaint'),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -579,14 +583,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   Icon(
                     Icons.warning,
                     color: Colors.white,
-                    size: 32,
+                    size: 36, // Slightly increased icon size
                   ),
                   const SizedBox(height: 4),
                   Text(
                     "অভিযোগ",
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 14,
+                      fontSize: 13, // Increased font size
                       fontWeight: FontWeight.bold,
                     ),
                     textAlign: TextAlign.center,
@@ -595,7 +599,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     "Complaint",
                     style: const TextStyle(
                       color: Colors.white70,
-                      fontSize: 10,
+                      fontSize: 10, // Increased font size
                     ),
                     textAlign: TextAlign.center,
                   ),

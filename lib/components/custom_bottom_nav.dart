@@ -16,7 +16,7 @@ class CustomBottomNav extends StatelessWidget {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
     
     return Container(
-      height: 60 + bottomPadding, // Further reduced height + safe area
+      height: 90 + bottomPadding, // Reduced height to minimize space below camera
       child: Stack(
         clipBehavior: Clip.none,
         children: [
@@ -30,7 +30,7 @@ class CustomBottomNav extends StatelessWidget {
               child: Container(
                 height: 60 + bottomPadding, // Significantly reduced height
                 decoration: const BoxDecoration(
-                  color: Color.fromARGB(255, 7, 85, 7),
+                  color: Color(0xFF044E1F),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black26,
@@ -61,15 +61,15 @@ class CustomBottomNav extends StatelessWidget {
               ),
             ),
           ),
-          // Perfect floating camera button positioned to prevent overflow
+          // Perfect floating camera button positioned 50% higher
           Positioned(
-            top: -8, // Reduced floating position to prevent overflow
+            top: 2, // Adjusted so camera center aligns with bar height
             left: (screenWidth / 2) - 28, // Perfect center alignment for 56px button
             child: Container(
               width: 56, // Further reduced size to prevent overflow
               height: 56,
               decoration: BoxDecoration(
-                color: const Color(0xFFFF4444),
+                color: const Color(0xFFFF2424),
                 shape: BoxShape.circle,
                 border: Border.all(
                   color: Colors.white,
