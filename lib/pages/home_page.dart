@@ -5,6 +5,7 @@ import '../components/elevated_3d_button.dart';
 import '../components/dscc_notice_board.dart';
 import '../components/stats_card.dart';
 import '../components/custom_bottom_nav.dart';
+import '../components/mayor_statement_banner.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -53,40 +54,49 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       backgroundColor: const Color(0xFFF3FAF5),
       extendBody: true, // Allow bottom nav to extend over body
       appBar: _buildAppBar(),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFE9F6EE),
-              Color(0xFFF7FCF9),
-              Color(0xFFF3FAF5),
-            ],
-          ),
-        ),
-        child: SafeArea(
-          bottom: false, // Don't apply SafeArea to bottom to avoid conflict with bottom nav
-          child: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.only(
-              left: 16,
-              right: 16,
-              bottom: 100, // Reduced padding to match new bottom nav height
+      body: Column(
+        children: [
+          const MayorStatementBanner(),
+          // Background image container for all sections below banner
+          Expanded(
+            child: Container(
+              width: double.infinity,
+              decoration: const BoxDecoration(
+                image: DecorationImage(
+                  image: AssetImage('assets/home_background.jpg'),
+                  fit: BoxFit.cover,
+                  opacity: 0.1, // 10% opacity
+                ),
+              ),
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.only(
+                  bottom: 100, // Space for bottom navigation
+                ),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 20),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: _buildFeatureCluster(),
+                    ),
+                    const SizedBox(height: 30),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: const DSCCNoticeBoard(),
+                    ),
+                    const SizedBox(height: 20),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: _buildStatsCards(),
+                    ),
+                    const SizedBox(height: 30),
+                  ],
+                ),
+              ),
             ),
-            child: Column(
-              children: [
-                const SizedBox(height: 20),
-                _buildFeatureCluster(),
-                const SizedBox(height: 30),
-                const DSCCNoticeBoard(),
-                const SizedBox(height: 20),
-                _buildStatsCards(),
-                const SizedBox(height: 30), // Extra space at bottom
-              ],
-            ),
           ),
-        ),
+        ],
       ),
       bottomNavigationBar: CustomBottomNav(
         currentIndex: _currentIndex,
