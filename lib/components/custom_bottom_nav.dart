@@ -17,6 +17,9 @@ class CustomBottomNav extends StatelessWidget {
     
     return Container(
       height: 90 + bottomPadding, // Reduced height to minimize space below camera
+      decoration: const BoxDecoration(
+        color: Colors.transparent, // Make the container background transparent
+      ),
       child: Stack(
         clipBehavior: Clip.none,
         children: [

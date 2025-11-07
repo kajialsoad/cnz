@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'dart:math' as math;
 import '../components/elevated_3d_button.dart';
 import '../components/dscc_notice_board.dart';
@@ -589,10 +590,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.warning,
-                    color: Colors.white,
-                    size: 36, // Slightly increased icon size
+                  SvgPicture.asset(
+                    'assets/complaint.svg',
+                    width: 36,
+                    height: 36,
+                    colorFilter: const ColorFilter.mode(
+                      Colors.white,
+                      BlendMode.srcIn,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(

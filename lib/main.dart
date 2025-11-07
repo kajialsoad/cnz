@@ -7,6 +7,8 @@ import 'pages/home_page.dart';
 import 'pages/customer_care_page.dart';
 import 'pages/live_chat_page.dart';
 import 'pages/complaint_page.dart';
+import 'pages/complaint_details_page.dart';
+import 'pages/others_page.dart';
 import 'pages/payment_page.dart';
 import 'pages/donation_page.dart';
 import 'pages/emergency_page.dart';
@@ -43,6 +45,8 @@ class MyApp extends StatelessWidget {
         '/customer-care': (_) => const CustomerCarePage(),
         '/live-chat': (_) => const LiveChatPage(),
         '/complaint': (_) => const ComplaintPage(),
+        '/complaint-details': (_) => const ComplaintDetailsPage(),
+        '/others': (_) => const OthersPage(),
         '/payment': (_) => const PaymentPage(),
         '/donation': (_) => const DonationPage(),
         '/emergency': (_) => const EmergencyPage(),
