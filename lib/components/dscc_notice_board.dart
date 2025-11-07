@@ -97,7 +97,7 @@ class _DSCCNoticeBoardState extends State<DSCCNoticeBoard>
               ),
               const SizedBox(width: 8),
               const Text(
-                "🇧🇩 DSCC Notice Board",
+                "DSCC Notice Board",
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,

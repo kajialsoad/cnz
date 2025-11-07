@@ -46,6 +46,7 @@ dependencies:
   
   # Icons & Fonts
   google_fonts: ^6.2.1
+  flutter_svg: ^2.0.10+1
   
   # Networking
   dio: ^5.4.3+1
@@ -88,6 +89,19 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - assets/logo.png
+    - assets/profile.png
+    - assets/home_background.jpg
+    - assets/building.svg
+    - assets/house.svg
+    - assets/complaint.svg
+    - assets/road.svg
+    - assets/house2.svg
+    - assets/office.svg
+    - assets/graduate.svg
+    - assets/hospital.svg
+    - assets/church.svg
+    - assets/congratulations.svg
+    - assets/Container.svg
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
