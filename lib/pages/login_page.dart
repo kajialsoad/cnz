@@ -31,51 +31,61 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
+  bool _isLoading = false;
+
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    final phone = _phoneController.text.trim();
-    final password = _passwordController.text;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('লগইন করা হচ্ছে...')),
-    );
     
-    // Demo mode login - bypass backend for testing
-    if (phone == "01700000000" && password == "123456") {
-      await Future.delayed(const Duration(seconds: 1)); // Simulate network delay
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('ডেমো লগইন সফল! 🎉'), backgroundColor: Colors.green),
-      );
-      Navigator.pushReplacementNamed(context, '/home');
-      return;
-    }
+    setState(() => _isLoading = true);
+    
+    final phoneOrEmail = _phoneController.text.trim();
+    final password = _passwordController.text;
     
     try {
-      await _auth.login(phone, password);
+      await _auth.login(phoneOrEmail, password);
+      
       if (!mounted) return;
+      
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('লগইন সফল')),
+        const SnackBar(
+          content: Text('লগইন সফল! ✓'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
       );
+      
       Navigator.pushReplacementNamed(context, '/home');
     } catch (e) {
       if (!mounted) return;
+      
+      String errorMessage = 'লগইন ব্যর্থ';
+      final errorStr = e.toString();
+      
+      if (errorStr.contains('Invalid credentials')) {
+        errorMessage = 'ভুল ফোন নম্বর বা পাসওয়ার্ড';
+      } else if (errorStr.contains('Network error')) {
+        errorMessage = 'ইন্টারনেট সংযোগ চেক করুন';
+      } else if (errorStr.contains('timeout')) {
+        errorMessage = 'সার্ভার সাড়া দিচ্ছে না, আবার চেষ্টা করুন';
+      } else if (errorStr.contains('verify your email')) {
+        errorMessage = 'প্রথমে আপনার ইমেইল ভেরিফাই করুন';
+      } else if (errorStr.contains('suspended')) {
+        errorMessage = 'আপনার অ্যাকাউন্ট সাসপেন্ড করা হয়েছে';
+      } else {
+        errorMessage = 'লগইন ব্যর্থ: ${errorStr.replaceAll('Exception: ', '')}';
+      }
+      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('লগইন ব্যর্থ: ${e.toString()}'),
-              const SizedBox(height: 4),
-              const Text(
-                'ডেমো: ফোন 01700000000, পাসওয়ার্ড 123456 ব্যবহার করুন',
-                style: TextStyle(fontSize: 12, color: Colors.white70),
-              ),
-            ],
-          ),
+          content: Text(errorMessage),
+          backgroundColor: Colors.red,
           duration: const Duration(seconds: 4),
         ),
       );
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -210,16 +220,11 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'ডেমো: ফোন 01700000000, পাসওয়ার্ড 123456',
-                      style: TextStyle(color: Colors.white70, fontSize: 12),
-                    ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 24),
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: _submit,
+                        onPressed: _isLoading ? null : _submit,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.white,
                           foregroundColor: green,
@@ -228,7 +233,16 @@ class _LoginPageState extends State<LoginPage> {
                             borderRadius: BorderRadius.circular(28),
                           ),
                         ),
-                        child: const Text('Login'),
+                        child: _isLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(green),
+                                ),
+                              )
+                            : const Text('Login'),
                       ),
                     ),
                     const SizedBox(height: 24),

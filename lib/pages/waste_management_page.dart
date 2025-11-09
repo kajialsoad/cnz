@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import '../components/custom_bottom_nav.dart';
 
 class MapPatternPainter extends CustomPainter {
   @override
@@ -150,6 +151,34 @@ class _WasteManagementPageState extends State<WasteManagementPage>
             ),
           ],
         ),
+      ),
+      bottomNavigationBar: CustomBottomNav(
+        currentIndex: 2, // Borjo/Waste index
+        onTap: (index) {
+          switch (index) {
+            case 0:
+              Navigator.pushReplacementNamed(context, '/home');
+              break;
+            case 1:
+              Navigator.pushReplacementNamed(context, '/emergency');
+              break;
+            case 2:
+              // Already on Waste management page
+              break;
+            case 3:
+              Navigator.pushReplacementNamed(context, '/gallery');
+              break;
+            case 4:
+              // QR Scanner
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('QR স্ক্যানার খোলা হচ্ছে...'),
+                  backgroundColor: Color(0xFF2E8B57),
+                ),
+              );
+              break;
+          }
+        },
       ),
     );
   }

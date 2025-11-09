@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../components/custom_bottom_nav.dart';
 
 class LiveChatPage extends StatefulWidget {
   const LiveChatPage({super.key});
@@ -14,6 +16,7 @@ class _LiveChatPageState extends State<LiveChatPage>
   late AnimationController _typingController;
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  int _currentIndex = 0;
 
   List<ChatMessage> messages = [
     ChatMessage(
@@ -51,6 +54,8 @@ class _LiveChatPageState extends State<LiveChatPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: _buildAppBar(),
+      extendBody: true,
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -64,9 +69,9 @@ class _LiveChatPageState extends State<LiveChatPage>
           ),
         ),
         child: SafeArea(
+          top: false,
           child: Column(
             children: [
-              _buildAppBar(),
               Expanded(
                 child: _buildChatArea(),
               ),
@@ -75,92 +80,95 @@ class _LiveChatPageState extends State<LiveChatPage>
           ),
         ),
       ),
+      bottomNavigationBar: CustomBottomNav(
+        currentIndex: _currentIndex,
+        onTap: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+          switch (index) {
+            case 0:
+              Navigator.pushReplacementNamed(context, '/home');
+              break;
+            case 1:
+              Navigator.pushReplacementNamed(context, '/emergency');
+              break;
+            case 2:
+              Navigator.pushReplacementNamed(context, '/waste-management');
+              break;
+            case 3:
+              Navigator.pushReplacementNamed(context, '/gallery');
+              break;
+            case 4:
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('QR স্ক্যানার খোলা হচ্ছে...'),
+                  backgroundColor: Color(0xFF2E8B57),
+                ),
+              );
+              break;
+          }
+        },
+      ),
     );
   }
 
-  Widget _buildAppBar() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.9),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            offset: const Offset(0, 2),
-            blurRadius: 8,
-          ),
-        ],
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      backgroundColor: const Color(0xFF2E8B57),
+      elevation: 0,
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back, color: Colors.white),
+        onPressed: () => Navigator.pop(context),
       ),
-      child: Row(
+      titleSpacing: 0,
+      title: Row(
         children: [
-          GestureDetector(
-            onTap: () => Navigator.pop(context),
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF2E8B57).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
+          const SizedBox(width: 4),
+          // Avatar with initials like image 1
+          CircleAvatar(
+            radius: 16,
+            backgroundColor: const Color(0xFF2E8B57),
+            child: const Text(
+              'DO',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
               ),
-              child: const Icon(
-                Icons.arrow_back,
-                color: Color(0xFF2E8B57),
-              ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF2E8B57), Color(0xFF3CB371)],
-              ),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Icon(
-              Icons.support_agent,
-              color: Colors.white,
-              size: 20,
             ),
           ),
           const SizedBox(width: 12),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'কাস্টমার সাপোর্ট',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF2E8B57),
-                  ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              Text(
+                'DSCC Officer',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
                 ),
-                Text(
-                  'অনলাইন',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.green,
-                  ),
+              ),
+              SizedBox(height: 2),
+              Text(
+                'Online',
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 12,
                 ),
-              ],
-            ),
-          ),
-          AnimatedBuilder(
-            animation: _backgroundController,
-            builder: (context, child) {
-              return Transform.rotate(
-                angle: _backgroundController.value * 2 * 3.14159,
-                child: const Icon(
-                  Icons.chat_bubble,
-                  color: Color(0xFF2E8B57),
-                  size: 24,
-                ),
-              );
-            },
+              ),
+            ],
           ),
         ],
       ),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.call, color: Colors.white),
+          onPressed: () => _makePhoneCall('16263'),
+        ),
+        const SizedBox(width: 8),
+      ],
     );
   }
 
@@ -178,6 +186,25 @@ class _LiveChatPageState extends State<LiveChatPage>
         },
       ),
     );
+  }
+
+  Future<void> _makePhoneCall(String phoneNumber) async {
+    final Uri launchUri = Uri(
+      scheme: 'tel',
+      path: phoneNumber,
+    );
+    if (await canLaunchUrl(launchUri)) {
+      await launchUrl(launchUri);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('কল করতে পারছি না: $phoneNumber'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildMessageBubble(ChatMessage message, int index) {

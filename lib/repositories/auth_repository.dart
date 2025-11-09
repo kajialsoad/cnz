@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_client.dart';
 
@@ -12,65 +11,120 @@ class AuthRepository {
     String? email,
     required String password,
   }) async {
-    final res = await api.post('/auth/register', {
-      'name': name,
-      'phone': phone,
-      'email': email,
-      'password': password,
-    });
-    final data = jsonDecode(res.body);
-    if (res.statusCode == 200) {
-      final sp = await SharedPreferences.getInstance();
-      await sp.setString('accessToken', data['accessToken']);
-      await sp.setString('refreshToken', data['refreshToken']);
+    // Split name into firstName and lastName
+    final nameParts = name.trim().split(' ');
+    final firstName = nameParts.first;
+    // If no last name provided, use a placeholder or same as first name
+    final lastName = nameParts.length > 1 ? nameParts.sublist(1).join(' ') : nameParts.first;
+
+    try {
+      final data = await api.post('/auth/register', {
+        'firstName': firstName,
+        'lastName': lastName,
+        'phone': phone,
+        'email': email,
+        'password': password,
+      });
+
+      // Backend returns: { success: true, message: "...", user: {...} }
+      // No tokens on registration - user needs to verify email first
       return data;
-    } else {
-      throw Exception(data['message'] ?? 'Registration failed');
+    } on ApiException catch (e) {
+      throw Exception(e.message);
+    } catch (e) {
+      throw Exception('Registration failed: ${e.toString()}');
     }
   }
 
-  Future<Map<String, dynamic>> login(String phone, String password) async {
-    final res = await api.post('/auth/login', {'phone': phone, 'password': password});
-    final data = jsonDecode(res.body);
-    if (res.statusCode == 200) {
-      final sp = await SharedPreferences.getInstance();
-      await sp.setString('accessToken', data['accessToken']);
-      await sp.setString('refreshToken', data['refreshToken']);
-      return data;
-    } else {
-      throw Exception(data['message'] ?? 'Login failed');
+  Future<Map<String, dynamic>> login(String phoneOrEmail, String password) async {
+    try {
+      // Detect if input is email or phone
+      final isEmail = RegExp(r'^.+@.+\..+$').hasMatch(phoneOrEmail);
+      
+      final data = await api.post('/auth/login', {
+        if (isEmail) 'email': phoneOrEmail else 'phone': phoneOrEmail,
+        'password': password,
+      });
+
+      // Backend returns: { success: true, message: "...", data: { accessToken, refreshToken, ... } }
+      if (data['success'] == true && data['data'] != null) {
+        final tokens = data['data'] as Map<String, dynamic>;
+        final sp = await SharedPreferences.getInstance();
+        await sp.setString('accessToken', tokens['accessToken']);
+        await sp.setString('refreshToken', tokens['refreshToken']);
+        return tokens;
+      } else {
+        throw Exception(data['message'] ?? 'Login failed');
+      }
+    } on ApiException catch (e) {
+      throw Exception(e.message);
+    } catch (e) {
+      throw Exception('Login failed: ${e.toString()}');
     }
   }
 
   Future<Map<String, dynamic>> me() async {
-    final res = await api.get('/auth/me');
-    final data = jsonDecode(res.body);
-    if (res.statusCode == 200) {
-      return data['user'];
-    } else {
-      throw Exception(data['message'] ?? 'Failed to load user');
+    try {
+      final data = await api.get('/auth/me');
+      
+      if (data['user'] != null) {
+        return data['user'] as Map<String, dynamic>;
+      } else {
+        throw Exception('Failed to load user profile');
+      }
+    } on ApiException catch (e) {
+      throw Exception(e.message);
+    } catch (e) {
+      throw Exception('Failed to load user: ${e.toString()}');
     }
   }
 
   Future<String> refresh() async {
-    final sp = await SharedPreferences.getInstance();
-    final rt = sp.getString('refreshToken');
-    if (rt == null) throw Exception('No refresh token');
-    final res = await api.post('/auth/refresh', {'refreshToken': rt});
-    final data = jsonDecode(res.body);
-    if (res.statusCode == 200) {
-      await sp.setString('accessToken', data['accessToken']);
-      return data['accessToken'];
-    } else {
-      throw Exception(data['message'] ?? 'Refresh failed');
+    try {
+      final sp = await SharedPreferences.getInstance();
+      final rt = sp.getString('refreshToken');
+      if (rt == null) throw Exception('No refresh token');
+      
+      final data = await api.post('/auth/refresh', {'refreshToken': rt});
+      
+      if (data['success'] == true && data['data'] != null) {
+        final tokens = data['data'] as Map<String, dynamic>;
+        await sp.setString('accessToken', tokens['accessToken']);
+        await sp.setString('refreshToken', tokens['refreshToken']);
+        return tokens['accessToken'];
+      } else {
+        throw Exception(data['message'] ?? 'Refresh failed');
+      }
+    } on ApiException catch (e) {
+      throw Exception(e.message);
+    } catch (e) {
+      throw Exception('Token refresh failed: ${e.toString()}');
     }
   }
 
   Future<void> logout() async {
-    final sp = await SharedPreferences.getInstance();
-    final rt = sp.getString('refreshToken');
-    await api.post('/auth/logout', {'refreshToken': rt});
-    await sp.remove('accessToken');
-    await sp.remove('refreshToken');
+    try {
+      final sp = await SharedPreferences.getInstance();
+      final rt = sp.getString('refreshToken');
+      
+      if (rt != null) {
+        await api.post('/auth/logout', {'refreshToken': rt});
+      }
+      
+      await sp.remove('accessToken');
+      await sp.remove('refreshToken');
+    } on ApiException catch (e) {
+      // Still clear local tokens even if API call fails
+      final sp = await SharedPreferences.getInstance();
+      await sp.remove('accessToken');
+      await sp.remove('refreshToken');
+      throw Exception(e.message);
+    } catch (e) {
+      // Still clear local tokens even if API call fails
+      final sp = await SharedPreferences.getInstance();
+      await sp.remove('accessToken');
+      await sp.remove('refreshToken');
+      throw Exception('Logout failed: ${e.toString()}');
+    }
   }
 }

@@ -10,7 +10,6 @@ import 'pages/complaint_page.dart';
 import 'pages/complaint_details_page.dart';
 import 'pages/others_page.dart';
 import 'pages/payment_page.dart';
-import 'pages/donation_page.dart';
 import 'pages/emergency_page.dart';
 import 'pages/waste_management_page.dart';
 import 'pages/gallery_page.dart';
@@ -48,7 +47,8 @@ class MyApp extends StatelessWidget {
         '/complaint-details': (_) => const ComplaintDetailsPage(),
         '/others': (_) => const OthersPage(),
         '/payment': (_) => const PaymentPage(),
-        '/donation': (_) => const DonationPage(),
+        // Deprecated: DonationPage removed; redirect route to PaymentPage
+        '/donation': (_) => const PaymentPage(),
         '/emergency': (_) => const EmergencyPage(),
         '/waste-management': (_) => const WasteManagementPage(),
         '/gallery': (_) => const GalleryPage(),
