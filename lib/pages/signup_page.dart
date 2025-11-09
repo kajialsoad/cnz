@@ -38,55 +38,75 @@ class _SignUpPageState extends State<SignUpPage> {
     super.dispose();
   }
 
+  bool _isLoading = false;
+
   Future<void> _submit() async {
     final valid = _formKey.currentState?.validate() ?? false;
     if (!valid) return;
-    if (!_nidAttached) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('NID/ID কার্ড আপলোড করুন')),
-      );
-      return;
-    }
+    
     if (!_agree) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('টার্মস ও প্রাইভেসি মেনে নিতে হবে')),
       );
       return;
     }
+    
+    setState(() => _isLoading = true);
+    
     final name = _nameController.text.trim();
     final phone = _phoneController.text.trim();
     final email = _emailController.text.trim();
     final password = _passwordController.text;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('রেজিস্ট্রেশন করা হচ্ছে...')),
-    );
     
-    // Demo mode - simulate successful registration
-    await Future.delayed(const Duration(seconds: 1));
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('ডেমো রেজিস্ট্রেশন সফল! $name এর জন্য একাউন্ট তৈরি হয়েছে 📱'),
-        backgroundColor: Colors.green,
-      ),
-    );
-    Navigator.pushReplacementNamed(context, '/login');
-    
-    // Uncomment this section when backend is ready
-    /*
     try {
-      await _auth.register(name: name, phone: phone, email: email, password: password);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('রেজিস্ট্রেশন সফল')),
+      await _auth.register(
+        name: name,
+        phone: phone,
+        email: email.isEmpty ? null : email,
+        password: password,
       );
+      
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('রেজিস্ট্রেশন সফল! $name এর জন্য একাউন্ট তৈরি হয়েছে ✓\nইমেইল ভেরিফাই করুন'),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+      
       Navigator.pushReplacementNamed(context, '/login');
     } catch (e) {
+      if (!mounted) return;
+      
+      String errorMessage = 'রেজিস্ট্রেশন ব্যর্থ';
+      final errorStr = e.toString();
+      
+      if (errorStr.contains('already exists')) {
+        errorMessage = 'এই ফোন নম্বর বা ইমেইল দিয়ে ইতিমধ্যে একাউন্ট আছে';
+      } else if (errorStr.contains('Network error')) {
+        errorMessage = 'ইন্টারনেট সংযোগ চেক করুন';
+      } else if (errorStr.contains('timeout')) {
+        errorMessage = 'সার্ভার সাড়া দিচ্ছে না, আবার চেষ্টা করুন';
+      } else if (errorStr.contains('Validation')) {
+        errorMessage = 'সব তথ্য সঠিকভাবে পূরণ করুন';
+      } else {
+        errorMessage = 'রেজিস্ট্রেশন ব্যর্থ: ${errorStr.replaceAll('Exception: ', '')}';
+      }
+      
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('রেজিস্ট্রেশন ব্যর্থ: ${e.toString()}')),
+        SnackBar(
+          content: Text(errorMessage),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
+        ),
       );
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
-    */
   }
 
   void _pickFromCamera() {
@@ -237,7 +257,7 @@ class _SignUpPageState extends State<SignUpPage> {
                 Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    'NID / ID Verification (Required)',
+                    'NID / ID Verification (Optional)',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           fontWeight: FontWeight.w600,
                         ),
@@ -274,7 +294,7 @@ class _SignUpPageState extends State<SignUpPage> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: _submit,
+                    onPressed: _isLoading ? null : _submit,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF7CC289),
                       foregroundColor: Colors.white,
@@ -283,7 +303,16 @@ class _SignUpPageState extends State<SignUpPage> {
                         borderRadius: BorderRadius.circular(28),
                       ),
                     ),
-                    child: const Text('Create Account'),
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : const Text('Create Account'),
                   ),
                 ),
                 const SizedBox(height: 12),

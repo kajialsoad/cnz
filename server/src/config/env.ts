@@ -16,6 +16,27 @@ const env = {
   CORS_ORIGIN: process.env.CORS_ORIGIN ?? '*',
   CORS_ORIGINS,
   DEMO_MODE: (process.env.DEMO_MODE === 'true'),
+  
+  // Email Configuration
+  SMTP_HOST: process.env.SMTP_HOST ?? 'smtp.gmail.com',
+  SMTP_PORT: Number(process.env.SMTP_PORT ?? 587),
+  SMTP_SECURE: process.env.SMTP_SECURE === 'true',
+  SMTP_USER: process.env.SMTP_USER ?? '',
+  SMTP_PASS: process.env.SMTP_PASS ?? '',
+  SMTP_FROM: process.env.SMTP_FROM ?? 'noreply@cleancare.com',
+  
+  // Client URL
+  CLIENT_URL: process.env.CLIENT_URL ?? 'http://localhost:3000',
+  
+  // Password Reset Token TTL
+  PASSWORD_RESET_TTL: process.env.PASSWORD_RESET_TTL ?? '1h',
+  EMAIL_VERIFICATION_TTL: process.env.EMAIL_VERIFICATION_TTL ?? '24h',
+  
+  // TTL in seconds for calculations
+  ACCESS_TTL_SECONDS: 15 * 60, // 15 minutes
+  REFRESH_TTL_SECONDS: 30 * 24 * 60 * 60, // 30 days
+  PASSWORD_RESET_TTL_SECONDS: 60 * 60, // 1 hour
+  EMAIL_VERIFICATION_TTL_SECONDS: 24 * 60 * 60, // 24 hours
 };
 
 export default env;

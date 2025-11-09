@@ -1,73 +1,452 @@
-import { PrismaClient, Role } from '@prisma/client';
-import { hashPassword, comparePassword } from '../utils/hash';
-import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../utils/jwt';
+import prisma from '../utils/prisma';
+import { hash, compare } from 'bcrypt';
+import { signAccessToken, signRefreshToken, verifyRefreshToken, generateSecureToken, generateOTP } from '../utils/jwt';
+import emailService from '../utils/email';
+import env from '../config/env';
+import { UserRole, UserStatus } from '@prisma/client';
 
-const prisma = new PrismaClient();
+export interface RegisterInput {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  role?: UserRole;
+}
 
-export async function register(body: { name: string; phone: string; email?: string; password: string; }) {
-  const existingPhone = await prisma.user.findUnique({ where: { phone: body.phone } });
-  if (existingPhone) throw new Error('Phone already registered');
-  if (body.email) {
-    const existingEmail = await prisma.user.findUnique({ where: { email: body.email } });
-    if (existingEmail) throw new Error('Email already registered');
+export interface LoginInput {
+  email: string;
+  password: string;
+  rememberMe?: boolean;
+}
+
+export interface TokenResponse {
+  accessToken: string;
+  refreshToken: string;
+  accessExpiresIn: number;
+  refreshExpiresIn: number;
+}
+
+export class AuthService {
+  // User registration
+  async register(input: RegisterInput) {
+    // Check if user exists by phone (required field)
+    const existingUserByPhone = await prisma.user.findUnique({
+      where: { phone: input.phone }
+    });
+
+    if (existingUserByPhone) {
+      throw new Error('User already exists with this phone number');
+    }
+
+    // Check if user exists by email (if provided)
+    if (input.email) {
+      const existingUserByEmail = await prisma.user.findUnique({
+        where: { email: input.email }
+      });
+
+      if (existingUserByEmail) {
+        throw new Error('User already exists with this email');
+      }
+    }
+
+    const hashedPassword = await hash(input.password, 12);
+    const verificationToken = generateSecureToken();
+
+    const user = await prisma.user.create({
+      data: {
+        email: input.email,
+        passwordHash: hashedPassword,
+        firstName: input.firstName,
+        lastName: input.lastName,
+        phone: input.phone || '',
+        role: input.role || UserRole.CUSTOMER,
+        status: UserStatus.PENDING,
+        emailVerified: false,
+        phoneVerified: false,
+      },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        status: true,
+        createdAt: true
+      }
+    });
+
+    // Create email verification token
+    await prisma.emailVerificationToken.create({
+      data: {
+        token: verificationToken,
+        userId: user.id,
+        expiresAt: new Date(Date.now() + env.EMAIL_VERIFICATION_TTL_SECONDS * 1000)
+      }
+    });
+
+    // Send verification email
+    if (user.email) {
+      await emailService.sendEmailVerificationEmail(user.email, verificationToken);
+    }
+
+    return {
+      success: true,
+      message: 'Registration successful. Please check your email to verify your account.',
+      user
+    };
   }
-  const passwordHash = await hashPassword(body.password);
-  const user = await prisma.user.create({
-    data: { name: body.name, phone: body.phone, email: body.email, passwordHash, role: Role.USER },
-  });
-  const payload = { sub: user.id, role: user.role as 'USER' | 'ADMIN' };
-  const accessToken = signAccessToken(payload);
-  const refreshToken = signRefreshToken(payload);
-  await prisma.refreshToken.create({ data: { token: refreshToken, userId: user.id } });
-  return { user, accessToken, refreshToken };
-}
 
-export async function login(phone: string, password: string) {
-  // Demo mode: allow fixed credentials without DB
-  if (process.env.DEMO_MODE === 'true' && phone === '01700000000' && password === '123456') {
-    const payload = { sub: 1, role: 'USER' as const };
-    const accessToken = signAccessToken(payload);
-    const refreshToken = signRefreshToken(payload);
-    const user = {
-      id: 1,
-      name: 'Demo User',
-      phone,
-      email: null,
-      role: Role.USER,
-      verificationStatus: 'PENDING',
-      nidImageUrl: null,
-      createdAt: new Date(),
-    } as any;
-    return { user, accessToken, refreshToken };
+  // User login
+  async login(input: LoginInput): Promise<TokenResponse> {
+    const user = await prisma.user.findUnique({
+      where: { email: input.email }
+    });
+
+    if (!user) {
+      throw new Error('Invalid credentials');
+    }
+
+    if (user.status === UserStatus.SUSPENDED) {
+      throw new Error('Account is suspended');
+    }
+
+    if (user.status === UserStatus.PENDING && !user.emailVerified) {
+      throw new Error('Please verify your email first');
+    }
+
+    const isPasswordValid = await compare(input.password, user.passwordHash);
+    if (!isPasswordValid) {
+      throw new Error('Invalid credentials');
+    }
+
+    // Generate tokens
+    const accessToken = signAccessToken({
+      sub: parseInt(user.id.toString()),
+      role: user.role,
+      email: user.email || undefined,
+      phone: user.phone || undefined
+    });
+
+    const refreshToken = signRefreshToken({
+      sub: parseInt(user.id.toString()),
+      role: user.role,
+      email: user.email || undefined,
+      phone: user.phone || undefined
+    });
+
+    // Store refresh token
+    await prisma.refreshToken.create({
+      data: {
+        token: refreshToken,
+        userId: user.id,
+        expiresAt: new Date(Date.now() + env.REFRESH_TTL_SECONDS * 1000)
+      }
+    });
+
+    // Update last login
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date() }
+    });
+
+    return {
+      accessToken,
+      refreshToken,
+      accessExpiresIn: env.ACCESS_TTL_SECONDS,
+      refreshExpiresIn: env.REFRESH_TTL_SECONDS,
+    };
   }
-  const user = await prisma.user.findUnique({ where: { phone } });
-  if (!user) throw new Error('Invalid credentials');
-  const ok = await comparePassword(password, user.passwordHash);
-  if (!ok) throw new Error('Invalid credentials');
-  const payload = { sub: user.id, role: user.role as 'USER' | 'ADMIN' };
-  const accessToken = signAccessToken(payload);
-  const refreshToken = signRefreshToken(payload);
-  await prisma.refreshToken.create({ data: { token: refreshToken, userId: user.id } });
-  return { user, accessToken, refreshToken };
+
+  // Refresh access token
+  async refreshTokens(refreshToken: string): Promise<TokenResponse> {
+    const payload = verifyRefreshToken(refreshToken);
+
+    const storedToken = await prisma.refreshToken.findFirst({
+      where: {
+        token: refreshToken,
+        userId: payload.sub
+      }
+    });
+
+    if (!storedToken || storedToken.expiresAt < new Date()) {
+      throw new Error('Invalid or expired refresh token');
+    }
+
+    // Generate new tokens
+    const newAccessToken = signAccessToken({
+      sub: parseInt(payload.sub.toString()),
+      role: payload.role,
+      email: payload.email,
+      phone: payload.phone
+    });
+
+    const newRefreshToken = signRefreshToken({
+      sub: parseInt(payload.sub.toString()),
+      role: payload.role,
+      email: payload.email,
+      phone: payload.phone
+    });
+
+    // Update refresh token
+    await prisma.refreshToken.update({
+      where: { id: storedToken.id },
+      data: {
+        token: newRefreshToken,
+        expiresAt: new Date(Date.now() + env.REFRESH_TTL_SECONDS * 1000)
+      }
+    });
+
+    return {
+      accessToken: newAccessToken,
+      refreshToken: newRefreshToken,
+      accessExpiresIn: env.ACCESS_TTL_SECONDS,
+      refreshExpiresIn: env.REFRESH_TTL_SECONDS
+    };
+  }
+
+  // Logout
+  async logout(refreshToken: string) {
+    await prisma.refreshToken.deleteMany({
+      where: { token: refreshToken }
+    });
+
+    return {
+      success: true,
+      message: 'Logged out successfully'
+    };
+  }
+
+  // Forgot password
+  async forgotPassword(email: string) {
+    const user = await prisma.user.findUnique({
+      where: { email }
+    });
+
+    if (!user) {
+      // Don't reveal if user exists
+      return {
+        success: true,
+        message: 'If an account exists with this email, a password reset link has been sent.'
+      };
+    }
+
+    const resetToken = generateSecureToken();
+
+    await prisma.passwordResetToken.create({
+      data: {
+        token: resetToken,
+        userId: user.id,
+        expiresAt: new Date(Date.now() + env.PASSWORD_RESET_TTL_SECONDS * 1000)
+      }
+    });
+
+    if (user.email) {
+      await emailService.sendPasswordResetEmail(user.email, resetToken);
+    }
+
+    return {
+      success: true,
+      message: 'If an account exists with this email, a password reset link has been sent.'
+    };
+  }
+
+  // Reset password
+  async resetPassword(token: string, newPassword: string) {
+    const resetToken = await prisma.passwordResetToken.findFirst({
+      where: {
+        token,
+        expiresAt: { gt: new Date() }
+      },
+      include: { user: true }
+    });
+
+    if (!resetToken) {
+      throw new Error('Invalid or expired reset token');
+    }
+
+    const hashedPassword = await hash(newPassword, 12);
+
+    await prisma.user.update({
+      where: { id: resetToken.userId },
+      data: { passwordHash: hashedPassword }
+    });
+
+    await prisma.passwordResetToken.delete({
+      where: { id: resetToken.id }
+    });
+
+    // Invalidate all refresh tokens for this user
+    await prisma.refreshToken.deleteMany({
+      where: { userId: resetToken.userId }
+    });
+
+    return {
+      success: true,
+      message: 'Password reset successful. Please login with your new password.'
+    };
+  }
+
+  // Verify email
+  async verifyEmail(token: string) {
+    const verificationToken = await prisma.emailVerificationToken.findFirst({
+      where: {
+        token,
+        expiresAt: { gt: new Date() },
+        used: false
+      },
+      include: { user: true }
+    });
+
+    if (!verificationToken) {
+      throw new Error('Invalid or expired verification token');
+    }
+
+    await prisma.user.update({
+      where: { id: verificationToken.userId },
+      data: {
+        emailVerified: true,
+        status: UserStatus.ACTIVE
+      }
+    });
+
+    await prisma.emailVerificationToken.update({
+      where: { id: verificationToken.id },
+      data: { used: true }
+    });
+
+    if (verificationToken.user.email) {
+      await emailService.sendWelcomeEmail(verificationToken.user.email, verificationToken.user.firstName);
+    }
+
+    return {
+      success: true,
+      message: 'Email verified successfully. Welcome to Clean App Bangladesh!'
+    };
+  }
+
+  // Resend verification email
+  async resendVerificationEmail(email: string) {
+    const user = await prisma.user.findUnique({
+      where: { email }
+    });
+
+    if (!user || user.emailVerified) {
+      return {
+        success: true,
+        message: 'If your email needs verification, a new verification link has been sent.'
+      };
+    }
+
+    const verificationToken = generateSecureToken();
+
+    // Create new verification token
+    await prisma.emailVerificationToken.create({
+      data: {
+        token: verificationToken,
+        userId: user.id,
+        expiresAt: new Date(Date.now() + env.EMAIL_VERIFICATION_TTL_SECONDS * 1000)
+      }
+    });
+
+    if (user.email) {
+      await emailService.sendEmailVerificationEmail(user.email, verificationToken);
+    }
+
+    return {
+      success: true,
+      message: 'If your email needs verification, a new verification link has been sent.'
+    };
+  }
+
+  // Get user profile
+  async getProfile(userId: string) {
+    const user = await prisma.user.findUnique({
+      where: { id: parseInt(userId) },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        role: true,
+        status: true,
+        emailVerified: true,
+        avatar: true,
+        createdAt: true,
+        updatedAt: true,
+        lastLoginAt: true
+      }
+    });
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    return user;
+  }
+
+  // Update profile
+  async updateProfile(userId: string, data: {
+    firstName?: string;
+    lastName?: string;
+    phone?: string;
+    avatar?: string;
+  }) {
+    const user = await prisma.user.update({
+      where: { id: parseInt(userId) },
+      data,
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        role: true,
+        status: true,
+        emailVerified: true,
+        avatar: true,
+        createdAt: true,
+        updatedAt: true,
+        lastLoginAt: true
+      }
+    });
+
+    return user;
+  }
+
+  // Change password
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    const user = await prisma.user.findUnique({
+      where: { id: parseInt(userId) }
+    });
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    const isCurrentPasswordValid = await compare(currentPassword, user.passwordHash);
+    if (!isCurrentPasswordValid) {
+      throw new Error('Current password is incorrect');
+    }
+
+    const hashedPassword = await hash(newPassword, 12);
+
+    await prisma.user.update({
+      where: { id: parseInt(userId) },
+      data: { passwordHash: hashedPassword }
+    });
+
+    // Invalidate all refresh tokens for this user
+    await prisma.refreshToken.deleteMany({
+      where: { userId: parseInt(userId) }
+    });
+
+    return {
+      success: true,
+      message: 'Password changed successfully. Please login again with your new password.'
+    };
+  }
 }
 
-export async function refresh(refreshToken: string) {
-  const tokenRow = await prisma.refreshToken.findUnique({ where: { token: refreshToken } });
-  if (!tokenRow || tokenRow.revoked) throw new Error('Invalid refresh token');
-  const payload = verifyRefreshToken(refreshToken);
-  const user = await prisma.user.findUnique({ where: { id: payload.sub } });
-  if (!user) throw new Error('User not found');
-  const accessToken = signAccessToken({ sub: user.id, role: user.role as 'USER' | 'ADMIN' });
-  return { accessToken };
-}
-
-export async function logout(refreshToken: string) {
-  await prisma.refreshToken.update({
-    where: { token: refreshToken },
-    data: { revoked: true },
-  }).catch(() => {});
-}
-
-export async function me(userId: number) {
-  return prisma.user.findUnique({ where: { id: userId }, select: { id: true, name: true, phone: true, email: true, role: true, verificationStatus: true, nidImageUrl: true, createdAt: true } });
-}
+export const authService = new AuthService();

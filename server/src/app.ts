@@ -1,9 +1,27 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
+import prisma from './utils/prisma';
 import env from './config/env';
 import authRoutes from './routes/auth.routes';
+import userRoutes from './routes/user.routes';
+import { AuthRequest } from './middlewares/auth.middleware';
 
 const app = express();
+
+// Add prisma to request object
+declare global {
+  namespace Express {
+    interface Request {
+      prisma?: typeof prisma;
+    }
+  }
+}
+
+// Middleware to add prisma to request
+app.use((req: Request, res: Response, next) => {
+  req.prisma = prisma;
+  next();
+});
 app.use(express.json({ limit: '2mb' }));
 // Allow multiple origins and any localhost:* during development
 const allowedOrigins = env.CORS_ORIGINS;
@@ -20,5 +38,6 @@ app.use(cors({
 
 app.get('/health', (_req: Request, res: Response) => res.json({ ok: true, status: 'healthy' }));
 app.use('/auth', authRoutes);
+app.use('/users', userRoutes);
 
 export default app;
