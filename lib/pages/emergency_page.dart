@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../components/custom_bottom_nav.dart';
 
 class EmergencyPage extends StatefulWidget {
   const EmergencyPage({super.key});
@@ -112,6 +113,34 @@ class _EmergencyPageState extends State<EmergencyPage>
             ),
           ],
         ),
+      ),
+      bottomNavigationBar: CustomBottomNav(
+        currentIndex: 1, // Emergency index
+        onTap: (index) {
+          switch (index) {
+            case 0:
+              Navigator.pushReplacementNamed(context, '/home');
+              break;
+            case 1:
+              // Already on Emergency page
+              break;
+            case 2:
+              Navigator.pushReplacementNamed(context, '/waste-management');
+              break;
+            case 3:
+              Navigator.pushReplacementNamed(context, '/gallery');
+              break;
+            case 4:
+              // QR Scanner
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('QR স্ক্যানার খোলা হচ্ছে...'),
+                  backgroundColor: Color(0xFF2E8B57),
+                ),
+              );
+              break;
+          }
+        },
       ),
     );
   }

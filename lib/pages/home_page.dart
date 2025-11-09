@@ -554,7 +554,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     icon: Icons.favorite_border,
                     primary: const Color(0xFFFF2424),
                     secondary: const Color(0xFFFF2424).withOpacity(0.8),
-                    onTap: () => _navigateToPage('/donation'),
+                    onTap: () => _navigateToPage('/payment'),
                   ),
                 ),
               ],

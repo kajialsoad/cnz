@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../components/custom_bottom_nav.dart';
 
 class ProfileSettingsPage extends StatefulWidget {
   const ProfileSettingsPage({super.key});
@@ -8,6 +9,7 @@ class ProfileSettingsPage extends StatefulWidget {
 }
 
 class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
+  int _currentIndex = 0;
   bool pushNotifications = true;
   bool emailNotifications = false;
   String selectedLanguage = 'EN';
@@ -16,6 +18,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
+      extendBody: true,
       appBar: AppBar(
         backgroundColor: const Color(0xFF4CAF50),
         elevation: 0,
@@ -33,7 +36,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
         ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 16.0, bottom: 100),
         child: Column(
           children: [
             // Profile Section
@@ -56,6 +59,15 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
             _buildFooter(),
           ],
         ),
+      ),
+      bottomNavigationBar: CustomBottomNav(
+        currentIndex: _currentIndex,
+        onTap: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+          _handleNavigation(index);
+        },
       ),
     );
   }
@@ -512,5 +524,28 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
         );
       },
     );
+  }
+
+  void _handleNavigation(int index) {
+    switch (index) {
+      case 0:
+        Navigator.pushReplacementNamed(context, '/home');
+        break;
+      case 1:
+        Navigator.pushReplacementNamed(context, '/emergency');
+        break;
+      case 2:
+        Navigator.pushReplacementNamed(context, '/waste-management');
+        break;
+      case 3:
+        Navigator.pushReplacementNamed(context, '/gallery');
+        break;
+      case 4:
+        // QR / Camera placeholder
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('QR স্ক্যানার শীঘ্রই আসছে...')),
+        );
+        break;
+    }
   }
 }

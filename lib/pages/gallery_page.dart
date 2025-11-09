@@ -16,7 +16,15 @@ class GalleryPage extends StatelessWidget {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            // If this page was opened via pushReplacementNamed, popping may show a blank screen.
+            // Safely navigate: pop if possible, otherwise go to Home.
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            } else {
+              Navigator.pushReplacementNamed(context, '/home');
+            }
+          },
         ),
         title: const Text(
           'Photo Gallery',
