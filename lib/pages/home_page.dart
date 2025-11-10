@@ -223,7 +223,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             );
           },
         ),
-        ),
         Padding(
           padding: const EdgeInsets.only(right: 12.0),
           child: PopupMenuButton<String>(
