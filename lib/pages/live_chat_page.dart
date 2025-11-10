@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../components/custom_bottom_nav.dart';
+import '../widgets/translated_text.dart';
 
 class LiveChatPage extends StatefulWidget {
   const LiveChatPage({super.key});
@@ -102,7 +103,7 @@ class _LiveChatPageState extends State<LiveChatPage>
             case 4:
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('QR স্ক্যানার খোলা হচ্ছে...'),
+                  content: TranslatedText('QR স্ক্যানার খোলা হচ্ছে...'),
                   backgroundColor: Color(0xFF2E8B57),
                 ),
               );
@@ -142,7 +143,7 @@ class _LiveChatPageState extends State<LiveChatPage>
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: const [
-              Text(
+              TranslatedText(
                 'DSCC Officer',
                 style: TextStyle(
                   color: Colors.white,
@@ -151,7 +152,7 @@ class _LiveChatPageState extends State<LiveChatPage>
                 ),
               ),
               SizedBox(height: 2),
-              Text(
+              TranslatedText(
                 'Online',
                 style: TextStyle(
                   color: Colors.white70,
@@ -199,7 +200,7 @@ class _LiveChatPageState extends State<LiveChatPage>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('কল করতে পারছি না: $phoneNumber'),
+            content: TranslatedText('কল করতে পারছি না: $phoneNumber'),
             backgroundColor: Colors.red,
           ),
         );
@@ -377,7 +378,7 @@ class _LiveChatPageState extends State<LiveChatPage>
                   },
                 ),
                 const SizedBox(width: 8),
-                const Text(
+                const TranslatedText(
                   'টাইপ করছে...',
                   style: TextStyle(
                     color: Colors.grey,
@@ -531,12 +532,12 @@ class _LiveChatPageState extends State<LiveChatPage>
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('লোকেশন শেয়ার করুন'),
-          content: const Text('আপনি কি আপনার বর্তমান লোকেশন শেয়ার করতে চান?'),
+          title: const TranslatedText('লোকেশন শেয়ার করুন'),
+          content: const TranslatedText('আপনি কি আপনার বর্তমান লোকেশন শেয়ার করতে চান?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('বাতিল'),
+              child: const TranslatedText('বাতিল'),
             ),
             ElevatedButton(
               onPressed: () {
@@ -546,7 +547,7 @@ class _LiveChatPageState extends State<LiveChatPage>
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF2E8B57),
               ),
-              child: const Text('শেয়ার করুন', style: TextStyle(color: Colors.white)),
+              child: const TranslatedText('শেয়ার করুন', style: TextStyle(color: Colors.white)),
             ),
           ],
         );
@@ -590,12 +591,12 @@ class _LiveChatPageState extends State<LiveChatPage>
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('ছবি শেয়ার করুন'),
-          content: const Text('আপনি কোন উপায়ে ছবি শেয়ার করতে চান?'),
+          title: const TranslatedText('ছবি শেয়ার করুন'),
+          content: const TranslatedText('আপনি কোন উপায়ে ছবি শেয়ার করতে চান?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('বাতিল'),
+              child: const TranslatedText('বাতিল'),
             ),
             ElevatedButton(
               onPressed: () {
@@ -605,7 +606,7 @@ class _LiveChatPageState extends State<LiveChatPage>
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF2E8B57),
               ),
-              child: const Text('গ্যালারি থেকে', style: TextStyle(color: Colors.white)),
+              child: const TranslatedText('গ্যালারি থেকে', style: TextStyle(color: Colors.white)),
             ),
             ElevatedButton(
               onPressed: () {
@@ -615,7 +616,7 @@ class _LiveChatPageState extends State<LiveChatPage>
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF3CB371),
               ),
-              child: const Text('ক্যামেরা', style: TextStyle(color: Colors.white)),
+              child: const TranslatedText('ক্যামেরা', style: TextStyle(color: Colors.white)),
             ),
           ],
         );

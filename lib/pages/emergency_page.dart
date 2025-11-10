@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../components/custom_bottom_nav.dart';
+import '../widgets/translated_text.dart';
 
 class EmergencyPage extends StatefulWidget {
   const EmergencyPage({super.key});
@@ -41,7 +42,7 @@ class _EmergencyPageState extends State<EmergencyPage>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('কল করতে পারছি না: $phoneNumber'),
+            content: TranslatedText('Cannot make call: $phoneNumber'),
             backgroundColor: Colors.red,
           ),
         );
@@ -133,8 +134,8 @@ class _EmergencyPageState extends State<EmergencyPage>
             case 4:
               // QR Scanner
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('QR স্ক্যানার খোলা হচ্ছে...'),
+                SnackBar(
+                  content: TranslatedText('QR Scanner opening...'),
                   backgroundColor: Color(0xFF2E8B57),
                 ),
               );
@@ -170,7 +171,7 @@ class _EmergencyPageState extends State<EmergencyPage>
             ),
           ),
           const SizedBox(width: 12),
-          const Text(
+          TranslatedText(
             'Emergency Numbers',
             style: TextStyle(
               color: Colors.white,
@@ -210,11 +211,11 @@ class _EmergencyPageState extends State<EmergencyPage>
             ),
           ),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                TranslatedText(
                   'Emergency Contacts',
                   style: TextStyle(
                     color: Color(0xFFE53E3E),
@@ -223,7 +224,7 @@ class _EmergencyPageState extends State<EmergencyPage>
                   ),
                 ),
                 SizedBox(height: 4),
-                Text(
+                TranslatedText(
                   'Call these numbers only in case of genuine emergencies',
                   style: TextStyle(
                     color: Color(0xFFE53E3E),
@@ -333,7 +334,7 @@ class _EmergencyPageState extends State<EmergencyPage>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    TranslatedText(
                       title,
                       style: const TextStyle(
                         fontSize: 18,
@@ -342,7 +343,7 @@ class _EmergencyPageState extends State<EmergencyPage>
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text(
+                    TranslatedText(
                       subtitle,
                       style: const TextStyle(
                         fontSize: 14,
@@ -392,7 +393,7 @@ class _EmergencyPageState extends State<EmergencyPage>
                   color: Colors.white,
                   size: 20,
                 ),
-                label: Text(
+                label: TranslatedText(
                   'Call $phoneNumber',
                   style: const TextStyle(
                     color: Colors.white,
@@ -512,7 +513,7 @@ class _EmergencyPageState extends State<EmergencyPage>
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: const Text(
+                child: TranslatedText(
                   'When to Call DSCC Emergency',
                   style: TextStyle(
                     fontSize: 16,
@@ -524,11 +525,11 @@ class _EmergencyPageState extends State<EmergencyPage>
             ],
           ),
           const SizedBox(height: 16),
-          _buildInfoItem('• Illegal waste dumping in progress'),
-          _buildInfoItem('• Hazardous waste spillage'),
-          _buildInfoItem('• Blocked drainage causing flooding'),
-          _buildInfoItem('• Dead animal removal'),
-          _buildInfoItem('• Environmental hazards'),
+          _buildInfoItem('Illegal waste dumping in progress'),
+          _buildInfoItem('Hazardous waste spillage'),
+          _buildInfoItem('Blocked drainage causing flooding'),
+          _buildInfoItem('Dead animal removal'),
+          _buildInfoItem('Environmental hazards'),
         ],
       ),
     ).animate(delay: 1000.ms)
@@ -552,13 +553,28 @@ class _EmergencyPageState extends State<EmergencyPage>
   Widget _buildInfoItem(String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: Text(
-        text,
-        style: const TextStyle(
-          fontSize: 14,
-          color: Color(0xFF2D3748),
-          height: 1.4,
-        ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '• ',
+            style: const TextStyle(
+              fontSize: 14,
+              color: Color(0xFF2D3748),
+              height: 1.4,
+            ),
+          ),
+          Expanded(
+            child: TranslatedText(
+              text,
+              style: const TextStyle(
+                fontSize: 14,
+                color: Color(0xFF2D3748),
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

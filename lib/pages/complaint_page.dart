@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../components/custom_bottom_nav.dart';
+import '../widgets/translated_text.dart';
 
 class ComplaintPage extends StatefulWidget {
   const ComplaintPage({super.key});
@@ -62,7 +63,7 @@ class _ComplaintPageState extends State<ComplaintPage> {
         icon: const Icon(Icons.arrow_back, color: Colors.white),
         onPressed: () => Navigator.pop(context),
       ),
-      title: const Text(
+      title: TranslatedText(
         'Submit Complaint',
         style: TextStyle(
           color: Colors.white,
@@ -76,7 +77,7 @@ class _ComplaintPageState extends State<ComplaintPage> {
 
   Widget _buildTitle() {
     return Center(
-      child: Text(
+      child: TranslatedText(
         'Select Complaint Type',
         style: TextStyle(
           fontSize: 18,
@@ -175,7 +176,7 @@ class _ComplaintPageState extends State<ComplaintPage> {
                     ),
             ),
             const SizedBox(height: 12),
-            Text(
+            TranslatedText(
               title,
               style: TextStyle(
                 fontSize: 16,

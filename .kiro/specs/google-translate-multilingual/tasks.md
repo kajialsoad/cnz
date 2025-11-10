@@ -45,7 +45,9 @@ This implementation plan converts the multilingual design into actionable coding
   - Test language switching on payment page
   - _Requirements: 2.1, 2.2, 2.5_
 
-- [ ] 4. Update Customer Care Page with multilingual support
+- [x] 4. Update Customer Care Page with multilingual support
+
+
   - Replace all Text widgets with TranslatedText in `lib/pages/customer_care_page.dart`
   - Update page title and description
   - Update support options text
@@ -53,6 +55,8 @@ This implementation plan converts the multilingual design into actionable coding
   - Update button labels and help text
   - Test language switching on customer care page
   - _Requirements: 2.1, 2.2, 2.5_
+
+
 
 - [ ] 5. Update Live Chat Page with multilingual support
   - Replace all Text widgets with TranslatedText in `lib/pages/live_chat_page.dart`
@@ -63,13 +67,21 @@ This implementation plan converts the multilingual design into actionable coding
   - Test language switching on live chat page
   - _Requirements: 2.1, 2.2, 2.5_
 
-- [ ] 6. Update Complaint Pages with multilingual support
-- [ ] 6.1 Update Complaint Page
+- [x] 6. Update Complaint Pages with multilingual support
+
+
+- [x] 6.1 Update Complaint Page
+
+
+
   - Replace all Text widgets with TranslatedText in `lib/pages/complaint_page.dart`
   - Update page title and form labels
   - Update complaint type options
   - Update form field labels (Title, Description, Location, Category)
   - Update submit button and validation messages
+
+
+
   - _Requirements: 2.1, 2.2, 2.5, 2.6_
 
 - [ ] 6.2 Update Complaint Details Page
@@ -78,9 +90,13 @@ This implementation plan converts the multilingual design into actionable coding
   - Update detail field labels (Complaint ID, Date, Status, Description)
   - Update action buttons (Update, Delete, Close)
   - Update status change messages
+
+
   - _Requirements: 2.1, 2.2, 2.5, 2.6_
 
-- [ ] 7. Update Emergency Page with multilingual support
+- [x] 7. Update Emergency Page with multilingual support
+
+
   - Replace all Text widgets with TranslatedText in `lib/pages/emergency_page.dart`
   - Update page title and emergency instructions
   - Update emergency contact labels
@@ -89,6 +105,7 @@ This implementation plan converts the multilingual design into actionable coding
   - Update warning and alert messages
   - Test language switching on emergency page
   - _Requirements: 2.1, 2.2, 2.5_
+
 
 - [ ] 8. Update Waste Management Page with multilingual support
   - Replace all Text widgets with TranslatedText in `lib/pages/waste_management_page.dart`

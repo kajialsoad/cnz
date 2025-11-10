@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../components/custom_bottom_nav.dart';
+import '../widgets/translated_text.dart';
 import 'live_chat_page.dart';
 
 class CustomerCarePage extends StatefulWidget {
@@ -67,7 +68,7 @@ class _CustomerCarePageState extends State<CustomerCarePage> {
             ),
           ),
           const SizedBox(width: 16),
-          const Text(
+          const TranslatedText(
             'Customer Care',
             style: TextStyle(
               fontSize: 20,
@@ -108,7 +109,7 @@ class _CustomerCarePageState extends State<CustomerCarePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                TranslatedText(
                   'Call DSCC Hotline',
                   style: TextStyle(
                     fontSize: 16,
@@ -116,7 +117,7 @@ class _CustomerCarePageState extends State<CustomerCarePage> {
                     color: Colors.black87,
                   ),
                 ),
-                Text(
+                TranslatedText(
                   '16106 (Toll Free)',
                   style: TextStyle(
                     fontSize: 14,
@@ -166,7 +167,7 @@ class _CustomerCarePageState extends State<CustomerCarePage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
+                  TranslatedText(
                     'Live Chat Support',
                     style: TextStyle(
                       fontSize: 16,
@@ -174,7 +175,7 @@ class _CustomerCarePageState extends State<CustomerCarePage> {
                       color: Colors.black87,
                     ),
                   ),
-                  Text(
+                  TranslatedText(
                     'Available 24/7',
                     style: TextStyle(
                       fontSize: 14,
@@ -218,7 +219,7 @@ class _CustomerCarePageState extends State<CustomerCarePage> {
               ),
             ),
             const SizedBox(width: 8),
-            const Text(
+            const TranslatedText(
               'Frequently Asked Questions',
               style: TextStyle(
                 fontSize: 16,
@@ -248,7 +249,7 @@ class _CustomerCarePageState extends State<CustomerCarePage> {
             child: Row(
               children: [
                 Expanded(
-                  child: Text(
+                  child: TranslatedText(
                     faq,
                     style: const TextStyle(
                       fontSize: 14,
@@ -280,7 +281,7 @@ class _CustomerCarePageState extends State<CustomerCarePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          const TranslatedText(
             'Contact Information',
             style: TextStyle(
               fontSize: 16,
@@ -319,7 +320,7 @@ class _CustomerCarePageState extends State<CustomerCarePage> {
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: Text(
+          child: TranslatedText(
             text,
             style: const TextStyle(
               fontSize: 14,

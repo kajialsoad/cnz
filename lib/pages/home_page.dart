@@ -175,49 +175,54 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         ],
       ),
       actions: [
-        // BD Language Icon
-        Padding(
-          padding: const EdgeInsets.only(right: 8.0),
-          child: GestureDetector(
-            onTap: () {
-              _handleLanguageSwitch();
-            },
-            child: Container(
-              height: 38,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF4CAF50), // Modern green background
-                borderRadius: BorderRadius.circular(19),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.15),
-                    offset: const Offset(0, 2),
-                    blurRadius: 4,
-                    spreadRadius: 0,
+        // Language Indicator - Shows current language
+        Consumer<LanguageProvider>(
+          builder: (context, languageProvider, child) {
+            return Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: GestureDetector(
+                onTap: () {
+                  _handleLanguageSwitch();
+                },
+                child: Container(
+                  height: 38,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF4CAF50),
+                    borderRadius: BorderRadius.circular(19),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.15),
+                        offset: const Offset(0, 2),
+                        blurRadius: 4,
+                        spreadRadius: 0,
+                      ),
+                    ],
                   ),
-                ],
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.language,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        languageProvider.isBangla ? 'বাং' : 'EN',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.language,
-                    color: Colors.white,
-                    size: 18,
-                  ),
-                  SizedBox(width: 6),
-                  Text(
-                    'BD',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+            );
+          },
+        ),
         ),
         Padding(
           padding: const EdgeInsets.only(right: 12.0),

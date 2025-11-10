@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../components/custom_bottom_nav.dart';
+import '../widgets/translated_text.dart';
 
 class ComplaintDetailsPage extends StatefulWidget {
   const ComplaintDetailsPage({super.key});
@@ -67,7 +68,7 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
         icon: const Icon(Icons.arrow_back, color: Colors.white),
         onPressed: () => Navigator.pop(context),
       ),
-      title: const Text(
+      title: TranslatedText(
         'Complaint Details',
         style: TextStyle(
           color: Colors.white,
@@ -83,7 +84,7 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        TranslatedText(
           'Upload Photos',
           style: TextStyle(
             fontSize: 15,
@@ -122,7 +123,7 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                Text(
+                TranslatedText(
                   'Add Photo',
                   style: TextStyle(
                     fontSize: 12,
@@ -142,7 +143,7 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        TranslatedText(
           'Voice Recording (Optional)',
           style: TextStyle(
             fontSize: 15,
@@ -173,7 +174,7 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
                   size: 20,
                 ),
                 const SizedBox(width: 8),
-                Text(
+                TranslatedText(
                   isRecording ? 'Stop recording' : 'Tap to record',
                   style: TextStyle(
                     fontSize: 14,
@@ -193,7 +194,7 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        TranslatedText(
           'Describe Your Complaint',
           style: TextStyle(
             fontSize: 15,
@@ -247,7 +248,7 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
             borderRadius: BorderRadius.circular(12),
           ),
         ),
-        child: const Text(
+        child: TranslatedText(
           'Continue to Address',
           style: TextStyle(
             fontSize: 14,
@@ -261,8 +262,8 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
   void _addPhoto() {
     // TODO: Implement photo picker
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Photo picker will be implemented'),
+      SnackBar(
+        content: TranslatedText('Photo picker will be implemented'),
         backgroundColor: Color(0xFF4CAF50),
       ),
     );
@@ -276,7 +277,7 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
     // TODO: Implement voice recording
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(isRecording ? 'Recording started...' : 'Recording stopped'),
+        content: TranslatedText(isRecording ? 'Recording started...' : 'Recording stopped'),
         backgroundColor: const Color(0xFF4CAF50),
       ),
     );
@@ -285,8 +286,8 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
   void _continueToAddress() {
     if (_descriptionController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please provide a description of your complaint'),
+        SnackBar(
+          content: TranslatedText('Please provide a description of your complaint'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -295,8 +296,8 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
 
     // TODO: Navigate to address page or submit complaint
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Proceeding to address selection...'),
+      SnackBar(
+        content: TranslatedText('Proceeding to address selection...'),
         backgroundColor: Color(0xFF4CAF50),
       ),
     );
