@@ -18,7 +18,7 @@ class AuthRepository {
     final lastName = nameParts.length > 1 ? nameParts.sublist(1).join(' ') : nameParts.first;
 
     try {
-      final data = await api.post('/auth/register', {
+      final data = await api.post('/api/auth/register', {
         'firstName': firstName,
         'lastName': lastName,
         'phone': phone,
@@ -41,7 +41,7 @@ class AuthRepository {
       // Detect if input is email or phone
       final isEmail = RegExp(r'^.+@.+\..+$').hasMatch(phoneOrEmail);
       
-      final data = await api.post('/auth/login', {
+      final data = await api.post('/api/auth/login', {
         if (isEmail) 'email': phoneOrEmail else 'phone': phoneOrEmail,
         'password': password,
       });
@@ -65,7 +65,7 @@ class AuthRepository {
 
   Future<Map<String, dynamic>> me() async {
     try {
-      final data = await api.get('/auth/me');
+      final data = await api.get('/api/auth/me');
       
       if (data['user'] != null) {
         return data['user'] as Map<String, dynamic>;
@@ -85,7 +85,7 @@ class AuthRepository {
       final rt = sp.getString('refreshToken');
       if (rt == null) throw Exception('No refresh token');
       
-      final data = await api.post('/auth/refresh', {'refreshToken': rt});
+      final data = await api.post('/api/auth/refresh', {'refreshToken': rt});
       
       if (data['success'] == true && data['data'] != null) {
         final tokens = data['data'] as Map<String, dynamic>;
@@ -108,7 +108,7 @@ class AuthRepository {
       final rt = sp.getString('refreshToken');
       
       if (rt != null) {
-        await api.post('/auth/logout', {'refreshToken': rt});
+        await api.post('/api/auth/logout', {'refreshToken': rt});
       }
       
       await sp.remove('accessToken');

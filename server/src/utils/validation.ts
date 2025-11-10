@@ -36,16 +36,22 @@ export const registerSchema = Joi.object({
 });
 
 export const loginSchema = Joi.object({
-  phone: Joi.string().pattern(/^01[3-9]\d{8}$/).required()
+  phone: Joi.string().pattern(/^01[3-9]\d{8}$/).optional()
     .messages({
-      'string.empty': 'ফোন নম্বর প্রয়োজন',
       'string.pattern.base': 'বৈধ বাংলাদেশি ফোন নম্বর প্রয়োজন (01XXXXXXXXX)',
+    }),
+  email: Joi.string().email().optional()
+    .messages({
+      'string.email': 'বৈধ ইমেইল ঠিকানা প্রয়োজন',
     }),
   password: Joi.string().required()
     .messages({
       'string.empty': 'পাসওয়ার্ড প্রয়োজন',
     }),
-});
+}).or('phone', 'email')
+  .messages({
+    'object.missing': 'ফোন নম্বর অথবা ইমেইল প্রয়োজন',
+  });
 
 export const emailLoginSchema = Joi.object({
   email: Joi.string().email().required()
@@ -117,7 +123,7 @@ export const changePasswordSchema = Joi.object({
 // Validation helper function
 export function validateInput(schema: Joi.Schema, data: any) {
   const { error, value } = schema.validate(data, { abortEarly: false });
-  
+
   if (error) {
     const errors: Record<string, string> = {};
     error.details.forEach((detail) => {
@@ -125,13 +131,13 @@ export function validateInput(schema: Joi.Schema, data: any) {
         errors[detail.path[0].toString()] = detail.message;
       }
     });
-    
+
     throw {
       name: 'ValidationError',
       message: 'ইনপুট ভ্যালিডেশন ত্রুটি',
       errors,
     };
   }
-  
+
   return value;
 }

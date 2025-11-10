@@ -36,7 +36,15 @@ app.use(cors({
   credentials: true,
 }));
 
+// Health check endpoint
 app.get('/health', (_req: Request, res: Response) => res.json({ ok: true, status: 'healthy' }));
+app.get('/api/health', (_req: Request, res: Response) => res.json({ ok: true, status: 'healthy' }));
+
+// API routes with /api prefix
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+
+// Legacy routes without /api prefix (for backward compatibility)
 app.use('/auth', authRoutes);
 app.use('/users', userRoutes);
 

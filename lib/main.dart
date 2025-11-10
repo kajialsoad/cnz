@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import 'guards/auth_guard.dart';
+import 'providers/language_provider.dart';
 import 'pages/welcome_screen.dart';
 import 'pages/login_page.dart';
 import 'pages/signup_page.dart';
@@ -18,7 +21,12 @@ import 'pages/government_calendar_page.dart';
 import 'pages/notice_board_page.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => LanguageProvider(),
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -37,24 +45,26 @@ class MyApp extends StatelessWidget {
       ),
       initialRoute: '/welcome',
       routes: {
+        // Public routes (no auth required)
         '/welcome': (_) => const WelcomeScreen(),
         '/login': (_) => const LoginPage(),
         '/signup': (_) => const SignUpPage(),
-        '/home': (_) => const HomePage(),
-        '/customer-care': (_) => const CustomerCarePage(),
-        '/live-chat': (_) => const LiveChatPage(),
-        '/complaint': (_) => const ComplaintPage(),
-        '/complaint-details': (_) => const ComplaintDetailsPage(),
-        '/others': (_) => const OthersPage(),
-        '/payment': (_) => const PaymentPage(),
-        // Deprecated: DonationPage removed; redirect route to PaymentPage
-        '/donation': (_) => const PaymentPage(),
-        '/emergency': (_) => const EmergencyPage(),
-        '/waste-management': (_) => const WasteManagementPage(),
-        '/gallery': (_) => const GalleryPage(),
-        '/profile-settings': (_) => const ProfileSettingsPage(),
-        '/government-calendar': (_) => const GovernmentCalendarPage(),
-        '/notice-board': (_) => const NoticeBoardPage(),
+        
+        // Protected routes (auth required)
+        '/home': (_) => const AuthGuard(child: HomePage()),
+        '/customer-care': (_) => const AuthGuard(child: CustomerCarePage()),
+        '/live-chat': (_) => const AuthGuard(child: LiveChatPage()),
+        '/complaint': (_) => const AuthGuard(child: ComplaintPage()),
+        '/complaint-details': (_) => const AuthGuard(child: ComplaintDetailsPage()),
+        '/others': (_) => const AuthGuard(child: OthersPage()),
+        '/payment': (_) => const AuthGuard(child: PaymentPage()),
+        '/donation': (_) => const AuthGuard(child: PaymentPage()),
+        '/emergency': (_) => const AuthGuard(child: EmergencyPage()),
+        '/waste-management': (_) => const AuthGuard(child: WasteManagementPage()),
+        '/gallery': (_) => const AuthGuard(child: GalleryPage()),
+        '/profile-settings': (_) => const AuthGuard(child: ProfileSettingsPage()),
+        '/government-calendar': (_) => const AuthGuard(child: GovernmentCalendarPage()),
+        '/notice-board': (_) => const AuthGuard(child: NoticeBoardPage()),
       },
     );
   }

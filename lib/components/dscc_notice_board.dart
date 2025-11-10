@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import '../widgets/translated_text.dart';
 
 class DSCCNoticeBoard extends StatefulWidget {
   const DSCCNoticeBoard({super.key});
@@ -14,10 +15,10 @@ class _DSCCNoticeBoardState extends State<DSCCNoticeBoard>
   late Animation<Offset> _scrollAnimation;
 
   final List<String> notices = [
-    "🗓️ এই শুক্রবার রমনা পার্কে ✨ Clean Dhaka Campaign",
-    "🌱 নতুন রিসাইক্লিং বিন স্থাপন - ওয়ার্ড ১৫",
-    "🚛 বর্জ্য সংগ্রহের সময় পরিবর্তন - সকাল ৬টা",
-    "🌳 বৃক্ষরোপণ কর্মসূচি - আগামী রবিবার",
+    "🗓️ This Friday at Ramna Park ✨ Clean Dhaka Campaign",
+    "🌱 New recycling bins installed - Ward 15",
+    "🚛 Waste collection time changed - 6 AM",
+    "🌳 Tree planting program - Next Sunday",
   ];
 
   @override
@@ -96,7 +97,7 @@ class _DSCCNoticeBoardState extends State<DSCCNoticeBoard>
                 ),
               ),
               const SizedBox(width: 8),
-              const Text(
+              TranslatedText(
                 "DSCC Notice Board",
                 style: TextStyle(
                   fontSize: 16,
@@ -128,7 +129,7 @@ class _DSCCNoticeBoardState extends State<DSCCNoticeBoard>
                       child: Container(
                         height: 30,
                         alignment: Alignment.centerLeft,
-                        child: Text(
+                        child: TranslatedText(
                           scrollingText,
                           style: const TextStyle(
                             fontSize: 14,

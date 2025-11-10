@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import '../repositories/auth_repository.dart';
 import '../services/api_client.dart';
+import '../config/api_config.dart';
 import 'dart:math' as math;
 
 class SignUpPage extends StatefulWidget {
@@ -25,8 +26,7 @@ class _SignUpPageState extends State<SignUpPage> {
   @override
   void initState() {
     super.initState();
-    final baseUrl = kIsWeb ? 'http://localhost:4000' : 'http://10.0.2.2:4000';
-    _auth = AuthRepository(ApiClient(baseUrl));
+    _auth = AuthRepository(ApiClient(ApiConfig.baseUrl));
   }
 
   @override

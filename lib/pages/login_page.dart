@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import '../repositories/auth_repository.dart';
 import '../services/api_client.dart';
+import '../services/auth_service.dart';
+import '../config/api_config.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -20,8 +22,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   void initState() {
     super.initState();
-    final baseUrl = kIsWeb ? 'http://localhost:4000' : 'http://10.0.2.2:4000';
-    _auth = AuthRepository(ApiClient(baseUrl));
+    _auth = AuthRepository(ApiClient(ApiConfig.baseUrl));
   }
 
   @override
@@ -42,7 +43,13 @@ class _LoginPageState extends State<LoginPage> {
     final password = _passwordController.text;
     
     try {
-      await _auth.login(phoneOrEmail, password);
+      final tokens = await _auth.login(phoneOrEmail, password);
+      
+      // Save tokens using AuthService
+      await AuthService.saveTokens(
+        tokens['accessToken'] as String,
+        tokens['refreshToken'] as String,
+      );
       
       if (!mounted) return;
       

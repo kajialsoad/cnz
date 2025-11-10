@@ -15,7 +15,8 @@ export interface RegisterInput {
 }
 
 export interface LoginInput {
-  email: string;
+  email?: string;
+  phone?: string;
   password: string;
   rememberMe?: boolean;
 }
@@ -99,9 +100,23 @@ export class AuthService {
 
   // User login
   async login(input: LoginInput): Promise<TokenResponse> {
-    const user = await prisma.user.findUnique({
-      where: { email: input.email }
-    });
+    console.log('Login input received:', input);
+
+    // Find user by email or phone
+    let user;
+    if (input.email) {
+      console.log('Finding user by email:', input.email);
+      user = await prisma.user.findUnique({
+        where: { email: input.email }
+      });
+    } else if (input.phone) {
+      console.log('Finding user by phone:', input.phone);
+      user = await prisma.user.findUnique({
+        where: { phone: input.phone }
+      });
+    }
+
+    console.log('User found:', user ? 'Yes' : 'No');
 
     if (!user) {
       throw new Error('Invalid credentials');
@@ -121,41 +136,46 @@ export class AuthService {
     }
 
     // Generate tokens
-    const accessToken = signAccessToken({
-      sub: parseInt(user.id.toString()),
-      role: user.role,
-      email: user.email || undefined,
-      phone: user.phone || undefined
-    });
+    try {
+      const accessToken = signAccessToken({
+        sub: parseInt(user.id.toString()),
+        role: user.role,
+        email: user.email ?? undefined,
+        phone: user.phone ?? undefined
+      });
 
-    const refreshToken = signRefreshToken({
-      sub: parseInt(user.id.toString()),
-      role: user.role,
-      email: user.email || undefined,
-      phone: user.phone || undefined
-    });
+      const refreshToken = signRefreshToken({
+        sub: parseInt(user.id.toString()),
+        role: user.role,
+        email: user.email ?? undefined,
+        phone: user.phone ?? undefined
+      });
 
-    // Store refresh token
-    await prisma.refreshToken.create({
-      data: {
-        token: refreshToken,
-        userId: user.id,
-        expiresAt: new Date(Date.now() + env.REFRESH_TTL_SECONDS * 1000)
-      }
-    });
+      // Store refresh token
+      await prisma.refreshToken.create({
+        data: {
+          token: refreshToken,
+          userId: user.id,
+          expiresAt: new Date(Date.now() + env.REFRESH_TTL_SECONDS * 1000)
+        }
+      });
 
-    // Update last login
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { lastLoginAt: new Date() }
-    });
+      // Update last login
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { lastLoginAt: new Date() }
+      });
 
-    return {
-      accessToken,
-      refreshToken,
-      accessExpiresIn: env.ACCESS_TTL_SECONDS,
-      refreshExpiresIn: env.REFRESH_TTL_SECONDS,
-    };
+      return {
+        accessToken,
+        refreshToken,
+        accessExpiresIn: env.ACCESS_TTL_SECONDS,
+        refreshExpiresIn: env.REFRESH_TTL_SECONDS,
+      };
+    } catch (error) {
+      console.error('Token generation error:', error);
+      throw new Error('Failed to generate authentication tokens');
+    }
   }
 
   // Refresh access token
@@ -372,6 +392,7 @@ export class AuthService {
         role: true,
         status: true,
         emailVerified: true,
+        phoneVerified: true,
         avatar: true,
         createdAt: true,
         updatedAt: true,
@@ -405,6 +426,7 @@ export class AuthService {
         role: true,
         status: true,
         emailVerified: true,
+        phoneVerified: true,
         avatar: true,
         createdAt: true,
         updatedAt: true,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import '../widgets/translated_text.dart';
 
 class Elevated3DButton extends StatefulWidget {
   final String title;
@@ -170,7 +171,7 @@ class _Elevated3DButtonState extends State<Elevated3DButton>
                         size: 32,
                       ),
                       const SizedBox(height: 8),
-                      Text(
+                      TranslatedText(
                         widget.title,
                         style: const TextStyle(
                           color: Colors.white,
@@ -180,7 +181,7 @@ class _Elevated3DButtonState extends State<Elevated3DButton>
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 2),
-                      Text(
+                      TranslatedText(
                         widget.subtitle,
                         style: const TextStyle(
                           color: Colors.white70,

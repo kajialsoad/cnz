@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../components/custom_bottom_nav.dart';
+import '../widgets/translated_text.dart';
 
 class PaymentPage extends StatefulWidget {
   const PaymentPage({super.key});
@@ -19,18 +20,18 @@ class _PaymentPageState extends State<PaymentPage>
   final _phoneController = TextEditingController();
   final _donationAmountController = TextEditingController();
 
-  String selectedService = 'পরিচ্ছন্নতা সেবা';
+  String selectedService = 'Cleaning Service';
   String selectedPaymentMethod = 'Bank';
   String? selectedDonationPaymentMethod;
   int? selectedDonationAmount;
 
   final List<String> services = [
-    'পরিচ্ছন্নতা সেবা',
-    'বর্জ্য ব্যবস্থাপনা',
-    'পানি বিল',
-    'বিদ্যুৎ বিল',
-    'গ্যাস বিল',
-    'অন্যান্য',
+    'Cleaning Service',
+    'Waste Management',
+    'Water Bill',
+    'Electricity Bill',
+    'Gas Bill',
+    'Others',
   ];
 
   final List<PaymentMethod> paymentMethods = [
@@ -43,27 +44,27 @@ class _PaymentPageState extends State<PaymentPage>
   final List<PaymentHistory> paymentHistory = [
     PaymentHistory(
       id: 'TXN001',
-      service: 'পরিচ্ছন্নতা সেবা',
+      service: 'Cleaning Service',
       amount: 500,
-      method: 'বিকাশ',
+      method: 'bKash',
       date: DateTime.now().subtract(const Duration(days: 1)),
-      status: 'সফল',
+      status: 'Successful',
     ),
     PaymentHistory(
       id: 'TXN002',
-      service: 'পানি বিল',
+      service: 'Water Bill',
       amount: 800,
-      method: 'নগদ',
+      method: 'Nagad',
       date: DateTime.now().subtract(const Duration(days: 3)),
-      status: 'সফল',
+      status: 'Successful',
     ),
     PaymentHistory(
       id: 'TXN003',
-      service: 'বিদ্যুৎ বিল',
+      service: 'Electricity Bill',
       amount: 1200,
-      method: 'রকেট',
+      method: 'Rocket',
       date: DateTime.now().subtract(const Duration(days: 7)),
-      status: 'ব্যর্থ',
+      status: 'Failed',
     ),
   ];
 
@@ -209,8 +210,8 @@ class _PaymentPageState extends State<PaymentPage>
             },
           ),
           const SizedBox(width: 12),
-          const Expanded(
-            child: Text(
+          Expanded(
+            child: TranslatedText(
               'Payment & Donation',
               style: TextStyle(
                 fontSize: 20,
@@ -248,10 +249,10 @@ class _PaymentPageState extends State<PaymentPage>
         ),
         labelColor: Colors.white,
         unselectedLabelColor: const Color(0xFF2E8B57),
-        tabs: const [
-          Tab(text: 'Payment'),
-          Tab(text: 'Donation'),
-          Tab(text: 'History'),
+        tabs: [
+          Tab(child: TranslatedText('Payment')),
+          Tab(child: TranslatedText('Donation')),
+          Tab(child: TranslatedText('History')),
         ],
       ),
     );
@@ -288,7 +289,7 @@ class _PaymentPageState extends State<PaymentPage>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  TranslatedText(
                     'Bill Payment',
                     style: TextStyle(
                       fontSize: 18,
@@ -299,7 +300,7 @@ class _PaymentPageState extends State<PaymentPage>
                   const SizedBox(height: 20),
                   
                   // Bill ID / Reference Number
-                  const Text(
+                  TranslatedText(
                     'Bill ID / Reference Number',
                     style: TextStyle(
                       fontSize: 14,
@@ -329,7 +330,7 @@ class _PaymentPageState extends State<PaymentPage>
                   const SizedBox(height: 20),
                   
                   // Amount
-                  const Text(
+                  TranslatedText(
                     'Amount (BDT)',
                     style: TextStyle(
                       fontSize: 14,
@@ -363,7 +364,7 @@ class _PaymentPageState extends State<PaymentPage>
             const SizedBox(height: 24),
             
             // Select Payment Method
-            const Text(
+            TranslatedText(
               'Select Payment Method',
               style: TextStyle(
                 fontSize: 16,
@@ -462,7 +463,7 @@ class _PaymentPageState extends State<PaymentPage>
                   ),
                   elevation: 0,
                 ),
-                child: const Text(
+                child: TranslatedText(
                   'Proceed to Pay',
                   style: TextStyle(
                     fontSize: 16,
@@ -846,11 +847,11 @@ class _PaymentPageState extends State<PaymentPage>
 
   Color _getStatusColor(String status) {
     switch (status) {
-      case 'সফল':
+      case 'Successful':
         return Colors.green;
-      case 'ব্যর্থ':
+      case 'Failed':
         return Colors.red;
-      case 'প্রক্রিয়াধীন':
+      case 'Processing':
         return Colors.orange;
       default:
         return Colors.grey;
@@ -862,11 +863,11 @@ class _PaymentPageState extends State<PaymentPage>
     final difference = now.difference(date).inDays;
     
     if (difference == 0) {
-      return 'আজ';
+      return 'Today';
     } else if (difference == 1) {
-      return 'গতকাল';
+      return 'Yesterday';
     } else {
-      return '${difference} দিন আগে';
+      return '$difference days ago';
     }
   }
 
@@ -945,7 +946,7 @@ class _PaymentPageState extends State<PaymentPage>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                TranslatedText(
                   'Support Clean Dhaka',
                   style: TextStyle(
                     fontSize: 24,
@@ -954,7 +955,7 @@ class _PaymentPageState extends State<PaymentPage>
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Text(
+                TranslatedText(
                   'Your donation helps us maintain a cleaner, greener city for everyone.',
                   style: TextStyle(
                     fontSize: 16,
@@ -969,7 +970,7 @@ class _PaymentPageState extends State<PaymentPage>
           const SizedBox(height: 24),
           
           // Quick Amounts
-          const Text(
+          TranslatedText(
             'Quick Amounts',
             style: TextStyle(
               fontSize: 18,
@@ -998,7 +999,7 @@ class _PaymentPageState extends State<PaymentPage>
           const SizedBox(height: 24),
           
           // Custom Amount
-          const Text(
+          TranslatedText(
             'Custom Amount (BDT)',
             style: TextStyle(
               fontSize: 16,
@@ -1070,7 +1071,7 @@ class _PaymentPageState extends State<PaymentPage>
                 ),
                 elevation: 4,
               ),
-              child: const Text(
+              child: TranslatedText(
                 'Donate Now',
                 style: TextStyle(
                   fontSize: 18,

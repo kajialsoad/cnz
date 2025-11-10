@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import '../widgets/translated_text.dart';
 
 class MayorStatementBanner extends StatefulWidget {
   const MayorStatementBanner({super.key});
@@ -16,13 +17,13 @@ class _MayorStatementBannerState extends State<MayorStatementBanner>
   int _currentIndex = 0;
 
   // Static mayor name
-  final String mayorName = 'মেয়র মোঃ বদরুল আলম';
+  final String mayorName = 'Mayor Md. Badrul Alam';
   
   // Only messages rotate, no titles
   final List<String> mayorMessages = [
-    'আমাদের শহরকে পরিচ্ছন্ন ও সুন্দর রাখতে সকলের সহযোগিতা প্রয়োজন। Clean Care অ্যাপের মাধ্যমে আপনারা সহজেই সেবা পেতে পারবেন।',
-    'প্রতিদিন আমাদের পরিবেশের যত্ন নেওয়া আমাদের সকলের দায়িত্ব। আসুন একসাথে গড়ি একটি সবুজ ও টেকসই ঢাকা।',
-    'ডিজিটাল বাংলাদেশের স্বপ্ন বাস্তবায়নে আমরা প্রতিশ্রুতিবদ্ধ। আধুনিক প্রযুক্তির মাধ্যমে সেবা পৌঁছে দিচ্ছি আপনাদের দোরগোড়ায়।'
+    'We need everyone\'s cooperation to keep our city clean and beautiful. Through the Clean Care app, you can easily access services.',
+    'Taking care of our environment every day is everyone\'s responsibility. Let\'s build a green and sustainable Dhaka together.',
+    'We are committed to realizing the dream of Digital Bangladesh. We are delivering services to your doorstep through modern technology.'
   ];
 
   @override
@@ -142,7 +143,7 @@ class _MayorStatementBannerState extends State<MayorStatementBanner>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      TranslatedText(
                         mayorName,
                         style: const TextStyle(
                           fontSize: 15,
@@ -151,7 +152,7 @@ class _MayorStatementBannerState extends State<MayorStatementBanner>
                         ),
                       ),
                       const SizedBox(height: 6),
-                      Text(
+                      TranslatedText(
                         currentMessage,
                         style: const TextStyle(
                           fontSize: 13,

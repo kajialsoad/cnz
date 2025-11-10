@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/translated_text.dart';
 
 class CustomBottomNav extends StatelessWidget {
   final int currentIndex;
@@ -130,7 +131,7 @@ class CustomBottomNav extends StatelessWidget {
               ),
               const SizedBox(height: 1), // Minimal spacing
               Flexible(
-                child: Text(
+                child: TranslatedText(
                   label,
                   style: TextStyle(
                     color: isSelected ? Colors.white : Colors.white70,

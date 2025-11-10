@@ -1,5 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../components/custom_bottom_nav.dart';
+import '../services/auth_service.dart';
+import '../providers/language_provider.dart';
+import '../repositories/auth_repository.dart';
+import '../repositories/user_repository.dart';
+import '../services/api_client.dart';
+import '../config/api_config.dart';
+import '../models/user_model.dart';
+import '../widgets/translated_text.dart';
 
 class ProfileSettingsPage extends StatefulWidget {
   const ProfileSettingsPage({super.key});
@@ -13,6 +22,46 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
   bool pushNotifications = true;
   bool emailNotifications = false;
   String selectedLanguage = 'EN';
+  
+  UserModel? _user;
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserProfile();
+    _loadLanguagePreference();
+  }
+
+  Future<void> _loadLanguagePreference() async {
+    final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
+    setState(() {
+      selectedLanguage = languageProvider.isBangla ? 'বাং' : 'EN';
+    });
+  }
+
+  Future<void> _loadUserProfile() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+
+      final userRepo = UserRepository(ApiClient(ApiConfig.baseUrl));
+      final user = await userRepo.getProfile();
+
+      setState(() {
+        _user = user;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString().replaceAll('Exception: ', '');
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,7 +75,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: TranslatedText(
           'Profile',
           style: TextStyle(
             color: Colors.white,
@@ -35,31 +84,49 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
           ),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 16.0, bottom: 100),
-        child: Column(
-          children: [
-            // Profile Section
-            _buildProfileSection(),
-            const SizedBox(height: 20),
-            
-            // Account Information Section
-            _buildAccountInformationSection(),
-            const SizedBox(height: 20),
-            
-            // Settings Section
-            _buildSettingsSection(),
-            const SizedBox(height: 30),
-            
-            // Logout Button
-            _buildLogoutButton(),
-            const SizedBox(height: 20),
-            
-            // Footer
-            _buildFooter(),
-          ],
-        ),
-      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                      const SizedBox(height: 16),
+                      Text(_error!, textAlign: TextAlign.center),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: _loadUserProfile,
+                        child: TranslatedText('Retry'),
+                      ),
+                    ],
+                  ),
+                )
+              : SingleChildScrollView(
+                  padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 16.0, bottom: 100),
+                  child: Column(
+                    children: [
+                      // Profile Section
+                      _buildProfileSection(),
+                      const SizedBox(height: 20),
+                      
+                      // Account Information Section
+                      _buildAccountInformationSection(),
+                      const SizedBox(height: 20),
+                      
+                      // Settings Section
+                      _buildSettingsSection(),
+                      const SizedBox(height: 30),
+                      
+                      // Logout Button
+                      _buildLogoutButton(),
+                      const SizedBox(height: 20),
+                      
+                      // Footer
+                      _buildFooter(),
+                    ],
+                  ),
+                ),
       bottomNavigationBar: CustomBottomNav(
         currentIndex: _currentIndex,
         onTap: (index) {
@@ -97,10 +164,10 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
               color: Color(0xFF4CAF50),
               shape: BoxShape.circle,
             ),
-            child: const Center(
+            child: Center(
               child: Text(
-                'AH',
-                style: TextStyle(
+                _user?.initials ?? 'U',
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
@@ -111,9 +178,9 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
           const SizedBox(height: 16),
           
           // Name
-          const Text(
-            'Ahmed Hassan',
-            style: TextStyle(
+          Text(
+            _user?.fullName ?? 'User',
+            style: const TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.w600,
               color: Color(0xFF2E2E2E),
@@ -122,9 +189,9 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
           const SizedBox(height: 8),
           
           // Phone Number
-          const Text(
-            '+880 1712-345678',
-            style: TextStyle(
+          Text(
+            _user?.formattedPhone ?? '',
+            style: const TextStyle(
               fontSize: 16,
               color: Color(0xFF666666),
             ),
@@ -135,8 +202,8 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
           OutlinedButton.icon(
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Edit Profile functionality coming soon!'),
+                SnackBar(
+                  content: TranslatedText('Edit Profile functionality coming soon!'),
                   backgroundColor: Color(0xFF4CAF50),
                 ),
               );
@@ -146,7 +213,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
               size: 18,
               color: Color(0xFF4CAF50),
             ),
-            label: const Text(
+            label: TranslatedText(
               'Edit Profile',
               style: TextStyle(
                 color: Color(0xFF4CAF50),
@@ -184,7 +251,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          TranslatedText(
             'Account Information',
             style: TextStyle(
               fontSize: 18,
@@ -198,23 +265,35 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
           _buildInfoItem(
             icon: Icons.email_outlined,
             label: 'Email',
-            value: 'ahmed.hassan@email.com',
+            value: _user?.email ?? 'Not provided',
+            translateValue: _user?.email == null,
           ),
           const SizedBox(height: 20),
           
-          // Address
+          // Phone
           _buildInfoItem(
-            icon: Icons.location_on_outlined,
-            label: 'Address',
-            value: 'House 42, Road 12, Dhanmondi\nWard 12, DSCC',
+            icon: Icons.phone_outlined,
+            label: 'Phone',
+            value: _user?.formattedPhone ?? '',
+            translateValue: false,
           ),
           const SizedBox(height: 20),
           
-          // Ward Number
+          // Role
           _buildInfoItem(
             icon: Icons.person_outline,
-            label: 'Ward Number',
-            value: '12',
+            label: 'Role',
+            value: _getRoleDisplayName(_user?.role ?? ''),
+            translateValue: true,
+          ),
+          const SizedBox(height: 20),
+          
+          // Account Status
+          _buildInfoItem(
+            icon: Icons.verified_user_outlined,
+            label: 'Account Status',
+            value: _user?.status ?? '',
+            translateValue: true,
           ),
         ],
       ),
@@ -225,6 +304,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
     required IconData icon,
     required String label,
     required String value,
+    bool translateValue = true,
   }) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -246,7 +326,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
+              TranslatedText(
                 label,
                 style: const TextStyle(
                   fontSize: 14,
@@ -255,14 +335,23 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                 ),
               ),
               const SizedBox(height: 4),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 16,
-                  color: Color(0xFF2E2E2E),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
+              translateValue
+                  ? TranslatedText(
+                      value,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        color: Color(0xFF2E2E2E),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    )
+                  : Text(
+                      value,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        color: Color(0xFF2E2E2E),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
             ],
           ),
         ),
@@ -288,7 +377,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          TranslatedText(
             'Settings',
             style: TextStyle(
               fontSize: 18,
@@ -370,16 +459,26 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
 
   Widget _buildLanguageButton(String language, bool isSelected) {
     return GestureDetector(
-      onTap: () {
+      onTap: () async {
         setState(() {
           selectedLanguage = language;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Language changed to $language'),
-            backgroundColor: const Color(0xFF4CAF50),
-          ),
-        );
+        
+        // Save language preference and update app
+        final languageCode = language == 'EN' ? 'en' : 'bn';
+        final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
+        await languageProvider.setLanguage(languageCode);
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(language == 'EN' 
+                  ? 'Language changed to English' 
+                  : 'ভাষা বাংলায় পরিবর্তিত হয়েছে'),
+              backgroundColor: const Color(0xFF4CAF50),
+            ),
+          );
+        }
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -425,7 +524,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
         ),
         const SizedBox(width: 16),
         Expanded(
-          child: Text(
+          child: TranslatedText(
             title,
             style: const TextStyle(
               fontSize: 16,
@@ -457,7 +556,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
           color: Colors.red,
           size: 20,
         ),
-        label: const Text(
+        label: TranslatedText(
           'Logout',
           style: TextStyle(
             color: Colors.red,
@@ -503,19 +602,19 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Logout'),
-          content: const Text('Are you sure you want to logout?'),
+          title: TranslatedText('Logout'),
+          content: TranslatedText('Are you sure you want to logout?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
+              child: TranslatedText('Cancel'),
             ),
             TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                Navigator.pushReplacementNamed(context, '/login');
+              onPressed: () async {
+                Navigator.pop(context); // Close dialog
+                await _performLogout();
               },
-              child: const Text(
+              child: TranslatedText(
                 'Logout',
                 style: TextStyle(color: Colors.red),
               ),
@@ -524,6 +623,86 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
         );
       },
     );
+  }
+
+  Future<void> _performLogout() async {
+    try {
+      // Show loading
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      // Call backend logout API
+      final authRepo = AuthRepository(ApiClient(ApiConfig.baseUrl));
+      await authRepo.logout();
+
+      // Clear local tokens
+      await AuthService.clearTokens();
+
+      if (!mounted) return;
+      
+      // Close loading dialog
+      Navigator.pop(context);
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: TranslatedText('Logout successful! ✓'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      // Navigate to login
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        '/login',
+        (route) => false, // Remove all previous routes
+      );
+    } catch (e) {
+      if (!mounted) return;
+      
+      // Close loading dialog if open
+      Navigator.pop(context);
+
+      // Even if API call fails, clear local tokens and logout
+      await AuthService.clearTokens();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: TranslatedText('Logout successful! ✓'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      // Navigate to login
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        '/login',
+        (route) => false,
+      );
+    }
+  }
+
+  String _getRoleDisplayName(String role) {
+    switch (role) {
+      case 'CUSTOMER':
+        return 'Customer';
+      case 'SERVICE_PROVIDER':
+        return 'Service Provider';
+      case 'ADMIN':
+        return 'Admin';
+      case 'SUPER_ADMIN':
+        return 'Super Admin';
+      default:
+        return role;
+    }
   }
 
   void _handleNavigation(int index) {
@@ -543,7 +722,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       case 4:
         // QR / Camera placeholder
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('QR স্ক্যানার শীঘ্রই আসছে...')),
+          SnackBar(content: TranslatedText('QR Scanner coming soon...')),
         );
         break;
     }

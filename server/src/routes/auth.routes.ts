@@ -46,15 +46,7 @@ router.post('/register', registrationRateLimiter, async (req, res) => {
 // Login endpoint
 router.post('/login', authRateLimiter, async (req, res) => {
   try {
-    const { error, value } = validateInput(loginSchema, req.body);
-    if (error) {
-      return res.status(400).json({
-        success: false,
-        message: 'Validation error',
-        errors: error.details
-      });
-    }
-
+    const value = validateInput(loginSchema, req.body);
     const tokens = await authService.login(value);
     res.json({
       success: true,

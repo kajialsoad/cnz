@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import '../widgets/translated_text.dart';
 
 class StatsCard extends StatelessWidget {
   final String title;
@@ -63,7 +64,7 @@ class StatsCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          Text(
+          TranslatedText(
             value,
             style: const TextStyle(
               color: Colors.white,
@@ -72,7 +73,7 @@ class StatsCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          Text(
+          TranslatedText(
             title,
             style: const TextStyle(
               color: Colors.white70,

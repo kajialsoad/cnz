@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:provider/provider.dart';
 import 'dart:math' as math;
 import '../components/elevated_3d_button.dart';
 import '../components/dscc_notice_board.dart';
 import '../components/stats_card.dart';
 import '../components/custom_bottom_nav.dart';
 import '../components/mayor_statement_banner.dart';
+import '../providers/language_provider.dart';
+import '../widgets/translated_text.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -151,10 +154,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         ),
       ),
       titleSpacing: 16,
-      title: const Column(
+      title: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          TranslatedText(
             'Clean Care',
             style: TextStyle(
               fontWeight: FontWeight.w600,
@@ -162,7 +165,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             ),
           ),
           SizedBox(height: 2),
-          Text(
+          TranslatedText(
             'Your City, Your Care',
             style: TextStyle(
               fontSize: 12,
@@ -246,7 +249,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       child: Icon(Icons.person, color: green, size: 20),
                     ),
                     const SizedBox(width: 12),
-                    const Text(
+                    TranslatedText(
                       'Profile Settings',
                       style: TextStyle(
                         color: Colors.black87,
@@ -272,7 +275,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       child: Icon(Icons.calendar_today, color: green, size: 20),
                     ),
                     const SizedBox(width: 12),
-                    const Text(
+                    TranslatedText(
                       'Government Calendar',
                       style: TextStyle(
                         color: Colors.black87,
@@ -306,7 +309,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    const Text(
+                    TranslatedText(
                       'Notice Board',
                       style: TextStyle(
                         color: Colors.black87,
@@ -332,7 +335,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       child: Icon(Icons.language, color: green, size: 20),
                     ),
                     const SizedBox(width: 12),
-                    const Text(
+                    TranslatedText(
                       'Language Switch',
                       style: TextStyle(
                         color: Colors.black87,
@@ -600,20 +603,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    "অভিযোগ",
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 13, // Increased font size
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  Text(
+                  TranslatedText(
                     "Complaint",
                     style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 10, // Increased font size
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -683,14 +678,19 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   void _showQRScanner() {
     // TODO: Implement QR scanner
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('QR স্ক্যানার খোলা হচ্ছে...'),
+      SnackBar(
+        content: TranslatedText(
+          'QR Scanner opening...',
+          style: TextStyle(color: Colors.white),
+        ),
         backgroundColor: Color(0xFF2E8B57),
       ),
     );
   }
 
   void _handleLanguageSwitch() {
+    final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
+    
     // Show language selection dialog
     showDialog(
       context: context,
@@ -699,12 +699,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          title: const Row(
+          title: Row(
             children: [
               Icon(Icons.language, color: Color(0xFF2E8B57)),
               SizedBox(width: 8),
-              Text(
-                'ভাষা নির্বাচন / Language',
+              TranslatedText(
+                'Language Selection',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -722,7 +722,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 child: ElevatedButton(
                   onPressed: () {
                     Navigator.of(context).pop();
-                    _selectLanguage('english');
+                    _selectLanguage('en');
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: green,
@@ -747,7 +747,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 child: OutlinedButton(
                   onPressed: () {
                     Navigator.of(context).pop();
-                    _selectLanguage('bengali');
+                    _selectLanguage('bn');
                   },
                   style: OutlinedButton.styleFrom(
                     foregroundColor: green,
@@ -773,14 +773,20 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
-  void _selectLanguage(String language) {
-    String message = language == 'english' 
+  void _selectLanguage(String languageCode) async {
+    final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
+    await languageProvider.setLanguage(languageCode);
+    
+    String message = languageCode == 'en' 
         ? 'English Language Selected' 
         : 'বাংলা ভাষা নির্বাচিত হয়েছে';
     
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
+        content: TranslatedText(
+          languageCode == 'en' ? 'English Language Selected' : 'Bangla Language Selected',
+          style: TextStyle(color: Colors.white),
+        ),
         backgroundColor: green,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
@@ -791,9 +797,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
-  void _handleMenuSelection(String value) {
-    String message = '';
-    String banglaMessage = '';
+  void _handleMenuSelection(String value) async {
+    final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
     
     switch (value) {
       case 'profile':
@@ -806,55 +811,44 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         Navigator.pushNamed(context, '/notice-board');
         return;
       case 'language':
-        message = 'Language Switch';
-        banglaMessage = 'ভাষা পরিবর্তন আসছে শীঘ্রই...';
-        break;
+        _handleLanguageSwitch();
+        return;
       case 'english':
-        message = 'English Language Selected';
-        banglaMessage = 'ইংরেজি ভাষা নির্বাচিত হয়েছে';
+        await languageProvider.setLanguage('en');
+        _showLanguageChangeSnackbar('English Language Selected');
         break;
       case 'bengali':
-        message = 'Bengali Language Selected';
-        banglaMessage = 'বাংলা ভাষা নির্বাচিত হয়েছে';
+        await languageProvider.setLanguage('bn');
+        _showLanguageChangeSnackbar('Bangla Language Selected');
         break;
     }
+  }
 
+  void _showLanguageChangeSnackbar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
             Icon(
-              Icons.info_outline,
+              Icons.check_circle,
               color: Colors.white,
               size: 20,
             ),
             const SizedBox(width: 8),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    message,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w500,
-                      fontSize: 14,
-                    ),
-                  ),
-                  Text(
-                    banglaMessage,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Colors.white70,
-                    ),
-                  ),
-                ],
+              child: TranslatedText(
+                message,
+                style: TextStyle(
+                  fontWeight: FontWeight.w500,
+                  fontSize: 14,
+                  color: Colors.white,
+                ),
               ),
             ),
           ],
         ),
         backgroundColor: green,
-        duration: const Duration(seconds: 3),
+        duration: const Duration(seconds: 2),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(10),

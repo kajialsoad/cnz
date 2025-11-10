@@ -7,6 +7,30 @@ import { updateProfileSchema, changePasswordSchema } from '../utils/validation';
 
 const router = Router();
 
+// Get current user profile (alias for /profile)
+router.get('/me', authGuard, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user!.sub.toString();
+    const profile = await authService.getProfile(userId);
+
+    res.json({
+      success: true,
+      user: profile
+    });
+  } catch (error) {
+    if (error instanceof Error) {
+      return res.status(404).json({
+        success: false,
+        message: error.message
+      });
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
 // Get user profile
 router.get('/profile', authGuard, async (req: AuthRequest, res) => {
   try {
