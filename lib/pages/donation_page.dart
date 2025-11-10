@@ -781,6 +781,7 @@ class _DonationPageState extends State<DonationPage>
   }
 
   void _processDonation() {
+
     if (_formKey.currentState?.validate() ?? false) {
       // Show processing dialog
       showDialog(

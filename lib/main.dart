@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'guards/auth_guard.dart';
 import 'providers/language_provider.dart';
+import 'services/auth_service.dart';
 import 'pages/welcome_screen.dart';
 import 'pages/login_page.dart';
 import 'pages/signup_page.dart';
@@ -29,6 +30,77 @@ void main() {
   );
 }
 
+// Splash screen to check login status
+class SplashScreen extends StatefulWidget {
+  const SplashScreen({super.key});
+
+  @override
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen> {
+  @override
+  void initState() {
+    super.initState();
+    _checkLoginStatus();
+  }
+
+  Future<void> _checkLoginStatus() async {
+    // Check if user is logged in
+    final isLoggedIn = await AuthService.isLoggedIn();
+    
+    if (!mounted) return;
+    
+    // Navigate to appropriate screen
+    if (isLoggedIn) {
+      Navigator.pushReplacementNamed(context, '/home');
+    } else {
+      Navigator.pushReplacementNamed(context, '/welcome');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF2E8B57),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.12),
+                    blurRadius: 18,
+                  ),
+                ],
+              ),
+              child: const Icon(Icons.recycling, color: Color(0xFF2E8B57), size: 64),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Clean Care',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -43,8 +115,11 @@ class MyApp extends StatelessWidget {
         textTheme: GoogleFonts.notoSansTextTheme(), // Use Noto Sans which supports Bengali
         fontFamily: GoogleFonts.notoSans().fontFamily,
       ),
-      initialRoute: '/welcome',
+      initialRoute: '/',
       routes: {
+        // Splash screen - checks login status
+        '/': (_) => const SplashScreen(),
+        
         // Public routes (no auth required)
         '/welcome': (_) => const WelcomeScreen(),
         '/login': (_) => const LoginPage(),

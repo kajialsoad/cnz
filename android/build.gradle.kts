@@ -13,7 +13,12 @@ subprojects {
     project.layout.buildDirectory.value(newSubprojectBuildDir)
 }
 subprojects {
-    project.evaluationDependsOn(":app")
+    // Enforce Java 17 for Android Gradle plugin
+    tasks.withType<JavaCompile>().configureEach {
+        options.release.set(17)
+    }
+
+  // Ensure Java 17 is used (configure via IDE, JAVA_HOME, or gradle.properties)
 }
 
 tasks.register<Delete>("clean") {
