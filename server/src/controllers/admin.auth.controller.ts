@@ -3,6 +3,8 @@ import { AuthRequest } from '../types/auth';
 import { authService } from '../services/auth.service';
 import { z } from 'zod';
 
+console.log('🔧 Loading admin.auth.controller.ts...');
+
 const adminLoginSchema = z.object({
     email: z.string().email(),
     password: z.string(),
@@ -10,6 +12,8 @@ const adminLoginSchema = z.object({
 
 // Admin login - only allows ADMIN and SUPER_ADMIN roles
 export async function adminLogin(req: AuthRequest, res: Response) {
+    console.log('🔐 Admin login attempt:', { email: req.body?.email, hasPassword: !!req.body?.password });
+    
     try {
         const body = adminLoginSchema.parse(req.body);
 

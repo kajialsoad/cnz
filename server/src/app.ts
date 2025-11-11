@@ -7,6 +7,9 @@ import userRoutes from './routes/user.routes';
 import adminAuthRoutes from './routes/admin.auth.routes';
 import { AuthRequest } from './middlewares/auth.middleware';
 
+console.log('🚀 Starting Clean Care API Server...');
+console.log('🔧 Importing admin auth routes...');
+
 const app = express();
 
 // Add prisma to request object
@@ -46,8 +49,22 @@ app.get('/api/health', (_req: Request, res: Response) => res.json({ ok: true, st
 
 // API routes with /api prefix
 app.use('/api/auth', authRoutes);
+console.log('✅ Regular auth routes registered at /api/auth');
+
 app.use('/api/users', userRoutes);
+console.log('✅ User routes registered at /api/users');
+
 app.use('/api/admin/auth', adminAuthRoutes); // Admin authentication routes
+console.log('✅ Admin auth routes registered at /api/admin/auth');
+
+// Add test route to verify admin path works
+app.get('/api/admin/test', (req, res) => {
+    res.json({ 
+        message: 'Admin routes base path is working!',
+        timestamp: new Date().toISOString()
+    });
+});
+console.log('✅ Admin test route added at /api/admin/test');
 
 // Legacy routes without /api prefix (for backward compatibility)
 app.use('/auth', authRoutes);

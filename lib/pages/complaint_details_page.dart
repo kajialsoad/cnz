@@ -294,13 +294,8 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
       return;
     }
 
-    // TODO: Navigate to address page or submit complaint
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: TranslatedText('Proceeding to address selection...'),
-        backgroundColor: Color(0xFF4CAF50),
-      ),
-    );
+    // Navigate to complaint address page
+    Navigator.pushNamed(context, '/complaint-address');
   }
 
   void _handleNavigation(int index) {

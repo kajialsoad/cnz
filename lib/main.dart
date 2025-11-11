@@ -12,6 +12,8 @@ import 'pages/customer_care_page.dart';
 import 'pages/live_chat_page.dart';
 import 'pages/complaint_page.dart';
 import 'pages/complaint_details_page.dart';
+import 'pages/complaint_address_page.dart';
+import 'pages/complaint_success_page.dart';
 import 'pages/others_page.dart';
 import 'pages/payment_page.dart';
 import 'pages/emergency_page.dart';
@@ -131,6 +133,8 @@ class MyApp extends StatelessWidget {
         '/live-chat': (_) => const AuthGuard(child: LiveChatPage()),
         '/complaint': (_) => const AuthGuard(child: ComplaintPage()),
         '/complaint-details': (_) => const AuthGuard(child: ComplaintDetailsPage()),
+        '/complaint-address': (_) => const AuthGuard(child: ComplaintAddressPage()),
+        '/complaint-success': (_) => const AuthGuard(child: ComplaintSuccessPage()),
         '/others': (_) => const AuthGuard(child: OthersPage()),
         '/payment': (_) => const AuthGuard(child: PaymentPage()),
         '/donation': (_) => const AuthGuard(child: PaymentPage()),
