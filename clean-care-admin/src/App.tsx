@@ -1,6 +1,9 @@
 import { ThemeProvider, CssBaseline } from '@mui/material';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { theme } from './styles/theme';
+import { AuthProvider } from './contexts/AuthContext';
+import { LanguageProvider } from './contexts/LanguageContext';
+import { ProtectedRoute } from './components/routing';
 import Dashboard from './pages/Dashboard/Dashboard';
 import AllComplaints from './pages/AllComplaints';
 import UserManagement from './pages/UserManagement';
@@ -13,18 +16,66 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Router>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/complaints" element={<AllComplaints />} />
-          <Route path="/users" element={<UserManagement />} />
-          <Route path="/reports" element={<Reports />} />
-          <Route path="/notifications" element={<Notifications />} />
-          <Route path="/settings" element={<Settings />} />
-          {/* Other routes will be added here */}
-        </Routes>
-      </Router>
+      <AuthProvider>
+        <LanguageProvider>
+          <Router>
+            <Routes>
+              {/* Public Route */}
+              <Route path="/login" element={<Login />} />
+
+              {/* Protected Routes */}
+              <Route
+                path="/"
+                element={
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/complaints"
+                element={
+                  <ProtectedRoute>
+                    <AllComplaints />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/users"
+                element={
+                  <ProtectedRoute>
+                    <UserManagement />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/reports"
+                element={
+                  <ProtectedRoute>
+                    <Reports />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/notifications"
+                element={
+                  <ProtectedRoute>
+                    <Notifications />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/settings"
+                element={
+                  <ProtectedRoute>
+                    <Settings />
+                  </ProtectedRoute>
+                }
+              />
+            </Routes>
+          </Router>
+        </LanguageProvider>
+      </AuthProvider>
     </ThemeProvider>
   );
 }

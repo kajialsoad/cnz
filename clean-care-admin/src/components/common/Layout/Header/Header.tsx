@@ -21,6 +21,8 @@ import {
   Language as LanguageIcon,
   KeyboardArrowDown as KeyboardArrowDownIcon,
 } from '@mui/icons-material';
+import { useLanguage } from '../../../../contexts/LanguageContext';
+import { useAuth } from '../../../../contexts/AuthContext';
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -31,7 +33,8 @@ const Header: React.FC<HeaderProps> = ({
   onMenuClick,
   title = 'Dashboard Overview',
 }) => {
-  const [language, setLanguage] = useState('english');
+  const { language, setLanguage } = useLanguage();
+  const { user } = useAuth();
   const [searchValues, setSearchValues] = useState({
     complaint: '',
     adminName: '',
@@ -49,7 +52,8 @@ const Header: React.FC<HeaderProps> = ({
   };
 
   const handleLanguageChange = (event: SelectChangeEvent<string>) => {
-    setLanguage(event.target.value);
+    const newLang = event.target.value as 'en' | 'bn';
+    setLanguage(newLang);
   };
 
   return (
@@ -65,7 +69,7 @@ const Header: React.FC<HeaderProps> = ({
           >
             <MenuIcon />
           </IconButton>
-          
+
           <Box>
             <Typography variant="h6" component="h1" sx={{ fontWeight: 600, color: 'text.primary' }}>
               {title}
@@ -77,10 +81,10 @@ const Header: React.FC<HeaderProps> = ({
         </Box>
 
         {/* Center Section - Search Bars */}
-        <Box sx={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: 1.5, 
+        <Box sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1.5,
           flex: 1,
           mr: 3,
         }}>
@@ -287,8 +291,8 @@ const Header: React.FC<HeaderProps> = ({
                 },
               }}
             >
-              <MenuItem value="english">English</MenuItem>
-              <MenuItem value="bangla">বাংলা</MenuItem>
+              <MenuItem value="en">English</MenuItem>
+              <MenuItem value="bn">বাংলা</MenuItem>
             </Select>
           </FormControl>
         </Box>
@@ -303,20 +307,21 @@ const Header: React.FC<HeaderProps> = ({
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <Avatar
+              src={user?.avatar}
               sx={{
                 width: 36,
                 height: 36,
                 bgcolor: 'primary.main',
               }}
             >
-              MR
+              {user?.firstName?.[0]}{user?.lastName?.[0]}
             </Avatar>
             <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
               <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.primary' }}>
-                Mr. Rahman
+                {user?.firstName} {user?.lastName}
               </Typography>
               <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                Super Admin
+                {user?.roles?.[0]?.name || 'Admin'}
               </Typography>
             </Box>
           </Box>

@@ -73,20 +73,20 @@ const AllComplaints: React.FC = () => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Pending':
-        return { 
-          backgroundColor: '#fff3cd', 
+        return {
+          backgroundColor: '#fff3cd',
           color: '#856404',
           borderColor: '#ffeeba'
         };
       case 'In Progress':
-        return { 
-          backgroundColor: '#d1ecf1', 
+        return {
+          backgroundColor: '#d1ecf1',
           color: '#0c5460',
           borderColor: '#bee5eb'
         };
       case 'Solved':
-        return { 
-          backgroundColor: '#d4edda', 
+        return {
+          backgroundColor: '#d4edda',
           color: '#155724',
           borderColor: '#c3e6cb'
         };
@@ -105,9 +105,9 @@ const AllComplaints: React.FC = () => {
         {/* Header Section */}
         <Box sx={{ mb: 3, width: '100%' }}>
           {/* Title and Status Summary Row */}
-          <Box sx={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
+          <Box sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
             alignItems: 'flex-start',
             width: '100%',
             mb: 2,
@@ -158,9 +158,9 @@ const AllComplaints: React.FC = () => {
           </Box>
 
           {/* Search and Filter Section */}
-          <Box sx={{ 
-            display: 'flex', 
-            gap: 2, 
+          <Box sx={{
+            display: 'flex',
+            gap: 2,
             alignItems: 'center',
             backgroundColor: '#f8f9fa',
             p: 2,
@@ -219,9 +219,9 @@ const AllComplaints: React.FC = () => {
         </Box>
 
         {/* Complaints List */}
-        <Box sx={{ 
-          display: 'flex', 
-          flexDirection: 'column', 
+        <Box sx={{
+          display: 'flex',
+          flexDirection: 'column',
           gap: 2,
           width: '100%',
         }}>
@@ -238,9 +238,9 @@ const AllComplaints: React.FC = () => {
               }}
             >
               <CardContent sx={{ p: 2.5 }}>
-                <Box sx={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
+                <Box sx={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
                   alignItems: 'flex-start',
                   mb: 2,
                   width: '100%',

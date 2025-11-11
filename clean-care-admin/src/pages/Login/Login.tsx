@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Card,
@@ -11,6 +11,8 @@ import {
   Checkbox,
   FormControlLabel,
   Divider,
+  Alert,
+  CircularProgress,
 } from '@mui/material';
 import {
   Email as EmailIcon,
@@ -20,30 +22,52 @@ import {
   Login as LoginIcon,
   AdminPanelSettings as AdminIcon,
 } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { login, isAuthenticated } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      const from = (location.state as any)?.from?.pathname || '/';
+      navigate(from, { replace: true });
+    }
+  }, [isAuthenticated, navigate, location]);
 
   const handleInputChange = (field: string) => (event: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({
       ...prev,
       [field]: event.target.value,
     }));
+    // Clear error when user starts typing
+    if (error) setError('');
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // For demo purposes, just navigate to dashboard
-    // In real app, you would validate credentials here
-    if (formData.email && formData.password) {
-      navigate('/');
+    setError('');
+    setLoading(true);
+
+    try {
+      await login(formData.email, formData.password);
+      // Navigation will be handled by useEffect when isAuthenticated changes
+    } catch (err: any) {
+      setError(err.message || 'Invalid email or password');
+      setFormData(prev => ({ ...prev, password: '' }));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -145,6 +169,7 @@ const Login: React.FC = () => {
               value={formData.email}
               onChange={handleInputChange('email')}
               required
+              disabled={loading}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -181,6 +206,7 @@ const Login: React.FC = () => {
               value={formData.password}
               onChange={handleInputChange('password')}
               required
+              disabled={loading}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -193,6 +219,7 @@ const Login: React.FC = () => {
                       aria-label="toggle password visibility"
                       onClick={handleClickShowPassword}
                       edge="end"
+                      disabled={loading}
                     >
                       {showPassword ? <VisibilityOff /> : <Visibility />}
                     </IconButton>
@@ -220,12 +247,26 @@ const Login: React.FC = () => {
               }}
             />
 
+            {/* Error Message */}
+            {error && (
+              <Alert
+                severity="error"
+                sx={{
+                  mb: 2,
+                  borderRadius: 2,
+                }}
+              >
+                {error}
+              </Alert>
+            )}
+
             {/* Remember Me */}
             <FormControlLabel
               control={
                 <Checkbox
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
+                  disabled={loading}
                   sx={{
                     color: '#4CAF50',
                     '&.Mui-checked': {
@@ -243,7 +284,8 @@ const Login: React.FC = () => {
               type="submit"
               fullWidth
               variant="contained"
-              startIcon={<LoginIcon />}
+              disabled={loading}
+              startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <LoginIcon />}
               sx={{
                 background: 'linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%)',
                 py: 1.5,
@@ -256,14 +298,40 @@ const Login: React.FC = () => {
                   background: 'linear-gradient(135deg, #45a049 0%, #1b5e20 100%)',
                   boxShadow: '0 6px 16px rgba(76, 175, 80, 0.5)',
                 },
+                '&:disabled': {
+                  background: 'linear-gradient(135deg, #81C784 0%, #66BB6A 100%)',
+                  color: 'white',
+                  opacity: 0.7,
+                },
               }}
             >
-              Sign In to Dashboard
+              {loading ? 'Signing In...' : 'Sign In to Dashboard'}
             </Button>
           </Box>
 
+          {/* Demo Credentials */}
+          <Box sx={{ mt: 3, p: 2, backgroundColor: '#f5f5f5', borderRadius: 2 }}>
+            <Typography variant="body2" sx={{ fontWeight: 600, mb: 1.5, color: '#4CAF50' }}>
+              🔐 Demo Admin Accounts
+            </Typography>
+            <Box sx={{ textAlign: 'left', fontSize: '0.75rem' }}>
+              <Typography variant="caption" sx={{ fontWeight: 600, color: '#2E7D32', display: 'block' }}>
+                👑 Super Admin:
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                <strong>superadmin@demo.com</strong> / <strong>Demo123!@#</strong>
+              </Typography>
+              <Typography variant="caption" sx={{ fontWeight: 600, color: '#2E7D32', display: 'block', mt: 1 }}>
+                👨‍💼 Admin:
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                <strong>admin@demo.com</strong> / <strong>Demo123!@#</strong>
+              </Typography>
+            </Box>
+          </Box>
+
           {/* Footer */}
-          <Box sx={{ textAlign: 'center', mt: 4 }}>
+          <Box sx={{ textAlign: 'center', mt: 3 }}>
             <Typography variant="body2" color="text.secondary">
               Smart Complaint Management System
             </Typography>
@@ -274,36 +342,7 @@ const Login: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Demo Credentials Info */}
-      <Box
-        sx={{
-          position: 'absolute',
-          bottom: 20,
-          left: 20,
-          right: 20,
-          textAlign: 'center',
-          zIndex: 1,
-        }}
-      >
-        <Card
-          sx={{
-            maxWidth: 300,
-            margin: '0 auto',
-            backgroundColor: 'rgba(255,255,255,0.95)',
-            backdropFilter: 'blur(10px)',
-            borderRadius: 2,
-          }}
-        >
-          <CardContent sx={{ p: 2 }}>
-            <Typography variant="body2" sx={{ fontWeight: 600, mb: 1, color: '#4CAF50' }}>
-              Demo Access
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              Enter any email and password to access the demo
-            </Typography>
-          </CardContent>
-        </Card>
-      </Box>
+
     </Box>
   );
 };

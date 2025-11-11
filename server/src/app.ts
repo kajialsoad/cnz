@@ -4,6 +4,7 @@ import prisma from './utils/prisma';
 import env from './config/env';
 import authRoutes from './routes/auth.routes';
 import userRoutes from './routes/user.routes';
+import adminAuthRoutes from './routes/admin.auth.routes';
 import { AuthRequest } from './middlewares/auth.middleware';
 
 const app = express();
@@ -46,6 +47,7 @@ app.get('/api/health', (_req: Request, res: Response) => res.json({ ok: true, st
 // API routes with /api prefix
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/admin/auth', adminAuthRoutes); // Admin authentication routes
 
 // Legacy routes without /api prefix (for backward compatibility)
 app.use('/auth', authRoutes);

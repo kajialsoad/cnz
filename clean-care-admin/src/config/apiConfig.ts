@@ -3,10 +3,10 @@ export const API_CONFIG = {
   TIMEOUT: 10000,
   ENDPOINTS: {
     AUTH: {
-      LOGIN: '/auth/login',
-      LOGOUT: '/auth/logout',
-      REFRESH: '/auth/refresh',
-      PROFILE: '/auth/profile',
+      LOGIN: '/admin/auth/login',
+      LOGOUT: '/admin/auth/logout',
+      REFRESH: '/admin/auth/refresh',
+      PROFILE: '/admin/auth/me',
     },
     USERS: {
       LIST: '/users',

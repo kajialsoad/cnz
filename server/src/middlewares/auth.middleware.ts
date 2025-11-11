@@ -8,6 +8,14 @@ export interface AuthRequest extends Request {
 export function authGuard(req: AuthRequest, res: Response, next: NextFunction) {
   const auth = req.headers.authorization;
   if (!auth || !auth.startsWith('Bearer ')) {
+    // Debug: log missing/invalid authorization header
+    try {
+      console.warn('[authGuard] Missing or invalid Authorization header', {
+        path: req.path,
+        method: req.method,
+        origin: req.headers.origin,
+      });
+    } catch {}
     return res.status(401).json({ 
       success: false,
       message: 'Unauthorized: No token provided' 
@@ -21,6 +29,15 @@ export function authGuard(req: AuthRequest, res: Response, next: NextFunction) {
     next();
   } catch (error) {
     if (error instanceof Error) {
+      // Debug: log token verification error
+      try {
+        console.warn('[authGuard] Token verification failed', {
+          path: req.path,
+          method: req.method,
+          origin: req.headers.origin,
+          error: error.message,
+        });
+      } catch {}
       return res.status(401).json({ 
         success: false,
         message: `Unauthorized: ${error.message}` 
