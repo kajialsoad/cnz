@@ -1,0 +1,552 @@
+import prisma from '../utils/prisma';
+import { ComplaintStatus } from '@prisma/client';
+import { uploadService } from './upload.service';
+
+export interface CreateComplaintInput {
+  title: string;
+  description: string;
+  category: string; // String for now
+  priority?: number; // Number for now (1-4)
+  location: {
+    address: string;
+    district: string;
+    thana: string;
+    ward: string;
+    latitude?: number;
+    longitude?: number;
+  };
+  imageUrls?: string[];
+  voiceNoteUrl?: string;
+  userId: number;
+  // New file properties
+  uploadedFiles?: any; // Files from multer
+}
+
+export interface UpdateComplaintInput {
+  title?: string;
+  description?: string;
+  category?: string;
+  priority?: number;
+  status?: ComplaintStatus;
+  location?: {
+    address?: string;
+    district?: string;
+    thana?: string;
+    ward?: string;
+    latitude?: number;
+    longitude?: number;
+  };
+  imageUrls?: string[];
+  voiceNoteUrl?: string;
+  // New file properties
+  uploadedFiles?: any; // Files from multer
+  replaceFiles?: boolean; // If true, replace existing files instead of appending
+}
+
+export interface ComplaintQueryInput {
+  page?: number;
+  limit?: number;
+  status?: ComplaintStatus;
+  category?: string;
+  priority?: number;
+  sortBy?: 'createdAt' | 'updatedAt' | 'priority' | 'status';
+  sortOrder?: 'asc' | 'desc';
+  userId?: number; // For filtering user's own complaints
+}
+
+export class ComplaintService {
+  // Create a new complaint
+  async createComplaint(input: CreateComplaintInput) {
+    try {
+      // Generate tracking number
+      const trackingNumber = await this.generateTrackingNumber();
+      
+      let finalImageUrls: string[] = [];
+      let finalVoiceUrl: string | undefined;
+
+      // Process uploaded files if provided
+      if (input.uploadedFiles) {
+        const uploadedFiles = await uploadService.processUploadedFiles(input.uploadedFiles);
+        
+        // Get image URLs
+        if (uploadedFiles.images && uploadedFiles.images.length > 0) {
+          finalImageUrls = uploadedFiles.images.map(img => img.url);
+        }
+        
+        // Get voice URL
+        if (uploadedFiles.voice) {
+          finalVoiceUrl = uploadedFiles.voice.url;
+        }
+      }
+
+      // Add URLs from direct input (fallback for API calls with URLs)
+      if (input.imageUrls && input.imageUrls.length > 0) {
+        finalImageUrls = [...finalImageUrls, ...input.imageUrls];
+      }
+      
+      if (input.voiceNoteUrl && !finalVoiceUrl) {
+        finalVoiceUrl = input.voiceNoteUrl;
+      }
+
+      // Create complaint with simplified location
+      const complaint = await prisma.complaint.create({
+        data: {
+          title: input.title,
+          description: input.description,
+          priority: input.priority || 2, // Default to medium (2)
+          status: ComplaintStatus.PENDING,
+          imageUrl: finalImageUrls.length > 0 ? finalImageUrls.join(',') : null,
+          // Note: voiceNoteUrl will be stored in imageUrl field for now (comma-separated)
+          // Format: "image1.jpg,image2.jpg,voice:voice1.mp3" to distinguish voice files
+          userId: input.userId,
+          // Store location as formatted string for now
+          location: `${input.location.address}, ${input.location.district}, ${input.location.thana}, Ward: ${input.location.ward}`
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              phone: true,
+            }
+          }
+        }
+      });
+
+      // If we have a voice file, add it to imageUrl field with voice: prefix
+      if (finalVoiceUrl) {
+        const currentImageUrl = complaint.imageUrl || '';
+        const voiceEntry = `voice:${finalVoiceUrl}`;
+        const updatedImageUrl = currentImageUrl 
+          ? `${currentImageUrl},${voiceEntry}`
+          : voiceEntry;
+        
+        await prisma.complaint.update({
+          where: { id: complaint.id },
+          data: { imageUrl: updatedImageUrl }
+        });
+        
+        // Update the returned complaint object
+        complaint.imageUrl = updatedImageUrl;
+      }
+
+      // Convert stored data back to structured format for response
+      const responseComplaint = this.formatComplaintResponse(complaint);
+
+      return responseComplaint;
+    } catch (error) {
+      console.error('Error creating complaint:', error);
+      
+      // Clean up uploaded files on error
+      if (input.uploadedFiles) {
+        await uploadService.cleanupFiles(input.uploadedFiles);
+      }
+      
+      throw new Error('Failed to create complaint');
+    }
+  }
+
+  // Get complaint by ID
+  async getComplaintById(id: number, userId?: number) {
+    try {
+      const complaint = await prisma.complaint.findUnique({
+        where: { id },
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              phone: true,
+            }
+          }
+        }
+      });
+
+      if (!complaint) {
+        throw new Error('Complaint not found');
+      }
+
+      // Check if user can access this complaint (users can only view their own complaints)
+      if (userId && complaint.userId !== userId) {
+        throw new Error('Unauthorized to view this complaint');
+      }
+
+      return this.formatComplaintResponse(complaint);
+    } catch (error) {
+      console.error('Error getting complaint:', error);
+      throw error;
+    }
+  }
+
+  // Update complaint
+  async updateComplaint(id: number, input: UpdateComplaintInput, userId?: number) {
+    try {
+      // Check if complaint exists and user has permission
+      const existingComplaint = await this.getComplaintById(id, userId);
+      
+      let finalImageUrls: string[] = [];
+      let finalVoiceUrl: string | undefined;
+
+      // Process uploaded files if provided
+      if (input.uploadedFiles) {
+        const uploadedFiles = await uploadService.processUploadedFiles(input.uploadedFiles);
+        
+        // Get image URLs
+        if (uploadedFiles.images && uploadedFiles.images.length > 0) {
+          finalImageUrls = uploadedFiles.images.map(img => img.url);
+        }
+        
+        // Get voice URL
+        if (uploadedFiles.voice) {
+          finalVoiceUrl = uploadedFiles.voice.url;
+        }
+      }
+
+      // Add URLs from direct input
+      if (input.imageUrls && input.imageUrls.length > 0) {
+        if (input.replaceFiles) {
+          finalImageUrls = [...input.imageUrls];
+        } else {
+          finalImageUrls = [...finalImageUrls, ...input.imageUrls];
+        }
+      }
+      
+      if (input.voiceNoteUrl && !finalVoiceUrl) {
+        finalVoiceUrl = input.voiceNoteUrl;
+      }
+
+      // Prepare update data
+      const updateData: any = {};
+      
+      if (input.title !== undefined) updateData.title = input.title;
+      if (input.description !== undefined) updateData.description = input.description;
+      if (input.category !== undefined) updateData.category = input.category;
+      if (input.priority !== undefined) updateData.priority = input.priority;
+      if (input.status !== undefined) updateData.status = input.status;
+
+      // Handle file URLs - combine existing with new if not replacing
+      if (finalImageUrls.length > 0 || finalVoiceUrl || input.replaceFiles) {
+        let currentImageUrls: string[] = [];
+        let currentVoiceUrl: string | undefined;
+        
+        // Parse existing files if not replacing
+        if (!input.replaceFiles && existingComplaint.imageUrl) {
+          const parsed = this.parseFileUrls(existingComplaint.imageUrl);
+          currentImageUrls = parsed.imageUrls;
+          currentVoiceUrl = parsed.voiceUrl;
+        }
+        
+        // Merge URLs
+        const allImageUrls = input.replaceFiles 
+          ? finalImageUrls 
+          : [...currentImageUrls, ...finalImageUrls];
+        
+        const voiceUrl = finalVoiceUrl || currentVoiceUrl;
+        
+        // Format for storage
+        updateData.imageUrl = this.formatFileUrlsForStorage(allImageUrls, voiceUrl);
+      }
+
+      // Update complaint
+      const complaint = await prisma.complaint.update({
+        where: { id },
+        data: updateData,
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              phone: true,
+            }
+          }
+        }
+      });
+
+      // Update location string if provided
+      if (input.location) {
+        const locationString = `${input.location.address || ''}, ${input.location.district || ''}, ${input.location.thana || ''}, Ward: ${input.location.ward || ''}`;
+        await prisma.complaint.update({
+          where: { id },
+          data: { location: locationString }
+        });
+      }
+
+      // Convert stored data back to structured format for response
+      const responseComplaint = this.formatComplaintResponse(complaint);
+
+      return responseComplaint;
+    } catch (error) {
+      console.error('Error updating complaint:', error);
+      
+      // Clean up uploaded files on error
+      if (input.uploadedFiles) {
+        await uploadService.cleanupFiles(input.uploadedFiles);
+      }
+      
+      throw error;
+    }
+  }
+
+  // Delete/Cancel complaint
+  async deleteComplaint(id: number, userId?: number) {
+    try {
+      // Check if complaint exists and user has permission
+      await this.getComplaintById(id, userId);
+      
+      // Instead of hard delete, update status to rejected
+      const complaint = await prisma.complaint.update({
+        where: { id },
+        data: { 
+          status: ComplaintStatus.REJECTED 
+        }
+      });
+
+      return {
+        success: true,
+        message: 'Complaint cancelled successfully',
+        complaint
+      };
+    } catch (error) {
+      console.error('Error cancelling complaint:', error);
+      throw error;
+    }
+  }
+
+  // Get complaint statistics (for dashboard)
+  async getComplaintStats(userId?: number) {
+    try {
+      const where = userId ? { userId } : {};
+
+      const [
+        total,
+        pending,
+        inProgress,
+        resolved,
+        rejected
+      ] = await Promise.all([
+        prisma.complaint.count({ where }),
+        prisma.complaint.count({ where: { ...where, status: ComplaintStatus.PENDING } }),
+        prisma.complaint.count({ where: { ...where, status: ComplaintStatus.IN_PROGRESS } }),
+        prisma.complaint.count({ where: { ...where, status: ComplaintStatus.RESOLVED } }),
+        prisma.complaint.count({ where: { ...where, status: ComplaintStatus.REJECTED } })
+      ]);
+
+      return {
+        total,
+        pending,
+        inProgress,
+        resolved,
+        rejected,
+        activeComplaints: total - rejected,
+      };
+    } catch (error) {
+      console.error('Error getting complaint stats:', error);
+      throw new Error('Failed to fetch complaint statistics');
+    }
+  }
+
+  // Generate unique tracking number
+  private async generateTrackingNumber(): Promise<string> {
+    const prefix = 'CC';
+    const timestamp = Date.now().toString();
+    const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+    return `${prefix}${timestamp.slice(-6)}${random}`;
+  }
+
+  // Get complaints by status for user
+  async getComplaintsByStatus(userId: number, status: ComplaintStatus) {
+    try {
+      const complaints = await prisma.complaint.findMany({
+        where: {
+          userId,
+          status
+        },
+        orderBy: {
+          createdAt: 'desc'
+        }
+      });
+
+      return complaints.map(complaint => this.formatComplaintResponse(complaint));
+    } catch (error) {
+      console.error('Error getting complaints by status:', error);
+      throw new Error('Failed to fetch complaints by status');
+    }
+  }
+
+  // Search complaints
+  async searchComplaints(searchTerm: string, userId?: number) {
+    try {
+      const where: any = {
+        OR: [
+          { title: { contains: searchTerm, mode: 'insensitive' } },
+          { description: { contains: searchTerm, mode: 'insensitive' } },
+          { trackingNumber: { contains: searchTerm, mode: 'insensitive' } },
+        ]
+      };
+
+      if (userId) {
+        where.userId = userId;
+      }
+
+      const complaints = await prisma.complaint.findMany({
+        where,
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              phone: true,
+            }
+          }
+        },
+        orderBy: {
+          createdAt: 'desc'
+        }
+      });
+
+      return complaints.map(complaint => this.formatComplaintResponse(complaint));
+    } catch (error) {
+      console.error('Error searching complaints:', error);
+      throw new Error('Failed to search complaints');
+    }
+  }
+
+  // Helper method to parse file URLs from stored string
+  private parseFileUrls(imageUrlString: string): { imageUrls: string[]; voiceUrl?: string } {
+    const imageUrls: string[] = [];
+    let voiceUrl: string | undefined;
+    
+    if (!imageUrlString) {
+      return { imageUrls };
+    }
+    
+    const parts = imageUrlString.split(',').map(part => part.trim()).filter(part => part);
+    
+    parts.forEach(part => {
+      if (part.startsWith('voice:')) {
+        voiceUrl = part.substring(6); // Remove 'voice:' prefix
+      } else {
+        imageUrls.push(part);
+      }
+    });
+    
+    return { imageUrls, voiceUrl };
+  }
+
+  // Helper method to format file URLs for storage
+  private formatFileUrlsForStorage(imageUrls: string[], voiceUrl?: string): string {
+    const parts: string[] = [];
+    
+    // Add image URLs
+    imageUrls.forEach(url => {
+      if (url && url.trim()) {
+        parts.push(url.trim());
+      }
+    });
+    
+    // Add voice URL with prefix
+    if (voiceUrl && voiceUrl.trim()) {
+      parts.push(`voice:${voiceUrl.trim()}`);
+    }
+    
+    return parts.join(',');
+  }
+
+  // Helper method to format complaint response with structured file URLs
+  private formatComplaintResponse(complaint: any) {
+    const parsed = this.parseFileUrls(complaint.imageUrl || '');
+    
+    return {
+      ...complaint,
+      imageUrls: parsed.imageUrls,
+      voiceNoteUrl: parsed.voiceUrl,
+      // Keep original imageUrl for backward compatibility
+      imageUrl: complaint.imageUrl
+    };
+  }
+
+  // Update getComplaints to return formatted responses
+  async getComplaints(query: ComplaintQueryInput = {}) {
+    try {
+      const result = await this.getComplaintsRaw(query);
+      
+      return {
+        ...result,
+        data: result.data.map(complaint => this.formatComplaintResponse(complaint))
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // Raw method for internal use
+  private async getComplaintsRaw(query: ComplaintQueryInput = {}) {
+    const {
+      page = 1,
+      limit = 10,
+      status,
+      category,
+      priority,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+      userId
+    } = query;
+
+    const skip = (page - 1) * limit;
+
+    // Build where clause
+    const where: any = {};
+    
+    if (status) where.status = status;
+    if (category) where.category = category;
+    if (priority) where.priority = priority;
+    if (userId) where.userId = userId;
+
+    // Build order by clause
+    const orderBy: any = {};
+    orderBy[sortBy] = sortOrder;
+
+    const [complaints, total] = await Promise.all([
+      prisma.complaint.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy,
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              phone: true,
+            }
+          }
+        }
+      }),
+      prisma.complaint.count({ where })
+    ]);
+
+    return {
+      data: complaints,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasNextPage: page < Math.ceil(total / limit),
+        hasPrevPage: page > 1,
+      }
+    };
+  }
+}
+
+export const complaintService = new ComplaintService();

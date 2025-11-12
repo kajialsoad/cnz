@@ -5,6 +5,8 @@ import env from './config/env';
 import authRoutes from './routes/auth.routes';
 import userRoutes from './routes/user.routes';
 import adminAuthRoutes from './routes/admin.auth.routes';
+import complaintRoutes from './routes/complaint.routes';
+import uploadRoutes from './routes/upload.routes';
 import { AuthRequest } from './middlewares/auth.middleware';
 
 console.log('🚀 Starting Clean Care API Server...');
@@ -53,6 +55,12 @@ console.log('✅ Regular auth routes registered at /api/auth');
 
 app.use('/api/users', userRoutes);
 console.log('✅ User routes registered at /api/users');
+
+app.use('/api/complaints', complaintRoutes);
+console.log('✅ Complaint routes registered at /api/complaints');
+
+app.use('/api/uploads', uploadRoutes);
+console.log('✅ Upload routes registered at /api/uploads');
 
 app.use('/api/admin/auth', adminAuthRoutes); // Admin authentication routes
 console.log('✅ Admin auth routes registered at /api/admin/auth');
