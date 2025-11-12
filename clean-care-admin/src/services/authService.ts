@@ -5,10 +5,9 @@ import type { LoginCredentials, AuthResponse, User } from '../types/auth.types';
 
 class AuthService {
     private apiClient: AxiosInstance;
-    private isRefreshing = false;
-    private refreshSubscribers: ((token: string) => void)[] = [];
-    private accessTokenKey = 'accessToken';
-    private refreshTokenKey = 'refreshToken';
+  private isRefreshing = false;
+  private refreshSubscribers: ((token: string) => void)[] = [];
+  private accessTokenKey = 'accessToken';
 
     constructor() {
         this.apiClient = axios.create({
@@ -88,24 +87,18 @@ class AuthService {
         } catch {}
     }
 
-    private setRefreshToken(token: string) {
-        try {
-            localStorage.setItem(this.refreshTokenKey, token);
-        } catch {}
-    }
 
     async login(credentials: LoginCredentials): Promise<AuthResponse> {
         try {
             const loginResponse = await this.apiClient.post<{
                 accessToken: string;
-                refreshToken: string;
                 accessExpiresIn: number;
-                refreshExpiresIn: number;
+                refreshToken?: string;
+                refreshExpiresIn?: number;
             }>(API_CONFIG.ENDPOINTS.AUTH.LOGIN, credentials);
 
             // Persist tokens and set Authorization header
             this.setAccessToken(loginResponse.data.accessToken);
-            this.setRefreshToken(loginResponse.data.refreshToken);
 
             // Fetch profile with fresh token
             const profileResponse = await this.apiClient.get<{ user: User }>(
@@ -120,7 +113,7 @@ class AuthService {
             return {
                 user: profileResponse.data.user,
                 accessToken: loginResponse.data.accessToken,
-                refreshToken: loginResponse.data.refreshToken,
+                refreshToken: loginResponse.data.refreshToken ?? '',
                 expiresIn: loginResponse.data.accessExpiresIn,
             };
         } catch (error) {
@@ -133,28 +126,22 @@ class AuthService {
 
     async logout(): Promise<void> {
         try {
-            const storedRefresh = localStorage.getItem(this.refreshTokenKey);
-            await this.apiClient.post(API_CONFIG.ENDPOINTS.AUTH.LOGOUT, {
-                refreshToken: storedRefresh,
-            });
+            await this.apiClient.post(API_CONFIG.ENDPOINTS.AUTH.LOGOUT);
         } catch (error) {
             console.error('Logout error:', error);
         }
         // Always clear client-side tokens
         try {
             localStorage.removeItem(this.accessTokenKey);
-            localStorage.removeItem(this.refreshTokenKey);
             delete this.apiClient.defaults.headers.common['Authorization'];
         } catch {}
     }
 
     async refreshToken(): Promise<string> {
         try {
-            const storedRefresh = localStorage.getItem(this.refreshTokenKey);
-            if (!storedRefresh) throw new Error('Missing refresh token');
             const response = await this.apiClient.post<{ accessToken: string }>(
                 API_CONFIG.ENDPOINTS.AUTH.REFRESH,
-                { refreshToken: storedRefresh }
+                {}
             );
             const newAccess = response.data.accessToken;
             this.setAccessToken(newAccess);

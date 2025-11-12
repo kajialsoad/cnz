@@ -61,7 +61,7 @@ const Login: React.FC = () => {
     setLoading(true);
 
     try {
-      await login(formData.email, formData.password);
+      await login(formData.email, formData.password, rememberMe);
       // Navigation will be handled by useEffect when isAuthenticated changes
     } catch (err: any) {
       setError(err.message || 'Invalid email or password');
