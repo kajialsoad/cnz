@@ -57,14 +57,6 @@ export async function adminLogin(req: AuthRequest, res: Response) {
 // Admin profile - returns admin user info
 export async function adminMe(req: AuthRequest, res: Response) {
     try {
-        // Debug: incoming admin profile request
-        try {
-            console.log('[adminMe] Request received', {
-                authHeaderPresent: !!req.headers.authorization,
-                path: (req as any).path,
-                method: (req as any).method,
-            });
-        } catch {}
         if (!req.user) return res.status(401).json({ message: 'Unauthorized' });
 
         // Check if user has admin role
@@ -77,11 +69,6 @@ export async function adminMe(req: AuthRequest, res: Response) {
         const user = await authService.getProfile(String(req.user.sub));
         return res.status(200).json({ user });
     } catch (err: any) {
-        try {
-            console.warn('[adminMe] Failed to load admin profile', {
-                error: err?.message,
-            });
-        } catch {}
         return res.status(400).json({ message: err?.message ?? 'Failed to load admin profile' });
     }
 }

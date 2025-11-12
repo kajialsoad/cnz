@@ -31,11 +31,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        // Login পেজে থাকলে প্রোফাইল চেকের জন্য অপ্রয়োজনীয় API কল এড়াই
-        if (window.location.pathname === '/login') {
-            setIsLoading(false);
-            return;
-        }
         // Check if user is already authenticated on mount
         checkAuth();
     }, []);

@@ -14,13 +14,20 @@ class AuthService {
         this.apiClient = axios.create({
             baseURL: API_CONFIG.BASE_URL,
             timeout: API_CONFIG.TIMEOUT,
-            withCredentials: true, // Send cookies with requests
+            withCredentials: true,
             headers: {
                 'Content-Type': 'application/json',
             },
         });
 
-        // Setup response interceptor for automatic token refresh
+        // Load any existing token on startup
+        try {
+            const existing = localStorage.getItem(this.accessTokenKey);
+            if (existing) {
+                this.apiClient.defaults.headers.common['Authorization'] = `Bearer ${existing}`;
+            }
+        } catch {}
+
         this.setupInterceptors();
     }
 
@@ -30,13 +37,14 @@ class AuthService {
             async (error: AxiosError) => {
                 const originalRequest = error.config as any;
 
-                // If error is 401 and we haven't tried to refresh yet
                 if (error.response?.status === 401 && !originalRequest._retry) {
                     if (this.isRefreshing) {
-                        // If already refreshing, queue this request
                         return new Promise((resolve) => {
                             this.refreshSubscribers.push((token: string) => {
-                                originalRequest.headers['Authorization'] = `Bearer ${token}`;
+                                originalRequest.headers = {
+                                    ...(originalRequest.headers || {}),
+                                    Authorization: `Bearer ${token}`,
+                                };
                                 resolve(this.apiClient(originalRequest));
                             });
                         });
@@ -49,17 +57,18 @@ class AuthService {
                         const newToken = await this.refreshToken();
                         this.isRefreshing = false;
 
-                        // Retry all queued requests
-                        this.refreshSubscribers.forEach((callback) => callback(newToken));
+                        this.refreshSubscribers.forEach((cb) => cb(newToken));
                         this.refreshSubscribers = [];
 
-                        // Retry the original request
-                        originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
+                        originalRequest.headers = {
+                            ...(originalRequest.headers || {}),
+                            Authorization: `Bearer ${newToken}`,
+                        };
                         return this.apiClient(originalRequest);
                     } catch (refreshError) {
                         this.isRefreshing = false;
                         this.refreshSubscribers = [];
-                        // Avoid hard reload loop on login page; let routing handle redirect
+                        // Avoid reload loop on login page
                         if (window.location.pathname !== '/login') {
                             window.location.assign('/login');
                         }
@@ -87,7 +96,6 @@ class AuthService {
 
     async login(credentials: LoginCredentials): Promise<AuthResponse> {
         try {
-            // Step 1: Login to get tokens
             const loginResponse = await this.apiClient.post<{
                 accessToken: string;
                 refreshToken: string;
@@ -95,11 +103,11 @@ class AuthService {
                 refreshExpiresIn: number;
             }>(API_CONFIG.ENDPOINTS.AUTH.LOGIN, credentials);
 
-            // Persist tokens and set default Authorization header
+            // Persist tokens and set Authorization header
             this.setAccessToken(loginResponse.data.accessToken);
             this.setRefreshToken(loginResponse.data.refreshToken);
 
-            // Step 2: Get user profile
+            // Fetch profile with fresh token
             const profileResponse = await this.apiClient.get<{ user: User }>(
                 API_CONFIG.ENDPOINTS.AUTH.PROFILE,
                 {
@@ -125,12 +133,14 @@ class AuthService {
 
     async logout(): Promise<void> {
         try {
-            await this.apiClient.post(API_CONFIG.ENDPOINTS.AUTH.LOGOUT);
+            const storedRefresh = localStorage.getItem(this.refreshTokenKey);
+            await this.apiClient.post(API_CONFIG.ENDPOINTS.AUTH.LOGOUT, {
+                refreshToken: storedRefresh,
+            });
         } catch (error) {
             console.error('Logout error:', error);
-            // Even if logout fails on backend, we should clear local state
         }
-        // Clear local tokens and default header
+        // Always clear client-side tokens
         try {
             localStorage.removeItem(this.accessTokenKey);
             localStorage.removeItem(this.refreshTokenKey);
