@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:provider/provider.dart';
 import '../components/custom_bottom_nav.dart';
 import '../widgets/translated_text.dart';
+import '../providers/complaint_provider.dart';
 
 class ComplaintPage extends StatefulWidget {
   const ComplaintPage({super.key});
@@ -97,6 +99,10 @@ class _ComplaintPageState extends State<ComplaintPage> {
           borderColor: const Color(0xFF4CAF50), // Green border
           isSelected: selectedComplaintType == 'own_residence',
           onTap: () {
+            // Set category in provider and navigate
+            final complaintProvider = Provider.of<ComplaintProvider>(context, listen: false);
+            complaintProvider.setCategory('own_residence');
+            
             setState(() {
               selectedComplaintType = 'own_residence';
             });
@@ -111,10 +117,14 @@ class _ComplaintPageState extends State<ComplaintPage> {
           borderColor: const Color(0xFFFFC107), // Yellow border
           isSelected: selectedComplaintType == 'others',
           onTap: () {
+            // Set category in provider and navigate
+            final complaintProvider = Provider.of<ComplaintProvider>(context, listen: false);
+            complaintProvider.setCategory('others');
+            
             setState(() {
               selectedComplaintType = 'others';
             });
-            // Navigate to others category page
+            // Navigate to others page to show all options
             Navigator.pushNamed(context, '/others');
           },
         ),

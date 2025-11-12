@@ -5,6 +5,11 @@ exports.login = login;
 exports.refresh = refresh;
 exports.logout = logout;
 exports.me = me;
+exports.forgotPassword = forgotPassword;
+exports.resetPassword = resetPassword;
+exports.verifyEmail = verifyEmail;
+exports.updateProfile = updateProfile;
+exports.resendVerificationEmail = resendVerificationEmail;
 const auth_service_1 = require("../services/auth.service");
 const zod_1 = require("zod");
 const registerSchema = zod_1.z.object({
@@ -81,5 +86,140 @@ async function me(req, res) {
     }
     catch (err) {
         return res.status(400).json({ message: err?.message ?? 'Failed to load user' });
+    }
+}
+const forgotPasswordSchema = zod_1.z.object({
+    email: zod_1.z.string().email(),
+});
+async function forgotPassword(req, res) {
+    try {
+        const body = forgotPasswordSchema.parse(req.body);
+        await auth_service_1.authService.forgotPassword(body.email);
+        return res.status(200).json({
+            success: true,
+            message: 'Password reset email sent successfully'
+        });
+    }
+    catch (err) {
+        if (err?.name === 'ZodError') {
+            return res.status(400).json({
+                success: false,
+                message: 'Validation error',
+                issues: err.issues
+            });
+        }
+        return res.status(400).json({
+            success: false,
+            message: err?.message ?? 'Failed to send password reset email'
+        });
+    }
+}
+const resetPasswordSchema = zod_1.z.object({
+    token: zod_1.z.string().min(1),
+    password: zod_1.z.string().min(6),
+});
+async function resetPassword(req, res) {
+    try {
+        const body = resetPasswordSchema.parse(req.body);
+        await auth_service_1.authService.resetPassword(body.token, body.password);
+        return res.status(200).json({
+            success: true,
+            message: 'Password reset successfully'
+        });
+    }
+    catch (err) {
+        if (err?.name === 'ZodError') {
+            return res.status(400).json({
+                success: false,
+                message: 'Validation error',
+                issues: err.issues
+            });
+        }
+        return res.status(400).json({
+            success: false,
+            message: err?.message ?? 'Failed to reset password'
+        });
+    }
+}
+const verifyEmailSchema = zod_1.z.object({
+    token: zod_1.z.string().min(1),
+});
+async function verifyEmail(req, res) {
+    try {
+        const body = verifyEmailSchema.parse(req.body);
+        await auth_service_1.authService.verifyEmail(body.token);
+        return res.status(200).json({
+            success: true,
+            message: 'Email verified successfully'
+        });
+    }
+    catch (err) {
+        if (err?.name === 'ZodError') {
+            return res.status(400).json({
+                success: false,
+                message: 'Validation error',
+                issues: err.issues
+            });
+        }
+        return res.status(400).json({
+            success: false,
+            message: err?.message ?? 'Email verification failed'
+        });
+    }
+}
+const updateProfileSchema = zod_1.z.object({
+    firstName: zod_1.z.string().min(2).optional(),
+    lastName: zod_1.z.string().min(2).optional(),
+    phone: zod_1.z.string().min(6).optional(),
+    address: zod_1.z.string().optional(),
+    avatar: zod_1.z.string().url().optional(),
+});
+async function updateProfile(req, res) {
+    try {
+        if (!req.user)
+            return res.status(401).json({
+                success: false,
+                message: 'Unauthorized'
+            });
+        const body = updateProfileSchema.parse(req.body);
+        const user = await auth_service_1.authService.updateProfile(req.user.sub, body);
+        return res.status(200).json({
+            success: true,
+            message: 'Profile updated successfully',
+            user
+        });
+    }
+    catch (err) {
+        if (err?.name === 'ZodError') {
+            return res.status(400).json({
+                success: false,
+                message: 'Validation error',
+                issues: err.issues
+            });
+        }
+        return res.status(400).json({
+            success: false,
+            message: err?.message ?? 'Failed to update profile'
+        });
+    }
+}
+async function resendVerificationEmail(req, res) {
+    try {
+        if (!req.user)
+            return res.status(401).json({
+                success: false,
+                message: 'Unauthorized'
+            });
+        await auth_service_1.authService.resendVerificationEmail(req.user.sub);
+        return res.status(200).json({
+            success: true,
+            message: 'Verification email sent successfully'
+        });
+    }
+    catch (err) {
+        return res.status(400).json({
+            success: false,
+            message: err?.message ?? 'Failed to resend verification email'
+        });
     }
 }

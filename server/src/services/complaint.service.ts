@@ -3,10 +3,10 @@ import { ComplaintStatus } from '@prisma/client';
 import { uploadService } from './upload.service';
 
 export interface CreateComplaintInput {
-  title: string;
+  title?: string; // Optional - will be auto-generated from description
   description: string;
-  category: string; // String for now
-  priority?: number; // Number for now (1-4)
+  category?: string;
+  priority?: number;
   location: {
     address: string;
     district: string;
@@ -14,11 +14,11 @@ export interface CreateComplaintInput {
     ward: string;
     latitude?: number;
     longitude?: number;
-  };
+  } | string; // Accept string or object
   imageUrls?: string[];
   voiceNoteUrl?: string;
-  userId: number;
-  // New file properties
+  userId?: number | null; // Nullable for "someone else" complaints
+  forSomeoneElse?: boolean; // Flag to indicate if complaint is for someone else
   uploadedFiles?: any; // Files from multer
 }
 
@@ -62,45 +62,69 @@ export class ComplaintService {
       const trackingNumber = await this.generateTrackingNumber();
       
       let finalImageUrls: string[] = [];
-      let finalVoiceUrl: string | undefined;
+      let finalAudioUrls: string[] = [];
 
       // Process uploaded files if provided
       if (input.uploadedFiles) {
-        const uploadedFiles = await uploadService.processUploadedFiles(input.uploadedFiles);
+        const files = input.uploadedFiles as any;
         
-        // Get image URLs
-        if (uploadedFiles.images && uploadedFiles.images.length > 0) {
-          finalImageUrls = uploadedFiles.images.map(img => img.url);
-        }
-        
-        // Get voice URL
-        if (uploadedFiles.voice) {
-          finalVoiceUrl = uploadedFiles.voice.url;
+        // With .any(), files come as an array, need to separate by fieldname
+        if (Array.isArray(files)) {
+          const imageFiles = files.filter((f: any) => f.fieldname === 'images');
+          const audioFiles = files.filter((f: any) => f.fieldname === 'audioFiles');
+          
+          if (imageFiles.length > 0) {
+            finalImageUrls = imageFiles.map((file: any) => `/uploads/${file.filename}`);
+          }
+          
+          if (audioFiles.length > 0) {
+            finalAudioUrls = audioFiles.map((file: any) => `/uploads/${file.filename}`);
+          }
+        } else {
+          // Fallback for .fields() format (if we ever switch back)
+          if (files.images) {
+            const imageFiles = Array.isArray(files.images) ? files.images : [files.images];
+            finalImageUrls = imageFiles.map((file: any) => `/uploads/${file.filename}`);
+          }
+          
+          if (files.audioFiles) {
+            const audioFilesArray = Array.isArray(files.audioFiles) ? files.audioFiles : [files.audioFiles];
+            finalAudioUrls = audioFilesArray.map((file: any) => `/uploads/${file.filename}`);
+          }
         }
       }
 
-      // Add URLs from direct input (fallback for API calls with URLs)
+      // Add URLs from direct input
       if (input.imageUrls && input.imageUrls.length > 0) {
         finalImageUrls = [...finalImageUrls, ...input.imageUrls];
       }
       
-      if (input.voiceNoteUrl && !finalVoiceUrl) {
-        finalVoiceUrl = input.voiceNoteUrl;
+      if (input.voiceNoteUrl) {
+        finalAudioUrls.push(input.voiceNoteUrl);
       }
 
-      // Create complaint with simplified location
+      // Auto-generate title from description if not provided
+      const title = input.title || this.generateTitleFromDescription(input.description);
+
+      // Handle location formatting
+      let locationString: string;
+      if (typeof input.location === 'string') {
+        locationString = input.location;
+      } else {
+        locationString = `${input.location.address}, ${input.location.district}, ${input.location.thana}, Ward: ${input.location.ward}`;
+      }
+
+      // Create complaint
       const complaint = await prisma.complaint.create({
         data: {
-          title: input.title,
+          title: title,
           description: input.description,
-          priority: input.priority || 2, // Default to medium (2)
+          priority: input.priority || 1, // Default priority is 1
           status: ComplaintStatus.PENDING,
-          imageUrl: finalImageUrls.length > 0 ? finalImageUrls.join(',') : null,
-          // Note: voiceNoteUrl will be stored in imageUrl field for now (comma-separated)
-          // Format: "image1.jpg,image2.jpg,voice:voice1.mp3" to distinguish voice files
-          userId: input.userId,
-          // Store location as formatted string for now
-          location: `${input.location.address}, ${input.location.district}, ${input.location.thana}, Ward: ${input.location.ward}`
+          imageUrl: finalImageUrls.length > 0 ? JSON.stringify(finalImageUrls) : null,
+          audioUrl: finalAudioUrls.length > 0 ? JSON.stringify(finalAudioUrls) : null,
+          userId: input.forSomeoneElse ? undefined : (input.userId ?? undefined),
+          location: locationString
         },
         include: {
           user: {
@@ -115,37 +139,24 @@ export class ComplaintService {
         }
       });
 
-      // If we have a voice file, add it to imageUrl field with voice: prefix
-      if (finalVoiceUrl) {
-        const currentImageUrl = complaint.imageUrl || '';
-        const voiceEntry = `voice:${finalVoiceUrl}`;
-        const updatedImageUrl = currentImageUrl 
-          ? `${currentImageUrl},${voiceEntry}`
-          : voiceEntry;
-        
-        await prisma.complaint.update({
-          where: { id: complaint.id },
-          data: { imageUrl: updatedImageUrl }
-        });
-        
-        // Update the returned complaint object
-        complaint.imageUrl = updatedImageUrl;
-      }
-
-      // Convert stored data back to structured format for response
-      const responseComplaint = this.formatComplaintResponse(complaint);
-
-      return responseComplaint;
+      return this.formatComplaintResponse(complaint);
     } catch (error) {
       console.error('Error creating complaint:', error);
-      
-      // Clean up uploaded files on error
-      if (input.uploadedFiles) {
-        await uploadService.cleanupFiles(input.uploadedFiles);
-      }
-      
-      throw new Error('Failed to create complaint');
+      throw new Error(`Failed to create complaint: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
+  }
+
+  // Helper method to generate title from description
+  private generateTitleFromDescription(description: string): string {
+    // Take first 50 characters of description as title
+    const maxLength = 50;
+    if (description.length <= maxLength) {
+      return description;
+    }
+    // Find last space within maxLength to avoid cutting words
+    const trimmed = description.substring(0, maxLength);
+    const lastSpace = trimmed.lastIndexOf(' ');
+    return lastSpace > 0 ? trimmed.substring(0, lastSpace) + '...' : trimmed + '...';
   }
 
   // Get complaint by ID

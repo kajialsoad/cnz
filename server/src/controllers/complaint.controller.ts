@@ -17,6 +17,17 @@ export class ComplaintController {
   // Create a new complaint
   async createComplaint(req: AuthenticatedRequest, res: Response) {
     try {
+      // Debug: Log what we're receiving
+      console.log('Request body:', JSON.stringify(req.body, null, 2));
+      console.log('Location object:', req.body.location);
+      if (req.body.location) {
+        console.log('- address:', req.body.location.address, 'length:', req.body.location.address?.length);
+        console.log('- district:', req.body.location.district);
+        console.log('- thana:', req.body.location.thana);
+        console.log('- ward:', req.body.location.ward);
+      }
+      console.log('Request files:', req.files);
+      
       // Validate request body
       const validatedData = validateInput(createComplaintSchema, req.body);
       

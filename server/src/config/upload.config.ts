@@ -39,9 +39,9 @@ const fileFilter = (req: any, file: Express.Multer.File, cb: any) => {
       cb(new Error('Only JPEG, PNG, and WebP images are allowed'), false);
     }
   }
-  // Voice files validation
-  else if (file.fieldname === 'voice') {
-    const allowedAudioTypes = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/ogg', 'audio/m4a', 'audio/aac'];
+  // Audio files validation (voice or audioFiles fieldname)
+  else if (file.fieldname === 'voice' || file.fieldname === 'audioFiles') {
+    const allowedAudioTypes = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/ogg', 'audio/m4a', 'audio/aac', 'audio/mp4'];
     if (allowedAudioTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
@@ -59,7 +59,7 @@ const storage = multer.diskStorage({
     
     if (file.fieldname === 'images') {
       uploadPath += 'images/';
-    } else if (file.fieldname === 'voice') {
+    } else if (file.fieldname === 'voice' || file.fieldname === 'audioFiles') {
       uploadPath += 'voice/';
     }
     
@@ -88,10 +88,8 @@ export const uploadConfig = multer({
 });
 
 // Field configurations for different upload types
-export const complaintFileUpload = uploadConfig.fields([
-  { name: 'images', maxCount: 5 }, // Max 5 images
-  { name: 'voice', maxCount: 1 }   // Max 1 voice file
-]);
+// Using .any() to accept all fields including location[address], location[district], etc.
+export const complaintFileUpload = uploadConfig.any();
 
 // Single file upload configurations
 export const imageUpload = uploadConfig.array('images', 5);

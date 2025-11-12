@@ -6,10 +6,33 @@ const auth_middleware_1 = require("../middlewares/auth.middleware");
 const validation_1 = require("../utils/validation");
 const validation_2 = require("../utils/validation");
 const router = (0, express_1.Router)();
+// Get current user profile (alias for /profile)
+router.get('/me', auth_middleware_1.authGuard, async (req, res) => {
+    try {
+        const userId = req.user.sub.toString();
+        const profile = await auth_service_1.authService.getProfile(userId);
+        res.json({
+            success: true,
+            user: profile
+        });
+    }
+    catch (error) {
+        if (error instanceof Error) {
+            return res.status(404).json({
+                success: false,
+                message: error.message
+            });
+        }
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error'
+        });
+    }
+});
 // Get user profile
 router.get('/profile', auth_middleware_1.authGuard, async (req, res) => {
     try {
-        const userId = req.user.sub;
+        const userId = req.user.sub.toString();
         const profile = await auth_service_1.authService.getProfile(userId);
         res.json({
             success: true,
@@ -32,7 +55,7 @@ router.get('/profile', auth_middleware_1.authGuard, async (req, res) => {
 // Update user profile
 router.put('/profile', auth_middleware_1.authGuard, async (req, res) => {
     try {
-        const userId = req.user.sub;
+        const userId = req.user.sub.toString();
         const { error, value } = (0, validation_1.validateInput)(validation_2.updateProfileSchema, req.body);
         if (error) {
             return res.status(400).json({
@@ -64,7 +87,7 @@ router.put('/profile', auth_middleware_1.authGuard, async (req, res) => {
 // Change password
 router.post('/change-password', auth_middleware_1.authGuard, async (req, res) => {
     try {
-        const userId = req.user.sub;
+        const userId = req.user.sub.toString();
         const { error, value } = (0, validation_1.validateInput)(validation_2.changePasswordSchema, req.body);
         if (error) {
             return res.status(400).json({

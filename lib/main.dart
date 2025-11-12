@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'config/api_config.dart';
 import 'guards/auth_guard.dart';
 import 'providers/language_provider.dart';
+import 'providers/complaint_provider.dart';
+import 'repositories/complaint_repository.dart';
 import 'services/auth_service.dart';
+import 'services/api_client.dart';
 import 'pages/welcome_screen.dart';
 import 'pages/login_page.dart';
 import 'pages/signup_page.dart';
@@ -25,8 +29,24 @@ import 'pages/notice_board_page.dart';
 
 void main() {
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => LanguageProvider(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => LanguageProvider()),
+        Provider<ApiClient>(
+          create: (_) => ApiClient(ApiConfig.baseUrl),
+          dispose: (_, apiClient) => apiClient,
+        ),
+        ProxyProvider<ApiClient, ComplaintRepository>(
+          update: (_, apiClient, __) => ComplaintRepository(apiClient),
+          dispose: (_, repository) => repository,
+        ),
+        ChangeNotifierProxyProvider<ComplaintRepository, ComplaintProvider>(
+          create: (context) => ComplaintProvider(
+            Provider.of<ComplaintRepository>(context, listen: false),
+          ),
+          update: (_, repository, __) => ComplaintProvider(repository),
+        ),
+      ],
       child: const MyApp(),
     ),
   );

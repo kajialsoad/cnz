@@ -11,7 +11,7 @@ const env = {
   DATABASE_URL: process.env.DATABASE_URL ?? '',
   JWT_ACCESS_SECRET: process.env.JWT_ACCESS_SECRET ?? 'dev_access_secret',
   JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET ?? 'dev_refresh_secret',
-  ACCESS_TTL: process.env.ACCESS_TTL ?? '15m',
+  ACCESS_TTL: process.env.ACCESS_TTL ?? '7d', // Changed from 15m to 7d for mobile
   REFRESH_TTL: process.env.REFRESH_TTL ?? '30d',
   CORS_ORIGIN: process.env.CORS_ORIGIN ?? '*',
   CORS_ORIGINS,
@@ -33,7 +33,7 @@ const env = {
   EMAIL_VERIFICATION_TTL: process.env.EMAIL_VERIFICATION_TTL ?? '24h',
   
   // TTL in seconds for calculations
-  ACCESS_TTL_SECONDS: 15 * 60, // 15 minutes
+  ACCESS_TTL_SECONDS: 7 * 24 * 60 * 60, // 7 days (increased for mobile app)
   REFRESH_TTL_SECONDS: 30 * 24 * 60 * 60, // 30 days
   PASSWORD_RESET_TTL_SECONDS: 60 * 60, // 1 hour
   EMAIL_VERIFICATION_TTL_SECONDS: 24 * 60 * 60, // 24 hours

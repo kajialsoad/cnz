@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.changePasswordSchema = exports.updateProfileSchema = exports.resetPasswordSchema = exports.forgotPasswordSchema = exports.emailLoginSchema = exports.loginSchema = exports.registerSchema = void 0;
+exports.complaintQuerySchema = exports.updateComplaintSchema = exports.createComplaintSchema = exports.changePasswordSchema = exports.updateProfileSchema = exports.resetPasswordSchema = exports.forgotPasswordSchema = exports.emailLoginSchema = exports.loginSchema = exports.registerSchema = void 0;
 exports.validateInput = validateInput;
 const joi_1 = __importDefault(require("joi"));
 // User validation schemas
@@ -41,15 +41,21 @@ exports.registerSchema = joi_1.default.object({
     }),
 });
 exports.loginSchema = joi_1.default.object({
-    phone: joi_1.default.string().pattern(/^01[3-9]\d{8}$/).required()
+    phone: joi_1.default.string().pattern(/^01[3-9]\d{8}$/).optional()
         .messages({
-        'string.empty': 'ফোন নম্বর প্রয়োজন',
         'string.pattern.base': 'বৈধ বাংলাদেশি ফোন নম্বর প্রয়োজন (01XXXXXXXXX)',
+    }),
+    email: joi_1.default.string().email().optional()
+        .messages({
+        'string.email': 'বৈধ ইমেইল ঠিকানা প্রয়োজন',
     }),
     password: joi_1.default.string().required()
         .messages({
         'string.empty': 'পাসওয়ার্ড প্রয়োজন',
     }),
+}).or('phone', 'email')
+    .messages({
+    'object.missing': 'ফোন নম্বর অথবা ইমেইল প্রয়োজন',
 });
 exports.emailLoginSchema = joi_1.default.object({
     email: joi_1.default.string().email().required()
@@ -113,21 +119,101 @@ exports.changePasswordSchema = joi_1.default.object({
         'string.max': 'নতুন পাসওয়ার্ড সর্বোচ্চ ১২৮ অক্ষরের হতে হবে',
     }),
 });
+// Complaint validation schemas
+exports.createComplaintSchema = joi_1.default.object({
+    title: joi_1.default.string().min(5).max(200).required()
+        .messages({
+        'string.empty': 'অভিযোগের শিরোনাম প্রয়োজন',
+        'string.min': 'অভিযোগের শিরোনাম কমপক্ষে ৫ অক্ষরের হতে হবে',
+        'string.max': 'অভিযোগের শিরোনাম সর্বোচ্চ ২০০ অক্ষরের হতে হবে',
+    }),
+    description: joi_1.default.string().min(10).max(2000).required()
+        .messages({
+        'string.empty': 'অভিযোগের বর্ণনা প্রয়োজন',
+        'string.min': 'অভিযোগের বর্ণনা কমপক্ষে ১০ অক্ষরের হতে হবে',
+        'string.max': 'অভিযোগের বর্ণনা সর্বোচ্চ ২০০০ অক্ষরের হতে হবে',
+    }),
+    category: joi_1.default.string().optional()
+        .messages({
+        'string.empty': 'অভিযোগের ধরন নির্বাচন করুন',
+    }),
+    priority: joi_1.default.number().integer().min(1).max(4).optional()
+        .messages({
+        'number.base': 'বৈধ অগ্রাধিকার নির্বাচন করুন',
+        'number.min': 'অগ্রাধিকার ১-৪ এর মধ্যে হতে হবে',
+        'number.max': 'অগ্রাধিকার ১-৪ এর মধ্যে হতে হবে',
+    }),
+    location: joi_1.default.object({
+        address: joi_1.default.string().min(10).max(500).required()
+            .messages({
+            'string.empty': 'সম্পূর্ণ ঠিকানা প্রয়োজন',
+            'string.min': 'ঠিকানা কমপক্ষে ১০ অক্ষরের হতে হবে',
+            'string.max': 'ঠিকানা সর্বোচ্চ ৫০০ অক্ষরের হতে হবে',
+        }),
+        district: joi_1.default.string().required()
+            .messages({
+            'string.empty': 'জেলা নির্বাচন করুন',
+        }),
+        thana: joi_1.default.string().required()
+            .messages({
+            'string.empty': 'থানা নির্বাচন করুন',
+        }),
+        ward: joi_1.default.string().required()
+            .messages({
+            'string.empty': 'ওয়ার্ড নম্বর প্রয়োজন',
+        }),
+        latitude: joi_1.default.number().min(-90).max(90).optional()
+            .messages({
+            'number.min': 'বৈধ অক্ষাংশ প্রয়োজন',
+            'number.max': 'বৈধ অক্ষাংশ প্রয়োজন',
+        }),
+        longitude: joi_1.default.number().min(-180).max(180).optional()
+            .messages({
+            'number.min': 'বৈধ দ্রাঘিমাংশ প্রয়োজন',
+            'number.max': 'বৈধ দ্রাঘিমাংশ প্রয়োজন',
+        }),
+    }).required(),
+    imageUrls: joi_1.default.array().items(joi_1.default.string().uri()).optional()
+        .messages({
+        'string.uri': 'বৈধ ছবির URL প্রয়োজন',
+    }),
+    voiceNoteUrl: joi_1.default.string().uri().optional()
+        .messages({
+        'string.uri': 'বৈধ ভয়েস নোট URL প্রয়োজন',
+    }),
+});
+exports.updateComplaintSchema = joi_1.default.object({
+    title: joi_1.default.string().min(5).max(200).optional(),
+    description: joi_1.default.string().min(10).max(2000).optional(),
+    category: joi_1.default.string().optional(),
+    priority: joi_1.default.number().integer().min(1).max(4).optional(),
+    status: joi_1.default.string().valid('PENDING', 'IN_PROGRESS', 'RESOLVED', 'REJECTED').optional(),
+    location: joi_1.default.object({
+        address: joi_1.default.string().min(10).max(500).optional(),
+        district: joi_1.default.string().optional(),
+        thana: joi_1.default.string().optional(),
+        ward: joi_1.default.string().optional(),
+        latitude: joi_1.default.number().min(-90).max(90).optional(),
+        longitude: joi_1.default.number().min(-180).max(180).optional(),
+    }).optional(),
+    imageUrls: joi_1.default.array().items(joi_1.default.string().uri()).optional(),
+    voiceNoteUrl: joi_1.default.string().uri().optional(),
+});
+exports.complaintQuerySchema = joi_1.default.object({
+    page: joi_1.default.number().integer().min(1).optional(),
+    limit: joi_1.default.number().integer().min(1).max(50).optional(),
+    status: joi_1.default.string().valid('PENDING', 'IN_PROGRESS', 'RESOLVED', 'REJECTED').optional(),
+    category: joi_1.default.string().optional(),
+    priority: joi_1.default.number().integer().min(1).max(4).optional(),
+    sortBy: joi_1.default.string().valid('createdAt', 'updatedAt', 'priority', 'status').optional(),
+    sortOrder: joi_1.default.string().valid('asc', 'desc').optional(),
+});
 // Validation helper function
 function validateInput(schema, data) {
     const { error, value } = schema.validate(data, { abortEarly: false });
     if (error) {
-        const errors = {};
-        error.details.forEach((detail) => {
-            if (detail.path.length > 0) {
-                errors[detail.path[0].toString()] = detail.message;
-            }
-        });
-        throw {
-            name: 'ValidationError',
-            message: 'ইনপুট ভ্যালিডেশন ত্রুটি',
-            errors,
-        };
+        const errorMessage = error.details.map(detail => detail.message).join(', ');
+        throw new Error(errorMessage);
     }
     return value;
 }

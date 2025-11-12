@@ -1,0 +1,214 @@
+import 'dart:io';
+import '../models/complaint.dart';
+import '../services/api_client.dart';
+
+class ComplaintRepository {
+  final ApiClient _apiClient;
+
+  ComplaintRepository(this._apiClient);
+
+  /// Create a new complaint with optional file uploads
+  Future<Complaint> createComplaint({
+    required String description,
+    String? address,
+    String? district,
+    String? thana,
+    String? ward,
+    List<File>? images,
+    List<File>? audioFiles,
+  }) async {
+    try {
+      // Debug logging
+      print('Creating complaint with:');
+      print('- description: $description');
+      print('- address: $address (length: ${address?.length ?? 0})');
+      print('- district: $district');
+      print('- thana: $thana');
+      print('- ward: $ward');
+      
+      // Construct location object from address components
+      final locationData = {
+        'address': address ?? '',
+        'district': district ?? '',
+        'thana': thana ?? '',
+        'ward': ward ?? '',
+      };
+
+      final response = await _apiClient.postMultipart(
+        '/api/complaints',
+        data: {
+          'description': description,
+          // Send location as nested object using bracket notation for multipart form
+          'location[address]': locationData['address'],
+          'location[district]': locationData['district'],
+          'location[thana]': locationData['thana'],
+          'location[ward]': locationData['ward'],
+        },
+        files: [
+          ...?images?.map((file) => MapEntry('images', file)),
+          ...?audioFiles?.map((file) => MapEntry('audioFiles', file)),
+        ],
+      );
+
+      if (response['success'] == true) {
+        return Complaint.fromJson(response['data']);
+      } else {
+        throw Exception(response['message'] ?? 'Failed to create complaint');
+      }
+    } catch (e) {
+      throw Exception('Error creating complaint: ${e.toString()}');
+    }
+  }
+
+  /// Get all complaints for the current user
+  Future<List<Complaint>> getMyComplaints() async {
+    try {
+      final response = await _apiClient.get('/api/complaints/my');
+      
+      if (response['success'] == true) {
+        final List<dynamic> complaintsJson = response['data'];
+        return complaintsJson.map((json) => Complaint.fromJson(json)).toList();
+      } else {
+        throw Exception(response['message'] ?? 'Failed to fetch complaints');
+      }
+    } catch (e) {
+      throw Exception('Error fetching complaints: ${e.toString()}');
+    }
+  }
+
+  /// Get a specific complaint by ID
+  Future<Complaint> getComplaint(String id) async {
+    try {
+      final response = await _apiClient.get('/api/complaints/$id');
+      
+      if (response['success'] == true) {
+        return Complaint.fromJson(response['data']);
+      } else {
+        throw Exception(response['message'] ?? 'Failed to fetch complaint');
+      }
+    } catch (e) {
+      throw Exception('Error fetching complaint: ${e.toString()}');
+    }
+  }
+
+  /// Update an existing complaint
+  Future<Complaint> updateComplaint({
+    required String id,
+    String? title,
+    String? description,
+    String? category,
+    String? urgencyLevel,
+    String? location,
+    String? address,
+    String? status,
+    List<File>? newImages,
+    List<File>? newAudioFiles,
+    List<String>? removeImageUrls,
+    List<String>? removeAudioUrls,
+  }) async {
+    try {
+      final data = <String, dynamic>{};
+      if (title != null) data['title'] = title;
+      if (description != null) data['description'] = description;
+      if (category != null) data['category'] = category;
+      if (urgencyLevel != null) data['urgencyLevel'] = urgencyLevel;
+      if (location != null) data['location'] = location;
+      if (address != null) data['address'] = address;
+      if (status != null) data['status'] = status;
+      if (removeImageUrls != null && removeImageUrls.isNotEmpty) {
+        data['removeImageUrls'] = removeImageUrls.join(',');
+      }
+      if (removeAudioUrls != null && removeAudioUrls.isNotEmpty) {
+        data['removeAudioUrls'] = removeAudioUrls.join(',');
+      }
+
+      final response = await _apiClient.putMultipart(
+        '/api/complaints/$id',
+        data: data,
+        files: [
+          ...?newImages?.map((file) => MapEntry('images', file)),
+          ...?newAudioFiles?.map((file) => MapEntry('audioFiles', file)),
+        ],
+      );
+
+      if (response['success'] == true) {
+        return Complaint.fromJson(response['data']);
+      } else {
+        throw Exception(response['message'] ?? 'Failed to update complaint');
+      }
+    } catch (e) {
+      throw Exception('Error updating complaint: ${e.toString()}');
+    }
+  }
+
+  /// Delete a complaint
+  Future<void> deleteComplaint(String id) async {
+    try {
+      final response = await _apiClient.delete('/api/complaints/$id');
+      
+      if (response['success'] != true) {
+        throw Exception(response['message'] ?? 'Failed to delete complaint');
+      }
+    } catch (e) {
+      throw Exception('Error deleting complaint: ${e.toString()}');
+    }
+  }
+
+  /// Upload additional files to existing complaint
+  Future<List<String>> uploadFiles({
+    required String complaintId,
+    List<File>? images,
+    List<File>? audioFiles,
+  }) async {
+    try {
+      final response = await _apiClient.postMultipart(
+        '/api/complaints/$complaintId/upload',
+        files: [
+          ...?images?.map((file) => MapEntry('images', file)),
+          ...?audioFiles?.map((file) => MapEntry('audioFiles', file)),
+        ],
+      );
+
+      if (response['success'] == true) {
+        final List<dynamic> fileUrls = response['data']['fileUrls'];
+        return fileUrls.cast<String>();
+      } else {
+        throw Exception(response['message'] ?? 'Failed to upload files');
+      }
+    } catch (e) {
+      throw Exception('Error uploading files: ${e.toString()}');
+    }
+  }
+
+  /// Delete specific files from complaint
+  Future<void> deleteFiles({
+    required String complaintId,
+    List<String>? imageUrls,
+    List<String>? audioUrls,
+  }) async {
+    try {
+      final data = <String, dynamic>{};
+      if (imageUrls != null && imageUrls.isNotEmpty) {
+        data['imageUrls'] = imageUrls.join(',');
+      }
+      if (audioUrls != null && audioUrls.isNotEmpty) {
+        data['audioUrls'] = audioUrls.join(',');
+      }
+
+      if (data.isEmpty) {
+        throw Exception('No files specified for deletion');
+      }
+
+      final response = await _apiClient.delete(
+        '/api/complaints/$complaintId/files',
+        data: data,
+      );
+
+      if (response['success'] != true) {
+        throw Exception(response['message'] ?? 'Failed to delete files');
+      }
+    } catch (e) {
+      throw Exception('Error deleting files: ${e.toString()}');
+    }
+  }
+}

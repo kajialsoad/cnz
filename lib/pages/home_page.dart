@@ -10,6 +10,7 @@ import '../components/custom_bottom_nav.dart';
 import '../components/mayor_statement_banner.dart';
 import '../providers/language_provider.dart';
 import '../widgets/translated_text.dart';
+import '../services/auth_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -351,6 +352,33 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 ),
               ),
               // Divider
+              const PopupMenuDivider(height: 1),
+              // Logout
+              PopupMenuItem<String>(
+                value: 'logout',
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.logout, color: Colors.red, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Logout',
+                      style: TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               const PopupMenuDivider(height: 1),
               // Language Section Header
               PopupMenuItem<String>(
@@ -814,6 +842,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       case 'notice':
         Navigator.pushNamed(context, '/notice-board');
         return;
+      case 'logout':
+        _handleLogout();
+        return;
       case 'language':
         _handleLanguageSwitch();
         return;
@@ -825,6 +856,42 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         await languageProvider.setLanguage('bn');
         _showLanguageChangeSnackbar('Bangla Language Selected');
         break;
+    }
+  }
+
+  void _handleLogout() async {
+    // Capture context before any async operations
+    final navigator = Navigator.of(context);
+    
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Logout'),
+        content: const Text('Are you sure you want to logout?'),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await AuthService.clearTokens();
+      navigator.pushNamedAndRemoveUntil('/login', (route) => false);
     }
   }
 

@@ -13,11 +13,21 @@ const client_1 = require("@prisma/client");
 class AuthService {
     // User registration
     async register(input) {
-        const existingUser = await prisma_1.default.user.findUnique({
-            where: { email: input.email }
+        // Check if user exists by phone (required field)
+        const existingUserByPhone = await prisma_1.default.user.findUnique({
+            where: { phone: input.phone }
         });
-        if (existingUser) {
-            throw new Error('User already exists with this email');
+        if (existingUserByPhone) {
+            throw new Error('User already exists with this phone number');
+        }
+        // Check if user exists by email (if provided)
+        if (input.email) {
+            const existingUserByEmail = await prisma_1.default.user.findUnique({
+                where: { email: input.email }
+            });
+            if (existingUserByEmail) {
+                throw new Error('User already exists with this email');
+            }
         }
         const hashedPassword = await (0, bcrypt_1.hash)(input.password, 12);
         const verificationToken = (0, jwt_1.generateSecureToken)();
@@ -63,9 +73,22 @@ class AuthService {
     }
     // User login
     async login(input) {
-        const user = await prisma_1.default.user.findUnique({
-            where: { email: input.email }
-        });
+        console.log('Login input received:', input);
+        // Find user by email or phone
+        let user;
+        if (input.email) {
+            console.log('Finding user by email:', input.email);
+            user = await prisma_1.default.user.findUnique({
+                where: { email: input.email }
+            });
+        }
+        else if (input.phone) {
+            console.log('Finding user by phone:', input.phone);
+            user = await prisma_1.default.user.findUnique({
+                where: { phone: input.phone }
+            });
+        }
+        console.log('User found:', user ? 'Yes' : 'No');
         if (!user) {
             throw new Error('Invalid credentials');
         }
@@ -80,37 +103,43 @@ class AuthService {
             throw new Error('Invalid credentials');
         }
         // Generate tokens
-        const accessToken = (0, jwt_1.signAccessToken)({
-            sub: parseInt(user.id.toString()),
-            role: user.role,
-            email: user.email || undefined,
-            phone: user.phone || undefined
-        });
-        const refreshToken = (0, jwt_1.signRefreshToken)({
-            sub: parseInt(user.id.toString()),
-            role: user.role,
-            email: user.email || undefined,
-            phone: user.phone || undefined
-        });
-        // Store refresh token
-        await prisma_1.default.refreshToken.create({
-            data: {
-                token: refreshToken,
-                userId: user.id,
-                expiresAt: new Date(Date.now() + env_1.default.REFRESH_TTL_SECONDS * 1000)
-            }
-        });
-        // Update last login
-        await prisma_1.default.user.update({
-            where: { id: user.id },
-            data: { lastLoginAt: new Date() }
-        });
-        return {
-            accessToken,
-            refreshToken,
-            accessExpiresIn: env_1.default.ACCESS_TTL_SECONDS,
-            refreshExpiresIn: env_1.default.REFRESH_TTL_SECONDS,
-        };
+        try {
+            const accessToken = (0, jwt_1.signAccessToken)({
+                sub: parseInt(user.id.toString()),
+                role: user.role,
+                email: user.email ?? undefined,
+                phone: user.phone ?? undefined
+            });
+            const refreshToken = (0, jwt_1.signRefreshToken)({
+                sub: parseInt(user.id.toString()),
+                role: user.role,
+                email: user.email ?? undefined,
+                phone: user.phone ?? undefined
+            });
+            // Store refresh token
+            await prisma_1.default.refreshToken.create({
+                data: {
+                    token: refreshToken,
+                    userId: user.id,
+                    expiresAt: new Date(Date.now() + env_1.default.REFRESH_TTL_SECONDS * 1000)
+                }
+            });
+            // Update last login
+            await prisma_1.default.user.update({
+                where: { id: user.id },
+                data: { lastLoginAt: new Date() }
+            });
+            return {
+                accessToken,
+                refreshToken,
+                accessExpiresIn: env_1.default.ACCESS_TTL_SECONDS,
+                refreshExpiresIn: env_1.default.REFRESH_TTL_SECONDS,
+            };
+        }
+        catch (error) {
+            console.error('Token generation error:', error);
+            throw new Error('Failed to generate authentication tokens');
+        }
     }
     // Refresh access token
     async refreshTokens(refreshToken) {
@@ -292,6 +321,7 @@ class AuthService {
                 role: true,
                 status: true,
                 emailVerified: true,
+                phoneVerified: true,
                 avatar: true,
                 createdAt: true,
                 updatedAt: true,
@@ -317,6 +347,7 @@ class AuthService {
                 role: true,
                 status: true,
                 emailVerified: true,
+                phoneVerified: true,
                 avatar: true,
                 createdAt: true,
                 updatedAt: true,

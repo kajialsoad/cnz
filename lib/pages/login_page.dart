@@ -228,6 +228,23 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ),
                     const SizedBox(height: 24),
+                    // Debug: Clear expired tokens button
+                    if (kDebugMode)
+                      TextButton(
+                        onPressed: () async {
+                          await AuthService.clearTokens();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Tokens cleared! You can now login again.'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        },
+                        child: const Text(
+                          'Clear Expired Tokens (Debug)',
+                          style: TextStyle(color: Colors.white70, fontSize: 12),
+                        ),
+                      ),
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(

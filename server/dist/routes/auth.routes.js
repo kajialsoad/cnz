@@ -6,9 +6,9 @@ const validation_1 = require("../utils/validation");
 const validation_2 = require("../utils/validation");
 const auth_middleware_1 = require("../middlewares/auth.middleware");
 const router = (0, express_1.Router)();
-// Rate limiters
-const authRateLimiter = (0, auth_middleware_1.createRateLimiter)(15 * 60 * 1000, 5, 'Too many authentication attempts. Please try again later.');
-const registrationRateLimiter = (0, auth_middleware_1.createRateLimiter)(60 * 60 * 1000, 3, 'Too many registration attempts. Please try again later.');
+// Rate limiters (increased for development)
+const authRateLimiter = (0, auth_middleware_1.createRateLimiter)(15 * 60 * 1000, 50, 'Too many authentication attempts. Please try again later.');
+const registrationRateLimiter = (0, auth_middleware_1.createRateLimiter)(60 * 60 * 1000, 50, 'Too many registration attempts. Please try again later.');
 // Register endpoint
 router.post('/register', registrationRateLimiter, async (req, res) => {
     try {
@@ -44,14 +44,7 @@ router.post('/register', registrationRateLimiter, async (req, res) => {
 // Login endpoint
 router.post('/login', authRateLimiter, async (req, res) => {
     try {
-        const { error, value } = (0, validation_1.validateInput)(validation_2.loginSchema, req.body);
-        if (error) {
-            return res.status(400).json({
-                success: false,
-                message: 'Validation error',
-                errors: error.details
-            });
-        }
+        const value = (0, validation_1.validateInput)(validation_2.loginSchema, req.body);
         const tokens = await auth_service_1.authService.login(value);
         res.json({
             success: true,

@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import '../components/custom_bottom_nav.dart';
 import '../widgets/translated_text.dart';
+import '../providers/complaint_provider.dart';
+import '../services/file_handling_service.dart';
 
 class ComplaintDetailsPage extends StatefulWidget {
   const ComplaintDetailsPage({super.key});
@@ -14,10 +20,16 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
   final TextEditingController _descriptionController = TextEditingController();
   bool isRecording = false;
   List<String> uploadedPhotos = [];
+  
+  // Backend integration variables
+  final FileHandlingService _fileHandlingService = FileHandlingService();
+  List<File> _selectedImages = [];
+  List<File> _selectedAudioFiles = [];
 
   @override
   void dispose() {
     _descriptionController.dispose();
+    _fileHandlingService.dispose();
     super.dispose();
   }
 
@@ -93,48 +105,162 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
           ),
         ),
         const SizedBox(height: 12),
-        GestureDetector(
-          onTap: _addPhoto,
-          child: Container(
+        
+        // Show selected images in a horizontal scroll view
+        if (_selectedImages.isNotEmpty) ...[
+          SizedBox(
             height: 120,
-            width: 120,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: Colors.grey.shade300,
-                width: 1.5,
-                style: BorderStyle.solid,
-              ),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    shape: BoxShape.circle,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: _selectedImages.length + 1, // +1 for the add button
+              itemBuilder: (context, index) {
+                if (index == _selectedImages.length) {
+                  // Add photo button - same design as original
+                  return GestureDetector(
+                    onTap: _addPhoto,
+                    child: Container(
+                      margin: const EdgeInsets.only(left: 8),
+                      height: 120,
+                      width: 120,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.grey.shade300,
+                          width: 1.5,
+                          style: BorderStyle.solid,
+                        ),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade100,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.camera_alt_outlined,
+                              size: 24,
+                              color: Colors.grey.shade500,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          TranslatedText(
+                            'Add Photo',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+                
+                // Display selected image
+                return Container(
+                  margin: const EdgeInsets.only(right: 8),
+                  height: 120,
+                  width: 120,
+                  child: Stack(
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          color: Colors.grey.shade200,
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: kIsWeb
+                              ? Image.network(
+                                  _selectedImages[index].path,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Center(
+                                      child: Icon(Icons.image, color: Colors.grey),
+                                    );
+                                  },
+                                )
+                              : Image.file(
+                                  _selectedImages[index],
+                                  fit: BoxFit.cover,
+                                ),
+                        ),
+                      ),
+                      Positioned(
+                        top: 4,
+                        right: 4,
+                        child: GestureDetector(
+                          onTap: () => _removeImage(index),
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.close,
+                              color: Colors.white,
+                              size: 16,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  child: Icon(
-                    Icons.camera_alt_outlined,
-                    size: 24,
-                    color: Colors.grey.shade500,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TranslatedText(
-                  'Add Photo',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey.shade600,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
+                );
+              },
             ),
           ),
-        ),
+        ] else ...[
+          // Original add photo button when no images selected
+          GestureDetector(
+            onTap: _addPhoto,
+            child: Container(
+              height: 120,
+              width: 120,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Colors.grey.shade300,
+                  width: 1.5,
+                  style: BorderStyle.solid,
+                ),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.camera_alt_outlined,
+                      size: 24,
+                      color: Colors.grey.shade500,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TranslatedText(
+                    'Add Photo',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -152,6 +278,56 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
           ),
         ),
         const SizedBox(height: 12),
+        
+        // Show recorded audio files
+        if (_selectedAudioFiles.isNotEmpty) ...[
+          ...(_selectedAudioFiles.asMap().entries.map((entry) {
+            final index = entry.key;
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Colors.green.shade200,
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.audiotrack,
+                    color: Colors.green.shade600,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TranslatedText(
+                      'Voice Recording ${index + 1}',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.green.shade700,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => _removeAudioFile(index),
+                    child: Icon(
+                      Icons.close,
+                      color: Colors.red,
+                      size: 20,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          })),
+          const SizedBox(height: 12),
+        ],
+        
+        // Original recording button with same design
         GestureDetector(
           onTap: _toggleRecording,
           child: Container(
@@ -259,28 +435,116 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
     );
   }
 
-  void _addPhoto() {
-    // TODO: Implement photo picker
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: TranslatedText('Photo picker will be implemented'),
-        backgroundColor: Color(0xFF4CAF50),
-      ),
-    );
+  Future<void> _addPhoto() async {
+    try {
+      // Show dialog to choose camera or gallery
+      final ImageSource? source = await showDialog<ImageSource>(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: TranslatedText('Select Photo Source'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: Icon(Icons.camera_alt),
+                  title: TranslatedText('Camera'),
+                  onTap: () => Navigator.pop(context, ImageSource.camera),
+                ),
+                ListTile(
+                  leading: Icon(Icons.photo_library),
+                  title: TranslatedText('Gallery'),
+                  onTap: () => Navigator.pop(context, ImageSource.gallery),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
+      if (source != null) {
+        final file = await _fileHandlingService.pickImage(source: source);
+        if (file != null) {
+          setState(() {
+            _selectedImages.add(file);
+          });
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: TranslatedText('Photo added successfully'),
+              backgroundColor: Color(0xFF4CAF50),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: TranslatedText('Error adding photo: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
-  void _toggleRecording() {
+  void _removeImage(int index) {
     setState(() {
-      isRecording = !isRecording;
+      _selectedImages.removeAt(index);
     });
-    
-    // TODO: Implement voice recording
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: TranslatedText(isRecording ? 'Recording started...' : 'Recording stopped'),
-        backgroundColor: const Color(0xFF4CAF50),
-      ),
-    );
+  }
+
+  Future<void> _toggleRecording() async {
+    try {
+      if (isRecording) {
+        // Stop recording
+        final audioFile = await _fileHandlingService.stopRecording();
+        if (audioFile != null) {
+          setState(() {
+            _selectedAudioFiles.add(audioFile);
+            isRecording = false;
+          });
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: TranslatedText('Recording stopped and saved'),
+              backgroundColor: const Color(0xFF4CAF50),
+            ),
+          );
+        }
+      } else {
+        // Start recording
+        final recordingPath = await _fileHandlingService.getRecordingPath();
+        await _fileHandlingService.startRecording(recordingPath);
+        
+        setState(() {
+          isRecording = true;
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: TranslatedText('Recording started...'),
+            backgroundColor: const Color(0xFF4CAF50),
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        isRecording = false;
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: TranslatedText('Recording error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _removeAudioFile(int index) {
+    setState(() {
+      _selectedAudioFiles.removeAt(index);
+    });
   }
 
   void _continueToAddress() {
@@ -293,6 +557,14 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
       );
       return;
     }
+
+    // Save data to complaint provider
+    final complaintProvider = Provider.of<ComplaintProvider>(context, listen: false);
+    complaintProvider.setDescription(_descriptionController.text);
+    
+    // Update provider with selected files using proper methods
+    complaintProvider.addImages(_selectedImages);
+    complaintProvider.addAudioFiles(_selectedAudioFiles);
 
     // Navigate to complaint address page
     Navigator.pushNamed(context, '/complaint-address');

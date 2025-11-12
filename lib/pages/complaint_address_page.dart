@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../components/custom_bottom_nav.dart';
+import '../providers/complaint_provider.dart';
+import '../widgets/translated_text.dart';
 
 class ComplaintAddressPage extends StatefulWidget {
   const ComplaintAddressPage({super.key});
@@ -182,7 +185,7 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
           items: districts,
           onChanged: (value) {
             setState(() {
-              selectedDistrict = value == 'Select district' ? null : value;
+              selectedDistrict = value;
             });
           },
         ),
@@ -193,7 +196,7 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
           items: thanas,
           onChanged: (value) {
             setState(() {
-              selectedThana = value == 'Select thana' ? null : value;
+              selectedThana = value;
             });
           },
         ),
@@ -204,7 +207,7 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
           items: cityCorporations,
           onChanged: (value) {
             setState(() {
-              selectedCityCorporation = value == 'Select city corporation' ? null : value;
+              selectedCityCorporation = value;
             });
           },
         ),
@@ -290,7 +293,10 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
                 ),
               );
             }).toList(),
-            onChanged: onChanged,
+            onChanged: (value) {
+              // Pass the value directly without converting to null
+              onChanged(value);
+            },
             icon: Icon(
               Icons.keyboard_arrow_down,
               color: Colors.grey[600],
@@ -465,22 +471,54 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
     _wardController.text = (currentValue + 1).toString();
   }
 
-  void _submitComplaint() {
+  void _submitComplaint() async {
     // Validate form
     if (_validateForm()) {
+      final complaintProvider = Provider.of<ComplaintProvider>(context, listen: false);
+      
+      // Store address components separately for backend
+      final fullAddress = _fullAddressController.text.trim();
+      final ward = _wardController.text.trim();
+      
+      complaintProvider.setAddress(fullAddress);
+      complaintProvider.setDistrict(selectedDistrict);
+      complaintProvider.setThana(selectedThana);
+      complaintProvider.setWard(ward);
+      
+      // Also construct location string for display purposes
+      final locationString = '$fullAddress, $selectedDistrict, $selectedThana, $selectedCityCorporation, Ward: $ward';
+      complaintProvider.setLocation(locationString);
+      
       // Show loading indicator
       _showSubmittingDialog();
 
-      // Simulate API call
-      Future.delayed(const Duration(seconds: 2), () {
+      try {
+        // Submit complaint to backend
+        await complaintProvider.createComplaint();
+        
         Navigator.pop(context); // Close loading dialog
-        // Navigate to next page (you can implement this next)
-        _navigateToNextPage();
-      });
+        
+        if (complaintProvider.error != null) {
+          _showErrorSnackBar('Error: ${complaintProvider.error}');
+        } else {
+          // Navigate to success page
+          _navigateToNextPage();
+        }
+      } catch (e) {
+        Navigator.pop(context); // Close loading dialog
+        _showErrorSnackBar('Failed to submit complaint: ${e.toString()}');
+      }
     }
   }
 
   bool _validateForm() {
+    print('Validating form...');
+    print('selectedDistrict: $selectedDistrict');
+    print('selectedThana: $selectedThana');
+    print('selectedCityCorporation: $selectedCityCorporation');
+    print('ward: ${_wardController.text}');
+    print('fullAddress: ${_fullAddressController.text}');
+    
     if (selectedDistrict == null || selectedDistrict!.isEmpty) {
       _showErrorSnackBar('Please select a district');
       return false;
