@@ -1,13 +1,15 @@
-import { Response } from 'express';
+import { Response, Request } from 'express';
 import { AuthRequest } from '../types/auth';
 import { authService } from '../services/auth.service';
 import { z } from 'zod';
+import env from '../config/env';
 
 console.log('🔧 Loading admin.auth.controller.ts...');
 
 const adminLoginSchema = z.object({
     email: z.string().email(),
     password: z.string(),
+    rememberMe: z.boolean().optional().default(false),
 });
 
 // Admin login - only allows ADMIN and SUPER_ADMIN roles
@@ -46,6 +48,19 @@ export async function adminLogin(req: AuthRequest, res: Response) {
         const result = await authService.login({
             email: body.email,
             password: body.password,
+            rememberMe: body.rememberMe,
+        });
+
+        const cookieOpts = {
+            httpOnly: true as const,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict' as const,
+            path: '/',
+        };
+        const maxAge = body.rememberMe ? (env.REFRESH_TTL_SECONDS * 1000) : undefined;
+        res.cookie('cc_refresh', result.refreshToken, {
+            ...cookieOpts,
+            ...(maxAge ? { maxAge } : {}),
         });
 
         return res.status(200).json(result);
@@ -76,8 +91,13 @@ export async function adminMe(req: AuthRequest, res: Response) {
 // Admin logout
 export async function adminLogout(req: AuthRequest, res: Response) {
     try {
-        const { refreshToken } = req.body as { refreshToken: string };
-        await authService.logout(refreshToken);
+        const tokenFromCookie = (req as Request & { cookies?: Record<string, string> }).cookies?.cc_refresh;
+        const { refreshToken } = req.body as { refreshToken?: string };
+        const effectiveToken = tokenFromCookie || refreshToken || '';
+        if (effectiveToken) {
+            await authService.logout(effectiveToken);
+        }
+        res.cookie('cc_refresh', '', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', path: '/', maxAge: 0 });
         return res.status(200).json({ message: 'Admin logged out successfully' });
     } catch (err: any) {
         return res.status(400).json({ message: err?.message ?? 'Logout failed' });
@@ -87,10 +107,21 @@ export async function adminLogout(req: AuthRequest, res: Response) {
 // Admin refresh token
 export async function adminRefresh(req: AuthRequest, res: Response) {
     try {
-        const { refreshToken } = req.body as { refreshToken: string };
-        if (!refreshToken) return res.status(400).json({ message: 'Missing refreshToken' });
+        const tokenFromCookie = (req as Request & { cookies?: Record<string, string> }).cookies?.cc_refresh;
+        const { refreshToken } = req.body as { refreshToken?: string };
+        const effectiveToken = tokenFromCookie || refreshToken;
+        if (!effectiveToken) return res.status(400).json({ message: 'Missing refreshToken' });
 
-        const result = await authService.refreshTokens(refreshToken);
+        const result = await authService.refreshTokens(effectiveToken);
+
+        const cookieOpts = {
+            httpOnly: true as const,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict' as const,
+            path: '/',
+            maxAge: env.REFRESH_TTL_SECONDS * 1000,
+        };
+        res.cookie('cc_refresh', result.refreshToken, cookieOpts);
         return res.status(200).json(result);
     } catch (err: any) {
         return res.status(401).json({ message: err?.message ?? 'Token refresh failed' });

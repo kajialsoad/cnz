@@ -1,4 +1,5 @@
 import express, { Request, Response } from 'express';
+import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import prisma from './utils/prisma';
 import env from './config/env';
@@ -27,6 +28,7 @@ app.use((req: Request, res: Response, next) => {
   next();
 });
 app.use(express.json({ limit: '2mb' }));
+app.use(cookieParser());
 // Allow multiple origins and any localhost:* during development
 const allowedOrigins = env.CORS_ORIGINS;
 app.use(cors({
