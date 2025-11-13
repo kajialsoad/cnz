@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'config/api_config.dart';
 import 'guards/auth_guard.dart';
 import 'providers/language_provider.dart';
@@ -26,6 +27,7 @@ import 'pages/gallery_page.dart';
 import 'pages/profile_settings_page.dart';
 import 'pages/government_calendar_page.dart';
 import 'pages/notice_board_page.dart';
+import 'pages/onboarding_screen.dart';
 
 void main() {
   runApp(
@@ -68,6 +70,18 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _checkLoginStatus() async {
+    // Check if user has seen onboarding
+    final prefs = await SharedPreferences.getInstance();
+    final hasSeenOnboarding = prefs.getBool('hasSeenOnboarding') ?? false;
+    
+    if (!mounted) return;
+    
+    // If onboarding not seen, show onboarding
+    if (!hasSeenOnboarding) {
+      Navigator.pushReplacementNamed(context, '/onboarding');
+      return;
+    }
+    
     // Check if user is logged in
     final isLoggedIn = await AuthService.isLoggedIn();
     
@@ -143,6 +157,7 @@ class MyApp extends StatelessWidget {
         '/': (_) => const SplashScreen(),
         
         // Public routes (no auth required)
+        '/onboarding': (_) => const OnboardingScreen(),
         '/welcome': (_) => const WelcomeScreen(),
         '/login': (_) => const LoginPage(),
         '/signup': (_) => const SignUpPage(),

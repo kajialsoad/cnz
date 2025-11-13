@@ -114,6 +114,9 @@ flutter:
     - assets/house2.svg
     - assets/office.svg
     - assets/graduate.svg
+    - assets/onboardingpage1.png
+    - assets/onboardingpage2.png
+    - assets/onboardingpage3.png
     - assets/hospital.svg
     - assets/church.svg
     - assets/congratulations.svg
