@@ -23,8 +23,20 @@ Backend for Flutter client with auth (register/login/refresh/logout/me).
 - `CORS_ORIGIN` e.g. `http://localhost:5500` (Flutter Web)
 
 ## API
+
+### Authentication Endpoints
 - `POST /auth/register` { name, phone, email?, password }
 - `POST /auth/login` { phone, password }
 - `POST /auth/refresh` { refreshToken }
 - `POST /auth/logout` { refreshToken }
 - `GET /auth/me` Bearer access token
+
+### Admin Endpoints
+For detailed documentation on admin user management endpoints, see [Admin User Management API Documentation](./ADMIN_USER_MANAGEMENT_API.md)
+
+- `GET /api/admin/users` - Get all users with pagination and filters
+- `GET /api/admin/users/:id` - Get user by ID with details
+- `GET /api/admin/users/statistics` - Get user statistics
+- `POST /api/admin/users` - Create new user
+- `PUT /api/admin/users/:id` - Update user information
+- `PATCH /api/admin/users/:id/status` - Update user status

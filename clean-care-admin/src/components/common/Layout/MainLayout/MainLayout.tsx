@@ -59,8 +59,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({
       >
         <Box
           sx={{
-            px: 0.5, // Minimal horizontal padding (4px)
-            py: 1.5, // Reduced vertical padding
+            px: 3, // Increased horizontal padding
+            py: 3, // Increased vertical padding
             width: '100%',
             maxWidth: '100%',
           }}
