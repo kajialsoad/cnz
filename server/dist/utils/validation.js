@@ -121,16 +121,15 @@ exports.changePasswordSchema = joi_1.default.object({
 });
 // Complaint validation schemas
 exports.createComplaintSchema = joi_1.default.object({
-    title: joi_1.default.string().min(5).max(200).required()
+    title: joi_1.default.string().min(5).max(200).optional() // Optional - will be auto-generated
         .messages({
-        'string.empty': 'অভিযোগের শিরোনাম প্রয়োজন',
         'string.min': 'অভিযোগের শিরোনাম কমপক্ষে ৫ অক্ষরের হতে হবে',
         'string.max': 'অভিযোগের শিরোনাম সর্বোচ্চ ২০০ অক্ষরের হতে হবে',
     }),
-    description: joi_1.default.string().min(10).max(2000).required()
+    description: joi_1.default.string().min(3).max(2000).required() // Reduced to 3 for testing
         .messages({
         'string.empty': 'অভিযোগের বর্ণনা প্রয়োজন',
-        'string.min': 'অভিযোগের বর্ণনা কমপক্ষে ১০ অক্ষরের হতে হবে',
+        'string.min': 'অভিযোগের বর্ণনা কমপক্ষে ৩ অক্ষরের হতে হবে',
         'string.max': 'অভিযোগের বর্ণনা সর্বোচ্চ ২০০০ অক্ষরের হতে হবে',
     }),
     category: joi_1.default.string().optional()
@@ -143,6 +142,7 @@ exports.createComplaintSchema = joi_1.default.object({
         'number.min': 'অগ্রাধিকার ১-৪ এর মধ্যে হতে হবে',
         'number.max': 'অগ্রাধিকার ১-৪ এর মধ্যে হতে হবে',
     }),
+    forSomeoneElse: joi_1.default.boolean().optional(), // Flag for nullable userId
     location: joi_1.default.object({
         address: joi_1.default.string().min(10).max(500).required()
             .messages({

@@ -23,7 +23,7 @@ const createUploadDirs = () => {
 createUploadDirs();
 
 // File type validation
-const fileFilter = (req: any, file: Express.Multer.File, cb: any) => {
+const fileFilter = (req: any, file: any, cb: (error: any, acceptFile: boolean) => void) => {
   console.log('File filter called:', {
     fieldname: file.fieldname,
     originalname: file.originalname,
@@ -54,7 +54,7 @@ const fileFilter = (req: any, file: Express.Multer.File, cb: any) => {
 
 // Storage configuration
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
+  destination: (req: any, file: any, cb: (error: any, destination: string) => void) => {
     let uploadPath = 'uploads/complaints/';
     
     if (file.fieldname === 'images') {
@@ -65,7 +65,7 @@ const storage = multer.diskStorage({
     
     cb(null, uploadPath);
   },
-  filename: (req, file, cb) => {
+  filename: (req: any, file: any, cb: (error: any, filename: string) => void) => {
     // Generate unique filename
     const timestamp = Date.now();
     const randomString = crypto.randomBytes(8).toString('hex');
@@ -110,7 +110,7 @@ export const ALLOWED_TYPES = {
 };
 
 // Helper function to validate file
-export const validateFile = (file: Express.Multer.File, type: 'image' | 'audio'): boolean => {
+export const validateFile = (file: any, type: 'image' | 'audio'): boolean => {
   if (type === 'image') {
     return ALLOWED_TYPES.IMAGES.includes(file.mimetype) && file.size <= FILE_LIMITS.IMAGE_MAX_SIZE;
   } else {
