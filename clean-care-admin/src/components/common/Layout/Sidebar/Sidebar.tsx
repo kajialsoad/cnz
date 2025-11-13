@@ -13,6 +13,14 @@ import {
   Divider,
 } from '@mui/material';
 import { useLocation, useNavigate } from 'react-router-dom';
+import dashboardIcon from '../../../../assets/icons/dashboard.svg';
+import complaintIcon from '../../../../assets/icons/complaint.svg';
+import adminIcon from '../../../../assets/icons/admin.svg';
+import userIcon from '../../../../assets/icons/user.svg';
+import reportIcon from '../../../../assets/icons/report.svg';
+import notificationIcon from '../../../../assets/icons/notification.svg';
+import settingsIcon from '../../../../assets/icons/Settings.svg';
+import profileImage from '../../../../assets/images/profile.jpg';
 
 const DRAWER_WIDTH = 320; // Increased from 240
 
@@ -20,45 +28,45 @@ const menuItems = [
   {
     id: 'dashboard',
     label: 'Dashboard',
-    icon: '/src/assets/icons/dashboard.svg',
+    icon: dashboardIcon,
     path: '/',
   },
   {
     id: 'complaints',
     label: 'All Complaints',
-    icon: '/src/assets/icons/complaint.svg',
+    icon: complaintIcon,
     path: '/complaints',
     badge: 12,
   },
   {
     id: 'admins',
     label: 'Admin Management',
-    icon: '/src/assets/icons/admin.svg',
+    icon: adminIcon,
     path: '/admins',
   },
   {
     id: 'users',
     label: 'User Management',
-    icon: '/src/assets/icons/user.svg',
+    icon: userIcon,
     path: '/users',
   },
   {
     id: 'reports',
     label: 'Reports',
-    icon: '/src/assets/icons/report.svg',
+    icon: reportIcon,
     path: '/reports',
   },
   {
     id: 'notifications',
     label: 'Notifications',
-    icon: '/src/assets/icons/notification.svg',
+    icon: notificationIcon,
     path: '/notifications',
     badge: 3,
   },
   {
     id: 'settings',
     label: 'Settings',
-    icon: '/src/assets/icons/Settings.svg',
+    icon: settingsIcon,
     path: '/settings',
   },
 ];
@@ -101,7 +109,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       >
         <Box sx={{ position: 'relative' }}>
           <Avatar
-            src="/src/assets/images/profile.jpg"
+            src={profileImage}
             sx={{
               width: 64,
               height: 64,

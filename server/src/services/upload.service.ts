@@ -25,7 +25,7 @@ export class UploadService {
       if (files) {
         // Process multiple images
         if (files.images && Array.isArray(files.images)) {
-          result.images = files.images.map((file: Express.Multer.File) => ({
+          result.images = files.images.map((file: any) => ({
             filename: file.filename,
             originalName: file.originalname,
             mimeType: file.mimetype,
@@ -68,7 +68,7 @@ export class UploadService {
             errors.push(`Maximum ${FILE_LIMITS.MAX_IMAGES} images allowed`);
           }
           
-          files.images.forEach((file: Express.Multer.File, index: number) => {
+          files.images.forEach((file: any, index: number) => {
             if (!validateFile(file, 'image')) {
               errors.push(`Image ${index + 1}: Invalid file type or size`);
             }

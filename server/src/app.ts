@@ -8,10 +8,12 @@ import userRoutes from './routes/user.routes';
 import adminAuthRoutes from './routes/admin.auth.routes';
 import complaintRoutes from './routes/complaint.routes';
 import uploadRoutes from './routes/upload.routes';
+import adminUserRoutes from './routes/admin.user.routes';
 import { AuthRequest } from './middlewares/auth.middleware';
 
 console.log('🚀 Starting Clean Care API Server...');
 console.log('🔧 Importing admin auth routes...');
+console.log('🔧 Importing admin user routes...');
 
 const app = express();
 
@@ -67,12 +69,15 @@ console.log('✅ Upload routes registered at /api/uploads');
 app.use('/api/admin/auth', adminAuthRoutes); // Admin authentication routes
 console.log('✅ Admin auth routes registered at /api/admin/auth');
 
+app.use('/api/admin/users', adminUserRoutes); // Admin user management routes
+console.log('✅ Admin user routes registered at /api/admin/users');
+
 // Add test route to verify admin path works
 app.get('/api/admin/test', (req, res) => {
-    res.json({ 
-        message: 'Admin routes base path is working!',
-        timestamp: new Date().toISOString()
-    });
+  res.json({
+    message: 'Admin routes base path is working!',
+    timestamp: new Date().toISOString()
+  });
 });
 console.log('✅ Admin test route added at /api/admin/test');
 

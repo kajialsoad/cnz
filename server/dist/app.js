@@ -4,6 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
+const cookie_parser_1 = __importDefault(require("cookie-parser"));
 const cors_1 = __importDefault(require("cors"));
 const prisma_1 = __importDefault(require("./utils/prisma"));
 const env_1 = __importDefault(require("./config/env"));
@@ -12,8 +13,10 @@ const user_routes_1 = __importDefault(require("./routes/user.routes"));
 const admin_auth_routes_1 = __importDefault(require("./routes/admin.auth.routes"));
 const complaint_routes_1 = __importDefault(require("./routes/complaint.routes"));
 const upload_routes_1 = __importDefault(require("./routes/upload.routes"));
+const admin_user_routes_1 = __importDefault(require("./routes/admin.user.routes"));
 console.log('🚀 Starting Clean Care API Server...');
 console.log('🔧 Importing admin auth routes...');
+console.log('🔧 Importing admin user routes...');
 const app = (0, express_1.default)();
 // Middleware to add prisma to request
 app.use((req, res, next) => {
@@ -21,6 +24,7 @@ app.use((req, res, next) => {
     next();
 });
 app.use(express_1.default.json({ limit: '2mb' }));
+app.use((0, cookie_parser_1.default)());
 // Allow multiple origins and any localhost:* during development
 const allowedOrigins = env_1.default.CORS_ORIGINS;
 app.use((0, cors_1.default)({
@@ -55,6 +59,8 @@ app.use('/api/uploads', upload_routes_1.default);
 console.log('✅ Upload routes registered at /api/uploads');
 app.use('/api/admin/auth', admin_auth_routes_1.default); // Admin authentication routes
 console.log('✅ Admin auth routes registered at /api/admin/auth');
+app.use('/api/admin/users', admin_user_routes_1.default); // Admin user management routes
+console.log('✅ Admin user routes registered at /api/admin/users');
 // Add test route to verify admin path works
 app.get('/api/admin/test', (req, res) => {
     res.json({

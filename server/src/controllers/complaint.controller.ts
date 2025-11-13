@@ -11,6 +11,7 @@ interface AuthenticatedRequest extends Request {
     email?: string;
     phone?: string;
   };
+  files?: any;
 }
 
 export class ComplaintController {
