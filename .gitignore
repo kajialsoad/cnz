@@ -78,3 +78,24 @@ app.*.map.json
 .vscode/
 *.swp
 *.swo
+
+# Android build configuration files (ignore changes)
+android/gradle/wrapper/gradle-wrapper.properties
+android/settings.gradle.kts
+android/build.gradle.kts
+android/gradle.properties
+
+# Pubspec files (ignore changes)
+pubspec.lock
+pubspec.yaml
+
+# Build and generated files
+android/app/build/
+android/build/
+build/
+.gradle/
+
+# Documentation and report files
+*.md
+!README.md
+problems-report.html
