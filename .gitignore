@@ -44,6 +44,27 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# Android/Gradle - Local/Generated Files (DO NOT COMMIT)
+**/android/local.properties
+**/android/.gradle/
+**/android/captures/
+**/android/.externalNativeBuild/
+**/android/.cxx/
+**/android/build/
+**/android/app/build/
+**/android/gradle/wrapper/gradle-wrapper.jar
+*.jks
+*.keystore
+
+# Android/Gradle - Configuration Files (Ignored for local customization)
+android/build.gradle.kts
+android/settings.gradle.kts
+android/app/build.gradle.kts
+android/app/src/main/AndroidManifest.xml
+android/gradle/wrapper/gradle-wrapper.properties
+android/gradle.properties
+android/app/proguard-rules.pro
+
 # Node.js related (for server directory)
 **/node_modules/
 **/npm-debug.log*
