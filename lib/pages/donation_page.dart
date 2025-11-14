@@ -42,11 +42,13 @@ class _DonationPageState extends State<DonationPage>
   final List<DonationCampaign> campaigns = [
     DonationCampaign(
       title: 'ঢাকা শহর পরিচ্ছন্নতা প্রকল্প',
-      description: 'ঢাকা শহরের রাস্তাঘাট ও পার্ক পরিষ্কার রাখার জন্য বিশেষ প্রকল্প',
+      description:
+          'ঢাকা শহরের রাস্তাঘাট ও পার্ক পরিষ্কার রাখার জন্য বিশেষ প্রকল্প',
       targetAmount: 500000,
       raisedAmount: 325000,
       daysLeft: 15,
-      image: 'https://trae-api-sg.mchost.guru/api/ide/v1/text_to_image?prompt=clean%20city%20street%20dhaka%20bangladesh%20cleaning%20project&image_size=landscape_4_3',
+      image:
+          'https://trae-api-sg.mchost.guru/api/ide/v1/text_to_image?prompt=clean%20city%20street%20dhaka%20bangladesh%20cleaning%20project&image_size=landscape_4_3',
     ),
     DonationCampaign(
       title: 'বৃক্ষরোপণ কর্মসূচি ২০২৪',
@@ -54,7 +56,8 @@ class _DonationPageState extends State<DonationPage>
       targetAmount: 200000,
       raisedAmount: 150000,
       daysLeft: 30,
-      image: 'https://trae-api-sg.mchost.guru/api/ide/v1/text_to_image?prompt=tree%20plantation%20program%20bangladesh%20green%20environment&image_size=landscape_4_3',
+      image:
+          'https://trae-api-sg.mchost.guru/api/ide/v1/text_to_image?prompt=tree%20plantation%20program%20bangladesh%20green%20environment&image_size=landscape_4_3',
     ),
   ];
 
@@ -92,11 +95,7 @@ class _DonationPageState extends State<DonationPage>
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFE9F6EE),
-              Color(0xFFF7FCF9),
-              Color(0xFFF3FAF5),
-            ],
+            colors: [Color(0xFFE9F6EE), Color(0xFFF7FCF9), Color(0xFFF3FAF5)],
           ),
         ),
         child: SafeArea(
@@ -139,10 +138,7 @@ class _DonationPageState extends State<DonationPage>
                 color: const Color(0xFF2E8B57).withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(
-                Icons.arrow_back,
-                color: Color(0xFF2E8B57),
-              ),
+              child: const Icon(Icons.arrow_back, color: Color(0xFF2E8B57)),
             ),
           ),
           const SizedBox(width: 16),
@@ -186,64 +182,59 @@ class _DonationPageState extends State<DonationPage>
 
   Widget _buildHeroSection() {
     return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF2E8B57), Color(0xFF3CB371)],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF2E8B57).withOpacity(0.3),
-            offset: const Offset(0, 8),
-            blurRadius: 20,
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          const Icon(
-            Icons.favorite,
-            color: Colors.white,
-            size: 40,
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            'একসাথে গড়ি সুন্দর বাংলাদেশ',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
+          margin: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF2E8B57), Color(0xFF3CB371)],
             ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'আপনার ছোট দানও পারে বড় পরিবর্তন আনতে। পরিচ্ছন্ন ও সুন্দর পরিবেশের জন্য আমাদের সাথে যুক্ত হন।',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.white70,
-              height: 1.5,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildStatCard('মোট দাতা', '১,২৫০+'),
-              _buildStatCard('সংগৃহীত', '৫০ লক্ষ টাকা'),
-              _buildStatCard('প্রকল্প', '২৫টি'),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF2E8B57).withOpacity(0.3),
+                offset: const Offset(0, 8),
+                blurRadius: 20,
+              ),
             ],
           ),
-        ],
-      ),
-    ).animate().fadeIn(duration: 600.ms).slideY(
-          begin: -0.3,
-          duration: 400.ms,
-          curve: Curves.easeOut,
-        );
+          child: Column(
+            children: [
+              const Icon(Icons.favorite, color: Colors.white, size: 40),
+              const SizedBox(height: 12),
+              const Text(
+                'একসাথে গড়ি সুন্দর বাংলাদেশ',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'আপনার ছোট দানও পারে বড় পরিবর্তন আনতে। পরিচ্ছন্ন ও সুন্দর পরিবেশের জন্য আমাদের সাথে যুক্ত হন।',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.white70,
+                  height: 1.5,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildStatCard('মোট দাতা', '১,২৫০+'),
+                  _buildStatCard('সংগৃহীত', '৫০ লক্ষ টাকা'),
+                  _buildStatCard('প্রকল্প', '২৫টি'),
+                ],
+              ),
+            ],
+          ),
+        )
+        .animate()
+        .fadeIn(duration: 600.ms)
+        .slideY(begin: -0.3, duration: 400.ms, curve: Curves.easeOut);
   }
 
   Widget _buildStatCard(String label, String value) {
@@ -259,10 +250,7 @@ class _DonationPageState extends State<DonationPage>
         ),
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 12,
-            color: Colors.white70,
-          ),
+          style: const TextStyle(fontSize: 12, color: Colors.white70),
         ),
       ],
     );
@@ -302,254 +290,254 @@ class _DonationPageState extends State<DonationPage>
     final progress = campaign.raisedAmount / campaign.targetAmount;
 
     return Container(
-      width: 280,
-      margin: const EdgeInsets.only(right: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            offset: const Offset(0, 4),
-            blurRadius: 12,
+          width: 280,
+          margin: const EdgeInsets.only(right: 16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                offset: const Offset(0, 4),
+                blurRadius: 12,
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-            child: Image.network(
-              campaign.image,
-              height: 120,
-              width: double.infinity,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(16),
+                ),
+                child: Image.network(
+                  campaign.image,
                   height: 120,
-                  color: Colors.grey.shade200,
-                  child: const Icon(
-                    Icons.image,
-                    color: Colors.grey,
-                    size: 40,
-                  ),
-                );
-              },
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  campaign.title,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF2E8B57),
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  campaign.description,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey.shade600,
-                    height: 1.3,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 12),
-                AnimatedBuilder(
-                  animation: _progressController,
-                  builder: (context, child) {
-                    return Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              '৳${_formatAmount(campaign.raisedAmount)}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF2E8B57),
-                              ),
-                            ),
-                            Text(
-                              '৳${_formatAmount(campaign.targetAmount)}',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey.shade600,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        LinearProgressIndicator(
-                          value: progress * _progressController.value,
-                          backgroundColor: Colors.grey.shade200,
-                          valueColor: const AlwaysStoppedAnimation<Color>(
-                            Color(0xFF2E8B57),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              '${(progress * 100).toInt()}% সম্পন্ন',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.grey.shade600,
-                              ),
-                            ),
-                            Text(
-                              '${campaign.daysLeft} দিন বাকি',
-                              style: const TextStyle(
-                                fontSize: 10,
-                                color: Colors.orange,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      height: 120,
+                      color: Colors.grey.shade200,
+                      child: const Icon(
+                        Icons.image,
+                        color: Colors.grey,
+                        size: 40,
+                      ),
                     );
                   },
                 ),
-              ],
-            ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      campaign.title,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF2E8B57),
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      campaign.description,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                        height: 1.3,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 12),
+                    AnimatedBuilder(
+                      animation: _progressController,
+                      builder: (context, child) {
+                        return Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  '৳${_formatAmount(campaign.raisedAmount)}',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF2E8B57),
+                                  ),
+                                ),
+                                Text(
+                                  '৳${_formatAmount(campaign.targetAmount)}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            LinearProgressIndicator(
+                              value: progress * _progressController.value,
+                              backgroundColor: Colors.grey.shade200,
+                              valueColor: const AlwaysStoppedAnimation<Color>(
+                                Color(0xFF2E8B57),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  '${(progress * 100).toInt()}% সম্পন্ন',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                                Text(
+                                  '${campaign.daysLeft} দিন বাকি',
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.orange,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
-    ).animate(delay: (index * 200).ms).fadeIn(duration: 400.ms).slideX(
-          begin: 0.3,
-          duration: 300.ms,
-          curve: Curves.easeOut,
-        );
+        )
+        .animate(delay: (index * 200).ms)
+        .fadeIn(duration: 400.ms)
+        .slideX(begin: 0.3, duration: 300.ms, curve: Curves.easeOut);
   }
 
   Widget _buildDonationForm() {
     return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            offset: const Offset(0, 8),
-            blurRadius: 20,
+          margin: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                offset: const Offset(0, 8),
+                blurRadius: 20,
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFF6D66B), Color(0xFFFFD700)],
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFF6D66B), Color(0xFFFFD700)],
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.volunteer_activism,
+                        color: Colors.white,
+                        size: 20,
+                      ),
                     ),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(
-                    Icons.volunteer_activism,
-                    color: Colors.white,
-                    size: 20,
-                  ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'দান করুন',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF2E8B57),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(height: 20),
+                _buildCauseDropdown(),
+                const SizedBox(height: 16),
+                _buildQuickAmounts(),
+                const SizedBox(height: 16),
+                _buildTextField(
+                  controller: _amountController,
+                  label: 'দানের পরিমাণ (টাকা)',
+                  hint: 'আপনার পছন্দের পরিমাণ লিখুন',
+                  keyboardType: TextInputType.number,
+                  validator: (value) {
+                    if (value?.isEmpty ?? true) {
+                      return 'পরিমাণ প্রয়োজন';
+                    }
+                    if (double.tryParse(value!) == null) {
+                      return 'সঠিক পরিমাণ লিখুন';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                _buildTextField(
+                  controller: _nameController,
+                  label: 'আপনার নাম (ঐচ্ছিক)',
+                  hint: 'দাতার নাম',
+                ),
+                const SizedBox(height: 16),
+                _buildTextField(
+                  controller: _phoneController,
+                  label: 'মোবাইল নম্বর',
+                  hint: '01XXXXXXXXX',
+                  keyboardType: TextInputType.phone,
+                  validator: (value) {
+                    if (value?.isEmpty ?? true) {
+                      return 'মোবাইল নম্বর প্রয়োজন';
+                    }
+                    if (value!.length != 11) {
+                      return 'সঠিক মোবাইল নম্বর লিখুন';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 20),
                 const Text(
-                  'দান করুন',
+                  'পেমেন্ট পদ্ধতি',
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: 14,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF2E8B57),
                   ),
                 ),
+                const SizedBox(height: 12),
+                _buildPaymentMethods(),
+                const SizedBox(height: 24),
+                _buildDonateButton(),
               ],
             ),
-            const SizedBox(height: 20),
-            _buildCauseDropdown(),
-            const SizedBox(height: 16),
-            _buildQuickAmounts(),
-            const SizedBox(height: 16),
-            _buildTextField(
-              controller: _amountController,
-              label: 'দানের পরিমাণ (টাকা)',
-              hint: 'আপনার পছন্দের পরিমাণ লিখুন',
-              keyboardType: TextInputType.number,
-              validator: (value) {
-                if (value?.isEmpty ?? true) {
-                  return 'পরিমাণ প্রয়োজন';
-                }
-                if (double.tryParse(value!) == null) {
-                  return 'সঠিক পরিমাণ লিখুন';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-            _buildTextField(
-              controller: _nameController,
-              label: 'আপনার নাম (ঐচ্ছিক)',
-              hint: 'দাতার নাম',
-            ),
-            const SizedBox(height: 16),
-            _buildTextField(
-              controller: _phoneController,
-              label: 'মোবাইল নম্বর',
-              hint: '01XXXXXXXXX',
-              keyboardType: TextInputType.phone,
-              validator: (value) {
-                if (value?.isEmpty ?? true) {
-                  return 'মোবাইল নম্বর প্রয়োজন';
-                }
-                if (value!.length != 11) {
-                  return 'সঠিক মোবাইল নম্বর লিখুন';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'পেমেন্ট পদ্ধতি',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF2E8B57),
-              ),
-            ),
-            const SizedBox(height: 12),
-            _buildPaymentMethods(),
-            const SizedBox(height: 24),
-            _buildDonateButton(),
-          ],
-        ),
-      ),
-    ).animate().fadeIn(duration: 600.ms).slideY(
-          begin: 0.3,
-          duration: 400.ms,
-          curve: Curves.easeOut,
-        );
+          ),
+        )
+        .animate()
+        .fadeIn(duration: 600.ms)
+        .slideY(begin: 0.3, duration: 400.ms, curve: Curves.easeOut);
   }
 
   Widget _buildCauseDropdown() {
     return DropdownButtonFormField<String>(
-      value: selectedCause,
+      initialValue: selectedCause,
       onChanged: (value) {
         setState(() {
           selectedCause = value!;
@@ -569,10 +557,7 @@ class _DonationPageState extends State<DonationPage>
         fillColor: Colors.grey.shade50,
       ),
       items: causes.map((cause) {
-        return DropdownMenuItem(
-          value: cause,
-          child: Text(cause),
-        );
+        return DropdownMenuItem(value: cause, child: Text(cause));
       }).toList(),
     );
   }
@@ -599,7 +584,10 @@ class _DonationPageState extends State<DonationPage>
                 _amountController.text = amount.toString();
               },
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   border: Border.all(color: const Color(0xFF2E8B57)),
                   borderRadius: BorderRadius.circular(20),
@@ -612,10 +600,7 @@ class _DonationPageState extends State<DonationPage>
                   ),
                 ),
               ),
-            ).animate().scale(
-                  begin: const Offset(0.8, 0.8),
-                  duration: 200.ms,
-                );
+            ).animate().scale(begin: const Offset(0.8, 0.8), duration: 200.ms);
           }).toList(),
         ),
       ],
@@ -666,59 +651,59 @@ class _DonationPageState extends State<DonationPage>
         final isSelected = selectedPaymentMethod == method.name;
 
         return GestureDetector(
-          onTap: () {
-            setState(() {
-              selectedPaymentMethod = method.name;
-            });
-          },
-          child: Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: isSelected ? method.color.withOpacity(0.1) : Colors.grey.shade50,
-              border: Border.all(
-                color: isSelected ? method.color : Colors.grey.shade300,
-                width: isSelected ? 2 : 1,
-              ),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: method.color,
-                    borderRadius: BorderRadius.circular(8),
+              onTap: () {
+                setState(() {
+                  selectedPaymentMethod = method.name;
+                });
+              },
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? method.color.withOpacity(0.1)
+                      : Colors.grey.shade50,
+                  border: Border.all(
+                    color: isSelected ? method.color : Colors.grey.shade300,
+                    width: isSelected ? 2 : 1,
                   ),
-                  child: const Icon(
-                    Icons.account_balance_wallet,
-                    color: Colors.white,
-                    size: 16,
-                  ),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    method.name,
-                    style: TextStyle(
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                      color: isSelected ? method.color : Colors.black87,
+                child: Row(
+                  children: [
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: method.color,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.account_balance_wallet,
+                        color: Colors.white,
+                        size: 16,
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        method.name,
+                        style: TextStyle(
+                          fontWeight: isSelected
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                          color: isSelected ? method.color : Colors.black87,
+                        ),
+                      ),
+                    ),
+                    if (isSelected)
+                      Icon(Icons.check_circle, color: method.color, size: 20),
+                  ],
                 ),
-                if (isSelected)
-                  Icon(
-                    Icons.check_circle,
-                    color: method.color,
-                    size: 20,
-                  ),
-              ],
-            ),
-          ),
-        ).animate(delay: (index * 100).ms).fadeIn(duration: 300.ms).scale(
-              begin: const Offset(0.8, 0.8),
-              duration: 200.ms,
-            );
+              ),
+            )
+            .animate(delay: (index * 100).ms)
+            .fadeIn(duration: 300.ms)
+            .scale(begin: const Offset(0.8, 0.8), duration: 200.ms);
       },
     );
   }
@@ -728,17 +713,18 @@ class _DonationPageState extends State<DonationPage>
       width: double.infinity,
       child: ElevatedButton(
         onPressed: () => Navigator.pushNamed(context, '/payment'),
-        style: ElevatedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          elevation: 0,
-        ).copyWith(
-          backgroundColor: MaterialStateProperty.resolveWith((states) {
-            return null;
-          }),
-        ),
+        style:
+            ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              elevation: 0,
+            ).copyWith(
+              backgroundColor: WidgetStateProperty.resolveWith((states) {
+                return null;
+              }),
+            ),
         child: Container(
           decoration: BoxDecoration(
             gradient: const LinearGradient(
@@ -750,10 +736,7 @@ class _DonationPageState extends State<DonationPage>
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
-                Icons.favorite,
-                color: Colors.white,
-              ),
+              const Icon(Icons.favorite, color: Colors.white),
               const SizedBox(width: 8),
               Text(
                 'দান করুন ($selectedPaymentMethod)',
@@ -781,7 +764,6 @@ class _DonationPageState extends State<DonationPage>
   }
 
   void _processDonation() {
-
     if (_formKey.currentState?.validate() ?? false) {
       // Show processing dialog
       showDialog(
@@ -804,7 +786,7 @@ class _DonationPageState extends State<DonationPage>
       // Simulate donation processing
       Future.delayed(const Duration(seconds: 3), () {
         Navigator.pop(context); // Close processing dialog
-        
+
         // Show success dialog
         showDialog(
           context: context,
@@ -839,9 +821,7 @@ class _DonationPageState extends State<DonationPage>
                 const Text(
                   'আপনার দান সফলভাবে সম্পন্ন হয়েছে। আপনার অবদান আমাদের সমাজের উন্নতিতে সাহায্য করবে।',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.grey,
-                  ),
+                  style: TextStyle(color: Colors.grey),
                 ),
                 const SizedBox(height: 16),
                 ElevatedButton(

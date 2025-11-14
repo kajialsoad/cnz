@@ -20,11 +20,11 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
   final TextEditingController _descriptionController = TextEditingController();
   bool isRecording = false;
   List<String> uploadedPhotos = [];
-  
+
   // Backend integration variables
   final FileHandlingService _fileHandlingService = FileHandlingService();
-  List<File> _selectedImages = [];
-  List<File> _selectedAudioFiles = [];
+  final List<File> _selectedImages = [];
+  final List<File> _selectedAudioFiles = [];
 
   @override
   void dispose() {
@@ -105,7 +105,7 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
           ),
         ),
         const SizedBox(height: 12),
-        
+
         // Show selected images in a horizontal scroll view
         if (_selectedImages.isNotEmpty) ...[
           SizedBox(
@@ -160,7 +160,7 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
                     ),
                   );
                 }
-                
+
                 // Display selected image
                 return Container(
                   margin: const EdgeInsets.only(right: 8),
@@ -181,7 +181,10 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
                                   fit: BoxFit.cover,
                                   errorBuilder: (context, error, stackTrace) {
                                     return Center(
-                                      child: Icon(Icons.image, color: Colors.grey),
+                                      child: Icon(
+                                        Icons.image,
+                                        color: Colors.grey,
+                                      ),
                                     );
                                   },
                                 )
@@ -278,7 +281,7 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
           ),
         ),
         const SizedBox(height: 12),
-        
+
         // Show recorded audio files
         if (_selectedAudioFiles.isNotEmpty) ...[
           ...(_selectedAudioFiles.asMap().entries.map((entry) {
@@ -289,10 +292,7 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
               decoration: BoxDecoration(
                 color: Colors.green.shade50,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: Colors.green.shade200,
-                  width: 1,
-                ),
+                border: Border.all(color: Colors.green.shade200, width: 1),
               ),
               child: Row(
                 children: [
@@ -314,11 +314,7 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
                   ),
                   GestureDetector(
                     onTap: () => _removeAudioFile(index),
-                    child: Icon(
-                      Icons.close,
-                      color: Colors.red,
-                      size: 20,
-                    ),
+                    child: Icon(Icons.close, color: Colors.red, size: 20),
                   ),
                 ],
               ),
@@ -326,7 +322,7 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
           })),
           const SizedBox(height: 12),
         ],
-        
+
         // Original recording button with same design
         GestureDetector(
           onTap: _toggleRecording,
@@ -336,10 +332,7 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: Colors.grey.shade300,
-                width: 1,
-              ),
+              border: Border.all(color: Colors.grey.shade300, width: 1),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -383,27 +376,18 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: Colors.grey.shade300,
-              width: 1,
-            ),
+            border: Border.all(color: Colors.grey.shade300, width: 1),
           ),
           child: TextField(
             controller: _descriptionController,
             maxLines: 6,
             decoration: InputDecoration(
               hintText: 'Please provide details about the waste issue...',
-              hintStyle: TextStyle(
-                color: Colors.grey.shade500,
-                fontSize: 14,
-              ),
+              hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 14),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.all(16),
             ),
-            style: const TextStyle(
-              fontSize: 14,
-              color: Colors.black87,
-            ),
+            style: const TextStyle(fontSize: 14, color: Colors.black87),
           ),
         ),
       ],
@@ -426,10 +410,7 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
         ),
         child: TranslatedText(
           'Continue to Address',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-          ),
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
         ),
       ),
     );
@@ -468,7 +449,7 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
           setState(() {
             _selectedImages.add(file);
           });
-          
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: TranslatedText('Photo added successfully'),
@@ -503,7 +484,7 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
             _selectedAudioFiles.add(audioFile);
             isRecording = false;
           });
-          
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: TranslatedText('Recording stopped and saved'),
@@ -515,11 +496,11 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
         // Start recording
         final recordingPath = await _fileHandlingService.getRecordingPath();
         await _fileHandlingService.startRecording(recordingPath);
-        
+
         setState(() {
           isRecording = true;
         });
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: TranslatedText('Recording started...'),
@@ -531,7 +512,7 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
       setState(() {
         isRecording = false;
       });
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: TranslatedText('Recording error: ${e.toString()}'),
@@ -551,7 +532,9 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
     if (_descriptionController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: TranslatedText('Please provide a description of your complaint'),
+          content: TranslatedText(
+            'Please provide a description of your complaint',
+          ),
           backgroundColor: Colors.orange,
         ),
       );
@@ -559,9 +542,12 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
     }
 
     // Save data to complaint provider
-    final complaintProvider = Provider.of<ComplaintProvider>(context, listen: false);
+    final complaintProvider = Provider.of<ComplaintProvider>(
+      context,
+      listen: false,
+    );
     complaintProvider.setDescription(_descriptionController.text);
-    
+
     // Update provider with selected files using proper methods
     complaintProvider.addImages(_selectedImages);
     complaintProvider.addAudioFiles(_selectedAudioFiles);

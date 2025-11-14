@@ -22,7 +22,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
   bool pushNotifications = true;
   bool emailNotifications = false;
   String selectedLanguage = 'EN';
-  
+
   UserModel? _user;
   bool _isLoading = true;
   String? _error;
@@ -35,7 +35,10 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
   }
 
   Future<void> _loadLanguagePreference() async {
-    final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
+    final languageProvider = Provider.of<LanguageProvider>(
+      context,
+      listen: false,
+    );
     setState(() {
       selectedLanguage = languageProvider.isBangla ? 'বাং' : 'EN';
     });
@@ -87,46 +90,51 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.error_outline, size: 48, color: Colors.red),
-                      const SizedBox(height: 16),
-                      Text(_error!, textAlign: TextAlign.center),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: _loadUserProfile,
-                        child: TranslatedText('Retry'),
-                      ),
-                    ],
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                  const SizedBox(height: 16),
+                  Text(_error!, textAlign: TextAlign.center),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: _loadUserProfile,
+                    child: TranslatedText('Retry'),
                   ),
-                )
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 16.0, bottom: 100),
-                  child: Column(
-                    children: [
-                      // Profile Section
-                      _buildProfileSection(),
-                      const SizedBox(height: 20),
-                      
-                      // Account Information Section
-                      _buildAccountInformationSection(),
-                      const SizedBox(height: 20),
-                      
-                      // Settings Section
-                      _buildSettingsSection(),
-                      const SizedBox(height: 30),
-                      
-                      // Logout Button
-                      _buildLogoutButton(),
-                      const SizedBox(height: 20),
-                      
-                      // Footer
-                      _buildFooter(),
-                    ],
-                  ),
-                ),
+                ],
+              ),
+            )
+          : SingleChildScrollView(
+              padding: const EdgeInsets.only(
+                left: 16.0,
+                right: 16.0,
+                top: 16.0,
+                bottom: 100,
+              ),
+              child: Column(
+                children: [
+                  // Profile Section
+                  _buildProfileSection(),
+                  const SizedBox(height: 20),
+
+                  // Account Information Section
+                  _buildAccountInformationSection(),
+                  const SizedBox(height: 20),
+
+                  // Settings Section
+                  _buildSettingsSection(),
+                  const SizedBox(height: 30),
+
+                  // Logout Button
+                  _buildLogoutButton(),
+                  const SizedBox(height: 20),
+
+                  // Footer
+                  _buildFooter(),
+                ],
+              ),
+            ),
       bottomNavigationBar: CustomBottomNav(
         currentIndex: _currentIndex,
         onTap: (index) {
@@ -176,7 +184,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
             ),
           ),
           const SizedBox(height: 16),
-          
+
           // Name
           Text(
             _user?.fullName ?? 'User',
@@ -187,32 +195,27 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
             ),
           ),
           const SizedBox(height: 8),
-          
+
           // Phone Number
           Text(
             _user?.formattedPhone ?? '',
-            style: const TextStyle(
-              fontSize: 16,
-              color: Color(0xFF666666),
-            ),
+            style: const TextStyle(fontSize: 16, color: Color(0xFF666666)),
           ),
           const SizedBox(height: 20),
-          
+
           // Edit Profile Button
           OutlinedButton.icon(
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: TranslatedText('Edit Profile functionality coming soon!'),
+                  content: TranslatedText(
+                    'Edit Profile functionality coming soon!',
+                  ),
                   backgroundColor: Color(0xFF4CAF50),
                 ),
               );
             },
-            icon: const Icon(
-              Icons.edit,
-              size: 18,
-              color: Color(0xFF4CAF50),
-            ),
+            icon: const Icon(Icons.edit, size: 18, color: Color(0xFF4CAF50)),
             label: TranslatedText(
               'Edit Profile',
               style: TextStyle(
@@ -260,7 +263,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
             ),
           ),
           const SizedBox(height: 20),
-          
+
           // Email
           _buildInfoItem(
             icon: Icons.email_outlined,
@@ -269,7 +272,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
             translateValue: _user?.email == null,
           ),
           const SizedBox(height: 20),
-          
+
           // Phone
           _buildInfoItem(
             icon: Icons.phone_outlined,
@@ -278,7 +281,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
             translateValue: false,
           ),
           const SizedBox(height: 20),
-          
+
           // Role
           _buildInfoItem(
             icon: Icons.person_outline,
@@ -287,7 +290,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
             translateValue: true,
           ),
           const SizedBox(height: 20),
-          
+
           // Account Status
           _buildInfoItem(
             icon: Icons.verified_user_outlined,
@@ -315,11 +318,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
             color: const Color(0xFF4CAF50).withOpacity(0.1),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(
-            icon,
-            color: const Color(0xFF4CAF50),
-            size: 20,
-          ),
+          child: Icon(icon, color: const Color(0xFF4CAF50), size: 20),
         ),
         const SizedBox(width: 16),
         Expanded(
@@ -386,11 +385,11 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
             ),
           ),
           const SizedBox(height: 20),
-          
+
           // Language Setting
           _buildLanguageSetting(),
           const SizedBox(height: 20),
-          
+
           // Push Notifications
           _buildToggleSetting(
             icon: Icons.notifications_outlined,
@@ -403,7 +402,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
             },
           ),
           const SizedBox(height: 20),
-          
+
           // Email Notifications
           _buildToggleSetting(
             icon: Icons.email_outlined,
@@ -429,11 +428,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
             color: const Color(0xFF4CAF50).withOpacity(0.1),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: const Icon(
-            Icons.language,
-            color: Color(0xFF4CAF50),
-            size: 20,
-          ),
+          child: const Icon(Icons.language, color: Color(0xFF4CAF50), size: 20),
         ),
         const SizedBox(width: 16),
         const Expanded(
@@ -463,18 +458,23 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
         setState(() {
           selectedLanguage = language;
         });
-        
+
         // Save language preference and update app
         final languageCode = language == 'EN' ? 'en' : 'bn';
-        final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
+        final languageProvider = Provider.of<LanguageProvider>(
+          context,
+          listen: false,
+        );
         await languageProvider.setLanguage(languageCode);
-        
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(language == 'EN' 
-                  ? 'Language changed to English' 
-                  : 'ভাষা বাংলায় পরিবর্তিত হয়েছে'),
+              content: Text(
+                language == 'EN'
+                    ? 'Language changed to English'
+                    : 'ভাষা বাংলায় পরিবর্তিত হয়েছে',
+              ),
               backgroundColor: const Color(0xFF4CAF50),
             ),
           );
@@ -484,10 +484,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected ? const Color(0xFF4CAF50) : Colors.transparent,
-          border: Border.all(
-            color: const Color(0xFF4CAF50),
-            width: 1,
-          ),
+          border: Border.all(color: const Color(0xFF4CAF50), width: 1),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(
@@ -516,11 +513,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
             color: const Color(0xFF4CAF50).withOpacity(0.1),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(
-            icon,
-            color: const Color(0xFF4CAF50),
-            size: 20,
-          ),
+          child: Icon(icon, color: const Color(0xFF4CAF50), size: 20),
         ),
         const SizedBox(width: 16),
         Expanded(
@@ -536,7 +529,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
         Switch(
           value: value,
           onChanged: onChanged,
-          activeColor: const Color(0xFF4CAF50),
+          activeThumbColor: const Color(0xFF4CAF50),
           activeTrackColor: const Color(0xFF4CAF50).withOpacity(0.3),
         ),
       ],
@@ -551,11 +544,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
         onPressed: () {
           _showLogoutDialog();
         },
-        icon: const Icon(
-          Icons.logout,
-          color: Colors.red,
-          size: 20,
-        ),
+        icon: const Icon(Icons.logout, color: Colors.red, size: 20),
         label: TranslatedText(
           'Logout',
           style: TextStyle(
@@ -566,9 +555,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
         ),
         style: OutlinedButton.styleFrom(
           side: const BorderSide(color: Colors.red),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           padding: const EdgeInsets.symmetric(vertical: 16),
         ),
       ),
@@ -580,18 +567,12 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       children: [
         Text(
           'Clean Care v1.0.0',
-          style: TextStyle(
-            fontSize: 14,
-            color: Color(0xFF999999),
-          ),
+          style: TextStyle(fontSize: 14, color: Color(0xFF999999)),
         ),
         SizedBox(height: 4),
         Text(
           '© 2025 DSCC. All rights reserved.',
-          style: TextStyle(
-            fontSize: 12,
-            color: Color(0xFF999999),
-          ),
+          style: TextStyle(fontSize: 12, color: Color(0xFF999999)),
         ),
       ],
     );
@@ -632,9 +613,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) => const Center(
-          child: CircularProgressIndicator(),
-        ),
+        builder: (context) => const Center(child: CircularProgressIndicator()),
       );
 
       // Call backend logout API
@@ -645,7 +624,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       await AuthService.clearTokens();
 
       if (!mounted) return;
-      
+
       // Close loading dialog
       Navigator.pop(context);
 
@@ -666,7 +645,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       );
     } catch (e) {
       if (!mounted) return;
-      
+
       // Close loading dialog if open
       Navigator.pop(context);
 
@@ -682,11 +661,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       );
 
       // Navigate to login
-      Navigator.pushNamedAndRemoveUntil(
-        context,
-        '/login',
-        (route) => false,
-      );
+      Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
     }
   }
 

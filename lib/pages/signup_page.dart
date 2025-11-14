@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import '../repositories/auth_repository.dart';
 import '../services/api_client.dart';
 import '../config/api_config.dart';
@@ -43,21 +42,21 @@ class _SignUpPageState extends State<SignUpPage> {
   Future<void> _submit() async {
     final valid = _formKey.currentState?.validate() ?? false;
     if (!valid) return;
-    
+
     if (!_agree) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('টার্মস ও প্রাইভেসি মেনে নিতে হবে')),
       );
       return;
     }
-    
+
     setState(() => _isLoading = true);
-    
+
     final name = _nameController.text.trim();
     final phone = _phoneController.text.trim();
     final email = _emailController.text.trim();
     final password = _passwordController.text;
-    
+
     try {
       await _auth.register(
         name: name,
@@ -65,24 +64,26 @@ class _SignUpPageState extends State<SignUpPage> {
         email: email.isEmpty ? null : email,
         password: password,
       );
-      
+
       if (!mounted) return;
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('রেজিস্ট্রেশন সফল! $name এর জন্য একাউন্ট তৈরি হয়েছে ✓\nইমেইল ভেরিফাই করুন'),
+          content: Text(
+            'রেজিস্ট্রেশন সফল! $name এর জন্য একাউন্ট তৈরি হয়েছে ✓\nইমেইল ভেরিফাই করুন',
+          ),
           backgroundColor: Colors.green,
           duration: const Duration(seconds: 4),
         ),
       );
-      
+
       Navigator.pushReplacementNamed(context, '/login');
     } catch (e) {
       if (!mounted) return;
-      
+
       String errorMessage = 'রেজিস্ট্রেশন ব্যর্থ';
       final errorStr = e.toString();
-      
+
       if (errorStr.contains('already exists')) {
         errorMessage = 'এই ফোন নম্বর বা ইমেইল দিয়ে ইতিমধ্যে একাউন্ট আছে';
       } else if (errorStr.contains('Network error')) {
@@ -92,9 +93,10 @@ class _SignUpPageState extends State<SignUpPage> {
       } else if (errorStr.contains('Validation')) {
         errorMessage = 'সব তথ্য সঠিকভাবে পূরণ করুন';
       } else {
-        errorMessage = 'রেজিস্ট্রেশন ব্যর্থ: ${errorStr.replaceAll('Exception: ', '')}';
+        errorMessage =
+            'রেজিস্ট্রেশন ব্যর্থ: ${errorStr.replaceAll('Exception: ', '')}';
       }
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(errorMessage),
@@ -117,9 +119,9 @@ class _SignUpPageState extends State<SignUpPage> {
 
   void _pickFromGallery() {
     setState(() => _nidAttached = true);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('ডেমো: NID সংযুক্ত হয়েছে')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('ডেমো: NID সংযুক্ত হয়েছে')));
   }
 
   Widget _dashedUploadBox() {
@@ -141,8 +143,11 @@ class _SignUpPageState extends State<SignUpPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.upload_outlined,
-                  size: 40, color: Colors.black.withOpacity(0.45)),
+              Icon(
+                Icons.upload_outlined,
+                size: 40,
+                color: Colors.black.withOpacity(0.45),
+              ),
               const SizedBox(height: 12),
               const Text(
                 'Upload your NID or ID card',
@@ -157,7 +162,10 @@ class _SignUpPageState extends State<SignUpPage> {
                     icon: const Icon(Icons.photo_camera_outlined),
                     label: const Text('Camera'),
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 12,
+                        horizontal: 16,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(24),
                       ),
@@ -169,7 +177,10 @@ class _SignUpPageState extends State<SignUpPage> {
                     icon: const Icon(Icons.file_upload_outlined),
                     label: const Text('Gallery'),
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 12,
+                        horizontal: 16,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(24),
                       ),
@@ -242,7 +253,9 @@ class _SignUpPageState extends State<SignUpPage> {
                     labelText: 'Password',
                     hintText: 'Create a strong password',
                     suffixIcon: IconButton(
-                      icon: Icon(_obscure ? Icons.visibility : Icons.visibility_off),
+                      icon: Icon(
+                        _obscure ? Icons.visibility : Icons.visibility_off,
+                      ),
                       onPressed: () => setState(() => _obscure = !_obscure),
                     ),
                   ),
@@ -259,8 +272,8 @@ class _SignUpPageState extends State<SignUpPage> {
                   child: Text(
                     'NID / ID Verification (Optional)',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -309,7 +322,9 @@ class _SignUpPageState extends State<SignUpPage> {
                             width: 20,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
                             ),
                           )
                         : const Text('Create Account'),

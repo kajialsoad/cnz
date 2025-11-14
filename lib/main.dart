@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'config/api_config.dart';
 import 'guards/auth_guard.dart';
 import 'providers/language_provider.dart';
@@ -70,28 +69,12 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _checkLoginStatus() async {
-    // Check if user has seen onboarding
-    final prefs = await SharedPreferences.getInstance();
-    final hasSeenOnboarding = prefs.getBool('hasSeenOnboarding') ?? false;
-    
-    if (!mounted) return;
-    
-    // If onboarding not seen, show onboarding
-    if (!hasSeenOnboarding) {
-      Navigator.pushReplacementNamed(context, '/onboarding');
-      return;
-    }
-    
-    // Check if user is logged in
     final isLoggedIn = await AuthService.isLoggedIn();
-    
     if (!mounted) return;
-    
-    // Navigate to appropriate screen
     if (isLoggedIn) {
       Navigator.pushReplacementNamed(context, '/home');
     } else {
-      Navigator.pushReplacementNamed(context, '/welcome');
+      Navigator.pushReplacementNamed(context, '/onboarding');
     }
   }
 

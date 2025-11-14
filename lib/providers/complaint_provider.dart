@@ -20,8 +20,8 @@ class ComplaintProvider extends ChangeNotifier {
   String? _district;
   String? _thana;
   String? _ward;
-  List<File> _selectedImages = [];
-  List<File> _selectedAudioFiles = [];
+  final List<File> _selectedImages = [];
+  final List<File> _selectedAudioFiles = [];
 
   // State management
   bool _isLoading = false;
@@ -48,8 +48,7 @@ class ComplaintProvider extends ChangeNotifier {
 
   // Form validation
   bool get isFormValid {
-    return _description.isNotEmpty &&
-           _location.isNotEmpty;
+    return _description.isNotEmpty && _location.isNotEmpty;
   }
 
   // Setters for form data
@@ -255,7 +254,9 @@ class ComplaintProvider extends ChangeNotifier {
         location: _location.isNotEmpty ? _location : null,
         address: _address,
         newImages: _selectedImages.isNotEmpty ? _selectedImages : null,
-        newAudioFiles: _selectedAudioFiles.isNotEmpty ? _selectedAudioFiles : null,
+        newAudioFiles: _selectedAudioFiles.isNotEmpty
+            ? _selectedAudioFiles
+            : null,
       );
 
       _currentComplaint = complaint;
