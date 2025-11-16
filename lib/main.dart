@@ -18,6 +18,8 @@ import 'pages/complaint_page.dart';
 import 'pages/complaint_details_page.dart';
 import 'pages/complaint_address_page.dart';
 import 'pages/complaint_success_page.dart';
+import 'pages/complaint_list_page.dart';
+import 'pages/complaint_detail_view_page.dart';
 import 'pages/others_page.dart';
 import 'pages/payment_page.dart';
 import 'pages/emergency_page.dart';
@@ -153,6 +155,8 @@ class MyApp extends StatelessWidget {
         '/complaint-details': (_) => const AuthGuard(child: ComplaintDetailsPage()),
         '/complaint-address': (_) => const AuthGuard(child: ComplaintAddressPage()),
         '/complaint-success': (_) => const AuthGuard(child: ComplaintSuccessPage()),
+        '/complaint-list': (_) => const AuthGuard(child: ComplaintListPage()),
+        '/complaint-detail-view': (_) => const AuthGuard(child: ComplaintDetailViewPage()),
         '/others': (_) => const AuthGuard(child: OthersPage()),
         '/payment': (_) => const AuthGuard(child: PaymentPage()),
         '/donation': (_) => const AuthGuard(child: PaymentPage()),

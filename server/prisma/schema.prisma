@@ -98,20 +98,24 @@ model EmailVerificationToken {
 }
 
 model Complaint {
-  id          Int             @id @default(autoincrement())
-  title       String
-  description String          @db.Text
-  location    String
-  imageUrl    String?         @db.Text
-  audioUrl    String?         @db.Text
-  status      ComplaintStatus @default(PENDING)
-  priority    Int             @default(1)
-  userId      Int?
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-  user        User?           @relation(fields: [userId], references: [id])
+  id            Int             @id @default(autoincrement())
+  title         String
+  description   String          @db.Text
+  location      String
+  imageUrl      String?         @db.Text
+  audioUrl      String?         @db.Text
+  status        ComplaintStatus @default(PENDING)
+  priority      Int             @default(1)
+  userId        Int?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  user          User?           @relation(fields: [userId], references: [id])
+  chatMessages  ComplaintChatMessage[]
+  statusHistory StatusHistory[]
 
   @@index([userId, status])
+  @@index([status])
+  @@index([createdAt])
 }
 
 model ChatMessage {
@@ -128,6 +132,37 @@ model ChatMessage {
 
   @@index([senderId, receiverId, createdAt])
   @@index([receiverId], map: "ChatMessage_receiverId_fkey")
+}
+
+model ComplaintChatMessage {
+  id          Int        @id @default(autoincrement())
+  complaintId Int
+  senderId    Int
+  senderType  SenderType
+  message     String     @db.Text
+  imageUrl    String?
+  read        Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+  complaint   Complaint  @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+
+  @@index([complaintId])
+  @@index([createdAt])
+  @@map("complaint_chat_messages")
+}
+
+model StatusHistory {
+  id          Int             @id @default(autoincrement())
+  complaintId Int
+  oldStatus   ComplaintStatus
+  newStatus   ComplaintStatus
+  changedBy   Int
+  note        String?         @db.Text
+  createdAt   DateTime        @default(now())
+  complaint   Complaint       @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+
+  @@index([complaintId])
+  @@index([createdAt])
+  @@map("status_history")
 }
 
 model Payment {
@@ -190,4 +225,9 @@ enum ChatMessageType {
   TEXT
   IMAGE
   FILE
+}
+
+enum SenderType {
+  ADMIN
+  CITIZEN
 }

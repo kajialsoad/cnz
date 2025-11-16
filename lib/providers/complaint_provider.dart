@@ -3,12 +3,48 @@ import 'package:flutter/foundation.dart';
 import '../models/complaint.dart';
 import '../repositories/complaint_repository.dart';
 import '../services/file_handling_service.dart';
+import '../services/offline_cache_service.dart';
+import '../services/connectivity_service.dart';
+import '../services/error_handler_service.dart';
 
 class ComplaintProvider extends ChangeNotifier {
   final ComplaintRepository _complaintRepository;
   final FileHandlingService _fileHandlingService = FileHandlingService();
+  final OfflineCacheService _cacheService = OfflineCacheService();
+  final ConnectivityService _connectivityService = ConnectivityService();
 
-  ComplaintProvider(this._complaintRepository);
+  ComplaintProvider(this._complaintRepository) {
+    _initializeServices();
+  }
+
+  /// Initialize offline services
+  Future<void> _initializeServices() async {
+    try {
+      await _cacheService.init();
+      await _connectivityService.init();
+      
+      // Listen to connectivity changes
+      _connectivityService.connectivityStream.listen((isOnline) {
+        _isOffline = !isOnline;
+        notifyListeners();
+        
+        // Auto-refresh when coming back online
+        if (isOnline && _complaints.isEmpty) {
+          loadMyComplaints();
+        }
+      });
+      
+      // Set initial offline status
+      _isOffline = !_connectivityService.isOnline;
+      
+      // Load last sync time
+      _lastSyncTime = await _cacheService.getLastSyncTime();
+      
+      notifyListeners();
+    } catch (e) {
+      print('Error initializing offline services: $e');
+    }
+  }
 
   // Current complaint form data
   String _title = '';
@@ -28,6 +64,8 @@ class ComplaintProvider extends ChangeNotifier {
   String? _error;
   List<Complaint> _complaints = [];
   Complaint? _currentComplaint;
+  bool _isOffline = false;
+  DateTime? _lastSyncTime;
 
   // Getters
   String get title => _title;
@@ -45,6 +83,8 @@ class ComplaintProvider extends ChangeNotifier {
   String? get error => _error;
   List<Complaint> get complaints => List.unmodifiable(_complaints);
   Complaint? get currentComplaint => _currentComplaint;
+  bool get isOffline => _isOffline;
+  DateTime? get lastSyncTime => _lastSyncTime;
 
   // Form validation
   bool get isFormValid {
@@ -209,18 +249,59 @@ class ComplaintProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> loadMyComplaints() async {
+  Future<void> loadMyComplaints({bool forceRefresh = false}) async {
+    // Check connectivity
+    final isOnline = await _connectivityService.checkConnectivity();
+    _isOffline = !isOnline;
+
+    // If offline, load from cache
+    if (!isOnline && !forceRefresh) {
+      await _loadFromCache();
+      return;
+    }
+
+    // Show cached data immediately while loading fresh data
+    if (!forceRefresh && _complaints.isEmpty) {
+      await _loadFromCache();
+    }
+
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
+      // Fetch fresh data from API
       _complaints = await _complaintRepository.getMyComplaints();
+      
+      // Cache the fresh data
+      await _cacheService.cacheComplaints(_complaints);
+      _lastSyncTime = await _cacheService.getLastSyncTime();
+      
+      _error = null;
     } catch (e) {
       _error = e.toString();
+      
+      // If fetch fails and we have no data, try loading from cache
+      if (_complaints.isEmpty) {
+        await _loadFromCache();
+      }
     } finally {
       _isLoading = false;
       notifyListeners();
+    }
+  }
+
+  /// Load complaints from local cache
+  Future<void> _loadFromCache() async {
+    try {
+      final cachedComplaints = await _cacheService.getCachedComplaints();
+      if (cachedComplaints != null && cachedComplaints.isNotEmpty) {
+        _complaints = cachedComplaints;
+        _lastSyncTime = await _cacheService.getLastSyncTime();
+        notifyListeners();
+      }
+    } catch (e) {
+      print('Error loading from cache: $e');
     }
   }
 
@@ -324,9 +405,22 @@ class ComplaintProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Clear offline cache
+  Future<void> clearOfflineCache() async {
+    try {
+      await _cacheService.clearCache();
+      _lastSyncTime = null;
+      notifyListeners();
+    } catch (e) {
+      print('Error clearing cache: $e');
+    }
+  }
+
   @override
   void dispose() {
     _fileHandlingService.dispose();
+    _connectivityService.dispose();
+    _cacheService.dispose();
     super.dispose();
   }
 }

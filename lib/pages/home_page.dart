@@ -258,6 +258,35 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ],
                 ),
               ),
+              // My Complaints
+              PopupMenuItem<String>(
+                value: 'complaints',
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: green.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(Icons.list_alt, color: green, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    TranslatedText(
+                      'My Complaints',
+                      style: TextStyle(
+                        color: Colors.black87,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               // Government Calendar
               PopupMenuItem<String>(
                 value: 'calendar',
@@ -847,6 +876,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     switch (value) {
       case 'profile':
         Navigator.pushNamed(context, '/profile-settings');
+        return;
+      case 'complaints':
+        Navigator.pushNamed(context, '/complaint-list');
         return;
       case 'calendar':
         Navigator.pushNamed(context, '/government-calendar');

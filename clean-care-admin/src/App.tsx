@@ -1,5 +1,6 @@
 import { ThemeProvider, CssBaseline } from '@mui/material';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 import { theme } from './styles/theme';
 import { AuthProvider } from './contexts/AuthContext';
 import { LanguageProvider } from './contexts/LanguageContext';
@@ -18,6 +19,33 @@ function App() {
     <ErrorBoundary>
       <ThemeProvider theme={theme}>
         <CssBaseline />
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            duration: 4000,
+            style: {
+              background: '#363636',
+              color: '#fff',
+              fontSize: '14px',
+              padding: '12px 16px',
+              borderRadius: '8px',
+            },
+            success: {
+              duration: 3000,
+              iconTheme: {
+                primary: '#4CAF50',
+                secondary: '#fff',
+              },
+            },
+            error: {
+              duration: 5000,
+              iconTheme: {
+                primary: '#f44336',
+                secondary: '#fff',
+              },
+            },
+          }}
+        />
         <AuthProvider>
           <LanguageProvider>
             <Router>

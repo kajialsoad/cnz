@@ -386,6 +386,16 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
           ),
           const SizedBox(height: 20),
 
+          // My Complaints
+          _buildNavigationItem(
+            icon: Icons.list_alt,
+            title: 'My Complaints',
+            onTap: () {
+              Navigator.pushNamed(context, '/complaint-list');
+            },
+          ),
+          const SizedBox(height: 20),
+
           // Language Setting
           _buildLanguageSetting(),
           const SizedBox(height: 20),
@@ -413,6 +423,45 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                 emailNotifications = value;
               });
             },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNavigationItem({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF4CAF50).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: const Color(0xFF4CAF50), size: 20),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: TranslatedText(
+              title,
+              style: const TextStyle(
+                fontSize: 16,
+                color: Color(0xFF2E2E2E),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          const Icon(
+            Icons.arrow_forward_ios,
+            size: 16,
+            color: Color(0xFF999999),
           ),
         ],
       ),

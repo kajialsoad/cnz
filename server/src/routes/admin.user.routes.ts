@@ -41,6 +41,11 @@ console.log('🔧 Admin user route registered: PUT /:id');
 router.patch('/:id/status', updateUserStatus);
 console.log('🔧 Admin user route registered: PATCH /:id/status');
 
+// Get user complaints
+import { getUserComplaints } from '../controllers/admin.user.controller';
+router.get('/:id/complaints', getUserComplaints);
+console.log('🔧 Admin user route registered: GET /:id/complaints');
+
 console.log('✅ Admin user routes module loaded successfully');
 
 export default router;

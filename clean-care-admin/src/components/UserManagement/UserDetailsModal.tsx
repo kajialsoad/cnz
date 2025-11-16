@@ -10,7 +10,6 @@ import {
     Avatar,
     Chip,
     Divider,
-    Grid,
     List,
     ListItem,
     ListItemText,
@@ -23,11 +22,11 @@ import {
     LocationOn as LocationIcon,
     CalendarToday as CalendarIcon,
     CheckCircle as CheckCircleIcon,
-    Cancel as CancelIcon,
     Edit as EditIcon,
 } from '@mui/icons-material';
 import type { UserWithStats, ComplaintSummary } from '../../types/userManagement.types';
 import { format } from 'date-fns';
+import { scaleIn, slideInUp, animationConfig, statusBadgeTransition, fadeIn } from '../../styles/animations';
 
 interface UserDetailsModalProps {
     user: UserWithStats | null;
@@ -95,16 +94,34 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
             onClose={onClose}
             maxWidth="md"
             fullWidth
-            PaperProps={{
-                sx: {
-                    borderRadius: 2,
-                    maxHeight: '90vh',
+            fullScreen={window.innerWidth < 600}
+            slotProps={{
+                paper: {
+                    sx: {
+                        borderRadius: { xs: 0, sm: 2 },
+                        animation: window.innerWidth < 600
+                            ? `${slideInUp} ${animationConfig.normal.duration} ${animationConfig.smooth.timing}`
+                            : `${scaleIn} ${animationConfig.normal.duration} ${animationConfig.smooth.timing}`,
+                        animationFillMode: 'both',
+                        maxHeight: { xs: '100vh', sm: '90vh' },
+                    },
+                },
+                backdrop: {
+                    sx: {
+                        animation: `${fadeIn} ${animationConfig.fast.duration} ${animationConfig.fast.timing}`,
+                    },
                 },
             }}
         >
-            <DialogTitle sx={{ pb: 2 }}>
+            <DialogTitle sx={{ pb: { xs: 1.5, sm: 2 } }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="h5" sx={{ fontWeight: 600 }}>
+                    <Typography
+                        variant="h5"
+                        sx={{
+                            fontWeight: 600,
+                            fontSize: { xs: '1.25rem', sm: '1.5rem' }
+                        }}
+                    >
                         User Details
                     </Typography>
                     <IconButton onClick={onClose} size="small">
@@ -113,36 +130,55 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                 </Box>
             </DialogTitle>
 
-            <DialogContent dividers>
+            <DialogContent dividers sx={{ px: { xs: 2, sm: 3 }, py: { xs: 2, sm: 2 } }}>
                 {/* Personal Information */}
-                <Box sx={{ mb: 3 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, mb: 2 }}>
+                <Box sx={{ mb: { xs: 2, sm: 3 } }}>
+                    <Box sx={{
+                        display: 'flex',
+                        flexDirection: { xs: 'column', sm: 'row' },
+                        alignItems: { xs: 'center', sm: 'center' },
+                        gap: { xs: 2, sm: 3 },
+                        mb: 2
+                    }}>
                         <Avatar
                             sx={{
-                                width: 80,
-                                height: 80,
+                                width: { xs: 64, sm: 80 },
+                                height: { xs: 64, sm: 80 },
                                 bgcolor: '#4CAF50',
-                                fontSize: '2rem',
+                                fontSize: { xs: '1.5rem', sm: '2rem' },
                                 fontWeight: 600,
                             }}
                             src={user.avatar || undefined}
                         >
                             {user.firstName[0]}{user.lastName[0]}
                         </Avatar>
-                        <Box sx={{ flex: 1 }}>
-                            <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
+                        <Box sx={{ flex: 1, textAlign: { xs: 'center', sm: 'left' }, width: { xs: '100%', sm: 'auto' } }}>
+                            <Typography
+                                variant="h6"
+                                sx={{
+                                    fontWeight: 600,
+                                    mb: 0.5,
+                                    fontSize: { xs: '1rem', sm: '1.25rem' }
+                                }}
+                            >
                                 {user.firstName} {user.lastName}
                             </Typography>
-                            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                            <Typography
+                                variant="body2"
+                                color="text.secondary"
+                                sx={{ mb: 1, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
+                            >
                                 User ID: #{user.id.toString().padStart(6, '0')}
                             </Typography>
-                            <Box sx={{ display: 'flex', gap: 1 }}>
+                            <Box sx={{ display: 'flex', gap: 1, justifyContent: { xs: 'center', sm: 'flex-start' }, flexWrap: 'wrap' }}>
                                 <Chip
                                     label={user.status}
                                     size="small"
                                     sx={{
                                         ...getStatusColor(user.status),
+                                        ...statusBadgeTransition,
                                         fontWeight: 500,
+                                        fontSize: { xs: '0.7rem', sm: '0.75rem' },
                                     }}
                                 />
                                 <Chip
@@ -151,128 +187,193 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                                     sx={{
                                         backgroundColor: '#e3f2fd',
                                         color: '#1976d2',
+                                        ...statusBadgeTransition,
                                         fontWeight: 500,
+                                        fontSize: { xs: '0.7rem', sm: '0.75rem' },
                                     }}
                                 />
                             </Box>
                         </Box>
                     </Box>
 
-                    <Divider sx={{ my: 2 }} />
+                    <Divider sx={{ my: { xs: 1.5, sm: 2 } }} />
 
-                    <Grid container spacing={2}>
-                        <Grid item xs={12} sm={6}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                                <EmailIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
-                                <Box>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: { xs: 1.5, sm: 2 } }}>
+                        <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 45%' }, minWidth: { xs: '100%', sm: '200px' } }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: { xs: 1.5, sm: 2 } }}>
+                                <EmailIcon sx={{ color: 'text.secondary', fontSize: { xs: 18, sm: 20 } }} />
+                                <Box sx={{ flex: 1, minWidth: 0 }}>
                                     <Typography variant="caption" color="text.secondary">
                                         Email
                                     </Typography>
-                                    <Typography variant="body2">
+                                    <Typography
+                                        variant="body2"
+                                        sx={{
+                                            wordBreak: 'break-word',
+                                            fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                                        }}
+                                    >
                                         {user.email || 'Not provided'}
                                     </Typography>
                                 </Box>
                                 {user.emailVerified && (
-                                    <CheckCircleIcon sx={{ color: '#4CAF50', fontSize: 18, ml: 'auto' }} />
+                                    <CheckCircleIcon sx={{ color: '#4CAF50', fontSize: { xs: 16, sm: 18 } }} />
                                 )}
                             </Box>
-                        </Grid>
+                        </Box>
 
-                        <Grid item xs={12} sm={6}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                                <PhoneIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
-                                <Box>
+                        <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 45%' }, minWidth: { xs: '100%', sm: '200px' } }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: { xs: 1.5, sm: 2 } }}>
+                                <PhoneIcon sx={{ color: 'text.secondary', fontSize: { xs: 18, sm: 20 } }} />
+                                <Box sx={{ flex: 1 }}>
                                     <Typography variant="caption" color="text.secondary">
                                         Phone
                                     </Typography>
-                                    <Typography variant="body2">{user.phone}</Typography>
+                                    <Typography variant="body2" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                                        {user.phone}
+                                    </Typography>
                                 </Box>
                                 {user.phoneVerified && (
-                                    <CheckCircleIcon sx={{ color: '#4CAF50', fontSize: 18, ml: 'auto' }} />
+                                    <CheckCircleIcon sx={{ color: '#4CAF50', fontSize: { xs: 16, sm: 18 } }} />
                                 )}
                             </Box>
-                        </Grid>
+                        </Box>
 
-                        <Grid item xs={12} sm={6}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                                <LocationIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
+                        <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 45%' }, minWidth: { xs: '100%', sm: '200px' } }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: { xs: 1.5, sm: 2 } }}>
+                                <LocationIcon sx={{ color: 'text.secondary', fontSize: { xs: 18, sm: 20 } }} />
                                 <Box>
                                     <Typography variant="caption" color="text.secondary">
                                         Location
                                     </Typography>
-                                    <Typography variant="body2">
+                                    <Typography variant="body2" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                                         {user.ward || 'N/A'} • {user.zone || 'N/A'}
                                     </Typography>
                                 </Box>
                             </Box>
-                        </Grid>
+                        </Box>
 
-                        <Grid item xs={12} sm={6}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                                <CalendarIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
+                        <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 45%' }, minWidth: { xs: '100%', sm: '200px' } }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: { xs: 1.5, sm: 2 } }}>
+                                <CalendarIcon sx={{ color: 'text.secondary', fontSize: { xs: 18, sm: 20 } }} />
                                 <Box>
                                     <Typography variant="caption" color="text.secondary">
                                         Joined
                                     </Typography>
-                                    <Typography variant="body2">
+                                    <Typography variant="body2" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                                         {formatDate(user.createdAt)}
                                     </Typography>
                                 </Box>
                             </Box>
-                        </Grid>
-                    </Grid>
+                        </Box>
+                    </Box>
                 </Box>
 
                 {/* Activity Statistics */}
-                <Box sx={{ mb: 3 }}>
-                    <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
+                <Box sx={{ mb: { xs: 2, sm: 3 } }}>
+                    <Typography
+                        variant="h6"
+                        sx={{
+                            fontWeight: 600,
+                            mb: { xs: 1.5, sm: 2 },
+                            fontSize: { xs: '1rem', sm: '1.25rem' }
+                        }}
+                    >
                         Activity Statistics
                     </Typography>
-                    <Grid container spacing={2}>
-                        <Grid item xs={6} sm={3}>
-                            <Box sx={{ textAlign: 'center', p: 2, backgroundColor: '#f8f9fa', borderRadius: 2 }}>
-                                <Typography variant="h4" sx={{ fontWeight: 700, color: '#2196F3' }}>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: { xs: 1.5, sm: 2 } }}>
+                        <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: { xs: '100px', sm: '120px' } }}>
+                            <Box sx={{ textAlign: 'center', p: { xs: 1.5, sm: 2 }, backgroundColor: '#f8f9fa', borderRadius: 2 }}>
+                                <Typography
+                                    variant="h4"
+                                    sx={{
+                                        fontWeight: 700,
+                                        color: '#2196F3',
+                                        fontSize: { xs: '1.5rem', sm: '2.125rem' }
+                                    }}
+                                >
                                     {user.statistics.totalComplaints}
                                 </Typography>
-                                <Typography variant="caption" color="text.secondary">
+                                <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                    sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}
+                                >
                                     Total Complaints
                                 </Typography>
                             </Box>
-                        </Grid>
-                        <Grid item xs={6} sm={3}>
-                            <Box sx={{ textAlign: 'center', p: 2, backgroundColor: '#f8f9fa', borderRadius: 2 }}>
-                                <Typography variant="h4" sx={{ fontWeight: 700, color: '#4CAF50' }}>
+                        </Box>
+                        <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: { xs: '100px', sm: '120px' } }}>
+                            <Box sx={{ textAlign: 'center', p: { xs: 1.5, sm: 2 }, backgroundColor: '#f8f9fa', borderRadius: 2 }}>
+                                <Typography
+                                    variant="h4"
+                                    sx={{
+                                        fontWeight: 700,
+                                        color: '#4CAF50',
+                                        fontSize: { xs: '1.5rem', sm: '2.125rem' }
+                                    }}
+                                >
                                     {user.statistics.resolvedComplaints}
                                 </Typography>
-                                <Typography variant="caption" color="text.secondary">
+                                <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                    sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}
+                                >
                                     Resolved
                                 </Typography>
                             </Box>
-                        </Grid>
-                        <Grid item xs={6} sm={3}>
-                            <Box sx={{ textAlign: 'center', p: 2, backgroundColor: '#f8f9fa', borderRadius: 2 }}>
-                                <Typography variant="h4" sx={{ fontWeight: 700, color: '#FF9800' }}>
+                        </Box>
+                        <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: { xs: '100px', sm: '120px' } }}>
+                            <Box sx={{ textAlign: 'center', p: { xs: 1.5, sm: 2 }, backgroundColor: '#f8f9fa', borderRadius: 2 }}>
+                                <Typography
+                                    variant="h4"
+                                    sx={{
+                                        fontWeight: 700,
+                                        color: '#FF9800',
+                                        fontSize: { xs: '1.5rem', sm: '2.125rem' }
+                                    }}
+                                >
                                     {user.statistics.unresolvedComplaints}
                                 </Typography>
-                                <Typography variant="caption" color="text.secondary">
+                                <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                    sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}
+                                >
                                     Unresolved
                                 </Typography>
                             </Box>
-                        </Grid>
-                        <Grid item xs={6} sm={3}>
-                            <Box sx={{ textAlign: 'center', p: 2, backgroundColor: '#f8f9fa', borderRadius: 2 }}>
-                                <Typography variant="h4" sx={{ fontWeight: 700, color: '#9C27B0' }}>
+                        </Box>
+                        <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: { xs: '100px', sm: '120px' } }}>
+                            <Box sx={{ textAlign: 'center', p: { xs: 1.5, sm: 2 }, backgroundColor: '#f8f9fa', borderRadius: 2 }}>
+                                <Typography
+                                    variant="h4"
+                                    sx={{
+                                        fontWeight: 700,
+                                        color: '#9C27B0',
+                                        fontSize: { xs: '1.5rem', sm: '2.125rem' }
+                                    }}
+                                >
                                     {successRate}%
                                 </Typography>
-                                <Typography variant="caption" color="text.secondary">
+                                <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                    sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}
+                                >
                                     Success Rate
                                 </Typography>
                             </Box>
-                        </Grid>
-                    </Grid>
+                        </Box>
+                    </Box>
 
-                    <Box sx={{ mt: 2 }}>
-                        <Typography variant="body2" color="text.secondary">
+                    <Box sx={{ mt: { xs: 1.5, sm: 2 } }}>
+                        <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
+                        >
                             Last Login: {formatDate(user.lastLoginAt)}
                         </Typography>
                     </Box>
@@ -280,17 +381,24 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
 
                 {/* Recent Complaints */}
                 <Box>
-                    <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
+                    <Typography
+                        variant="h6"
+                        sx={{
+                            fontWeight: 600,
+                            mb: { xs: 1.5, sm: 2 },
+                            fontSize: { xs: '1rem', sm: '1.25rem' }
+                        }}
+                    >
                         Recent Complaints
                     </Typography>
                     {recentComplaints.length > 0 ? (
                         <List sx={{ p: 0 }}>
-                            {recentComplaints.map((complaint, index) => (
+                            {recentComplaints.map((complaint) => (
                                 <React.Fragment key={complaint.id}>
                                     <ListItem
                                         sx={{
-                                            px: 2,
-                                            py: 1.5,
+                                            px: { xs: 1.5, sm: 2 },
+                                            py: { xs: 1, sm: 1.5 },
                                             backgroundColor: '#f8f9fa',
                                             borderRadius: 1,
                                             mb: 1,
@@ -298,8 +406,19 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                                     >
                                         <ListItemText
                                             primary={
-                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                                <Box sx={{
+                                                    display: 'flex',
+                                                    flexDirection: { xs: 'column', sm: 'row' },
+                                                    alignItems: { xs: 'flex-start', sm: 'center' },
+                                                    gap: { xs: 0.5, sm: 1 }
+                                                }}>
+                                                    <Typography
+                                                        variant="body2"
+                                                        sx={{
+                                                            fontWeight: 500,
+                                                            fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                                                        }}
+                                                    >
                                                         {complaint.title}
                                                     </Typography>
                                                     <Chip
@@ -307,14 +426,19 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                                                         size="small"
                                                         sx={{
                                                             ...getComplaintStatusColor(complaint.status),
-                                                            height: 20,
-                                                            fontSize: '0.7rem',
+                                                            ...statusBadgeTransition,
+                                                            height: { xs: 18, sm: 20 },
+                                                            fontSize: { xs: '0.65rem', sm: '0.7rem' },
                                                         }}
                                                     />
                                                 </Box>
                                             }
                                             secondary={
-                                                <Typography variant="caption" color="text.secondary">
+                                                <Typography
+                                                    variant="caption"
+                                                    color="text.secondary"
+                                                    sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}
+                                                >
                                                     {formatDate(complaint.createdAt)}
                                                 </Typography>
                                             }
@@ -324,15 +448,36 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                             ))}
                         </List>
                     ) : (
-                        <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 3 }}>
+                        <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            sx={{
+                                textAlign: 'center',
+                                py: { xs: 2, sm: 3 },
+                                fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                            }}
+                        >
                             No complaints yet
                         </Typography>
                     )}
                 </Box>
             </DialogContent>
 
-            <DialogActions sx={{ px: 3, py: 2 }}>
-                <Button onClick={onClose} variant="outlined" sx={{ textTransform: 'none' }}>
+            <DialogActions sx={{
+                px: { xs: 2, sm: 3 },
+                py: { xs: 1.5, sm: 2 },
+                flexDirection: { xs: 'column', sm: 'row' },
+                gap: { xs: 1, sm: 0 },
+            }}>
+                <Button
+                    onClick={onClose}
+                    variant="outlined"
+                    sx={{
+                        textTransform: 'none',
+                        width: { xs: '100%', sm: 'auto' },
+                        minHeight: { xs: 44, sm: 'auto' },
+                    }}
+                >
                     Close
                 </Button>
                 <Button
@@ -343,6 +488,8 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                         backgroundColor: '#4CAF50',
                         '&:hover': { backgroundColor: '#45a049' },
                         textTransform: 'none',
+                        width: { xs: '100%', sm: 'auto' },
+                        minHeight: { xs: 44, sm: 'auto' },
                     }}
                 >
                     Edit User

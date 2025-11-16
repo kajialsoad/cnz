@@ -121,3 +121,5 @@ build/
 *.md
 !README.md
 problems-report.html
+*.zip
+*.rar
