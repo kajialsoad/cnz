@@ -13,6 +13,7 @@ class Complaint {
   final String userId;
   final List<String> imageUrls;
   final List<String> audioUrls;
+  final int priority;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -28,26 +29,69 @@ class Complaint {
     required this.userId,
     required this.imageUrls,
     required this.audioUrls,
+    required this.priority,
     required this.createdAt,
     required this.updatedAt,
   });
 
   factory Complaint.fromJson(Map<String, dynamic> json) {
+    // Handle nested complaint object (from backend response)
+    final complaintData = json['complaint'] ?? json;
+    
     return Complaint(
-      id: json['id'].toString(),
-      title: json['title'] ?? '',
-      description: json['description'] ?? '',
-      category: json['category'] ?? '',
-      urgencyLevel: json['urgencyLevel'] ?? '',
-      location: json['location'] ?? '',
-      address: json['address'],
-      status: json['status'] ?? '',
-      userId: json['userId'].toString(),
-      imageUrls: _parseUrlList(json['imageUrls']),
-      audioUrls: _parseUrlList(json['audioUrls']),
-      createdAt: DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
-      updatedAt: DateTime.parse(json['updatedAt'] ?? DateTime.now().toIso8601String()),
+      id: complaintData['id'].toString(),
+      title: complaintData['title'] ?? '',
+      description: complaintData['description'] ?? '',
+      category: complaintData['category'] ?? '',
+      urgencyLevel: complaintData['urgencyLevel'] ?? '',
+      location: complaintData['location'] ?? '',
+      address: complaintData['address'],
+      status: _normalizeStatus(complaintData['status'] ?? ''),
+      userId: (complaintData['userId'] ?? '').toString(),
+      imageUrls: _parseUrlList(complaintData['imageUrls'] ?? complaintData['imageUrl']),
+      audioUrls: _parseAudioUrls(complaintData),
+      priority: complaintData['priority'] ?? 1,
+      createdAt: DateTime.parse(complaintData['createdAt'] ?? DateTime.now().toIso8601String()),
+      updatedAt: DateTime.parse(complaintData['updatedAt'] ?? DateTime.now().toIso8601String()),
     );
+  }
+
+  /// Normalize backend status enum to match Flutter constants
+  static String _normalizeStatus(String status) {
+    final normalized = status.toUpperCase();
+    switch (normalized) {
+      case 'PENDING':
+        return ComplaintStatus.pending;
+      case 'IN_PROGRESS':
+        return ComplaintStatus.inProgress;
+      case 'RESOLVED':
+        return ComplaintStatus.resolved;
+      case 'REJECTED':
+      case 'CANCELLED':
+        return ComplaintStatus.closed;
+      default:
+        return status.toLowerCase();
+    }
+  }
+
+  /// Parse audio URLs from backend response
+  static List<String> _parseAudioUrls(Map<String, dynamic> json) {
+    // Check for voiceNoteUrl (single audio)
+    if (json['voiceNoteUrl'] != null && json['voiceNoteUrl'].toString().isNotEmpty) {
+      return [json['voiceNoteUrl'].toString()];
+    }
+    
+    // Check for audioUrls array
+    if (json['audioUrls'] != null) {
+      return _parseUrlList(json['audioUrls']);
+    }
+    
+    // Check for audioUrl field
+    if (json['audioUrl'] != null) {
+      return _parseUrlList(json['audioUrl']);
+    }
+    
+    return [];
   }
 
   static List<String> _parseUrlList(dynamic urls) {
@@ -67,6 +111,40 @@ class Complaint {
     }
     return [];
   }
+
+  /// Get status display text
+  String get statusText => ComplaintStatus.getDisplayName(status);
+
+  /// Get status color
+  Color get statusColor => ComplaintStatus.getColor(status);
+
+  /// Get time ago string (e.g., "2 hours ago")
+  String get timeAgo {
+    final now = DateTime.now();
+    final difference = now.difference(createdAt);
+
+    if (difference.inDays > 365) {
+      final years = (difference.inDays / 365).floor();
+      return '$years ${years == 1 ? 'year' : 'years'} ago';
+    } else if (difference.inDays > 30) {
+      final months = (difference.inDays / 30).floor();
+      return '$months ${months == 1 ? 'month' : 'months'} ago';
+    } else if (difference.inDays > 0) {
+      return '${difference.inDays} ${difference.inDays == 1 ? 'day' : 'days'} ago';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours} ${difference.inHours == 1 ? 'hour' : 'hours'} ago';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes} ${difference.inMinutes == 1 ? 'minute' : 'minutes'} ago';
+    } else {
+      return 'Just now';
+    }
+  }
+
+  /// Get thumbnail image URL (first image or null)
+  String? get thumbnailUrl => imageUrls.isNotEmpty ? imageUrls.first : null;
+
+  /// Check if complaint has media attachments
+  bool get hasMedia => imageUrls.isNotEmpty || audioUrls.isNotEmpty;
 
   Map<String, dynamic> toJson() {
     return {
@@ -98,6 +176,7 @@ class Complaint {
     String? userId,
     List<String>? imageUrls,
     List<String>? audioUrls,
+    int? priority,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -113,6 +192,7 @@ class Complaint {
       userId: userId ?? this.userId,
       imageUrls: imageUrls ?? this.imageUrls,
       audioUrls: audioUrls ?? this.audioUrls,
+      priority: priority ?? this.priority,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -215,6 +295,7 @@ class UrgencyLevel {
 }
 
 /// Utility class for complaint status
+/// Matches backend enum: PENDING, IN_PROGRESS, RESOLVED, REJECTED
 class ComplaintStatus {
   static const String pending = 'pending';
   static const String inProgress = 'in_progress';
@@ -224,32 +305,60 @@ class ComplaintStatus {
   static List<String> get all => [pending, inProgress, resolved, closed];
 
   static String getDisplayName(String status) {
-    switch (status) {
+    switch (status.toLowerCase()) {
       case pending:
         return 'Pending';
       case inProgress:
+      case 'in progress':
         return 'In Progress';
       case resolved:
         return 'Resolved';
       case closed:
+      case 'rejected':
+      case 'cancelled':
         return 'Closed';
       default:
-        return status;
+        // Capitalize first letter of each word
+        return status.split('_').map((word) => 
+          word.isEmpty ? '' : word[0].toUpperCase() + word.substring(1).toLowerCase()
+        ).join(' ');
     }
   }
 
   static Color getColor(String status) {
-    switch (status) {
+    switch (status.toLowerCase()) {
       case pending:
-        return Colors.orange;
+        return const Color(0xFFFFC107); // Yellow/Amber
       case inProgress:
-        return Colors.blue;
+      case 'in progress':
+        return const Color(0xFF2196F3); // Blue
       case resolved:
-        return Colors.green;
+        return const Color(0xFF4CAF50); // Green
       case closed:
-        return Colors.grey;
+      case 'rejected':
+      case 'cancelled':
+        return const Color(0xFF9E9E9E); // Grey
       default:
         return Colors.grey;
+    }
+  }
+
+  /// Convert Flutter status to backend enum format
+  static String toBackendFormat(String status) {
+    switch (status.toLowerCase()) {
+      case pending:
+        return 'PENDING';
+      case inProgress:
+      case 'in progress':
+        return 'IN_PROGRESS';
+      case resolved:
+        return 'RESOLVED';
+      case closed:
+      case 'rejected':
+      case 'cancelled':
+        return 'REJECTED';
+      default:
+        return status.toUpperCase();
     }
   }
 }

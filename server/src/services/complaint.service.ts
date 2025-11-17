@@ -1,6 +1,7 @@
 import prisma from '../utils/prisma';
 import { ComplaintStatus } from '@prisma/client';
 import { uploadService } from './upload.service';
+import { getFileUrl } from '../config/upload.config';
 
 export interface CreateComplaintInput {
   title?: string; // Optional - will be auto-generated from description
@@ -60,36 +61,36 @@ export class ComplaintService {
     try {
       // Generate tracking number
       const trackingNumber = await this.generateTrackingNumber();
-      
+
       let finalImageUrls: string[] = [];
       let finalAudioUrls: string[] = [];
 
       // Process uploaded files if provided
       if (input.uploadedFiles) {
         const files = input.uploadedFiles as any;
-        
+
         // With .any(), files come as an array, need to separate by fieldname
         if (Array.isArray(files)) {
           const imageFiles = files.filter((f: any) => f.fieldname === 'images');
           const audioFiles = files.filter((f: any) => f.fieldname === 'audioFiles');
-          
+
           if (imageFiles.length > 0) {
-            finalImageUrls = imageFiles.map((file: any) => `/uploads/${file.filename}`);
+            finalImageUrls = imageFiles.map((file: any) => getFileUrl(file.filename, 'image'));
           }
-          
+
           if (audioFiles.length > 0) {
-            finalAudioUrls = audioFiles.map((file: any) => `/uploads/${file.filename}`);
+            finalAudioUrls = audioFiles.map((file: any) => getFileUrl(file.filename, 'voice'));
           }
         } else {
           // Fallback for .fields() format (if we ever switch back)
           if (files.images) {
             const imageFiles = Array.isArray(files.images) ? files.images : [files.images];
-            finalImageUrls = imageFiles.map((file: any) => `/uploads/${file.filename}`);
+            finalImageUrls = imageFiles.map((file: any) => getFileUrl(file.filename, 'image'));
           }
-          
+
           if (files.audioFiles) {
             const audioFilesArray = Array.isArray(files.audioFiles) ? files.audioFiles : [files.audioFiles];
-            finalAudioUrls = audioFilesArray.map((file: any) => `/uploads/${file.filename}`);
+            finalAudioUrls = audioFilesArray.map((file: any) => getFileUrl(file.filename, 'voice'));
           }
         }
       }
@@ -98,7 +99,7 @@ export class ComplaintService {
       if (input.imageUrls && input.imageUrls.length > 0) {
         finalImageUrls = [...finalImageUrls, ...input.imageUrls];
       }
-      
+
       if (input.voiceNoteUrl) {
         finalAudioUrls.push(input.voiceNoteUrl);
       }
@@ -198,19 +199,19 @@ export class ComplaintService {
     try {
       // Check if complaint exists and user has permission
       const existingComplaint = await this.getComplaintById(id, userId);
-      
+
       let finalImageUrls: string[] = [];
       let finalVoiceUrl: string | undefined;
 
       // Process uploaded files if provided
       if (input.uploadedFiles) {
         const uploadedFiles = await uploadService.processUploadedFiles(input.uploadedFiles);
-        
+
         // Get image URLs
         if (uploadedFiles.images && uploadedFiles.images.length > 0) {
           finalImageUrls = uploadedFiles.images.map(img => img.url);
         }
-        
+
         // Get voice URL
         if (uploadedFiles.voice) {
           finalVoiceUrl = uploadedFiles.voice.url;
@@ -225,14 +226,14 @@ export class ComplaintService {
           finalImageUrls = [...finalImageUrls, ...input.imageUrls];
         }
       }
-      
+
       if (input.voiceNoteUrl && !finalVoiceUrl) {
         finalVoiceUrl = input.voiceNoteUrl;
       }
 
       // Prepare update data
       const updateData: any = {};
-      
+
       if (input.title !== undefined) updateData.title = input.title;
       if (input.description !== undefined) updateData.description = input.description;
       if (input.category !== undefined) updateData.category = input.category;
@@ -243,21 +244,21 @@ export class ComplaintService {
       if (finalImageUrls.length > 0 || finalVoiceUrl || input.replaceFiles) {
         let currentImageUrls: string[] = [];
         let currentVoiceUrl: string | undefined;
-        
+
         // Parse existing files if not replacing
         if (!input.replaceFiles && existingComplaint.imageUrl) {
           const parsed = this.parseFileUrls(existingComplaint.imageUrl);
           currentImageUrls = parsed.imageUrls;
           currentVoiceUrl = parsed.voiceUrl;
         }
-        
+
         // Merge URLs
-        const allImageUrls = input.replaceFiles 
-          ? finalImageUrls 
+        const allImageUrls = input.replaceFiles
+          ? finalImageUrls
           : [...currentImageUrls, ...finalImageUrls];
-        
+
         const voiceUrl = finalVoiceUrl || currentVoiceUrl;
-        
+
         // Format for storage
         updateData.imageUrl = this.formatFileUrlsForStorage(allImageUrls, voiceUrl);
       }
@@ -294,12 +295,12 @@ export class ComplaintService {
       return responseComplaint;
     } catch (error) {
       console.error('Error updating complaint:', error);
-      
+
       // Clean up uploaded files on error
       if (input.uploadedFiles) {
         await uploadService.cleanupFiles(input.uploadedFiles);
       }
-      
+
       throw error;
     }
   }
@@ -309,12 +310,12 @@ export class ComplaintService {
     try {
       // Check if complaint exists and user has permission
       await this.getComplaintById(id, userId);
-      
+
       // Instead of hard delete, update status to rejected
       const complaint = await prisma.complaint.update({
         where: { id },
-        data: { 
-          status: ComplaintStatus.REJECTED 
+        data: {
+          status: ComplaintStatus.REJECTED
         }
       });
 
@@ -434,13 +435,24 @@ export class ComplaintService {
   private parseFileUrls(imageUrlString: string): { imageUrls: string[]; voiceUrl?: string } {
     const imageUrls: string[] = [];
     let voiceUrl: string | undefined;
-    
+
     if (!imageUrlString) {
       return { imageUrls };
     }
-    
+
+    // Try to parse as JSON first (new format)
+    try {
+      const parsed = JSON.parse(imageUrlString);
+      if (Array.isArray(parsed)) {
+        return { imageUrls: parsed };
+      }
+    } catch (error) {
+      // Not JSON, fall back to comma-separated parsing (old format)
+    }
+
+    // Parse comma-separated format (legacy)
     const parts = imageUrlString.split(',').map(part => part.trim()).filter(part => part);
-    
+
     parts.forEach(part => {
       if (part.startsWith('voice:')) {
         voiceUrl = part.substring(6); // Remove 'voice:' prefix
@@ -448,39 +460,42 @@ export class ComplaintService {
         imageUrls.push(part);
       }
     });
-    
+
     return { imageUrls, voiceUrl };
   }
 
   // Helper method to format file URLs for storage
   private formatFileUrlsForStorage(imageUrls: string[], voiceUrl?: string): string {
     const parts: string[] = [];
-    
+
     // Add image URLs
     imageUrls.forEach(url => {
       if (url && url.trim()) {
         parts.push(url.trim());
       }
     });
-    
+
     // Add voice URL with prefix
     if (voiceUrl && voiceUrl.trim()) {
       parts.push(`voice:${voiceUrl.trim()}`);
     }
-    
+
     return parts.join(',');
   }
 
   // Helper method to format complaint response with structured file URLs
   private formatComplaintResponse(complaint: any) {
-    const parsed = this.parseFileUrls(complaint.imageUrl || '');
-    
+    const parsedImages = this.parseFileUrls(complaint.imageUrl || '');
+    const parsedAudio = this.parseFileUrls(complaint.audioUrl || '');
+
     return {
       ...complaint,
-      imageUrls: parsed.imageUrls,
-      voiceNoteUrl: parsed.voiceUrl,
-      // Keep original imageUrl for backward compatibility
-      imageUrl: complaint.imageUrl
+      imageUrls: parsedImages.imageUrls,
+      audioUrls: parsedAudio.imageUrls, // audioUrls are stored in imageUrls field of parsed result
+      voiceNoteUrl: parsedAudio.imageUrls[0], // First audio URL for backward compatibility
+      // Keep original fields for backward compatibility
+      imageUrl: complaint.imageUrl,
+      audioUrl: complaint.audioUrl
     };
   }
 
@@ -488,7 +503,7 @@ export class ComplaintService {
   async getComplaints(query: ComplaintQueryInput = {}) {
     try {
       const result = await this.getComplaintsRaw(query);
-      
+
       return {
         ...result,
         data: result.data.map(complaint => this.formatComplaintResponse(complaint))
@@ -515,7 +530,7 @@ export class ComplaintService {
 
     // Build where clause
     const where: any = {};
-    
+
     if (status) where.status = status;
     if (category) where.category = category;
     if (priority) where.priority = priority;

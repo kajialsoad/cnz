@@ -19,9 +19,15 @@ const registerSchema = zod_1.z.object({
     email: zod_1.z.string().email(),
     password: zod_1.z.string().min(6),
 });
-const loginSchema = zod_1.z.object({
-    email: zod_1.z.string().email(),
+const loginSchema = zod_1.z
+    .object({
+    email: zod_1.z.string().email().optional(),
+    phone: zod_1.z.string().min(6).optional(),
     password: zod_1.z.string(),
+})
+    .refine((data) => !!(data.email || data.phone), {
+    message: 'Provide email or phone',
+    path: ['email'],
 });
 async function register(req, res) {
     try {
@@ -47,6 +53,7 @@ async function login(req, res) {
         const body = loginSchema.parse(req.body);
         const result = await auth_service_1.authService.login({
             email: body.email,
+            phone: body.phone,
             password: body.password,
         });
         return res.status(200).json(result);

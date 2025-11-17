@@ -12,19 +12,11 @@ class MapPatternPainter extends CustomPainter {
 
     // Draw grid pattern
     for (double i = 0; i < size.width; i += 20) {
-      canvas.drawLine(
-        Offset(i, 0),
-        Offset(i, size.height),
-        paint,
-      );
+      canvas.drawLine(Offset(i, 0), Offset(i, size.height), paint);
     }
 
     for (double i = 0; i < size.height; i += 20) {
-      canvas.drawLine(
-        Offset(0, i),
-        Offset(size.width, i),
-        paint,
-      );
+      canvas.drawLine(Offset(0, i), Offset(size.width, i), paint);
     }
 
     // Draw some decorative circles
@@ -32,9 +24,21 @@ class MapPatternPainter extends CustomPainter {
       ..color = Colors.white.withOpacity(0.05)
       ..style = PaintingStyle.fill;
 
-    canvas.drawCircle(Offset(size.width * 0.2, size.height * 0.3), 30, circlePaint);
-    canvas.drawCircle(Offset(size.width * 0.8, size.height * 0.7), 25, circlePaint);
-    canvas.drawCircle(Offset(size.width * 0.7, size.height * 0.2), 20, circlePaint);
+    canvas.drawCircle(
+      Offset(size.width * 0.2, size.height * 0.3),
+      30,
+      circlePaint,
+    );
+    canvas.drawCircle(
+      Offset(size.width * 0.8, size.height * 0.7),
+      25,
+      circlePaint,
+    );
+    canvas.drawCircle(
+      Offset(size.width * 0.7, size.height * 0.2),
+      20,
+      circlePaint,
+    );
   }
 
   @override
@@ -42,8 +46,8 @@ class MapPatternPainter extends CustomPainter {
 }
 
 class WasteManagementPage extends StatefulWidget {
-  const WasteManagementPage({Key? key}) : super(key: key);
-  
+  const WasteManagementPage({super.key});
+
   @override
   _WasteManagementPageState createState() => _WasteManagementPageState();
 }
@@ -69,42 +73,42 @@ class _WasteManagementPageState extends State<WasteManagementPage>
   @override
   void initState() {
     super.initState();
-    
+
     // Initialize animation controllers
     _truckController1 = AnimationController(
       duration: Duration(seconds: 4),
       vsync: this,
     )..repeat();
-    
+
     _truckController2 = AnimationController(
       duration: Duration(seconds: 5),
       vsync: this,
     )..repeat();
-    
+
     _truckController3 = AnimationController(
       duration: Duration(seconds: 6),
       vsync: this,
     )..repeat();
-    
+
     _truckController4 = AnimationController(
-       duration: Duration(milliseconds: 4500),
-       vsync: this,
-     )..repeat();
-     
-     _mapController = AnimationController(
-       duration: Duration(seconds: 3),
-       vsync: this,
-     )..repeat();
+      duration: Duration(milliseconds: 4500),
+      vsync: this,
+    )..repeat();
 
-     _centerIconController = AnimationController(
-       duration: Duration(seconds: 2),
-       vsync: this,
-     )..repeat();
+    _mapController = AnimationController(
+      duration: Duration(seconds: 3),
+      vsync: this,
+    )..repeat();
 
-     _pulseController = AnimationController(
-       duration: Duration(milliseconds: 1500),
-       vsync: this,
-     )..repeat(reverse: true);
+    _centerIconController = AnimationController(
+      duration: Duration(seconds: 2),
+      vsync: this,
+    )..repeat();
+
+    _pulseController = AnimationController(
+      duration: Duration(milliseconds: 1500),
+      vsync: this,
+    )..repeat(reverse: true);
   }
 
   @override
@@ -306,10 +310,7 @@ class _WasteManagementPageState extends State<WasteManagementPage>
                 const Text(
                   'Tap to view collection zones',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF718096),
-                  ),
+                  style: TextStyle(fontSize: 14, color: Color(0xFF718096)),
                 ),
               ],
             ),
@@ -335,15 +336,16 @@ class _WasteManagementPageState extends State<WasteManagementPage>
       animation: controller,
       builder: (context, child) {
         final progress = controller.value;
-        
+
         // Simple right to left movement for all trucks
         late double x, y;
         late double rotation;
         late bool isVisible;
-        
+
         // Different Y positions for each truck to avoid overlap
-        final baseY = 40.0 + (truckIndex * 35.0); // Vertical spacing between trucks
-        
+        final baseY =
+            40.0 + (truckIndex * 35.0); // Vertical spacing between trucks
+
         // All trucks move from left to right
         if (progress < 0.1) {
           // Starting from outside left edge
@@ -366,11 +368,11 @@ class _WasteManagementPageState extends State<WasteManagementPage>
           rotation = 0; // Facing right
           isVisible = exitProgress < 0.5; // Fade out
         }
-        
+
         if (!isVisible) {
           return const SizedBox.shrink();
         }
-        
+
         return Positioned(
           left: x,
           top: y,
@@ -425,11 +427,7 @@ class _WasteManagementPageState extends State<WasteManagementPage>
               color: Colors.white.withOpacity(0.2),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(
-              Icons.access_time,
-              color: Colors.white,
-              size: 24,
-            ),
+            child: const Icon(Icons.access_time, color: Colors.white, size: 24),
           ),
           const SizedBox(width: 16),
           const Expanded(
@@ -447,10 +445,7 @@ class _WasteManagementPageState extends State<WasteManagementPage>
                 SizedBox(height: 4),
                 Text(
                   'Tomorrow, 8:00 AM - 10:00 AM',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                  ),
+                  style: TextStyle(color: Colors.white, fontSize: 14),
                 ),
                 SizedBox(height: 2),
                 Text(
@@ -545,11 +540,7 @@ class _WasteManagementPageState extends State<WasteManagementPage>
                   color: statusColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(
-                  Icons.local_shipping,
-                  color: statusColor,
-                  size: 20,
-                ),
+                child: Icon(Icons.local_shipping, color: statusColor, size: 20),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -604,18 +595,11 @@ class _WasteManagementPageState extends State<WasteManagementPage>
           const SizedBox(height: 12),
           Row(
             children: [
-              const Icon(
-                Icons.schedule,
-                size: 16,
-                color: Color(0xFF718096),
-              ),
+              const Icon(Icons.schedule, size: 16, color: Color(0xFF718096)),
               const SizedBox(width: 8),
               Text(
                 days,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF718096),
-                ),
+                style: const TextStyle(fontSize: 14, color: Color(0xFF718096)),
               ),
             ],
           ),
@@ -631,10 +615,7 @@ class _WasteManagementPageState extends State<WasteManagementPage>
       decoration: BoxDecoration(
         color: lightGreen.withOpacity(0.3),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: primaryGreen.withOpacity(0.3),
-          width: 1,
-        ),
+        border: Border.all(color: primaryGreen.withOpacity(0.3), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -647,10 +628,7 @@ class _WasteManagementPageState extends State<WasteManagementPage>
                   color: const Color(0xFFF0F9FF),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Text(
-                  '♻️',
-                  style: TextStyle(fontSize: 20),
-                ),
+                child: const Text('♻️', style: TextStyle(fontSize: 20)),
               ),
               const SizedBox(width: 12),
               const Text(

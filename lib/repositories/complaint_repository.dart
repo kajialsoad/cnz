@@ -61,12 +61,43 @@ class ComplaintRepository {
   }
 
   /// Get all complaints for the current user
-  Future<List<Complaint>> getMyComplaints() async {
+  /// Endpoint: GET /api/complaints
+  /// Returns list of complaints with pagination
+  Future<List<Complaint>> getMyComplaints({
+    int page = 1,
+    int limit = 20,
+    String? status,
+  }) async {
     try {
-      final response = await _apiClient.get('/api/complaints/my');
+      // Build query parameters
+      final queryParams = <String, String>{
+        'page': page.toString(),
+        'limit': limit.toString(),
+      };
+      
+      if (status != null && status.isNotEmpty) {
+        queryParams['status'] = status;
+      }
+      
+      // Build URL with query parameters
+      final queryString = queryParams.entries
+          .map((e) => '${e.key}=${Uri.encodeComponent(e.value)}')
+          .join('&');
+      
+      final url = '/api/complaints?$queryString';
+      
+      final response = await _apiClient.get(url);
       
       if (response['success'] == true) {
-        final List<dynamic> complaintsJson = response['data'];
+        // Backend returns complaints in data.complaints array
+        final data = response['data'];
+        final List<dynamic> complaintsJson = data['complaints'] ?? [];
+        
+        // Log pagination info for debugging
+        if (data['pagination'] != null) {
+          print('Pagination: ${data['pagination']}');
+        }
+        
         return complaintsJson.map((json) => Complaint.fromJson(json)).toList();
       } else {
         throw Exception(response['message'] ?? 'Failed to fetch complaints');
@@ -77,12 +108,17 @@ class ComplaintRepository {
   }
 
   /// Get a specific complaint by ID
+  /// Endpoint: GET /api/complaints/:id
+  /// Returns single complaint with full details
   Future<Complaint> getComplaint(String id) async {
     try {
       final response = await _apiClient.get('/api/complaints/$id');
       
       if (response['success'] == true) {
-        return Complaint.fromJson(response['data']);
+        // Backend returns complaint in data.complaint object
+        final data = response['data'];
+        final complaintData = data['complaint'] ?? data;
+        return Complaint.fromJson(complaintData);
       } else {
         throw Exception(response['message'] ?? 'Failed to fetch complaint');
       }

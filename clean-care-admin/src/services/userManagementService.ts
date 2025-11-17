@@ -67,7 +67,7 @@ class UserManagementService {
             const response = await this.apiClient.get<{
                 success: boolean;
                 data: GetUsersResponse;
-            }>('/admin/users', {
+            }>('/api/admin/users', {
                 params: query,
             });
 
@@ -88,7 +88,7 @@ class UserManagementService {
             const response = await this.apiClient.get<{
                 success: boolean;
                 data: GetUserResponse;
-            }>(`/admin/users/${userId}`);
+            }>(`/api/admin/users/${userId}`);
 
             return response.data.data;
         } catch (error) {
@@ -107,7 +107,7 @@ class UserManagementService {
             const response = await this.apiClient.get<{
                 success: boolean;
                 data: UserStatisticsResponse;
-            }>('/admin/users/statistics');
+            }>('/api/admin/users/statistics');
 
             return response.data.data;
         } catch (error) {
@@ -124,7 +124,7 @@ class UserManagementService {
     async createUser(data: CreateUserDto): Promise<CreateUserResponse> {
         try {
             const response = await this.apiClient.post<CreateUserResponse>(
-                '/admin/users',
+                '/api/admin/users',
                 data
             );
 
@@ -146,7 +146,7 @@ class UserManagementService {
     ): Promise<UpdateUserResponse> {
         try {
             const response = await this.apiClient.put<UpdateUserResponse>(
-                `/admin/users/${userId}`,
+                `/api/admin/users/${userId}`,
                 data
             );
 
@@ -168,7 +168,7 @@ class UserManagementService {
     ): Promise<UpdateStatusResponse> {
         try {
             const response = await this.apiClient.patch<UpdateStatusResponse>(
-                `/admin/users/${userId}/status`,
+                `/api/admin/users/${userId}/status`,
                 data
             );
 

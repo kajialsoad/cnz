@@ -3,7 +3,7 @@ import 'package:intl/intl.dart';
 import '../components/custom_bottom_nav.dart';
 
 class GovernmentCalendarPage extends StatefulWidget {
-  const GovernmentCalendarPage({Key? key}) : super(key: key);
+  const GovernmentCalendarPage({super.key});
 
   @override
   State<GovernmentCalendarPage> createState() => _GovernmentCalendarPageState();
@@ -72,13 +72,13 @@ class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
                 children: [
                   // Calendar Widget
                   _buildCalendarWidget(),
-                  
+
                   // Upcoming Events Section
                   _buildUpcomingEventsSection(),
-                  
+
                   // Legend Section
                   _buildLegendSection(),
-                  
+
                   const SizedBox(height: 100), // Space for bottom nav
                 ],
               ),
@@ -136,7 +136,10 @@ class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
               IconButton(
                 onPressed: () {
                   setState(() {
-                    currentMonth = DateTime(currentMonth.year, currentMonth.month - 1);
+                    currentMonth = DateTime(
+                      currentMonth.year,
+                      currentMonth.month - 1,
+                    );
                   });
                 },
                 icon: const Icon(Icons.chevron_left),
@@ -151,37 +154,42 @@ class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
               IconButton(
                 onPressed: () {
                   setState(() {
-                    currentMonth = DateTime(currentMonth.year, currentMonth.month + 1);
+                    currentMonth = DateTime(
+                      currentMonth.year,
+                      currentMonth.month + 1,
+                    );
                   });
                 },
                 icon: const Icon(Icons.chevron_right),
               ),
             ],
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // Days of week header
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
-                .map((day) => Container(
-                      width: 40,
-                      height: 40,
-                      alignment: Alignment.center,
-                      child: Text(
-                        day,
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontWeight: FontWeight.w500,
-                        ),
+                .map(
+                  (day) => Container(
+                    width: 40,
+                    height: 40,
+                    alignment: Alignment.center,
+                    child: Text(
+                      day,
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w500,
                       ),
-                    ))
+                    ),
+                  ),
+                )
                 .toList(),
           ),
-          
+
           const SizedBox(height: 8),
-          
+
           // Calendar Grid
           _buildCalendarGrid(),
         ],
@@ -191,22 +199,26 @@ class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
 
   Widget _buildCalendarGrid() {
     final firstDayOfMonth = DateTime(currentMonth.year, currentMonth.month, 1);
-    final lastDayOfMonth = DateTime(currentMonth.year, currentMonth.month + 1, 0);
+    final lastDayOfMonth = DateTime(
+      currentMonth.year,
+      currentMonth.month + 1,
+      0,
+    );
     final firstDayWeekday = firstDayOfMonth.weekday % 7;
     final daysInMonth = lastDayOfMonth.day;
-    
+
     List<Widget> dayWidgets = [];
-    
+
     // Add empty cells for days before the first day of the month
     for (int i = 0; i < firstDayWeekday; i++) {
-      dayWidgets.add(Container(width: 40, height: 40));
+      dayWidgets.add(SizedBox(width: 40, height: 40));
     }
-    
+
     // Add days of the month
     for (int day = 1; day <= daysInMonth; day++) {
       final date = DateTime(currentMonth.year, currentMonth.month, day);
       final isSelected = _isSameDay(date, selectedDate);
-      
+
       dayWidgets.add(
         GestureDetector(
           onTap: () {
@@ -234,10 +246,8 @@ class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
         ),
       );
     }
-    
-    return Wrap(
-      children: dayWidgets,
-    );
+
+    return Wrap(children: dayWidgets);
   }
 
   Widget _buildUpcomingEventsSection() {
@@ -255,8 +265,8 @@ class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
             ),
           ),
           const SizedBox(height: 16),
-          
-          ...upcomingEvents.map((event) => _buildEventCard(event)).toList(),
+
+          ...upcomingEvents.map((event) => _buildEventCard(event)),
         ],
       ),
     );
@@ -309,9 +319,9 @@ class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
               ],
             ),
           ),
-          
+
           const SizedBox(width: 16),
-          
+
           // Event Details
           Expanded(
             child: Column(
@@ -328,10 +338,7 @@ class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
                 const SizedBox(height: 4),
                 Text(
                   event.type,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[600],
-                  ),
+                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                 ),
               ],
             ),
@@ -368,7 +375,7 @@ class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
             ),
           ),
           const SizedBox(height: 16),
-          
+
           _buildLegendItem(
             color: const Color(0xFF4CAF50),
             label: 'Waste Collection',
@@ -394,18 +401,12 @@ class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
         Container(
           width: 16,
           height: 16,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-          ),
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
         const SizedBox(width: 12),
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 14,
-            color: Colors.black87,
-          ),
+          style: const TextStyle(fontSize: 14, color: Colors.black87),
         ),
       ],
     );
@@ -443,8 +444,4 @@ class CalendarEvent {
   });
 }
 
-enum EventCategory {
-  wasteCollection,
-  publicHoliday,
-  communityEvent,
-}
+enum EventCategory { wasteCollection, publicHoliday, communityEvent }
