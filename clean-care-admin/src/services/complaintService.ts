@@ -135,7 +135,7 @@ class ComplaintService {
             const response = await this.apiClient.get<{
                 success: boolean;
                 data: GetComplaintsResponse;
-            }>('/admin/complaints', { params });
+            }>('/api/admin/complaints', { params });
 
             // Parse media URLs for each complaint
             const complaints = response.data.data.complaints.map((complaint) =>
@@ -159,7 +159,7 @@ class ComplaintService {
             const response = await this.apiClient.get<{
                 success: boolean;
                 data: GetComplaintByIdResponse;
-            }>(`/admin/complaints/${id}`);
+            }>(`/api/admin/complaints/${id}`);
 
             // Parse media URLs
             const complaint = this.parseMediaUrls(
@@ -181,7 +181,7 @@ class ComplaintService {
     ): Promise<Complaint> {
         try {
             const response = await this.apiClient.patch<UpdateComplaintStatusResponse>(
-                `/admin/complaints/${id}/status`,
+                `/api/admin/complaints/${id}/status`,
                 data
             );
 
@@ -234,7 +234,7 @@ class ComplaintService {
             const response = await this.apiClient.get<{
                 success: boolean;
                 data: any;
-            }>(`/admin/users/${userId}/complaints`, {
+            }>(`/api/admin/users/${userId}/complaints`, {
                 params: { page, limit },
             });
 

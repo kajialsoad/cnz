@@ -29,6 +29,7 @@ import {
     Menu as MenuIcon,
     Language as LanguageIcon,
     Check as CheckIcon,
+    Chat as ChatIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -45,6 +46,7 @@ export const AdminNavbar: React.FC = () => {
     const navItems = [
         { path: '/', label: 'Dashboard', icon: <DashboardIcon /> },
         { path: '/complaints', label: 'Complaints', icon: <ComplaintIcon /> },
+        { path: '/chats', label: 'Chat', icon: <ChatIcon /> },
         { path: '/users', label: 'Users', icon: <PeopleIcon /> },
         { path: '/reports', label: 'Reports', icon: <ReportIcon /> },
         { path: '/notifications', label: 'Notifications', icon: <NotificationsIcon /> },

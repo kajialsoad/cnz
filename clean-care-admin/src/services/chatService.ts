@@ -1,6 +1,7 @@
 import axios from 'axios';
 import type { AxiosInstance } from 'axios';
 import { API_CONFIG } from '../config/apiConfig';
+import { cache, cacheKeys } from '../utils/cache';
 import type {
     ChatMessage,
     SendMessageRequest,
@@ -8,6 +9,13 @@ import type {
     SendMessageResponse,
     MarkAsReadResponse,
 } from '../types/chat-service.types';
+import type {
+    ChatConversation,
+    ChatFilters,
+    ChatStatistics,
+    GetChatConversationsResponse,
+    GetChatStatisticsResponse,
+} from '../types/chat-page.types';
 
 class ChatService {
     private apiClient: AxiosInstance;
@@ -75,14 +83,27 @@ class ChatService {
         pagination: any;
     }> {
         try {
+            // Check cache first
+            const cacheKey = cacheKeys.chatMessages(complaintId, page);
+            const cachedData = cache.get<{ messages: ChatMessage[]; pagination: any }>(cacheKey);
+
+            if (cachedData) {
+                return cachedData;
+            }
+
             const response = await this.apiClient.get<GetChatMessagesResponse>(
-                `/admin/chat/${complaintId}`,
+                `/api/admin/chat/${complaintId}`,
                 {
                     params: { page, limit },
                 }
             );
 
-            return response.data.data;
+            const data = response.data.data;
+
+            // Cache the response for 30 seconds
+            cache.set(cacheKey, data, 30000);
+
+            return data;
         } catch (error) {
             if (axios.isAxiosError(error)) {
                 throw new Error(
@@ -102,9 +123,15 @@ class ChatService {
     ): Promise<ChatMessage> {
         try {
             const response = await this.apiClient.post<SendMessageResponse>(
-                `/admin/chat/${complaintId}`,
+                `/api/admin/chat/${complaintId}`,
                 data
             );
+
+            // Invalidate cache for this complaint's messages
+            cache.invalidatePattern(`chat-messages-${complaintId}`);
+
+            // Invalidate chat list cache as last message will change
+            cache.invalidatePattern('chat-list');
 
             return response.data.data.message;
         } catch (error) {
@@ -123,7 +150,7 @@ class ChatService {
     async markAsRead(complaintId: number): Promise<void> {
         try {
             await this.apiClient.patch<MarkAsReadResponse>(
-                `/admin/chat/${complaintId}/read`
+                `/api/admin/chat/${complaintId}/read`
             );
         } catch (error) {
             if (axios.isAxiosError(error)) {
@@ -225,6 +252,199 @@ class ChatService {
     ): Promise<ChatMessage[]> {
         const { messages } = await this.getChatMessages(complaintId, 1, limit);
         return messages;
+    }
+
+    /**
+     * Get all chat conversations with pagination
+     * @param filters - Optional filters for chat list
+     * @returns Chat conversations with pagination info
+     */
+    async getChatConversationsWithPagination(
+        filters?: ChatFilters
+    ): Promise<{
+        chats: ChatConversation[];
+        pagination?: {
+            page: number;
+            limit: number;
+            total: number;
+            totalPages: number;
+            hasNextPage: boolean;
+            hasPrevPage: boolean;
+        };
+    }> {
+        try {
+            const params = new URLSearchParams();
+
+            // Add filter parameters if provided
+            if (filters?.search) {
+                params.append('search', filters.search);
+            }
+            if (filters?.district) {
+                params.append('district', filters.district);
+            }
+            if (filters?.upazila) {
+                params.append('upazila', filters.upazila);
+            }
+            if (filters?.ward) {
+                params.append('ward', filters.ward);
+            }
+            if (filters?.zone) {
+                params.append('zone', filters.zone);
+            }
+            if (filters?.status) {
+                params.append('status', filters.status);
+            }
+            if (filters?.unreadOnly) {
+                params.append('unreadOnly', 'true');
+            }
+            if (filters?.page) {
+                params.append('page', filters.page.toString());
+            }
+            if (filters?.limit) {
+                params.append('limit', filters.limit.toString());
+            }
+
+            const queryString = params.toString();
+            const url = queryString ? `/api/admin/chat?${queryString}` : '/api/admin/chat';
+
+            const response = await this.apiClient.get<GetChatConversationsResponse>(url);
+
+            // Transform date strings to Date objects
+            const chats = response.data.data.chats.map((chat) => ({
+                ...chat,
+                complaintCreatedAt: new Date(chat.complaintCreatedAt),
+                lastMessage: {
+                    ...chat.lastMessage,
+                    timestamp: new Date(chat.lastMessage.timestamp),
+                },
+                lastActivity: new Date(chat.lastActivity),
+            }));
+
+            return {
+                chats,
+                pagination: response.data.data.pagination,
+            };
+        } catch (error) {
+            if (axios.isAxiosError(error)) {
+                throw new Error(
+                    error.response?.data?.message || 'Failed to fetch chat conversations'
+                );
+            }
+            throw error;
+        }
+    }
+
+    /**
+     * Get all chat conversations with filters
+     * @param filters - Optional filters for search, location, status, etc.
+     * @returns Array of chat conversations with complaint and citizen details
+     */
+    async getChatConversations(
+        filters?: ChatFilters
+    ): Promise<ChatConversation[]> {
+        try {
+            const params = new URLSearchParams();
+
+            // Add filter parameters if provided
+            if (filters?.search) {
+                params.append('search', filters.search);
+            }
+            if (filters?.district) {
+                params.append('district', filters.district);
+            }
+            if (filters?.upazila) {
+                params.append('upazila', filters.upazila);
+            }
+            if (filters?.ward) {
+                params.append('ward', filters.ward);
+            }
+            if (filters?.zone) {
+                params.append('zone', filters.zone);
+            }
+            if (filters?.status) {
+                params.append('status', filters.status);
+            }
+            if (filters?.unreadOnly) {
+                params.append('unreadOnly', 'true');
+            }
+            if (filters?.page) {
+                params.append('page', filters.page.toString());
+            }
+            if (filters?.limit) {
+                params.append('limit', filters.limit.toString());
+            }
+
+            const queryString = params.toString();
+
+            // Check cache first
+            const cacheKey = cacheKeys.chatList(queryString);
+            const cachedData = cache.get<ChatConversation[]>(cacheKey);
+
+            if (cachedData) {
+                return cachedData;
+            }
+
+            const url = queryString ? `/api/admin/chat?${queryString}` : '/api/admin/chat';
+
+            const response = await this.apiClient.get<GetChatConversationsResponse>(url);
+
+            // Transform date strings to Date objects
+            const chats = response.data.data.chats.map((chat) => ({
+                ...chat,
+                complaintCreatedAt: new Date(chat.complaintCreatedAt),
+                lastMessage: {
+                    ...chat.lastMessage,
+                    timestamp: new Date(chat.lastMessage.timestamp),
+                },
+                lastActivity: new Date(chat.lastActivity),
+            }));
+
+            // Cache the response for 30 seconds
+            cache.set(cacheKey, chats, 30000);
+
+            return chats;
+        } catch (error) {
+            if (axios.isAxiosError(error)) {
+                throw new Error(
+                    error.response?.data?.message || 'Failed to fetch chat conversations'
+                );
+            }
+            throw error;
+        }
+    }
+
+    /**
+     * Get chat statistics
+     * @returns Statistics including total chats, unread count, and breakdowns by location and status
+     */
+    async getChatStatistics(): Promise<ChatStatistics> {
+        try {
+            // Check cache first
+            const cacheKey = cacheKeys.chatStatistics();
+            const cachedData = cache.get<ChatStatistics>(cacheKey);
+
+            if (cachedData) {
+                return cachedData;
+            }
+
+            const response = await this.apiClient.get<GetChatStatisticsResponse>(
+                '/api/admin/chat/statistics'
+            );
+
+            const data = response.data.data;
+
+            // Cache the response for 30 seconds
+            cache.set(cacheKey, data, 30000);
+
+            return data;
+        } catch (error) {
+            if (axios.isAxiosError(error)) {
+                throw new Error(
+                    error.response?.data?.message || 'Failed to fetch chat statistics'
+                );
+            }
+            throw error;
+        }
     }
 }
 

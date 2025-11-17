@@ -9,6 +9,7 @@ import ErrorBoundary from './components/common/ErrorBoundary';
 import Dashboard from './pages/Dashboard/Dashboard';
 import AllComplaints from './pages/AllComplaints';
 import UserManagement from './pages/UserManagement';
+import AdminChatPage from './pages/AdminChatPage';
 import Reports from './pages/Reports';
 import Notifications from './pages/Notifications';
 import Settings from './pages/Settings';
@@ -75,6 +76,22 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <UserManagement />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/chats"
+                  element={
+                    <ProtectedRoute>
+                      <AdminChatPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/chats/:complaintId"
+                  element={
+                    <ProtectedRoute>
+                      <AdminChatPage />
                     </ProtectedRoute>
                   }
                 />

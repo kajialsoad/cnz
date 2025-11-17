@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { adminComplaintService } from '../services/admin-complaint.service';
+import { adminComplaintServiceFixed } from '../services/admin-complaint-fixed.service';
 import { ComplaintStatus } from '@prisma/client';
 
 /**

@@ -42,56 +42,74 @@ export class AdminComplaintService {
 
             const skip = (page - 1) * limit;
 
-            // Build where clause
-            const where: any = {};
+            // Build where clause - COMPLETELY REWRITTEN
+            const andConditions: any[] = [];
 
             // Status filter
             if (status && status !== 'ALL') {
-                where.status = status;
+                andConditions.push({ status });
             }
 
             // Category filter
             if (category) {
-                where.category = category;
+                andConditions.push({ category });
             }
 
-            // Ward filter (search in location string)
+            // Ward filter
             if (ward) {
-                where.location = {
-                    contains: ward,
-                    mode: 'insensitive'
-                };
-            }
-
-            // Search filter (search across multiple fields)
-            if (search) {
-                where.OR = [
-                    { title: { contains: search, mode: 'insensitive' } },
-                    { description: { contains: search, mode: 'insensitive' } },
-                    { location: { contains: search, mode: 'insensitive' } },
-                    {
-                        user: {
-                            OR: [
-                                { firstName: { contains: search, mode: 'insensitive' } },
-                                { lastName: { contains: search, mode: 'insensitive' } },
-                                { phone: { contains: search, mode: 'insensitive' } },
-                                { email: { contains: search, mode: 'insensitive' } }
-                            ]
-                        }
+                andConditions.push({
+                    location: {
+                        contains: ward,
+                        mode: 'insensitive'
                     }
-                ];
+                });
             }
 
             // Date range filter
             if (startDate || endDate) {
-                where.createdAt = {};
+                const dateFilter: any = {};
                 if (startDate) {
-                    where.createdAt.gte = new Date(startDate);
+                    dateFilter.gte = new Date(startDate);
                 }
                 if (endDate) {
-                    where.createdAt.lte = new Date(endDate);
+                    dateFilter.lte = new Date(endDate);
                 }
+                andConditions.push({ createdAt: dateFilter });
             }
+
+            // Search filter - searches across multiple fields
+            if (search && search.trim()) {
+                andConditions.push({
+                    OR: [
+                        { title: { contains: search, mode: 'insensitive' } },
+                        { description: { contains: search, mode: 'insensitive' } },
+                        { location: { contains: search, mode: 'insensitive' } },
+                        {
+                            user: {
+                                firstName: { contains: search, mode: 'insensitive' }
+                            }
+                        },
+                        {
+                            user: {
+                                lastName: { contains: search, mode: 'insensitive' }
+                            }
+                        },
+                        {
+                            user: {
+                                phone: { contains: search, mode: 'insensitive' }
+                            }
+                        },
+                        {
+                            user: {
+                                email: { contains: search, mode: 'insensitive' }
+                            }
+                        }
+                    ]
+                });
+            }
+
+            // Build final where clause
+            const where = andConditions.length > 0 ? { AND: andConditions } : {};
 
             // Build order by clause
             const orderBy: any = {};
@@ -139,7 +157,8 @@ export class AdminComplaintService {
             };
         } catch (error) {
             console.error('Error getting admin complaints:', error);
-            throw new Error('Failed to fetch complaints');
+            console.error('Error details:', JSON.stringify(error, null, 2));
+            throw error; // Throw original error to see actual message
         }
     }
 

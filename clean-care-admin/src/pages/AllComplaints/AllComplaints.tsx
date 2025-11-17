@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -46,6 +47,7 @@ import type {
 } from '../../types/complaint-service.types';
 
 const AllComplaints: React.FC = () => {
+  const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm')); // < 600px
 
@@ -107,11 +109,19 @@ const AllComplaints: React.FC = () => {
         filters.search = debouncedSearchTerm;
       }
 
+      console.log('Fetching complaints with params:', {
+        page: pagination.page,
+        limit: pagination.limit,
+        filters
+      });
+
       const response = await complaintService.getComplaints(
         pagination.page,
         pagination.limit,
         filters
       );
+
+      console.log('Complaints fetched successfully:', response);
 
       setComplaints(response.complaints);
       setStatusCounts(response.statusCounts);
@@ -123,6 +133,9 @@ const AllComplaints: React.FC = () => {
       });
     } catch (err: any) {
       // Log error for debugging
+      console.error('Error fetching complaints:', err);
+      console.error('Error response:', err.response?.data);
+      console.error('Error status:', err.response?.status);
       logError(err, 'fetchComplaints');
 
       // Handle error with enhanced error handling
@@ -306,11 +319,8 @@ const AllComplaints: React.FC = () => {
    * Handle opening chat from details modal
    */
   const handleChatOpenFromDetails = (complaintId: number) => {
-    const complaint = complaints.find(c => c.id === complaintId);
-    if (complaint) {
-      handleCloseDetailsModal();
-      handleOpenChat(complaint);
-    }
+    handleCloseDetailsModal();
+    navigate(`/chats/${complaintId}`);
   };
 
   /**
@@ -500,88 +510,232 @@ const AllComplaints: React.FC = () => {
             </Box>
           </Box>
 
-          {/* Search and Filter Section */}
+          {/* Enhanced Search and Filter Section */}
           <Box sx={{
             display: 'flex',
-            flexDirection: { xs: 'column', sm: 'row' },
-            gap: { xs: 1.5, sm: 2 },
-            alignItems: { xs: 'stretch', sm: 'center' },
+            flexDirection: 'column',
+            gap: 2,
             backgroundColor: '#f8f9fa',
             p: { xs: 1.5, sm: 2 },
             borderRadius: 2,
             width: '100%',
           }}>
-            <TextField
-              placeholder={isMobile ? "Search..." : "Search by complaint ID, location, or citizen name..."}
-              value={searchTerm}
-              onChange={handleSearchChange}
-              slotProps={{
-                input: {
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon sx={{ color: 'text.secondary' }} />
-                    </InputAdornment>
-                  ),
-                },
-              }}
-              sx={{
-                flex: 1,
-                '& .MuiOutlinedInput-root': {
-                  backgroundColor: 'white',
-                  height: { xs: 40, sm: 44 },
-                  fontSize: { xs: '0.875rem', sm: '0.95rem' },
-                },
-              }}
-            />
-
-            <FormControl sx={{ minWidth: { xs: '100%', sm: 180 } }}>
-              <Select
-                value={statusFilter}
-                onChange={(e) => handleStatusFilterChange(e.target.value)}
-                displayEmpty
-                startAdornment={
-                  <InputAdornment position="start">
-                    <FilterIcon sx={{ color: 'text.secondary', mr: 1 }} />
-                  </InputAdornment>
-                }
+            {/* Main Search Row */}
+            <Box sx={{
+              display: 'flex',
+              flexDirection: { xs: 'column', sm: 'row' },
+              gap: { xs: 1.5, sm: 2 },
+              alignItems: { xs: 'stretch', sm: 'center' },
+            }}>
+              {/* Enhanced Search Input */}
+              <TextField
+                placeholder={isMobile ? "Search complaints..." : "Search by ID, title, location, or citizen name..."}
+                value={searchTerm}
+                onChange={handleSearchChange}
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon sx={{ color: 'text.secondary' }} />
+                      </InputAdornment>
+                    ),
+                    endAdornment: searchTerm && (
+                      <InputAdornment position="end">
+                        <Button
+                          size="small"
+                          onClick={() => {
+                            setSearchTerm('');
+                            setPagination((prev) => ({ ...prev, page: 1 }));
+                          }}
+                          sx={{
+                            minWidth: 'auto',
+                            p: 0.5,
+                            color: 'text.secondary',
+                            '&:hover': {
+                              color: 'error.main',
+                              backgroundColor: 'transparent',
+                            },
+                          }}
+                        >
+                          ✕
+                        </Button>
+                      </InputAdornment>
+                    ),
+                  },
+                }}
                 sx={{
-                  backgroundColor: 'white',
-                  height: { xs: 40, sm: 44 },
-                  '& .MuiSelect-select': {
-                    display: 'flex',
-                    alignItems: 'center',
-                    pl: 0,
+                  flex: 1,
+                  '& .MuiOutlinedInput-root': {
+                    backgroundColor: 'white',
+                    height: { xs: 40, sm: 44 },
                     fontSize: { xs: '0.875rem', sm: '0.95rem' },
+                    '&:hover': {
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#4CAF50',
+                      },
+                    },
+                    '&.Mui-focused': {
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#4CAF50',
+                        borderWidth: 2,
+                      },
+                    },
                   },
                 }}
-              >
-                <MenuItem value="ALL">All Status</MenuItem>
-                <MenuItem value="PENDING">Pending</MenuItem>
-                <MenuItem value="IN_PROGRESS">In Progress</MenuItem>
-                <MenuItem value="RESOLVED">Solved</MenuItem>
-                <MenuItem value="REJECTED">Rejected</MenuItem>
-              </Select>
-            </FormControl>
+              />
 
+              {/* Status Filter */}
+              <FormControl sx={{ minWidth: { xs: '100%', sm: 180 } }}>
+                <Select
+                  value={statusFilter}
+                  onChange={(e) => handleStatusFilterChange(e.target.value)}
+                  displayEmpty
+                  startAdornment={
+                    <InputAdornment position="start">
+                      <FilterIcon sx={{ color: 'text.secondary', mr: 1 }} />
+                    </InputAdornment>
+                  }
+                  sx={{
+                    backgroundColor: 'white',
+                    height: { xs: 40, sm: 44 },
+                    '& .MuiSelect-select': {
+                      display: 'flex',
+                      alignItems: 'center',
+                      pl: 0,
+                      fontSize: { xs: '0.875rem', sm: '0.95rem' },
+                    },
+                    '&:hover': {
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#4CAF50',
+                      },
+                    },
+                    '&.Mui-focused': {
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#4CAF50',
+                        borderWidth: 2,
+                      },
+                    },
+                  }}
+                >
+                  <MenuItem value="ALL">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#9e9e9e' }} />
+                      All Status
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="PENDING">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#ff9800' }} />
+                      Pending
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="IN_PROGRESS">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#2196f3' }} />
+                      In Progress
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="RESOLVED">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#4caf50' }} />
+                      Solved
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="REJECTED">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#f44336' }} />
+                      Rejected
+                    </Box>
+                  </MenuItem>
+                </Select>
+              </FormControl>
+
+              {/* Clear Filters Button */}
+              {(searchTerm || statusFilter !== 'ALL') && (
+                <Button
+                  variant="outlined"
+                  onClick={handleClearFilters}
+                  startIcon={<RefreshIcon />}
+                  sx={{
+                    height: { xs: 40, sm: 44 },
+                    textTransform: 'none',
+                    borderColor: '#e0e0e0',
+                    color: 'text.primary',
+                    fontSize: { xs: '0.875rem', sm: '0.95rem' },
+                    minWidth: { xs: '100%', sm: 'auto' },
+                    whiteSpace: 'nowrap',
+                    '&:hover': {
+                      borderColor: '#4CAF50',
+                      color: '#4CAF50',
+                      backgroundColor: 'rgba(76, 175, 80, 0.04)',
+                    },
+                  }}
+                >
+                  Clear Filters
+                </Button>
+              )}
+            </Box>
+
+            {/* Search Tips (shown when searching) */}
+            {searchTerm && (
+              <Box sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                px: 1,
+                py: 0.5,
+                backgroundColor: 'rgba(76, 175, 80, 0.08)',
+                borderRadius: 1,
+                fontSize: '0.75rem',
+                color: 'text.secondary',
+              }}>
+                <SearchIcon sx={{ fontSize: 16 }} />
+                <Typography variant="caption">
+                  Searching for: <strong>"{searchTerm}"</strong>
+                  {debouncedSearchTerm !== searchTerm && ' (typing...)'}
+                </Typography>
+              </Box>
+            )}
+
+            {/* Active Filters Display */}
             {(searchTerm || statusFilter !== 'ALL') && (
-              <Button
-                variant="outlined"
-                onClick={handleClearFilters}
-                sx={{
-                  height: { xs: 40, sm: 44 },
-                  textTransform: 'none',
-                  borderColor: '#e0e0e0',
-                  color: 'text.primary',
-                  fontSize: { xs: '0.875rem', sm: '0.95rem' },
-                  minWidth: { xs: '100%', sm: 'auto' },
-                  '&:hover': {
-                    borderColor: '#4CAF50',
-                    color: '#4CAF50',
-                  },
-                }}
-              >
-                Clear Filters
-              </Button>
+              <Box sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                flexWrap: 'wrap',
+              }}>
+                <Typography variant="caption" color="text.secondary">
+                  Active filters:
+                </Typography>
+                {searchTerm && (
+                  <Chip
+                    label={`Search: "${searchTerm.substring(0, 20)}${searchTerm.length > 20 ? '...' : ''}"`}
+                    size="small"
+                    onDelete={() => {
+                      setSearchTerm('');
+                      setPagination((prev) => ({ ...prev, page: 1 }));
+                    }}
+                    sx={{
+                      backgroundColor: 'white',
+                      fontSize: '0.75rem',
+                      height: 24,
+                    }}
+                  />
+                )}
+                {statusFilter !== 'ALL' && (
+                  <Chip
+                    label={`Status: ${statusFilter.replace('_', ' ')}`}
+                    size="small"
+                    onDelete={() => handleStatusFilterChange('ALL')}
+                    sx={{
+                      backgroundColor: 'white',
+                      fontSize: '0.75rem',
+                      height: 24,
+                    }}
+                  />
+                )}
+              </Box>
             )}
           </Box>
         </Box>
@@ -872,33 +1026,135 @@ const AllComplaints: React.FC = () => {
               ))}
             </Box>
 
-            {/* Pagination */}
-            {pagination.totalPages > 1 && (
+            {/* Pagination Section */}
+            {pagination.total > 0 && (
               <Box sx={{
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
                 mt: { xs: 3, sm: 4 },
                 mb: 2,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 2,
               }}>
-                <Pagination
-                  count={pagination.totalPages}
-                  page={pagination.page}
-                  onChange={handlePageChange}
-                  color="primary"
-                  size={isMobile ? 'small' : 'large'}
-                  showFirstButton={!isMobile}
-                  showLastButton={!isMobile}
-                  siblingCount={isMobile ? 0 : 1}
-                  boundaryCount={isMobile ? 1 : 1}
-                  sx={{
-                    '& .MuiPaginationItem-root': {
-                      fontSize: { xs: '0.875rem', sm: '0.95rem' },
-                      minWidth: { xs: 32, sm: 40 },
-                      height: { xs: 32, sm: 40 },
-                    },
-                  }}
-                />
+                {/* Pagination Info */}
+                <Box sx={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: 2,
+                  px: { xs: 1, sm: 2 },
+                }}>
+                  {/* Items per page selector */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      Show:
+                    </Typography>
+                    <FormControl size="small">
+                      <Select
+                        value={pagination.limit}
+                        onChange={(e) => {
+                          setPagination((prev) => ({
+                            ...prev,
+                            limit: Number(e.target.value),
+                            page: 1, // Reset to first page
+                          }));
+                        }}
+                        sx={{
+                          minWidth: 80,
+                          fontSize: '0.875rem',
+                        }}
+                      >
+                        <MenuItem value={10}>10</MenuItem>
+                        <MenuItem value={20}>20</MenuItem>
+                        <MenuItem value={50}>50</MenuItem>
+                        <MenuItem value={100}>100</MenuItem>
+                      </Select>
+                    </FormControl>
+                    <Typography variant="body2" color="text.secondary">
+                      per page
+                    </Typography>
+                  </Box>
+
+                  {/* Page info */}
+                  <Typography variant="body2" color="text.secondary">
+                    Showing {((pagination.page - 1) * pagination.limit) + 1} - {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} complaints
+                  </Typography>
+                </Box>
+
+                {/* Pagination Controls */}
+                {pagination.totalPages > 1 && (
+                  <Box sx={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}>
+                    <Pagination
+                      count={pagination.totalPages}
+                      page={pagination.page}
+                      onChange={handlePageChange}
+                      color="primary"
+                      size={isMobile ? 'small' : 'large'}
+                      showFirstButton={!isMobile}
+                      showLastButton={!isMobile}
+                      siblingCount={isMobile ? 0 : 1}
+                      boundaryCount={isMobile ? 1 : 1}
+                      sx={{
+                        '& .MuiPaginationItem-root': {
+                          fontSize: { xs: '0.875rem', sm: '0.95rem' },
+                          minWidth: { xs: 32, sm: 40 },
+                          height: { xs: 32, sm: 40 },
+                        },
+                        '& .Mui-selected': {
+                          backgroundColor: '#4CAF50 !important',
+                          color: 'white',
+                          '&:hover': {
+                            backgroundColor: '#45a049 !important',
+                          },
+                        },
+                      }}
+                    />
+                  </Box>
+                )}
+
+                {/* Quick page jump (desktop only) */}
+                {!isMobile && pagination.totalPages > 5 && (
+                  <Box sx={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    gap: 1,
+                  }}>
+                    <Typography variant="body2" color="text.secondary">
+                      Go to page:
+                    </Typography>
+                    <TextField
+                      type="number"
+                      size="small"
+                      value={pagination.page}
+                      onChange={(e) => {
+                        const page = Number(e.target.value);
+                        if (page >= 1 && page <= pagination.totalPages) {
+                          setPagination((prev) => ({ ...prev, page }));
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }
+                      }}
+                      inputProps={{
+                        min: 1,
+                        max: pagination.totalPages,
+                        style: { textAlign: 'center' },
+                      }}
+                      sx={{
+                        width: 80,
+                        '& input': {
+                          fontSize: '0.875rem',
+                        },
+                      }}
+                    />
+                    <Typography variant="body2" color="text.secondary">
+                      of {pagination.totalPages}
+                    </Typography>
+                  </Box>
+                )}
               </Box>
             )}
           </>

@@ -3,6 +3,58 @@ import { AuthRequest } from '../middlewares/auth.middleware';
 import { chatService } from '../services/chat.service';
 
 /**
+ * Get all chat conversations
+ */
+export async function getChatConversations(req: AuthRequest, res: Response) {
+    try {
+        const { search, district, upazila, ward, zone, status, unreadOnly, page, limit } = req.query;
+
+        const result = await chatService.getChatConversations({
+            search: search as string,
+            district: district as string,
+            upazila: upazila as string,
+            ward: ward as string,
+            zone: zone as string,
+            status: status as string,
+            unreadOnly: unreadOnly === 'true',
+            page: page ? parseInt(page as string) : undefined,
+            limit: limit ? parseInt(limit as string) : undefined
+        });
+
+        res.status(200).json({
+            success: true,
+            data: result
+        });
+    } catch (error) {
+        console.error('Error in getChatConversations:', error);
+        res.status(500).json({
+            success: false,
+            message: error instanceof Error ? error.message : 'Failed to fetch chat conversations'
+        });
+    }
+}
+
+/**
+ * Get chat statistics
+ */
+export async function getChatStatistics(req: AuthRequest, res: Response) {
+    try {
+        const statistics = await chatService.getChatStatistics();
+
+        res.status(200).json({
+            success: true,
+            data: statistics
+        });
+    } catch (error) {
+        console.error('Error in getChatStatistics:', error);
+        res.status(500).json({
+            success: false,
+            message: error instanceof Error ? error.message : 'Failed to fetch chat statistics'
+        });
+    }
+}
+
+/**
  * Get chat messages for a complaint
  */
 export async function getChatMessages(req: AuthRequest, res: Response) {

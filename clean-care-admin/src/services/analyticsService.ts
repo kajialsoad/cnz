@@ -128,7 +128,7 @@ class AnalyticsService {
 
             // Fetch from API
             const response = await this.apiClient.get<GetAnalyticsResponse>(
-                '/admin/analytics',
+                '/api/admin/analytics',
                 {
                     params: query,
                 }
@@ -165,7 +165,7 @@ class AnalyticsService {
 
             // Fetch from API
             const response = await this.apiClient.get<GetTrendsResponse>(
-                '/admin/analytics/trends',
+                '/api/admin/analytics/trends',
                 {
                     params: query,
                 }

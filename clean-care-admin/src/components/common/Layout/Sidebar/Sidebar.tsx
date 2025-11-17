@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Drawer,
   List,
@@ -17,14 +17,16 @@ import dashboardIcon from '../../../../assets/icons/dashboard.svg';
 import complaintIcon from '../../../../assets/icons/complaint.svg';
 import adminIcon from '../../../../assets/icons/admin.svg';
 import userIcon from '../../../../assets/icons/user.svg';
+import chatIcon from '../../../../assets/icons/chat.svg';
 import reportIcon from '../../../../assets/icons/report.svg';
 import notificationIcon from '../../../../assets/icons/notification.svg';
 import settingsIcon from '../../../../assets/icons/Settings.svg';
 import profileImage from '../../../../assets/images/profile.jpg';
+import { chatService } from '../../../../services/chatService';
 
 const DRAWER_WIDTH = 320; // Increased from 240
 
-const menuItems = [
+const baseMenuItems = [
   {
     id: 'dashboard',
     label: 'Dashboard',
@@ -37,6 +39,13 @@ const menuItems = [
     icon: complaintIcon,
     path: '/complaints',
     badge: 12,
+  },
+  {
+    id: 'chats',
+    label: 'Messages',
+    icon: chatIcon,
+    path: '/chats',
+    dynamicBadge: true, // Will be populated from API
   },
   {
     id: 'admins',
@@ -84,6 +93,37 @@ const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const [unreadCount, setUnreadCount] = useState<number>(0);
+
+  // Fetch unread message count
+  useEffect(() => {
+    const fetchUnreadCount = async () => {
+      try {
+        const stats = await chatService.getChatStatistics();
+        setUnreadCount(stats.unreadCount);
+      } catch (error) {
+        console.error('Error fetching unread count:', error);
+      }
+    };
+
+    fetchUnreadCount();
+
+    // Poll for updates every 5 seconds for real-time updates
+    const interval = setInterval(fetchUnreadCount, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Create menu items with dynamic badge
+  const menuItems = baseMenuItems.map(item => {
+    if (item.dynamicBadge) {
+      return {
+        ...item,
+        badge: unreadCount > 0 ? unreadCount : undefined,
+      };
+    }
+    return item;
+  });
 
   const handleNavigation = (path: string) => {
     navigate(path);
@@ -133,12 +173,12 @@ const Sidebar: React.FC<SidebarProps> = ({
             }}
           />
         </Box>
-        
+
         <Box>
-          <Typography 
-            variant="h6" 
-            sx={{ 
-              fontWeight: 600, 
+          <Typography
+            variant="h6"
+            sx={{
+              fontWeight: 600,
               fontSize: '1.1rem',
               color: '#2D3748',
               mb: 0.5,
@@ -146,7 +186,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           >
             Mr. Mohammad Rahman
           </Typography>
-          
+
           <Chip
             label="SUPER ADMIN"
             size="small"
@@ -161,10 +201,10 @@ const Sidebar: React.FC<SidebarProps> = ({
               mb: 0.5,
             }}
           />
-          
-          <Typography 
-            variant="caption" 
-            sx={{ 
+
+          <Typography
+            variant="caption"
+            sx={{
               color: '#718096',
               fontSize: '0.75rem',
               fontWeight: 500,
@@ -174,10 +214,10 @@ const Sidebar: React.FC<SidebarProps> = ({
           >
             Chief Controller
           </Typography>
-          
-          <Box sx={{ 
-            display: 'flex', 
-            alignItems: 'center', 
+
+          <Box sx={{
+            display: 'flex',
+            alignItems: 'center',
             justifyContent: 'center',
             gap: 0.5,
           }}>
@@ -189,9 +229,9 @@ const Sidebar: React.FC<SidebarProps> = ({
                 borderRadius: '50%',
               }}
             />
-            <Typography 
-              variant="caption" 
-              sx={{ 
+            <Typography
+              variant="caption"
+              sx={{
                 color: '#4CAF50',
                 fontSize: '0.7rem',
                 fontWeight: 500,
@@ -234,12 +274,12 @@ const Sidebar: React.FC<SidebarProps> = ({
                     mb: 1,
                     px: 2,
                     py: 1.5,
-                    background: isActive 
+                    background: isActive
                       ? 'linear-gradient(135deg, #3FA564 0%, #2D7A4A 100%)'
                       : 'transparent',
                     color: isActive ? 'white' : '#4A5568',
-                    boxShadow: isActive 
-                      ? '0 4px 16px rgba(63, 165, 100, 0.4)' 
+                    boxShadow: isActive
+                      ? '0 4px 16px rgba(63, 165, 100, 0.4)'
                       : 'none',
                     transform: isActive ? 'translateY(-1px)' : 'none',
                     transition: 'all 0.2s ease-in-out',
@@ -248,8 +288,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                         ? 'linear-gradient(135deg, #369654 0%, #25663C 100%)'
                         : 'rgba(63, 165, 100, 0.08)',
                       transform: 'translateY(-1px)',
-                      boxShadow: isActive 
-                        ? '0 6px 20px rgba(63, 165, 100, 0.4)' 
+                      boxShadow: isActive
+                        ? '0 6px 20px rgba(63, 165, 100, 0.4)'
                         : '0 2px 8px rgba(63, 165, 100, 0.15)',
                     },
                   }}
@@ -267,8 +307,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                       sx={{
                         width: 20,
                         height: 20,
-                        filter: isActive 
-                          ? 'brightness(0) invert(1)' 
+                        filter: isActive
+                          ? 'brightness(0) invert(1)'
                           : 'brightness(0) saturate(100%) invert(47%) sepia(8%) saturate(1077%) hue-rotate(168deg) brightness(94%) contrast(86%)',
                       }}
                     />
@@ -305,10 +345,10 @@ const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Bottom Section */}
       <Box sx={{ px: 3, py: 2, textAlign: 'center' }}>
-        <Typography 
-          variant="caption" 
-          sx={{ 
-            display: 'block', 
+        <Typography
+          variant="caption"
+          sx={{
+            display: 'block',
             color: '#A0AEC0',
             fontSize: '0.75rem',
             fontWeight: 500,
@@ -317,9 +357,9 @@ const Sidebar: React.FC<SidebarProps> = ({
         >
           Smart Complaint System
         </Typography>
-        <Typography 
-          variant="caption" 
-          sx={{ 
+        <Typography
+          variant="caption"
+          sx={{
             color: '#CBD5E0',
             fontSize: '0.7rem',
           }}

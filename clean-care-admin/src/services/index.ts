@@ -37,3 +37,16 @@ export type {
     SendMessageResponse,
     MarkAsReadResponse,
 } from '../types/chat-service.types';
+
+export type {
+    ChatConversation,
+    ChatFilters,
+    ChatStatistics,
+    ChatCitizen,
+    LastMessage,
+    MessageBubbleProps,
+    GetChatConversationsResponse,
+    GetChatStatisticsResponse,
+    ChatComplaintDetails,
+    StatisticsByCategory,
+} from '../types/chat-page.types';
