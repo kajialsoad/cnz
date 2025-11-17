@@ -11,10 +11,16 @@ const registerSchema = z.object({
   password: z.string().min(6),
 });
 
-const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string(),
-});
+const loginSchema = z
+  .object({
+    email: z.string().email().optional(),
+    phone: z.string().min(6).optional(),
+    password: z.string(),
+  })
+  .refine((data) => !!(data.email || data.phone), {
+    message: 'Provide email or phone',
+    path: ['email'],
+  });
 
 export async function register(req: AuthRequest, res: Response) {
   try {
@@ -40,6 +46,7 @@ export async function login(req: AuthRequest, res: Response) {
     const body = loginSchema.parse(req.body);
     const result = await authService.login({
       email: body.email,
+      phone: body.phone,
       password: body.password,
     });
     return res.status(200).json(result);

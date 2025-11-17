@@ -282,3 +282,42 @@ export async function updateUserStatus(req: AuthRequest, res: Response) {
         });
     }
 }
+
+// Import admin complaint service
+import { adminComplaintService } from '../services/admin-complaint.service';
+
+/**
+ * Get complaints for a specific user
+ */
+export async function getUserComplaints(req: AuthRequest, res: Response) {
+    try {
+        const userId = parseInt(req.params.id);
+
+        if (isNaN(userId)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid user ID'
+            });
+        }
+
+        const { page, limit } = req.query;
+
+        const result = await adminComplaintService.getComplaintsByUser(
+            userId,
+            page ? parseInt(page as string) : undefined,
+            limit ? parseInt(limit as string) : undefined
+        );
+
+        res.status(200).json({
+            success: true,
+            data: result
+        });
+    } catch (error) {
+        console.error('Error in getUserComplaints:', error);
+        const statusCode = error instanceof Error && error.message.includes('not found') ? 404 : 500;
+        res.status(statusCode).json({
+            success: false,
+            message: error instanceof Error ? error.message : 'Failed to fetch user complaints'
+        });
+    }
+}

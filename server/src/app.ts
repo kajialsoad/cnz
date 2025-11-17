@@ -9,11 +9,17 @@ import adminAuthRoutes from './routes/admin.auth.routes';
 import complaintRoutes from './routes/complaint.routes';
 import uploadRoutes from './routes/upload.routes';
 import adminUserRoutes from './routes/admin.user.routes';
+import adminComplaintRoutes from './routes/admin.complaint.routes';
+import adminAnalyticsRoutes from './routes/admin.analytics.routes';
+import adminChatRoutes from './routes/admin.chat.routes';
 import { AuthRequest } from './middlewares/auth.middleware';
 
 console.log('🚀 Starting Clean Care API Server...');
 console.log('🔧 Importing admin auth routes...');
 console.log('🔧 Importing admin user routes...');
+console.log('🔧 Importing admin complaint routes...');
+console.log('🔧 Importing admin analytics routes...');
+console.log('🔧 Importing admin chat routes...');
 
 const app = express();
 
@@ -71,6 +77,15 @@ console.log('✅ Admin auth routes registered at /api/admin/auth');
 
 app.use('/api/admin/users', adminUserRoutes); // Admin user management routes
 console.log('✅ Admin user routes registered at /api/admin/users');
+
+app.use('/api/admin/complaints', adminComplaintRoutes); // Admin complaint management routes
+console.log('✅ Admin complaint routes registered at /api/admin/complaints');
+
+app.use('/api/admin/analytics', adminAnalyticsRoutes); // Admin analytics routes
+console.log('✅ Admin analytics routes registered at /api/admin/analytics');
+
+app.use('/api/admin/chat', adminChatRoutes); // Admin chat routes
+console.log('✅ Admin chat routes registered at /api/admin/chat');
 
 // Add test route to verify admin path works
 app.get('/api/admin/test', (req, res) => {

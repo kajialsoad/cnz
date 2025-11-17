@@ -54,18 +54,12 @@ class _CustomerCarePageState extends State<CustomerCarePage> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(16, 35, 16, 16),
-      decoration: const BoxDecoration(
-        color: Color(0xFF4CAF50),
-      ),
+      decoration: const BoxDecoration(color: Color(0xFF4CAF50)),
       child: Row(
         children: [
           GestureDetector(
             onTap: () => Navigator.pop(context),
-            child: const Icon(
-              Icons.arrow_back,
-              color: Colors.white,
-              size: 24,
-            ),
+            child: const Icon(Icons.arrow_back, color: Colors.white, size: 24),
           ),
           const SizedBox(width: 16),
           const TranslatedText(
@@ -98,11 +92,7 @@ class _CustomerCarePageState extends State<CustomerCarePage> {
               color: const Color(0xFF4CAF50).withOpacity(0.1),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(
-              Icons.phone,
-              color: Color(0xFF4CAF50),
-              size: 24,
-            ),
+            child: const Icon(Icons.phone, color: Color(0xFF4CAF50), size: 24),
           ),
           const SizedBox(width: 16),
           const Expanded(
@@ -119,10 +109,7 @@ class _CustomerCarePageState extends State<CustomerCarePage> {
                 ),
                 TranslatedText(
                   '16106 (Toll Free)',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey,
-                  ),
+                  style: TextStyle(fontSize: 14, color: Colors.grey),
                 ),
               ],
             ),
@@ -177,10 +164,7 @@ class _CustomerCarePageState extends State<CustomerCarePage> {
                   ),
                   TranslatedText(
                     'Available 24/7',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey,
-                    ),
+                    style: TextStyle(fontSize: 14, color: Colors.grey),
                   ),
                 ],
               ),
@@ -190,8 +174,6 @@ class _CustomerCarePageState extends State<CustomerCarePage> {
       ),
     );
   }
-
-
 
   Widget _buildFAQSection() {
     final faqs = [
@@ -251,10 +233,7 @@ class _CustomerCarePageState extends State<CustomerCarePage> {
                 Expanded(
                   child: TranslatedText(
                     faq,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Colors.black87,
-                    ),
+                    style: const TextStyle(fontSize: 14, color: Colors.black87),
                   ),
                 ),
                 const Icon(
@@ -265,7 +244,7 @@ class _CustomerCarePageState extends State<CustomerCarePage> {
               ],
             ),
           );
-        }).toList(),
+        }),
       ],
     );
   }
@@ -290,20 +269,11 @@ class _CustomerCarePageState extends State<CustomerCarePage> {
             ),
           ),
           const SizedBox(height: 16),
-          _buildContactItem(
-            '📧',
-            'Email: info@dscc.gov.bd',
-          ),
+          _buildContactItem('📧', 'Email: info@dscc.gov.bd'),
           const SizedBox(height: 12),
-          _buildContactItem(
-            '📍',
-            'Address: Nagar Bhaban, Fulbaria, Dhaka',
-          ),
+          _buildContactItem('📍', 'Address: Nagar Bhaban, Fulbaria, Dhaka'),
           const SizedBox(height: 12),
-          _buildContactItem(
-            '🕒',
-            'Office Hours: 9:00 AM - 5:00 PM',
-          ),
+          _buildContactItem('🕒', 'Office Hours: 9:00 AM - 5:00 PM'),
         ],
       ),
     );
@@ -312,24 +282,15 @@ class _CustomerCarePageState extends State<CustomerCarePage> {
   Widget _buildContactItem(String emoji, String text) {
     return Row(
       children: [
-        Text(
-          emoji,
-          style: const TextStyle(
-            fontSize: 20,
-          ),
-        ),
+        Text(emoji, style: const TextStyle(fontSize: 20)),
         const SizedBox(width: 12),
         Expanded(
           child: TranslatedText(
             text,
-            style: const TextStyle(
-              fontSize: 14,
-              color: Colors.black87,
-            ),
+            style: const TextStyle(fontSize: 14, color: Colors.black87),
           ),
         ),
       ],
     );
   }
-
 }

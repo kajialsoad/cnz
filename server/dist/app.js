@@ -14,9 +14,15 @@ const admin_auth_routes_1 = __importDefault(require("./routes/admin.auth.routes"
 const complaint_routes_1 = __importDefault(require("./routes/complaint.routes"));
 const upload_routes_1 = __importDefault(require("./routes/upload.routes"));
 const admin_user_routes_1 = __importDefault(require("./routes/admin.user.routes"));
+const admin_complaint_routes_1 = __importDefault(require("./routes/admin.complaint.routes"));
+const admin_analytics_routes_1 = __importDefault(require("./routes/admin.analytics.routes"));
+const admin_chat_routes_1 = __importDefault(require("./routes/admin.chat.routes"));
 console.log('🚀 Starting Clean Care API Server...');
 console.log('🔧 Importing admin auth routes...');
 console.log('🔧 Importing admin user routes...');
+console.log('🔧 Importing admin complaint routes...');
+console.log('🔧 Importing admin analytics routes...');
+console.log('🔧 Importing admin chat routes...');
 const app = (0, express_1.default)();
 // Middleware to add prisma to request
 app.use((req, res, next) => {
@@ -61,6 +67,12 @@ app.use('/api/admin/auth', admin_auth_routes_1.default); // Admin authentication
 console.log('✅ Admin auth routes registered at /api/admin/auth');
 app.use('/api/admin/users', admin_user_routes_1.default); // Admin user management routes
 console.log('✅ Admin user routes registered at /api/admin/users');
+app.use('/api/admin/complaints', admin_complaint_routes_1.default); // Admin complaint management routes
+console.log('✅ Admin complaint routes registered at /api/admin/complaints');
+app.use('/api/admin/analytics', admin_analytics_routes_1.default); // Admin analytics routes
+console.log('✅ Admin analytics routes registered at /api/admin/analytics');
+app.use('/api/admin/chat', admin_chat_routes_1.default); // Admin chat routes
+console.log('✅ Admin chat routes registered at /api/admin/chat');
 // Add test route to verify admin path works
 app.get('/api/admin/test', (req, res) => {
     res.json({

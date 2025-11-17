@@ -28,10 +28,10 @@ export class ComplaintController {
         console.log('- ward:', req.body.location.ward);
       }
       console.log('Request files:', req.files);
-      
+
       // Validate request body
       const validatedData = validateInput(createComplaintSchema, req.body);
-      
+
       if (!req.user) {
         return res.status(401).json({
           success: false,
@@ -69,7 +69,7 @@ export class ComplaintController {
   async getComplaintById(req: AuthenticatedRequest, res: Response) {
     try {
       const complaintId = parseInt(req.params.id);
-      
+
       if (isNaN(complaintId)) {
         return res.status(400).json({
           success: false,
@@ -88,9 +88,9 @@ export class ComplaintController {
       });
     } catch (error) {
       console.error('Error in getComplaintById:', error);
-      const statusCode = error instanceof Error && error.message.includes('not found') ? 404 : 
-                         error instanceof Error && error.message.includes('Unauthorized') ? 403 : 500;
-      
+      const statusCode = error instanceof Error && error.message.includes('not found') ? 404 :
+        error instanceof Error && error.message.includes('Unauthorized') ? 403 : 500;
+
       res.status(statusCode).json({
         success: false,
         message: error instanceof Error ? error.message : 'Failed to fetch complaint',
@@ -104,7 +104,7 @@ export class ComplaintController {
     try {
       // Validate query parameters
       const validatedQuery = validateInput(complaintQuerySchema, req.query);
-      
+
       const queryInput: ComplaintQueryInput = {
         ...validatedQuery,
         userId: req.user?.sub // Users can only see their own complaints
@@ -121,7 +121,8 @@ export class ComplaintController {
             description: complaint.description,
             priority: complaint.priority,
             status: complaint.status,
-            imageUrl: complaint.imageUrl,
+            imageUrls: complaint.imageUrls,
+            audioUrls: complaint.audioUrls,
             location: complaint.location,
             user: complaint.user,
             createdAt: complaint.createdAt,
@@ -144,7 +145,7 @@ export class ComplaintController {
   async updateComplaint(req: AuthenticatedRequest, res: Response) {
     try {
       const complaintId = parseInt(req.params.id);
-      
+
       if (isNaN(complaintId)) {
         return res.status(400).json({
           success: false,
@@ -154,7 +155,7 @@ export class ComplaintController {
 
       // Validate request body
       const validatedData = validateInput(updateComplaintSchema, req.body);
-      
+
       if (!req.user) {
         return res.status(401).json({
           success: false,
@@ -182,9 +183,9 @@ export class ComplaintController {
       });
     } catch (error) {
       console.error('Error in updateComplaint:', error);
-      const statusCode = error instanceof Error && error.message.includes('not found') ? 404 : 
-                         error instanceof Error && error.message.includes('Unauthorized') ? 403 : 500;
-      
+      const statusCode = error instanceof Error && error.message.includes('not found') ? 404 :
+        error instanceof Error && error.message.includes('Unauthorized') ? 403 : 500;
+
       res.status(statusCode).json({
         success: false,
         message: error instanceof Error ? error.message : 'Failed to update complaint',
@@ -197,7 +198,7 @@ export class ComplaintController {
   async deleteComplaint(req: AuthenticatedRequest, res: Response) {
     try {
       const complaintId = parseInt(req.params.id);
-      
+
       if (isNaN(complaintId)) {
         return res.status(400).json({
           success: false,
@@ -218,9 +219,9 @@ export class ComplaintController {
       res.status(200).json(result);
     } catch (error) {
       console.error('Error in deleteComplaint:', error);
-      const statusCode = error instanceof Error && error.message.includes('not found') ? 404 : 
-                         error instanceof Error && error.message.includes('Unauthorized') ? 403 : 500;
-      
+      const statusCode = error instanceof Error && error.message.includes('not found') ? 404 :
+        error instanceof Error && error.message.includes('Unauthorized') ? 403 : 500;
+
       res.status(statusCode).json({
         success: false,
         message: error instanceof Error ? error.message : 'Failed to cancel complaint',
@@ -267,7 +268,7 @@ export class ComplaintController {
       }
 
       const status = req.params.status?.toUpperCase() as ComplaintStatus;
-      
+
       if (!Object.values(ComplaintStatus).includes(status)) {
         return res.status(400).json({
           success: false,
@@ -303,7 +304,7 @@ export class ComplaintController {
       }
 
       const searchTerm = req.query.q as string;
-      
+
       if (!searchTerm || searchTerm.trim().length < 2) {
         return res.status(400).json({
           success: false,
@@ -332,7 +333,7 @@ export class ComplaintController {
   async getComplaintByIdForTracking(req: AuthenticatedRequest, res: Response) {
     try {
       const complaintId = parseInt(req.params.trackingNumber);
-      
+
       if (isNaN(complaintId)) {
         return res.status(400).json({
           success: false,
@@ -341,7 +342,7 @@ export class ComplaintController {
       }
 
       const userId = req.user?.sub;
-      
+
       // For now, search by complaint ID
       const complaint = await complaintService.getComplaintById(complaintId, userId);
 
@@ -361,3 +362,6 @@ export class ComplaintController {
 }
 
 export const complaintController = new ComplaintController();
+
+
+

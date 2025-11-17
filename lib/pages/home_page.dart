@@ -39,7 +39,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       duration: const Duration(seconds: 8),
       vsync: this,
     )..repeat();
-    
+
     _floatingController = AnimationController(
       duration: const Duration(seconds: 3),
       vsync: this,
@@ -160,18 +160,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         children: [
           TranslatedText(
             'Clean Care',
-            style: TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 18,
-            ),
+            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 18),
           ),
           SizedBox(height: 2),
           TranslatedText(
             'Your City, Your Care',
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.white70,
-            ),
+            style: TextStyle(fontSize: 12, color: Colors.white70),
           ),
         ],
       ),
@@ -187,7 +181,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 },
                 child: Container(
                   height: 38,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFF4CAF50),
                     borderRadius: BorderRadius.circular(19),
@@ -203,11 +200,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(
-                        Icons.language,
-                        color: Colors.white,
-                        size: 18,
-                      ),
+                      const Icon(Icons.language, color: Colors.white, size: 18),
                       const SizedBox(width: 6),
                       Text(
                         languageProvider.isBangla ? 'বাং' : 'EN',
@@ -234,15 +227,15 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             ),
             elevation: 8,
             offset: const Offset(-200, 50),
-            constraints: const BoxConstraints(
-              minWidth: 200,
-              maxWidth: 250,
-            ),
+            constraints: const BoxConstraints(minWidth: 200, maxWidth: 250),
             itemBuilder: (BuildContext context) => [
               // Profile Settings
               PopupMenuItem<String>(
                 value: 'profile',
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 child: Row(
                   children: [
                     Container(
@@ -265,10 +258,42 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ],
                 ),
               ),
+              // My Complaints
+              PopupMenuItem<String>(
+                value: 'complaints',
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: green.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(Icons.list_alt, color: green, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    TranslatedText(
+                      'My Complaints',
+                      style: TextStyle(
+                        color: Colors.black87,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               // Government Calendar
               PopupMenuItem<String>(
                 value: 'calendar',
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 child: Row(
                   children: [
                     Container(
@@ -294,7 +319,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               // Notice Board
               PopupMenuItem<String>(
                 value: 'notice',
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 child: Row(
                   children: [
                     Container(
@@ -328,7 +356,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               // Language Switch
               PopupMenuItem<String>(
                 value: 'language',
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 child: Row(
                   children: [
                     Container(
@@ -356,7 +387,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               // Logout
               PopupMenuItem<String>(
                 value: 'logout',
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 child: Row(
                   children: [
                     Container(
@@ -365,7 +399,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         color: Colors.red.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Icon(Icons.logout, color: Colors.red, size: 20),
+                      child: const Icon(
+                        Icons.logout,
+                        color: Colors.red,
+                        size: 20,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     const Text(
@@ -383,7 +421,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               // Language Section Header
               PopupMenuItem<String>(
                 enabled: false,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 child: Text(
                   'Language / ভাষা',
                   style: TextStyle(
@@ -396,10 +437,16 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               // English Button
               PopupMenuItem<String>(
                 value: 'english',
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 4,
+                ),
                 child: Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 8,
+                    horizontal: 12,
+                  ),
                   decoration: BoxDecoration(
                     color: green,
                     borderRadius: BorderRadius.circular(6),
@@ -418,10 +465,16 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               // Bengali Button
               PopupMenuItem<String>(
                 value: 'bengali',
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 4,
+                ),
                 child: Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 8,
+                    horizontal: 12,
+                  ),
                   decoration: BoxDecoration(
                     border: Border.all(color: green, width: 1),
                     borderRadius: BorderRadius.circular(6),
@@ -472,11 +525,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               left: 30,
               child: Opacity(
                 opacity: 0.1,
-                child: Icon(
-                  Icons.eco,
-                  size: 40,
-                  color: green,
-                ),
+                child: Icon(Icons.eco, size: 40, color: green),
               ),
             ),
             Positioned(
@@ -484,11 +533,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               right: 40,
               child: Opacity(
                 opacity: 0.08,
-                child: Icon(
-                  Icons.recycling,
-                  size: 50,
-                  color: yellow,
-                ),
+                child: Icon(Icons.recycling, size: 50, color: yellow),
               ),
             ),
             Positioned(
@@ -496,11 +541,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               left: 50,
               child: Opacity(
                 opacity: 0.06,
-                child: Icon(
-                  Icons.nature,
-                  size: 35,
-                  color: greenSoft,
-                ),
+                child: Icon(Icons.nature, size: 35, color: greenSoft),
               ),
             ),
           ],
@@ -568,7 +609,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               ],
             ),
             SizedBox(height: 2), // Reduced spacing from 8px to 2px
-            
+
             Row(
               children: [
                 Flexible(
@@ -596,7 +637,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             ),
           ],
         ),
-        
+
         // Center complaint button - bigger circle with black background and white border
         Container(
           width: 110, // Increased from 120 to 140
@@ -721,8 +762,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   void _handleLanguageSwitch() {
-    final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
-    
+    final languageProvider = Provider.of<LanguageProvider>(
+      context,
+      listen: false,
+    );
+
     // Show language selection dialog
     showDialog(
       context: context,
@@ -737,10 +781,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               SizedBox(width: 8),
               TranslatedText(
                 'Language Selection',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
             ],
           ),
@@ -766,15 +807,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ),
                   child: const Text(
                     'English',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
                   ),
                 ),
               ),
               // Bengali Button
-              Container(
+              SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
                   onPressed: () {
@@ -791,10 +829,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ),
                   child: const Text(
                     'বাংলা',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
                   ),
                 ),
               ),
@@ -806,35 +841,44 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   void _selectLanguage(String languageCode) async {
-    final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
+    final languageProvider = Provider.of<LanguageProvider>(
+      context,
+      listen: false,
+    );
     await languageProvider.setLanguage(languageCode);
-    
-    String message = languageCode == 'en' 
-        ? 'English Language Selected' 
+
+    String message = languageCode == 'en'
+        ? 'English Language Selected'
         : 'বাংলা ভাষা নির্বাচিত হয়েছে';
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: TranslatedText(
-          languageCode == 'en' ? 'English Language Selected' : 'Bangla Language Selected',
+          languageCode == 'en'
+              ? 'English Language Selected'
+              : 'Bangla Language Selected',
           style: TextStyle(color: Colors.white),
         ),
         backgroundColor: green,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         margin: const EdgeInsets.all(16),
       ),
     );
   }
 
   void _handleMenuSelection(String value) async {
-    final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
-    
+    final languageProvider = Provider.of<LanguageProvider>(
+      context,
+      listen: false,
+    );
+
     switch (value) {
       case 'profile':
         Navigator.pushNamed(context, '/profile-settings');
+        return;
+      case 'complaints':
+        Navigator.pushNamed(context, '/complaint-list');
         return;
       case 'calendar':
         Navigator.pushNamed(context, '/government-calendar');
@@ -862,16 +906,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   void _handleLogout() async {
     // Capture context before any async operations
     final navigator = Navigator.of(context);
-    
+
     // Show confirmation dialog
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Logout'),
         content: const Text('Are you sure you want to logout?'),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -900,11 +942,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       SnackBar(
         content: Row(
           children: [
-            Icon(
-              Icons.check_circle,
-              color: Colors.white,
-              size: 20,
-            ),
+            Icon(Icons.check_circle, color: Colors.white, size: 20),
             const SizedBox(width: 8),
             Expanded(
               child: TranslatedText(
@@ -921,9 +959,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         backgroundColor: green,
         duration: const Duration(seconds: 2),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         margin: const EdgeInsets.all(16),
       ),
     );

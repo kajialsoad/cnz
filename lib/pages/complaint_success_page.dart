@@ -355,13 +355,11 @@ class _ComplaintSuccessPageState extends State<ComplaintSuccessPage> {
   }
 
   void _trackComplaint() {
-    // TODO: Navigate to complaint tracking page
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Complaint tracking feature coming soon!'),
-        backgroundColor: Color(0xFF4CAF50),
-        behavior: SnackBarBehavior.floating,
-      ),
+    // Navigate to complaint list page
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      '/complaint-list',
+      (route) => false,
     );
   }
 

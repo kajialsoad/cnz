@@ -1,26 +1,32 @@
 // User roles
-export enum UserRole {
-    CUSTOMER = 'CUSTOMER',
-    SERVICE_PROVIDER = 'SERVICE_PROVIDER',
-    ADMIN = 'ADMIN',
-    SUPER_ADMIN = 'SUPER_ADMIN',
-}
+export const UserRole = {
+    CUSTOMER: 'CUSTOMER',
+    SERVICE_PROVIDER: 'SERVICE_PROVIDER',
+    ADMIN: 'ADMIN',
+    SUPER_ADMIN: 'SUPER_ADMIN',
+} as const;
+
+export type UserRole = typeof UserRole[keyof typeof UserRole];
 
 // User status
-export enum UserStatus {
-    ACTIVE = 'ACTIVE',
-    INACTIVE = 'INACTIVE',
-    SUSPENDED = 'SUSPENDED',
-    PENDING = 'PENDING',
-}
+export const UserStatus = {
+    ACTIVE: 'ACTIVE',
+    INACTIVE: 'INACTIVE',
+    SUSPENDED: 'SUSPENDED',
+    PENDING: 'PENDING',
+} as const;
+
+export type UserStatus = typeof UserStatus[keyof typeof UserStatus];
 
 // Complaint status
-export enum ComplaintStatus {
-    PENDING = 'PENDING',
-    IN_PROGRESS = 'IN_PROGRESS',
-    RESOLVED = 'RESOLVED',
-    REJECTED = 'REJECTED',
-}
+export const ComplaintStatus = {
+    PENDING: 'PENDING',
+    IN_PROGRESS: 'IN_PROGRESS',
+    RESOLVED: 'RESOLVED',
+    REJECTED: 'REJECTED',
+} as const;
+
+export type ComplaintStatus = typeof ComplaintStatus[keyof typeof ComplaintStatus];
 
 // User statistics
 export interface UserStatistics {

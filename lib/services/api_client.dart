@@ -23,7 +23,7 @@ class ApiClient {
   final String baseUrl;
   final Duration timeout;
   bool _isRefreshing = false;
-  List<Function> _refreshQueue = [];
+  final List<Function> _refreshQueue = [];
 
   ApiClient(this.baseUrl, {this.timeout = const Duration(seconds: 30)});
 
@@ -66,11 +66,13 @@ class ApiClient {
         return false;
       }
 
-      final res = await http.post(
-        Uri.parse('$baseUrl/api/auth/refresh'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'refreshToken': refreshToken}),
-      ).timeout(timeout);
+      final res = await http
+          .post(
+            Uri.parse('$baseUrl/api/auth/refresh'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'refreshToken': refreshToken}),
+          )
+          .timeout(timeout);
 
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
@@ -78,13 +80,13 @@ class ApiClient {
           final newAccessToken = data['data']['accessToken'];
           final newRefreshToken = data['data']['refreshToken'];
           await _saveTokens(newAccessToken, newRefreshToken);
-          
+
           // Process queued requests
           for (var callback in _refreshQueue) {
             callback();
           }
           _refreshQueue.clear();
-          
+
           return true;
         }
       }
@@ -99,7 +101,10 @@ class ApiClient {
     }
   }
 
-  Future<Map<String, dynamic>> post(String path, Map<String, dynamic> body) async {
+  Future<Map<String, dynamic>> post(
+    String path,
+    Map<String, dynamic> body,
+  ) async {
     try {
       final token = await _getAccessToken();
       final res = await http
@@ -117,7 +122,9 @@ class ApiClient {
     } on TimeoutException {
       throw ApiException('Request timeout. Please check your connection.');
     } on http.ClientException {
-      throw ApiException('Network error. Please check your internet connection.');
+      throw ApiException(
+        'Network error. Please check your internet connection.',
+      );
     } catch (e) {
       if (e is ApiException) rethrow;
       throw ApiException('An unexpected error occurred: ${e.toString()}');
@@ -141,14 +148,19 @@ class ApiClient {
     } on TimeoutException {
       throw ApiException('Request timeout. Please check your connection.');
     } on http.ClientException {
-      throw ApiException('Network error. Please check your internet connection.');
+      throw ApiException(
+        'Network error. Please check your internet connection.',
+      );
     } catch (e) {
       if (e is ApiException) rethrow;
       throw ApiException('An unexpected error occurred: ${e.toString()}');
     }
   }
 
-  Future<Map<String, dynamic>> put(String path, Map<String, dynamic> body) async {
+  Future<Map<String, dynamic>> put(
+    String path,
+    Map<String, dynamic> body,
+  ) async {
     try {
       final token = await _getAccessToken();
       final res = await http
@@ -166,14 +178,19 @@ class ApiClient {
     } on TimeoutException {
       throw ApiException('Request timeout. Please check your connection.');
     } on http.ClientException {
-      throw ApiException('Network error. Please check your internet connection.');
+      throw ApiException(
+        'Network error. Please check your internet connection.',
+      );
     } catch (e) {
       if (e is ApiException) rethrow;
       throw ApiException('An unexpected error occurred: ${e.toString()}');
     }
   }
 
-  Future<Map<String, dynamic>> delete(String path, {Map<String, dynamic>? data}) async {
+  Future<Map<String, dynamic>> delete(
+    String path, {
+    Map<String, dynamic>? data,
+  }) async {
     try {
       final token = await _getAccessToken();
       final res = await http
@@ -191,7 +208,9 @@ class ApiClient {
     } on TimeoutException {
       throw ApiException('Request timeout. Please check your connection.');
     } on http.ClientException {
-      throw ApiException('Network error. Please check your internet connection.');
+      throw ApiException(
+        'Network error. Please check your internet connection.',
+      );
     } catch (e) {
       if (e is ApiException) rethrow;
       throw ApiException('An unexpected error occurred: ${e.toString()}');
@@ -226,7 +245,7 @@ class ApiClient {
           final file = entry.value;
           String fileName;
           String mimeType;
-          
+
           if (kIsWeb) {
             // For web, extract filename from path carefully to avoid _Namespace error
             final pathParts = file.path.split('/');
@@ -236,7 +255,7 @@ class ApiClient {
               fileName = 'image_${DateTime.now().millisecondsSinceEpoch}.jpg';
             }
             mimeType = lookupMimeType(fileName) ?? 'application/octet-stream';
-            
+
             // For web, read file as bytes
             try {
               final bytes = await file.readAsBytes();
@@ -256,7 +275,7 @@ class ApiClient {
             // For mobile, use fromPath
             fileName = p.basename(file.path);
             mimeType = lookupMimeType(file.path) ?? 'application/octet-stream';
-            
+
             request.files.add(
               await http.MultipartFile.fromPath(
                 entry.key,
@@ -276,7 +295,9 @@ class ApiClient {
     } on TimeoutException {
       throw ApiException('Request timeout. Please check your connection.');
     } on http.ClientException {
-      throw ApiException('Network error. Please check your internet connection.');
+      throw ApiException(
+        'Network error. Please check your internet connection.',
+      );
     } catch (e) {
       if (e is ApiException) rethrow;
       throw ApiException('An unexpected error occurred: ${e.toString()}');
@@ -311,7 +332,7 @@ class ApiClient {
           final file = entry.value;
           String fileName;
           String mimeType;
-          
+
           if (kIsWeb) {
             // For web, extract filename from path carefully to avoid _Namespace error
             final pathParts = file.path.split('/');
@@ -321,7 +342,7 @@ class ApiClient {
               fileName = 'image_${DateTime.now().millisecondsSinceEpoch}.jpg';
             }
             mimeType = lookupMimeType(fileName) ?? 'application/octet-stream';
-            
+
             // For web, read file as bytes
             try {
               final bytes = await file.readAsBytes();
@@ -341,7 +362,7 @@ class ApiClient {
             // For mobile, use fromPath
             fileName = p.basename(file.path);
             mimeType = lookupMimeType(file.path) ?? 'application/octet-stream';
-            
+
             request.files.add(
               await http.MultipartFile.fromPath(
                 entry.key,
@@ -361,7 +382,9 @@ class ApiClient {
     } on TimeoutException {
       throw ApiException('Request timeout. Please check your connection.');
     } on http.ClientException {
-      throw ApiException('Network error. Please check your internet connection.');
+      throw ApiException(
+        'Network error. Please check your internet connection.',
+      );
     } catch (e) {
       if (e is ApiException) rethrow;
       throw ApiException('An unexpected error occurred: ${e.toString()}');
@@ -370,7 +393,7 @@ class ApiClient {
 
   Map<String, dynamic> _handleResponse(http.Response response) {
     final statusCode = response.statusCode;
-    
+
     try {
       final data = jsonDecode(response.body) as Map<String, dynamic>;
 

@@ -11,7 +11,7 @@ const createUploadDirs = () => {
     'uploads/complaints/images',
     'uploads/complaints/voice',
   ];
-  
+
   dirs.forEach(dir => {
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
@@ -56,13 +56,13 @@ const fileFilter = (req: any, file: any, cb: (error: any, acceptFile: boolean) =
 const storage = multer.diskStorage({
   destination: (req: any, file: any, cb: (error: any, destination: string) => void) => {
     let uploadPath = 'uploads/complaints/';
-    
+
     if (file.fieldname === 'images') {
       uploadPath += 'images/';
     } else if (file.fieldname === 'voice' || file.fieldname === 'audioFiles') {
       uploadPath += 'voice/';
     }
-    
+
     cb(null, uploadPath);
   },
   filename: (req: any, file: any, cb: (error: any, filename: string) => void) => {
@@ -71,7 +71,7 @@ const storage = multer.diskStorage({
     const randomString = crypto.randomBytes(8).toString('hex');
     const extension = path.extname(file.originalname);
     const filename = `${timestamp}_${randomString}${extension}`;
-    
+
     console.log('Generated filename:', filename);
     cb(null, filename);
   }
@@ -121,7 +121,7 @@ export const validateFile = (file: any, type: 'image' | 'audio'): boolean => {
 // Helper function to get file URL
 export const getFileUrl = (filename: string, type: 'image' | 'voice'): string => {
   const baseUrl = process.env.BASE_URL || 'http://localhost:4000';
-  return `${baseUrl}/uploads/complaints/${type === 'image' ? 'images' : 'voice'}/${filename}`;
+  return `${baseUrl}/api/uploads/${type}/${filename}`;
 };
 
 // Helper function to delete file

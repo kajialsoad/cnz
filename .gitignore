@@ -4,6 +4,7 @@
 *.pyc
 *.swp
 .DS_Store
+.metadata
 .atom/
 .build/
 .buildlog/
@@ -82,9 +83,14 @@ android/app/proguard-rules.pro
 **/dist/
 **/build/
 
+# allow server/dist in repo
+!server/dist/
+!server/dist/**
+
 # Server specific files
 /server/node_modules/
-/server/dist/
+# keep server/dist tracked
+!server/dist/
 /server/.env
 /server/uploads/
 /server/logs/
@@ -99,3 +105,15 @@ android/app/proguard-rules.pro
 .vscode/
 *.swp
 *.swo
+
+# Build and generated files (catch any remaining)
+**/.gradle/
+**/build/
+*.zip
+*.rar
+
+# Reports
+problems-report.html
+
+# Figma exports (usually regenerated)
+.figma/

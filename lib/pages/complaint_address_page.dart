@@ -14,7 +14,7 @@ class ComplaintAddressPage extends StatefulWidget {
 class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
   int _currentIndex = 0;
   bool _forMyself = true;
-  
+
   // Form controllers
   String? selectedDistrict;
   String? selectedThana;
@@ -110,9 +110,7 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
         right: 16,
         bottom: 16,
       ),
-      decoration: const BoxDecoration(
-        color: Color(0xFF4CAF50),
-      ),
+      decoration: const BoxDecoration(color: Color(0xFF4CAF50)),
       child: Row(
         children: [
           IconButton(
@@ -261,7 +259,7 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
             ],
           ),
           child: DropdownButtonFormField<String>(
-            value: value,
+            initialValue: value,
             decoration: InputDecoration(
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 16,
@@ -276,20 +274,14 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
             ),
             hint: Text(
               items.first,
-              style: TextStyle(
-                color: Colors.grey[500],
-                fontSize: 14,
-              ),
+              style: TextStyle(color: Colors.grey[500], fontSize: 14),
             ),
             items: items.skip(1).map((String item) {
               return DropdownMenuItem<String>(
                 value: item,
                 child: Text(
                   item,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.black87,
-                  ),
+                  style: const TextStyle(fontSize: 14, color: Colors.black87),
                 ),
               );
             }).toList(),
@@ -297,10 +289,7 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
               // Pass the value directly without converting to null
               onChanged(value);
             },
-            icon: Icon(
-              Icons.keyboard_arrow_down,
-              color: Colors.grey[600],
-            ),
+            icon: Icon(Icons.keyboard_arrow_down, color: Colors.grey[600]),
             dropdownColor: Colors.white,
           ),
         ),
@@ -346,10 +335,7 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
             maxLines: maxLines,
             decoration: InputDecoration(
               hintText: hintText,
-              hintStyle: TextStyle(
-                color: Colors.grey[500],
-                fontSize: 14,
-              ),
+              hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
               contentPadding: EdgeInsets.symmetric(
                 horizontal: 16,
                 vertical: 12,
@@ -362,10 +348,7 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
               filled: true,
               suffixIcon: isWardNumber ? _buildWardNumberButtons() : null,
             ),
-            style: const TextStyle(
-              fontSize: 14,
-              color: Colors.black87,
-            ),
+            style: const TextStyle(fontSize: 14, color: Colors.black87),
           ),
         ),
       ],
@@ -388,11 +371,7 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
           child: InkWell(
             onTap: _decreaseWardNumber,
             borderRadius: BorderRadius.circular(6),
-            child: const Icon(
-              Icons.remove,
-              size: 18,
-              color: Color(0xFF4CAF50),
-            ),
+            child: const Icon(Icons.remove, size: 18, color: Color(0xFF4CAF50)),
           ),
         ),
         // Increase button
@@ -407,11 +386,7 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
           child: InkWell(
             onTap: _increaseWardNumber,
             borderRadius: BorderRadius.circular(6),
-            child: const Icon(
-              Icons.add,
-              size: 18,
-              color: Color(0xFF4CAF50),
-            ),
+            child: const Icon(Icons.add, size: 18, color: Color(0xFF4CAF50)),
           ),
         ),
       ],
@@ -474,30 +449,34 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
   void _submitComplaint() async {
     // Validate form
     if (_validateForm()) {
-      final complaintProvider = Provider.of<ComplaintProvider>(context, listen: false);
-      
+      final complaintProvider = Provider.of<ComplaintProvider>(
+        context,
+        listen: false,
+      );
+
       // Store address components separately for backend
       final fullAddress = _fullAddressController.text.trim();
       final ward = _wardController.text.trim();
-      
+
       complaintProvider.setAddress(fullAddress);
       complaintProvider.setDistrict(selectedDistrict);
       complaintProvider.setThana(selectedThana);
       complaintProvider.setWard(ward);
-      
+
       // Also construct location string for display purposes
-      final locationString = '$fullAddress, $selectedDistrict, $selectedThana, $selectedCityCorporation, Ward: $ward';
+      final locationString =
+          '$fullAddress, $selectedDistrict, $selectedThana, $selectedCityCorporation, Ward: $ward';
       complaintProvider.setLocation(locationString);
-      
+
       // Show loading indicator
       _showSubmittingDialog();
 
       try {
         // Submit complaint to backend
         await complaintProvider.createComplaint();
-        
+
         Navigator.pop(context); // Close loading dialog
-        
+
         if (complaintProvider.error != null) {
           _showErrorSnackBar('Error: ${complaintProvider.error}');
         } else {
@@ -518,7 +497,7 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
     print('selectedCityCorporation: $selectedCityCorporation');
     print('ward: ${_wardController.text}');
     print('fullAddress: ${_fullAddressController.text}');
-    
+
     if (selectedDistrict == null || selectedDistrict!.isEmpty) {
       _showErrorSnackBar('Please select a district');
       return false;
@@ -549,9 +528,7 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
         backgroundColor: Colors.red,
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.all(16),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
     );
   }
@@ -570,16 +547,11 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
             const SizedBox(height: 16),
             const Text(
               'Submitting Complaint...',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
             ),
           ],
         ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
