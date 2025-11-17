@@ -10,6 +10,9 @@ class AuthRepository {
     required String phone,
     String? email,
     required String password,
+    String? ward,
+    String? zone,
+    String? address,
   }) async {
     // Split name into firstName and lastName
     final nameParts = name.trim().split(' ');
@@ -24,6 +27,9 @@ class AuthRepository {
         'phone': phone,
         'email': email,
         'password': password,
+        if (ward != null) 'ward': ward,
+        if (zone != null) 'zone': zone,
+        if (address != null) 'address': address,
       });
 
       // Backend returns: { success: true, message: "...", user: {...} }
