@@ -1,12 +1,14 @@
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
+
 import '../components/custom_bottom_nav.dart';
-import '../widgets/translated_text.dart';
 import '../providers/complaint_provider.dart';
 import '../services/file_handling_service.dart';
+import '../widgets/translated_text.dart';
 
 class ComplaintDetailsPage extends StatefulWidget {
   const ComplaintDetailsPage({super.key});
@@ -25,6 +27,52 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
   final FileHandlingService _fileHandlingService = FileHandlingService();
   final List<File> _selectedImages = [];
   final List<File> _selectedAudioFiles = [];
+  
+  // Category data from previous page
+  Map<String, dynamic>? selectedCategoryData;
+  Map<String, dynamic>? selectedSectionData;
+
+  @override
+  void initState() {
+    super.initState();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Check if a photo was captured from camera and category data
+    final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    if (args != null) {
+      // Capture category and section data
+      if (args.containsKey('categoryData')) {
+        selectedCategoryData = args['categoryData'] as Map<String, dynamic>?;
+      }
+      if (args.containsKey('sectionData')) {
+        selectedSectionData = args['sectionData'] as Map<String, dynamic>?;
+      }
+      
+      // Handle image path
+      if (args.containsKey('imagePath')) {
+        final imagePath = args['imagePath'] as String;
+        // Add the captured photo to selected images if not already added
+        if (imagePath != 'mock_web_image' && !kIsWeb) {
+          final imageFile = File(imagePath);
+          if (!_selectedImages.any((img) => img.path == imagePath)) {
+            setState(() {
+              _selectedImages.add(imageFile);
+            });
+          }
+        } else if (imagePath == 'mock_web_image' || kIsWeb) {
+          // For web testing, add a mock file
+          if (_selectedImages.isEmpty || _selectedImages.first.path != 'mock_web_image') {
+            setState(() {
+              _selectedImages.add(File('mock_web_image'));
+            });
+          }
+        }
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -46,6 +94,10 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (selectedSectionData != null || selectedCategoryData != null)
+                    _buildSelectedCategorySection(),
+                  if (selectedSectionData != null || selectedCategoryData != null)
+                    const SizedBox(height: 24),
                   _buildUploadPhotosSection(),
                   const SizedBox(height: 24),
                   _buildVoiceRecordingSection(),
@@ -72,6 +124,79 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
     );
   }
 
+  Widget _buildSelectedCategorySection() {
+    String sectionBangla = '';
+    String sectionEnglish = '';
+    String categoryBangla = '';
+    String categoryEnglish = '';
+
+    if (selectedSectionData != null) {
+      sectionBangla = selectedSectionData!['bangla'] ?? '';
+      sectionEnglish = selectedSectionData!['english'] ?? '';
+    }
+    if (selectedCategoryData != null) {
+      categoryBangla = selectedCategoryData!['bangla'] ?? '';
+      categoryEnglish = selectedCategoryData!['english'] ?? '';
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200, width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Selected Category',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey.shade600,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (sectionBangla.isNotEmpty)
+            Text(
+              sectionBangla,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+              ),
+            ),
+          if (sectionEnglish.isNotEmpty)
+            Text(
+              sectionEnglish,
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.grey.shade600,
+              ),
+            ),
+          if (categoryBangla.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Icon(Icons.arrow_forward, size: 14, color: Color(0xFF4CAF50)),
+                const SizedBox(width: 4),
+                Text(
+                  categoryBangla,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF4CAF50),
+                  ),
+                ),
+              ],
+            ),
+          ]
+        ],
+      ),
+    );
+  }
+
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
       backgroundColor: const Color(0xFF4CAF50),
@@ -80,12 +205,29 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
         icon: const Icon(Icons.arrow_back, color: Colors.white),
         onPressed: () => Navigator.pop(context),
       ),
-      title: TranslatedText(
-        'Complaint Details',
+      title: Text(
+        'অভিযোগের বিবরণ',
         style: TextStyle(
           color: Colors.white,
           fontSize: 18,
           fontWeight: FontWeight.w600,
+        ),
+      ),
+      bottom: PreferredSize(
+        preferredSize: Size.fromHeight(20),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Padding(
+            padding: const EdgeInsets.only(left: 56, bottom: 8),
+            child: Text(
+              'Complaint Details',
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 12,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
+          ),
         ),
       ),
       centerTitle: false,
@@ -96,12 +238,24 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        TranslatedText(
-          'Upload Photos',
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w500,
-            color: Colors.black87,
+        RichText(
+          text: TextSpan(
+            text: 'ছবি আপলোড করুন ',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+              color: Colors.black87,
+            ),
+            children: [
+              TextSpan(
+                text: '(Upload Photos)',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w400,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 12),
@@ -175,18 +329,29 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
                         ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(12),
-                          child: kIsWeb
-                              ? Image.network(
-                                  _selectedImages[index].path,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return Center(
-                                      child: Icon(
-                                        Icons.image,
-                                        color: Colors.grey,
-                                      ),
-                                    );
-                                  },
+                          child: _selectedImages[index].path == 'mock_web_image' || kIsWeb
+                              ? Container(
+                                  color: Colors.grey.shade300,
+                                  child: Center(
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.image,
+                                          size: 40,
+                                          color: Colors.grey.shade600,
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Mock',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            color: Colors.grey.shade600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 )
                               : Image.file(
                                   _selectedImages[index],
@@ -264,6 +429,14 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
             ),
           ),
         ],
+        const SizedBox(height: 8),
+        Text(
+          'You can add up to 6 photos',
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey.shade500,
+          ),
+        ),
       ],
     );
   }
@@ -272,12 +445,24 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        TranslatedText(
-          'Voice Recording (Optional)',
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w500,
-            color: Colors.black87,
+        RichText(
+          text: TextSpan(
+            text: 'তথ্যের রেকর্ডিং ',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+              color: Colors.black87,
+            ),
+            children: [
+              TextSpan(
+                text: '(Optional)',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w400,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 12),
@@ -363,12 +548,24 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        TranslatedText(
-          'Describe Your Complaint',
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w500,
-            color: Colors.black87,
+        RichText(
+          text: TextSpan(
+            text: 'আপনার অভিযোগের বর্ণনা করুন ',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+              color: Colors.black87,
+            ),
+            children: [
+              TextSpan(
+                text: '(Describe Your Complaint)',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w400,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 12),
@@ -382,7 +579,7 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
             controller: _descriptionController,
             maxLines: 6,
             decoration: InputDecoration(
-              hintText: 'Please provide details about the waste issue...',
+              hintText: 'অনুগ্রহ করে আপনার সমস্যা সম্পর্কে বিস্তারিত লিখুন... (Please provide details about the waste issue...)',
               hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 14),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.all(16),
@@ -408,8 +605,8 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
             borderRadius: BorderRadius.circular(12),
           ),
         ),
-        child: TranslatedText(
-          'Continue to Address',
+        child: Text(
+          'ঠিকানায় যান (Continue to Address)',
           style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
         ),
       ),
@@ -430,7 +627,11 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
                 ListTile(
                   leading: Icon(Icons.camera_alt),
                   title: TranslatedText('Camera'),
-                  onTap: () => Navigator.pop(context, ImageSource.camera),
+                  onTap: () {
+                    Navigator.pop(context);
+                    // Navigate to camera page instead of using image picker
+                    Navigator.pushNamed(context, '/camera');
+                  },
                 ),
                 ListTile(
                   leading: Icon(Icons.photo_library),
@@ -569,6 +770,10 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
         break;
       case 3:
         Navigator.pushReplacementNamed(context, '/gallery');
+        break;
+      case 4:
+        // Camera - navigate to camera page
+        Navigator.pushNamed(context, '/camera');
         break;
     }
   }

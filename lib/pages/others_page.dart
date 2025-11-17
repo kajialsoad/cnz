@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+
 import '../components/custom_bottom_nav.dart';
 
 class OthersPage extends StatefulWidget {
@@ -12,7 +13,18 @@ class OthersPage extends StatefulWidget {
 class _OthersPageState extends State<OthersPage> with TickerProviderStateMixin {
   int _currentIndex = 0;
   String? selectedCategory;
+  String? capturedImagePath;
   final List<int> _hoveredIndex = [];
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Check if an image path was passed from complaint page
+    final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    if (args != null && args.containsKey('imagePath')) {
+      capturedImagePath = args['imagePath'] as String;
+    }
+  }
 
   final List<Map<String, dynamic>> categories = [
     {
@@ -282,14 +294,6 @@ class _OthersPageState extends State<OthersPage> with TickerProviderStateMixin {
                           decoration: BoxDecoration(
                             color: color19Opacity, // 19% opacity
                             borderRadius: BorderRadius.circular(8),
-                            boxShadow: [
-                              BoxShadow(
-                                color: specialColor.withOpacity(0.15),
-                                offset: const Offset(0, 2),
-                                blurRadius: 4,
-                                spreadRadius: 0,
-                              ),
-                            ],
                           ),
                           child: SvgPicture.asset(
                             category['svgAsset'],
@@ -473,9 +477,19 @@ class _OthersPageState extends State<OthersPage> with TickerProviderStateMixin {
       selectedCategory = categoryId;
     });
 
-    // Navigate to complaint details page after selection
+    // Find the selected category data
+    final categoryData = categories.firstWhere((cat) => cat['id'] == categoryId);
+
+    // Navigate to category selection page with section data
     Future.delayed(const Duration(milliseconds: 300), () {
-      Navigator.pushNamed(context, '/complaint-details');
+      Navigator.pushNamed(
+        context,
+        '/category-selection',
+        arguments: {
+          'sectionData': categoryData,
+          if (capturedImagePath != null) 'imagePath': capturedImagePath,
+        },
+      );
     });
   }
 
@@ -492,6 +506,10 @@ class _OthersPageState extends State<OthersPage> with TickerProviderStateMixin {
         break;
       case 3:
         Navigator.pushReplacementNamed(context, '/gallery');
+        break;
+      case 4:
+        // Camera
+        Navigator.pushNamed(context, '/camera');
         break;
     }
   }

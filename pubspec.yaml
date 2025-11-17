@@ -35,7 +35,7 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   http: ^1.2.2
-  shared_preferences: ^2.3.2
+  shared_preferences: ^2.3.3
   
   # State Management
   provider: ^6.1.2
@@ -67,6 +67,7 @@ dependencies:
   
   # File handling & Media
   image_picker: ^1.0.4
+  camera: ^0.10.5+5
   permission_handler: ^11.0.1
   record: ^5.1.0
   path_provider: ^2.1.1
@@ -110,6 +111,8 @@ flutter:
   assets:
     - assets/logo.png
     - assets/profile.png
+    - assets/profile2.jpeg
+    - assets/profile3.jpeg
     - assets/home_background.jpg
     - assets/building.svg
     - assets/house.svg

@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../components/custom_bottom_nav.dart';
-import '../services/auth_service.dart';
+import '../config/api_config.dart';
+import '../models/user_model.dart';
+import '../pages/edit_profile_page.dart';
 import '../providers/language_provider.dart';
 import '../repositories/auth_repository.dart';
 import '../repositories/user_repository.dart';
 import '../services/api_client.dart';
-import '../config/api_config.dart';
-import '../models/user_model.dart';
+import '../services/auth_service.dart';
 import '../widgets/translated_text.dart';
 
 class ProfileSettingsPage extends StatefulWidget {
@@ -168,20 +170,28 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
           Container(
             width: 80,
             height: 80,
-            decoration: const BoxDecoration(
-              color: Color(0xFF4CAF50),
+            decoration: BoxDecoration(
+              color: const Color(0xFF4CAF50),
               shape: BoxShape.circle,
+              image: _user?.avatar != null && _user!.avatar!.isNotEmpty
+                  ? DecorationImage(
+                      image: NetworkImage(_user!.avatar!),
+                      fit: BoxFit.cover,
+                    )
+                  : null,
             ),
-            child: Center(
-              child: Text(
-                _user?.initials ?? 'U',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
+            child: _user?.avatar == null || _user!.avatar!.isEmpty
+                ? Center(
+                    child: Text(
+                      _user?.initials ?? 'U',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  )
+                : null,
           ),
           const SizedBox(height: 16),
 
@@ -205,20 +215,26 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
 
           // Edit Profile Button
           OutlinedButton.icon(
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: TranslatedText(
-                    'Edit Profile functionality coming soon!',
-                  ),
-                  backgroundColor: Color(0xFF4CAF50),
+            onPressed: () async {
+              if (_user == null) return;
+              
+              // Navigate to edit profile page
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => EditProfilePage(user: _user!),
                 ),
               );
+              
+              // Reload profile if changes were saved
+              if (result == true) {
+                _loadUserProfile();
+              }
             },
             icon: const Icon(Icons.edit, size: 18, color: Color(0xFF4CAF50)),
             label: TranslatedText(
               'Edit Profile',
-              style: TextStyle(
+              style: const TextStyle(
                 color: Color(0xFF4CAF50),
                 fontWeight: FontWeight.w500,
               ),
@@ -578,8 +594,22 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
         Switch(
           value: value,
           onChanged: onChanged,
-          activeThumbColor: const Color(0xFF4CAF50),
-          activeTrackColor: const Color(0xFF4CAF50).withOpacity(0.3),
+          thumbColor: WidgetStateProperty.resolveWith<Color>(
+            (Set<WidgetState> states) {
+              if (states.contains(WidgetState.selected)) {
+                return const Color(0xFF4CAF50);
+              }
+              return Colors.grey.shade400;
+            },
+          ),
+          trackColor: WidgetStateProperty.resolveWith<Color>(
+            (Set<WidgetState> states) {
+              if (states.contains(WidgetState.selected)) {
+                return const Color(0xFF4CAF50).withOpacity(0.3);
+              }
+              return Colors.grey.shade300;
+            },
+          ),
         ),
       ],
     );

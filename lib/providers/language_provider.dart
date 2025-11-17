@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+
 import '../services/language_service.dart';
 import '../services/translation_service.dart';
 
 class LanguageProvider extends ChangeNotifier {
-  String _languageCode = 'en';
+  String _languageCode = 'bn';
 
   LanguageProvider() {
     _loadLanguage();
@@ -26,8 +27,9 @@ class LanguageProvider extends ChangeNotifier {
   // Translate text using Google Translate API
   Future<String> translate(String text) async {
     if (_languageCode == 'en') {
-      return text; // Return original if English
+      return text; // Return original English text if English is selected
     }
+    // Translate from English to target language (Bengali)
     return await TranslationService.translate(text, _languageCode);
   }
 

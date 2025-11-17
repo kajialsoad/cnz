@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+
 import '../components/custom_bottom_nav.dart';
+import '../widgets/translated_text.dart';
 
 class GalleryPage extends StatelessWidget {
   const GalleryPage({super.key});
@@ -26,9 +28,9 @@ class GalleryPage extends StatelessWidget {
             }
           },
         ),
-        title: const Text(
+        title: TranslatedText(
           'Photo Gallery',
-          style: TextStyle(
+          style: const TextStyle(
             color: Colors.white,
             fontSize: 20,
             fontWeight: FontWeight.bold,
@@ -46,9 +48,9 @@ class GalleryPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Clean Dhaka Activities Section
-            const Text(
+            TranslatedText(
               'Clean Dhaka Activities',
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: Color(0xFF2D3748),
@@ -83,13 +85,8 @@ class GalleryPage extends StatelessWidget {
               // Already on Gallery page
               break;
             case 4:
-              // QR Scanner
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('QR স্ক্যানার খোলা হচ্ছে...'),
-                  backgroundColor: Color(0xFF2E8B57),
-                ),
-              );
+              // Camera
+              Navigator.pushNamed(context, '/camera');
               break;
           }
         },
@@ -260,7 +257,7 @@ class GalleryPage extends StatelessWidget {
                           ),
                         ],
                       ),
-                      child: Text(
+                      child: TranslatedText(
                         imageDescriptions[index],
                         style: const TextStyle(
                           color: Colors.white,
@@ -351,9 +348,9 @@ class GalleryPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          TranslatedText(
             'Latest Updates',
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
               color: Color(0xFF4CAF50),
@@ -436,7 +433,7 @@ class GalleryPage extends StatelessWidget {
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: Text(
+          child: TranslatedText(
             text,
             style: const TextStyle(
               fontSize: 14,

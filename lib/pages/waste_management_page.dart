@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'dart:math' as math;
+
 import '../components/custom_bottom_nav.dart';
+import '../widgets/translated_text.dart';
 
 class MapPatternPainter extends CustomPainter {
   @override
@@ -173,13 +174,8 @@ class _WasteManagementPageState extends State<WasteManagementPage>
               Navigator.pushReplacementNamed(context, '/gallery');
               break;
             case 4:
-              // QR Scanner
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('QR স্ক্যানার খোলা হচ্ছে...'),
-                  backgroundColor: Color(0xFF2E8B57),
-                ),
-              );
+              // Camera
+              Navigator.pushNamed(context, '/camera');
               break;
           }
         },
@@ -212,7 +208,7 @@ class _WasteManagementPageState extends State<WasteManagementPage>
             ),
           ),
           const SizedBox(width: 12),
-          const Text(
+          TranslatedText(
             'Borjo Management',
             style: TextStyle(
               color: Colors.white,
@@ -297,7 +293,7 @@ class _WasteManagementPageState extends State<WasteManagementPage>
                   },
                 ),
                 const SizedBox(height: 16),
-                const Text(
+                TranslatedText(
                   'Interactive Waste Pickup Map',
                   textAlign: TextAlign.center,
                   style: TextStyle(
@@ -307,7 +303,7 @@ class _WasteManagementPageState extends State<WasteManagementPage>
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Text(
+                TranslatedText(
                   'Tap to view collection zones',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 14, color: Color(0xFF718096)),
@@ -430,11 +426,11 @@ class _WasteManagementPageState extends State<WasteManagementPage>
             child: const Icon(Icons.access_time, color: Colors.white, size: 24),
           ),
           const SizedBox(width: 16),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                TranslatedText(
                   'Next Pickup in Your Area',
                   style: TextStyle(
                     color: Colors.white,
@@ -443,12 +439,12 @@ class _WasteManagementPageState extends State<WasteManagementPage>
                   ),
                 ),
                 SizedBox(height: 4),
-                Text(
+                TranslatedText(
                   'Tomorrow, 8:00 AM - 10:00 AM',
                   style: TextStyle(color: Colors.white, fontSize: 14),
                 ),
                 SizedBox(height: 2),
-                Text(
+                TranslatedText(
                   'Ward 12, Dhanmondi',
                   style: TextStyle(
                     color: Colors.white,
@@ -468,7 +464,7 @@ class _WasteManagementPageState extends State<WasteManagementPage>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        TranslatedText(
           'Collection Schedule',
           style: TextStyle(
             fontSize: 20,
@@ -550,7 +546,7 @@ class _WasteManagementPageState extends State<WasteManagementPage>
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
+                        TranslatedText(
                           ward,
                           style: const TextStyle(
                             fontSize: 16,
@@ -567,7 +563,7 @@ class _WasteManagementPageState extends State<WasteManagementPage>
                             color: statusColor,
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: Text(
+                          child: TranslatedText(
                             status,
                             style: const TextStyle(
                               color: Colors.white,
@@ -579,7 +575,7 @@ class _WasteManagementPageState extends State<WasteManagementPage>
                       ],
                     ),
                     const SizedBox(height: 4),
-                    Text(
+                    TranslatedText(
                       time,
                       style: const TextStyle(
                         fontSize: 14,
@@ -597,7 +593,7 @@ class _WasteManagementPageState extends State<WasteManagementPage>
             children: [
               const Icon(Icons.schedule, size: 16, color: Color(0xFF718096)),
               const SizedBox(width: 8),
-              Text(
+              TranslatedText(
                 days,
                 style: const TextStyle(fontSize: 14, color: Color(0xFF718096)),
               ),
@@ -631,7 +627,7 @@ class _WasteManagementPageState extends State<WasteManagementPage>
                 child: const Text('♻️', style: TextStyle(fontSize: 20)),
               ),
               const SizedBox(width: 12),
-              const Text(
+              TranslatedText(
                 'Waste Separation Tips',
                 style: TextStyle(
                   fontSize: 16,
@@ -653,7 +649,7 @@ class _WasteManagementPageState extends State<WasteManagementPage>
   Widget _buildTipItem(String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: Text(
+      child: TranslatedText(
         text,
         style: const TextStyle(
           fontSize: 14,

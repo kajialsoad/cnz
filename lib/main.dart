@@ -1,34 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+
 import 'config/api_config.dart';
 import 'guards/auth_guard.dart';
-import 'providers/language_provider.dart';
-import 'providers/complaint_provider.dart';
-import 'repositories/complaint_repository.dart';
-import 'services/auth_service.dart';
-import 'services/api_client.dart';
-import 'pages/welcome_screen.dart';
-import 'pages/login_page.dart';
-import 'pages/signup_page.dart';
-import 'pages/home_page.dart';
-import 'pages/customer_care_page.dart';
-import 'pages/live_chat_page.dart';
-import 'pages/complaint_page.dart';
-import 'pages/complaint_details_page.dart';
+import 'pages/camera_page.dart';
+import 'pages/category_selection_page.dart';
 import 'pages/complaint_address_page.dart';
-import 'pages/complaint_success_page.dart';
-import 'pages/complaint_list_page.dart';
 import 'pages/complaint_detail_view_page.dart';
-import 'pages/others_page.dart';
-import 'pages/payment_page.dart';
+import 'pages/complaint_details_page.dart';
+import 'pages/complaint_list_page.dart';
+import 'pages/complaint_page.dart';
+import 'pages/complaint_success_page.dart';
+import 'pages/customer_care_page.dart';
 import 'pages/emergency_page.dart';
-import 'pages/waste_management_page.dart';
 import 'pages/gallery_page.dart';
-import 'pages/profile_settings_page.dart';
 import 'pages/government_calendar_page.dart';
+import 'pages/home_page.dart';
+import 'pages/live_chat_page.dart';
+import 'pages/login_page.dart';
 import 'pages/notice_board_page.dart';
 import 'pages/onboarding_screen.dart';
+import 'pages/others_page.dart';
+import 'pages/payment_page.dart';
+import 'pages/profile_settings_page.dart';
+import 'pages/signup_page.dart';
+import 'pages/waste_management_page.dart';
+import 'pages/welcome_screen.dart';
+import 'providers/complaint_provider.dart';
+import 'providers/language_provider.dart';
+import 'repositories/complaint_repository.dart';
+import 'services/api_client.dart';
+import 'services/auth_service.dart';
 
 void main() {
   runApp(
@@ -158,11 +161,13 @@ class MyApp extends StatelessWidget {
         '/complaint-list': (_) => const AuthGuard(child: ComplaintListPage()),
         '/complaint-detail-view': (_) => const AuthGuard(child: ComplaintDetailViewPage()),
         '/others': (_) => const AuthGuard(child: OthersPage()),
+        '/category-selection': (_) => const AuthGuard(child: CategorySelectionPage()),
         '/payment': (_) => const AuthGuard(child: PaymentPage()),
         '/donation': (_) => const AuthGuard(child: PaymentPage()),
         '/emergency': (_) => const AuthGuard(child: EmergencyPage()),
         '/waste-management': (_) => const AuthGuard(child: WasteManagementPage()),
         '/gallery': (_) => const AuthGuard(child: GalleryPage()),
+        '/camera': (_) => const AuthGuard(child: CameraPage()),
         '/profile-settings': (_) => const AuthGuard(child: ProfileSettingsPage()),
         '/government-calendar': (_) => const AuthGuard(child: GovernmentCalendarPage()),
         '/notice-board': (_) => const AuthGuard(child: NoticeBoardPage()),

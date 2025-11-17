@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+
 import '../components/custom_bottom_nav.dart';
 import '../widgets/translated_text.dart';
 
@@ -548,7 +549,7 @@ class _PaymentPageState extends State<PaymentPage>
 
   Widget _buildServiceDropdown() {
     return DropdownButtonFormField<String>(
-      initialValue: selectedService,
+      value: selectedService,
       onChanged: (value) {
         setState(() {
           selectedService = value!;

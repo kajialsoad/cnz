@@ -1,8 +1,10 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+
+import '../config/api_config.dart';
 import '../repositories/auth_repository.dart';
 import '../services/api_client.dart';
-import '../config/api_config.dart';
-import 'dart:math' as math;
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -220,20 +222,26 @@ class _SignUpPageState extends State<SignUpPage> {
         title: const Text('Create Account'),
         leading: const BackButton(),
       ),
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: Opacity(
-              opacity: 0.05,
-              child: Container(color: const Color(0xFFF2F4F5)),
+      body: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: Opacity(
+                opacity: 0.05,
+                child: Container(color: const Color(0xFFF2F4F5)),
+              ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Form(
-              key: _formKey,
-              child: SingleChildScrollView(
-                child: Column(
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Form(
+                key: _formKey,
+                child: ScrollConfiguration(
+                  behavior: ScrollConfiguration.of(context).copyWith(
+                    scrollbars: false,
+                  ),
+                  child: SingleChildScrollView(
+                    child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     TextFormField(
@@ -390,10 +398,12 @@ class _SignUpPageState extends State<SignUpPage> {
                     ),
                   ],
                 ),
+                  ),
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

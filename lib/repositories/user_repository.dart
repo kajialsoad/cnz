@@ -1,5 +1,5 @@
-import '../services/api_client.dart';
 import '../models/user_model.dart';
+import '../services/api_client.dart';
 
 class UserRepository {
   final ApiClient api;
@@ -25,6 +25,7 @@ class UserRepository {
     String? firstName,
     String? lastName,
     String? phone,
+    String? email,
     String? avatar,
   }) async {
     try {
@@ -32,9 +33,10 @@ class UserRepository {
       if (firstName != null) body['firstName'] = firstName;
       if (lastName != null) body['lastName'] = lastName;
       if (phone != null) body['phone'] = phone;
+      if (email != null) body['email'] = email;
       if (avatar != null) body['avatar'] = avatar;
 
-      final data = await api.post('/api/users/me', body);
+      final data = await api.put('/api/users/profile', body);
       
       if (data['user'] != null) {
         return UserModel.fromJson(data['user'] as Map<String, dynamic>);

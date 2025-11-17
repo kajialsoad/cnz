@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:url_launcher/url_launcher.dart';
+
 import '../components/custom_bottom_nav.dart';
 import '../widgets/translated_text.dart';
 
@@ -132,13 +133,8 @@ class _EmergencyPageState extends State<EmergencyPage>
               Navigator.pushReplacementNamed(context, '/gallery');
               break;
             case 4:
-              // QR Scanner
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: TranslatedText('QR Scanner opening...'),
-                  backgroundColor: Color(0xFF2E8B57),
-                ),
-              );
+              // Camera
+              Navigator.pushNamed(context, '/camera');
               break;
           }
         },

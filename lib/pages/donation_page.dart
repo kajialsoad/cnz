@@ -537,7 +537,7 @@ class _DonationPageState extends State<DonationPage>
 
   Widget _buildCauseDropdown() {
     return DropdownButtonFormField<String>(
-      initialValue: selectedCause,
+      value: selectedCause,
       onChanged: (value) {
         setState(() {
           selectedCause = value!;

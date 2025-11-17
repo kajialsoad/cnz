@@ -1,16 +1,16 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
-import 'dart:math' as math;
-import '../components/elevated_3d_button.dart';
-import '../components/dscc_notice_board.dart';
-import '../components/stats_card.dart';
+
 import '../components/custom_bottom_nav.dart';
+import '../components/dscc_notice_board.dart';
+import '../components/elevated_3d_button.dart';
 import '../components/mayor_statement_banner.dart';
 import '../providers/language_provider.dart';
-import '../widgets/translated_text.dart';
 import '../services/auth_service.dart';
+import '../widgets/translated_text.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -25,12 +25,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   int _currentIndex = 0;
 
   static const Color green = Color(0xFF2E8B57);
-  static const Color greenLight = Color(0xFF3CB371);
-  static const Color greenSoft = Color(0xFF7CC289);
-  static const Color yellow = Color(0xFFF6D66B);
-  static const Color yellowLight = Color(0xFFFFE55C);
-  static const Color red = Color(0xFFE86464);
-  static const Color redLight = Color(0xFFFF6B6B);
 
   @override
   void initState() {
@@ -89,11 +83,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: const DSCCNoticeBoard(),
-                    ),
-                    const SizedBox(height: 20),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: _buildStatsCards(),
                     ),
                     const SizedBox(height: 30),
                   ],
@@ -514,42 +503,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildBackgroundIcons() {
-    return AnimatedBuilder(
-      animation: _floatingController,
-      builder: (context, child) {
-        return Stack(
-          children: [
-            Positioned(
-              top: 50 + _floatingController.value * 10,
-              left: 30,
-              child: Opacity(
-                opacity: 0.1,
-                child: Icon(Icons.eco, size: 40, color: green),
-              ),
-            ),
-            Positioned(
-              top: 100 + _floatingController.value * 15,
-              right: 40,
-              child: Opacity(
-                opacity: 0.08,
-                child: Icon(Icons.recycling, size: 50, color: yellow),
-              ),
-            ),
-            Positioned(
-              bottom: 80 + _floatingController.value * 12,
-              left: 50,
-              child: Opacity(
-                opacity: 0.06,
-                child: Icon(Icons.nature, size: 35, color: greenSoft),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   Widget _buildFlowerPetalLayout(double diameter) {
     // Using fixed dimensions for consistent mobile experience
 
@@ -588,7 +541,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 Flexible(
                   child: buildCircleButton(
                     title: "Customer Care",
-                    subtitle: "24/7 Support",
+                    subtitle: "",
                     icon: Icons.headset_mic,
                     primary: const Color(0xFFFF2424),
                     secondary: const Color(0xFFFF2424).withOpacity(0.8),
@@ -599,7 +552,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 Flexible(
                   child: buildCircleButton(
                     title: "Live Chat",
-                    subtitle: "Instant Help",
+                    subtitle: "",
                     icon: Icons.chat_bubble_outline,
                     primary: const Color(0xFF36724A),
                     secondary: const Color(0xFF36724A).withOpacity(0.8),
@@ -615,7 +568,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 Flexible(
                   child: buildCircleButton(
                     title: "Payment Gateway",
-                    subtitle: "Pay Bills",
+                    subtitle: "",
                     icon: Icons.credit_card,
                     primary: const Color(0xFF36724A),
                     secondary: const Color(0xFF36724A).withOpacity(0.8),
@@ -626,7 +579,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 Flexible(
                   child: buildCircleButton(
                     title: "Donation",
-                    subtitle: "Help City",
+                    subtitle: "",
                     icon: Icons.favorite_border,
                     primary: const Color(0xFFFF2424),
                     secondary: const Color(0xFFFF2424).withOpacity(0.8),
@@ -662,7 +615,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             color: Colors.transparent,
             child: InkWell(
               borderRadius: BorderRadius.circular(70), // Updated for new size
-              onTap: () => _navigateToPage('/complaint'),
+              onTap: _showComplaintConfirmation,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -694,32 +647,68 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildStatsCards() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Row(
-        children: [
-          Expanded(
-            child: StatsCard(
-              title: "Active Support",
-              value: "24/7",
-              icon: Icons.support_agent,
-              primaryColor: greenSoft,
-              secondaryColor: const Color(0xFF90EE90),
-            ),
+  void _showComplaintConfirmation() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: StatsCard(
-              title: "Issues Resolved",
-              value: "1500+",
-              icon: Icons.volunteer_activism,
-              primaryColor: yellow,
-              secondaryColor: yellowLight,
-            ),
+          title: Row(
+            children: [
+              Icon(Icons.report_problem, color: Color(0xFF2E8B57)),
+              SizedBox(width: 8),
+              Expanded(
+                child: TranslatedText(
+                  'Submit Complaint',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+          content: TranslatedText(
+            'Are you sure you want to add a complaint?',
+            style: TextStyle(fontSize: 14),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.grey[600],
+              ),
+              child: TranslatedText(
+                'No',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _navigateToPage('/complaint');
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Color(0xFF2E8B57),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
+              ),
+              child: TranslatedText(
+                'Yes',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -738,8 +727,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         _navigateToPage('/gallery');
         break;
       case 4:
-        // QR Scanner
-        _showQRScanner();
+        // Camera
+        _openCamera();
         break;
     }
   }
@@ -748,25 +737,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     Navigator.pushNamed(context, route);
   }
 
-  void _showQRScanner() {
-    // TODO: Implement QR scanner
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: TranslatedText(
-          'QR Scanner opening...',
-          style: TextStyle(color: Colors.white),
-        ),
-        backgroundColor: Color(0xFF2E8B57),
-      ),
-    );
+  void _openCamera() {
+    Navigator.pushNamed(context, '/camera');
   }
 
   void _handleLanguageSwitch() {
-    final languageProvider = Provider.of<LanguageProvider>(
-      context,
-      listen: false,
-    );
-
     // Show language selection dialog
     showDialog(
       context: context,
@@ -847,10 +822,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
     await languageProvider.setLanguage(languageCode);
 
-    String message = languageCode == 'en'
-        ? 'English Language Selected'
-        : 'বাংলা ভাষা নির্বাচিত হয়েছে';
-
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: TranslatedText(
@@ -906,8 +877,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   void _handleLogout() async {
     // Capture context before any async operations
     final navigator = Navigator.of(context);
-
-    // Show confirmation dialog
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(

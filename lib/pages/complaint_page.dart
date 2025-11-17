@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
+
 import '../components/custom_bottom_nav.dart';
-import '../widgets/translated_text.dart';
 import '../providers/complaint_provider.dart';
+import '../widgets/translated_text.dart';
 
 class ComplaintPage extends StatefulWidget {
   const ComplaintPage({super.key});
@@ -15,6 +16,19 @@ class ComplaintPage extends StatefulWidget {
 class _ComplaintPageState extends State<ComplaintPage> {
   int _currentIndex = 0;
   String? selectedComplaintType;
+  String? capturedImagePath;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Check if an image path was passed from camera
+    final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    if (args != null && args.containsKey('imagePath')) {
+      setState(() {
+        capturedImagePath = args['imagePath'] as String;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -106,8 +120,14 @@ class _ComplaintPageState extends State<ComplaintPage> {
             setState(() {
               selectedComplaintType = 'own_residence';
             });
-            // Navigate to complaint details page
-            Navigator.pushNamed(context, '/complaint-details');
+            // Navigate to complaint details page with captured image if available
+            Navigator.pushNamed(
+              context, 
+              '/complaint-details',
+              arguments: capturedImagePath != null 
+                ? {'imagePath': capturedImagePath}
+                : null,
+            );
           },
         ),
         const SizedBox(height: 24),
@@ -124,8 +144,14 @@ class _ComplaintPageState extends State<ComplaintPage> {
             setState(() {
               selectedComplaintType = 'others';
             });
-            // Navigate to others page to show all options
-            Navigator.pushNamed(context, '/others');
+            // Navigate to others page to show all options with captured image if available
+            Navigator.pushNamed(
+              context, 
+              '/others',
+              arguments: capturedImagePath != null 
+                ? {'imagePath': capturedImagePath}
+                : null,
+            );
           },
         ),
       ],
@@ -215,6 +241,10 @@ class _ComplaintPageState extends State<ComplaintPage> {
         break;
       case 3:
         Navigator.pushReplacementNamed(context, '/gallery');
+        break;
+      case 4:
+        // Camera
+        Navigator.pushNamed(context, '/camera');
         break;
     }
   }

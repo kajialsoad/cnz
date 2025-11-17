@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../components/custom_bottom_nav.dart';
 import '../providers/complaint_provider.dart';
-import '../widgets/translated_text.dart';
 
 class ComplaintAddressPage extends StatefulWidget {
   const ComplaintAddressPage({super.key});
@@ -259,7 +259,7 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
             ],
           ),
           child: DropdownButtonFormField<String>(
-            initialValue: value,
+            value: value,
             decoration: InputDecoration(
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 16,

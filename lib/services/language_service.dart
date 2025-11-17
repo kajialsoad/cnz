@@ -8,7 +8,7 @@ class LanguageService {
   // Get current language
   static Future<String> getCurrentLanguage() async {
     final sp = await SharedPreferences.getInstance();
-    return sp.getString(_languageKey) ?? ENGLISH;
+    return sp.getString(_languageKey) ?? BANGLA;
   }
 
   // Set language
