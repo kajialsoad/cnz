@@ -588,7 +588,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 Flexible(
                   child: buildCircleButton(
                     title: "Customer Care",
-                    subtitle: "24/7 Support",
+                    subtitle: "",
                     icon: Icons.headset_mic,
                     primary: const Color(0xFFFF2424),
                     secondary: const Color(0xFFFF2424).withOpacity(0.8),
@@ -599,7 +599,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 Flexible(
                   child: buildCircleButton(
                     title: "Live Chat",
-                    subtitle: "Instant Help",
+                    subtitle: "",
                     icon: Icons.chat_bubble_outline,
                     primary: const Color(0xFF36724A),
                     secondary: const Color(0xFF36724A).withOpacity(0.8),
@@ -615,7 +615,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 Flexible(
                   child: buildCircleButton(
                     title: "Payment Gateway",
-                    subtitle: "Pay Bills",
+                    subtitle: "",
                     icon: Icons.credit_card,
                     primary: const Color(0xFF36724A),
                     secondary: const Color(0xFF36724A).withOpacity(0.8),
@@ -626,7 +626,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 Flexible(
                   child: buildCircleButton(
                     title: "Donation",
-                    subtitle: "Help City",
+                    subtitle: "",
                     icon: Icons.favorite_border,
                     primary: const Color(0xFFFF2424),
                     secondary: const Color(0xFFFF2424).withOpacity(0.8),
