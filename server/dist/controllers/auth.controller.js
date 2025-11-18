@@ -10,6 +10,8 @@ exports.resetPassword = resetPassword;
 exports.verifyEmail = verifyEmail;
 exports.updateProfile = updateProfile;
 exports.resendVerificationEmail = resendVerificationEmail;
+exports.verifyEmailWithCode = verifyEmailWithCode;
+exports.resendVerificationCode = resendVerificationCode;
 const auth_service_1 = require("../services/auth.service");
 const zod_1 = require("zod");
 const registerSchema = zod_1.z.object({
@@ -232,6 +234,56 @@ async function resendVerificationEmail(req, res) {
         return res.status(400).json({
             success: false,
             message: err?.message ?? 'Failed to resend verification email'
+        });
+    }
+}
+// Verification code endpoint schemas
+const verifyEmailCodeSchema = zod_1.z.object({
+    email: zod_1.z.string().email(),
+    code: zod_1.z.string().length(6, 'Verification code must be 6 digits'),
+});
+const resendVerificationCodeSchema = zod_1.z.object({
+    email: zod_1.z.string().email(),
+});
+// 7.2 Verify email with code endpoint
+async function verifyEmailWithCode(req, res) {
+    try {
+        const body = verifyEmailCodeSchema.parse(req.body);
+        const result = await auth_service_1.authService.verifyEmailWithCode(body.email, body.code);
+        return res.status(200).json(result);
+    }
+    catch (err) {
+        if (err?.name === 'ZodError') {
+            return res.status(400).json({
+                success: false,
+                message: 'Validation error',
+                issues: err.issues
+            });
+        }
+        return res.status(400).json({
+            success: false,
+            message: err?.message ?? 'Email verification failed'
+        });
+    }
+}
+// 7.3 Resend verification code endpoint
+async function resendVerificationCode(req, res) {
+    try {
+        const body = resendVerificationCodeSchema.parse(req.body);
+        const result = await auth_service_1.authService.resendVerificationCode(body.email);
+        return res.status(200).json(result);
+    }
+    catch (err) {
+        if (err?.name === 'ZodError') {
+            return res.status(400).json({
+                success: false,
+                message: 'Validation error',
+                issues: err.issues
+            });
+        }
+        return res.status(400).json({
+            success: false,
+            message: err?.message ?? 'Failed to resend verification code'
         });
     }
 }

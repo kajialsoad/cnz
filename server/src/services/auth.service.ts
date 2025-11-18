@@ -146,10 +146,10 @@ export class AuthService {
       throw new Error('Account is suspended');
     }
 
-    // Allow login without email verification for now
-    // if (user.status === UserStatus.PENDING && !user.emailVerified) {
-    //   throw new Error('Please verify your email first');
-    // }
+    // Check if email is verified for pending accounts
+    if (user.status === UserStatus.PENDING && !user.emailVerified) {
+      throw new Error('Please verify your email first');
+    }
 
     const isPasswordValid = await compare(input.password, user.passwordHash);
     if (!isPasswordValid) {

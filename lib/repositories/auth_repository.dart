@@ -133,4 +133,37 @@ class AuthRepository {
       throw Exception('Logout failed: ${e.toString()}');
     }
   }
+
+  Future<void> verifyEmail(String email, String code) async {
+    try {
+      final data = await api.post('/api/auth/verify-email', {
+        'email': email,
+        'code': code,
+      });
+
+      if (data['success'] != true) {
+        throw Exception(data['message'] ?? 'Verification failed');
+      }
+    } on ApiException catch (e) {
+      throw Exception(e.message);
+    } catch (e) {
+      throw Exception('Email verification failed: ${e.toString()}');
+    }
+  }
+
+  Future<void> resendVerificationCode(String email) async {
+    try {
+      final data = await api.post('/api/auth/resend-verification', {
+        'email': email,
+      });
+
+      if (data['success'] != true) {
+        throw Exception(data['message'] ?? 'Failed to resend code');
+      }
+    } on ApiException catch (e) {
+      throw Exception(e.message);
+    } catch (e) {
+      throw Exception('Failed to resend verification code: ${e.toString()}');
+    }
+  }
 }

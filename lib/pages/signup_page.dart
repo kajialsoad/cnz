@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../config/api_config.dart';
 import '../repositories/auth_repository.dart';
@@ -20,12 +22,23 @@ class _SignUpPageState extends State<SignUpPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _roadController = TextEditingController();
+  final _codeControllers = List.generate(6, (_) => TextEditingController());
+  final _codeFocusNodes = List.generate(6, (_) => FocusNode());
   bool _obscure = true;
   bool _agree = false;
   bool _nidAttached = false;
   String? _city;
   int? _ward;
   late final AuthRepository _auth;
+  
+  // Email verification state
+  bool _showVerificationSection = false;
+  bool _isVerifying = false;
+  bool _isSendingCode = false;
+  int _resendCountdown = 0;
+  int _expirySeconds = 900; // 15 minutes
+  Timer? _resendTimer;
+  Timer? _expiryTimer;
 
   @override
   void initState() {
@@ -40,10 +53,128 @@ class _SignUpPageState extends State<SignUpPage> {
     _emailController.dispose();
     _passwordController.dispose();
     _roadController.dispose();
+    for (var controller in _codeControllers) {
+      controller.dispose();
+    }
+    for (var node in _codeFocusNodes) {
+      node.dispose();
+    }
+    _resendTimer?.cancel();
+    _expiryTimer?.cancel();
     super.dispose();
   }
 
   bool _isLoading = false;
+
+  void _startExpiryTimer() {
+    _expiryTimer?.cancel();
+    _expirySeconds = 900; // Reset to 15 minutes
+    _expiryTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_expirySeconds > 0) {
+        setState(() => _expirySeconds--);
+      } else {
+        timer.cancel();
+      }
+    });
+  }
+
+  void _startResendCountdown() {
+    _resendCountdown = 60;
+    _resendTimer?.cancel();
+    _resendTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_resendCountdown > 0) {
+        setState(() => _resendCountdown--);
+      } else {
+        timer.cancel();
+      }
+    });
+  }
+
+  Future<void> _sendVerificationCode() async {
+    setState(() => _isSendingCode = true);
+    
+    try {
+      final email = _emailController.text.trim();
+      await _auth.resendVerificationCode(email);
+      
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('ভেরিফিকেশন কোড পাঠানো হয়েছে ✓'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      
+      _startResendCountdown();
+      _startExpiryTimer();
+    } catch (e) {
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('কোড পাঠাতে ব্যর্থ: ${e.toString().replaceAll('Exception: ', '')}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSendingCode = false);
+      }
+    }
+  }
+
+  Future<void> _verifyCode() async {
+    final code = _codeControllers.map((c) => c.text).join();
+    
+    if (code.length != 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('৬ ডিজিটের কোড দিন')),
+      );
+      return;
+    }
+    
+    setState(() => _isVerifying = true);
+    
+    try {
+      final email = _emailController.text.trim();
+      await _auth.verifyEmail(email, code);
+      
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('ইমেইল ভেরিফাই সফল! এখন লগইন করুন ✓'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      
+      Navigator.pushReplacementNamed(context, '/login');
+    } catch (e) {
+      if (!mounted) return;
+      
+      String errorMessage = 'ভেরিফিকেশন ব্যর্থ';
+      final errorStr = e.toString();
+      
+      if (errorStr.contains('Invalid') || errorStr.contains('incorrect')) {
+        errorMessage = 'ভুল কোড দিয়েছেন';
+      } else if (errorStr.contains('expired')) {
+        errorMessage = 'কোডের মেয়াদ শেষ, নতুন কোড পাঠান';
+      }
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errorMessage),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isVerifying = false);
+      }
+    }
+  }
 
   Future<void> _submit() async {
     final valid = _formKey.currentState?.validate() ?? false;
@@ -76,17 +207,23 @@ class _SignUpPageState extends State<SignUpPage> {
 
       if (!mounted) return;
 
+      // Show verification section instead of navigating away
+      setState(() {
+        _showVerificationSection = true;
+        _isLoading = false;
+      });
+      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'রেজিস্ট্রেশন সফল! $name এর জন্য একাউন্ট তৈরি হয়েছে ✓\nইমেইল ভেরিফাই করুন',
+            'রেজিস্ট্রেশন সফল! $email এ ভেরিফিকেশন কোড পাঠানো হয়েছে',
           ),
           backgroundColor: Colors.green,
           duration: const Duration(seconds: 4),
         ),
       );
-
-      Navigator.pushReplacementNamed(context, '/login');
+      
+      _startExpiryTimer();
     } catch (e) {
       if (!mounted) return;
 
@@ -113,10 +250,8 @@ class _SignUpPageState extends State<SignUpPage> {
           duration: const Duration(seconds: 4),
         ),
       );
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      
+      setState(() => _isLoading = false);
     }
   }
 
@@ -396,6 +531,214 @@ class _SignUpPageState extends State<SignUpPage> {
                         ),
                       ],
                     ),
+                    
+                    // Email Verification Section
+                    if (_showVerificationSection) ...[
+                      const SizedBox(height: 32),
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2E8B57).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFF2E8B57).withOpacity(0.3)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.email_outlined, color: const Color(0xFF2E8B57)),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'ইমেইল ভেরিফিকেশন',
+                                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: const Color(0xFF2E8B57),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'আপনার ইমেইল ${_emailController.text} এ ভেরিফিকেশন কোড পাঠানো হয়েছে',
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                            const SizedBox(height: 16),
+                            
+                            // Timer display
+                            if (_expirySeconds > 0)
+                              Container(
+                                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                                decoration: BoxDecoration(
+                                  color: Colors.orange.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.timer_outlined, size: 16, color: Colors.orange[700]),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'কোড মেয়াদ: ${(_expirySeconds ~/ 60).toString().padLeft(2, '0')}:${(_expirySeconds % 60).toString().padLeft(2, '0')}',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.orange[700],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            else
+                              Container(
+                                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.error_outline, size: 16, color: Colors.red[700]),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'কোডের মেয়াদ শেষ',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.red[700],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            
+                            const SizedBox(height: 20),
+                            
+                            // 6-digit code input
+                            Text(
+                              'ভেরিফিকেশন কোড',
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: List.generate(6, (index) {
+                                return SizedBox(
+                                  width: 45,
+                                  child: TextFormField(
+                                    controller: _codeControllers[index],
+                                    focusNode: _codeFocusNodes[index],
+                                    textAlign: TextAlign.center,
+                                    keyboardType: TextInputType.number,
+                                    maxLength: 1,
+                                    style: const TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    decoration: InputDecoration(
+                                      counterText: '',
+                                      filled: true,
+                                      fillColor: Colors.white,
+                                      contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        borderSide: BorderSide(color: Colors.grey[300]!),
+                                      ),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        borderSide: BorderSide(color: Colors.grey[300]!),
+                                      ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        borderSide: const BorderSide(color: Color(0xFF2E8B57), width: 2),
+                                      ),
+                                    ),
+                                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                                    onChanged: (value) {
+                                      if (value.isNotEmpty && index < 5) {
+                                        _codeFocusNodes[index + 1].requestFocus();
+                                      }
+                                    },
+                                    onTap: () {
+                                      _codeControllers[index].selection = TextSelection(
+                                        baseOffset: 0,
+                                        extentOffset: _codeControllers[index].text.length,
+                                      );
+                                    },
+                                  ),
+                                );
+                              }),
+                            ),
+                            
+                            const SizedBox(height: 20),
+                            
+                            // Verify button
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                onPressed: _isVerifying ? null : _verifyCode,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF2E8B57),
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(28),
+                                  ),
+                                ),
+                                child: _isVerifying
+                                    ? const SizedBox(
+                                        height: 20,
+                                        width: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                        ),
+                                      )
+                                    : const Text('ভেরিফাই করুন', style: TextStyle(fontSize: 16)),
+                              ),
+                            ),
+                            
+                            const SizedBox(height: 12),
+                            
+                            // Resend code button
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: (_isSendingCode || _resendCountdown > 0) ? null : _sendVerificationCode,
+                                icon: _isSendingCode
+                                    ? const SizedBox(
+                                        height: 16,
+                                        width: 16,
+                                        child: CircularProgressIndicator(strokeWidth: 2),
+                                      )
+                                    : const Icon(Icons.refresh),
+                                label: Text(
+                                  _resendCountdown > 0
+                                      ? 'পুনরায় পাঠান (${_resendCountdown}s)'
+                                      : 'নতুন কোড পাঠান',
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(28),
+                                  ),
+                                  side: BorderSide(
+                                    color: (_isSendingCode || _resendCountdown > 0)
+                                        ? Colors.grey[300]!
+                                        : const Color(0xFF2E8B57),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
                 ),
                   ),

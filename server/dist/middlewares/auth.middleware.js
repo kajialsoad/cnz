@@ -4,6 +4,8 @@ exports.authGuard = authGuard;
 exports.rbacGuard = rbacGuard;
 exports.optionalAuth = optionalAuth;
 exports.createRateLimiter = createRateLimiter;
+exports.createEmailRateLimiter = createEmailRateLimiter;
+exports.createCodeRateLimiter = createCodeRateLimiter;
 const jwt_1 = require("../utils/jwt");
 function authGuard(req, res, next) {
     const auth = req.headers.authorization;
@@ -72,6 +74,64 @@ function createRateLimiter(windowMs, max, message) {
     const requests = new Map();
     return (req, res, next) => {
         const key = req.ip || 'unknown';
+        const now = Date.now();
+        const current = requests.get(key);
+        if (!current || now > current.resetTime) {
+            requests.set(key, { count: 1, resetTime: now + windowMs });
+            return next();
+        }
+        if (current.count >= max) {
+            return res.status(429).json({
+                success: false,
+                message,
+                retryAfter: Math.ceil((current.resetTime - now) / 1000)
+            });
+        }
+        current.count++;
+        next();
+    };
+}
+// Email-based rate limiting middleware for verification code requests
+function createEmailRateLimiter(windowMs, max, message) {
+    const requests = new Map();
+    return (req, res, next) => {
+        const email = req.body?.email || req.query?.email;
+        if (!email) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email is required'
+            });
+        }
+        const key = String(email).toLowerCase();
+        const now = Date.now();
+        const current = requests.get(key);
+        if (!current || now > current.resetTime) {
+            requests.set(key, { count: 1, resetTime: now + windowMs });
+            return next();
+        }
+        if (current.count >= max) {
+            return res.status(429).json({
+                success: false,
+                message,
+                retryAfter: Math.ceil((current.resetTime - now) / 1000)
+            });
+        }
+        current.count++;
+        next();
+    };
+}
+// Code-based rate limiting middleware for verification attempts
+function createCodeRateLimiter(windowMs, max, message) {
+    const requests = new Map();
+    return (req, res, next) => {
+        const email = req.body?.email;
+        if (!email) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email is required'
+            });
+        }
+        const key = String(email).toLowerCase();
         const now = Date.now();
         const current = requests.get(key);
         if (!current || now > current.resetTime) {

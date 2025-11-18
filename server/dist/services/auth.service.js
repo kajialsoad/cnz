@@ -113,10 +113,10 @@ class AuthService {
         if (user.status === client_1.UserStatus.SUSPENDED) {
             throw new Error('Account is suspended');
         }
-        // Allow login without email verification for now
-        // if (user.status === UserStatus.PENDING && !user.emailVerified) {
-        //   throw new Error('Please verify your email first');
-        // }
+        // Check if email is verified for pending accounts
+        if (user.status === client_1.UserStatus.PENDING && !user.emailVerified) {
+            throw new Error('Please verify your email first');
+        }
         const isPasswordValid = await (0, bcrypt_1.compare)(input.password, user.passwordHash);
         if (!isPasswordValid) {
             throw new Error('Invalid credentials');

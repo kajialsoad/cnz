@@ -38,10 +38,16 @@ const auth_service_1 = require("../services/auth.service");
 const validation_1 = require("../utils/validation");
 const validation_2 = require("../utils/validation");
 const auth_middleware_1 = require("../middlewares/auth.middleware");
+const authController = __importStar(require("../controllers/auth.controller"));
 const router = (0, express_1.Router)();
 // Rate limiters (increased for development)
 const authRateLimiter = (0, auth_middleware_1.createRateLimiter)(15 * 60 * 1000, 50, 'Too many authentication attempts. Please try again later.');
 const registrationRateLimiter = (0, auth_middleware_1.createRateLimiter)(60 * 60 * 1000, 50, 'Too many registration attempts. Please try again later.');
+// Email verification rate limiters
+// 3 requests per 15 minutes per email for resend verification
+const resendVerificationRateLimiter = (0, auth_middleware_1.createEmailRateLimiter)(15 * 60 * 1000, 3, 'Too many verification code requests. Please try again in 15 minutes.');
+// 5 attempts per 15 minutes per email for verification
+const verifyEmailRateLimiter = (0, auth_middleware_1.createCodeRateLimiter)(15 * 60 * 1000, 5, 'Too many verification attempts. Please try again in 15 minutes.');
 // Register endpoint
 router.post('/register', registrationRateLimiter, async (req, res) => {
     try {
@@ -253,6 +259,10 @@ router.post('/resend-verification', async (req, res) => {
         });
     }
 });
+// Verify email with code endpoint (new verification flow)
+router.post('/verify-email-code', verifyEmailRateLimiter, authController.verifyEmailWithCode);
+// Resend verification code endpoint
+router.post('/resend-verification-code', resendVerificationRateLimiter, authController.resendVerificationCode);
 // Test email service connection endpoint (for development/testing)
 router.get('/test-email', async (req, res) => {
     try {
