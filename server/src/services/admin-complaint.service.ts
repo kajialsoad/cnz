@@ -131,7 +131,8 @@ export class AdminComplaintService {
                                 email: true,
                                 phone: true,
                                 ward: true,
-                                zone: true
+                                zone: true,
+                                address: true
                             }
                         }
                     }
@@ -179,6 +180,7 @@ export class AdminComplaintService {
                             phone: true,
                             ward: true,
                             zone: true,
+                            address: true,
                             createdAt: true
                         }
                     }

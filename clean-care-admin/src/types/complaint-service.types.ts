@@ -29,6 +29,9 @@ export interface Complaint {
         lastName: string;
         email: string;
         phone: string;
+        zone?: string | null;
+        ward?: string | null;
+        address?: string | null;
     };
     trackingNumber?: string;
     createdAt: string;

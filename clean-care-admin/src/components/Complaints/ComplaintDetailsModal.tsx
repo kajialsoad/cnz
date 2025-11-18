@@ -666,10 +666,39 @@ const ComplaintDetailsModal: React.FC<ComplaintDetailsModalProps> = ({
                                                     fontSize: { xs: '0.75rem', sm: '1rem' }
                                                 }}
                                             >
-                                                {complaint.user.email}
+                                                {complaint.user.email || 'Not provided'}
                                             </Typography>
                                         </Box>
                                     </Box>
+                                    <Box>
+                                        <Typography variant={isMobile ? 'caption' : 'body2'} color="text.secondary">
+                                            City Corporation
+                                        </Typography>
+                                        <Typography variant={isMobile ? 'body2' : 'body1'}>
+                                            {complaint.user.zone || 'N/A'}
+                                        </Typography>
+                                    </Box>
+                                    <Box>
+                                        <Typography variant={isMobile ? 'caption' : 'body2'} color="text.secondary">
+                                            Ward Number
+                                        </Typography>
+                                        <Typography variant={isMobile ? 'body2' : 'body1'}>
+                                            {complaint.user.ward ? `Ward ${complaint.user.ward}` : 'N/A'}
+                                        </Typography>
+                                    </Box>
+                                    {complaint.user.address && (
+                                        <Box sx={{ gridColumn: { xs: '1', sm: '1 / -1' } }}>
+                                            <Typography variant={isMobile ? 'caption' : 'body2'} color="text.secondary">
+                                                Citizen Address
+                                            </Typography>
+                                            <Typography
+                                                variant={isMobile ? 'body2' : 'body1'}
+                                                sx={{ wordBreak: 'break-word' }}
+                                            >
+                                                {complaint.user.address}
+                                            </Typography>
+                                        </Box>
+                                    )}
                                 </Box>
                             </Box>
 

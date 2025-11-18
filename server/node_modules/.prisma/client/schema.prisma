@@ -16,6 +16,7 @@ model User {
   firstName               String
   lastName                String
   avatar                  String?
+  address                 String?
   role                    UserRole                 @default(CUSTOMER)
   status                  UserStatus               @default(PENDING)
   emailVerified           Boolean                  @default(false)
