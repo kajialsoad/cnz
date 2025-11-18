@@ -16,14 +16,10 @@ model User {
   firstName               String
   lastName                String
   avatar                  String?
-  address                 String?
   role                    UserRole                 @default(CUSTOMER)
   status                  UserStatus               @default(PENDING)
   emailVerified           Boolean                  @default(false)
   phoneVerified           Boolean                  @default(false)
-  verificationCode        String?
-  verificationCodeExpiry  DateTime?
-  accountStatus           String                   @default("pending_verification")
   twoFactorEnabled        Boolean                  @default(false)
   twoFactorSecret         String?
   lastLoginAt             DateTime?
@@ -31,6 +27,10 @@ model User {
   updatedAt               DateTime                 @updatedAt
   ward                    String?
   zone                    String?
+  address                 String?
+  accountStatus           String                   @default("pending_verification")
+  verificationCode        String?
+  verificationCodeExpiry  DateTime?
   receivedMessages        ChatMessage[]            @relation("ReceivedMessages")
   sentMessages            ChatMessage[]            @relation("SentMessages")
   complaints              Complaint[]

@@ -56,11 +56,20 @@ export class AuthService {
 
     const hashedPassword = await hash(input.password, 12);
 
-    // Generate verification code
-    const verificationCode = this.generateVerificationCode();
-    const hashedCode = await this.hashVerificationCode(verificationCode);
-    const expiryMinutes = parseInt(process.env.VERIFICATION_CODE_EXPIRY_MINUTES || '15');
-    const verificationCodeExpiry = new Date(Date.now() + expiryMinutes * 60 * 1000);
+    // Check if email verification is enabled
+    const emailVerificationEnabled = process.env.EMAIL_VERIFICATION_ENABLED === 'true';
+
+    let verificationCode: string | null = null;
+    let hashedCode: string | null = null;
+    let verificationCodeExpiry: Date | null = null;
+
+    if (emailVerificationEnabled) {
+      // Generate verification code only if verification is enabled
+      verificationCode = this.generateVerificationCode();
+      hashedCode = await this.hashVerificationCode(verificationCode);
+      const expiryMinutes = parseInt(process.env.VERIFICATION_CODE_EXPIRY_MINUTES || '15');
+      verificationCodeExpiry = new Date(Date.now() + expiryMinutes * 60 * 1000);
+    }
 
     const user = await prisma.user.create({
       data: {
@@ -73,8 +82,8 @@ export class AuthService {
         zone: input.zone,
         address: input.address,
         role: input.role || UserRole.CUSTOMER,
-        status: UserStatus.PENDING,
-        emailVerified: false,
+        status: emailVerificationEnabled ? UserStatus.PENDING : UserStatus.ACTIVE,
+        emailVerified: !emailVerificationEnabled, // Mark as verified if verification is disabled
         phoneVerified: false,
         verificationCode: hashedCode,
         verificationCodeExpiry: verificationCodeExpiry,
@@ -93,9 +102,10 @@ export class AuthService {
       }
     });
 
-    // Send verification email (non-blocking)
-    if (user.email) {
+    // Send verification email only if verification is enabled (non-blocking)
+    if (emailVerificationEnabled && user.email && verificationCode) {
       try {
+        const expiryMinutes = parseInt(process.env.VERIFICATION_CODE_EXPIRY_MINUTES || '15');
         await emailService.sendVerificationEmail(user.email, {
           userName: user.firstName || 'User',
           verificationCode: verificationCode,
@@ -109,10 +119,12 @@ export class AuthService {
 
     return {
       success: true,
-      message: 'Registration successful. Please verify your email.',
+      message: emailVerificationEnabled
+        ? 'Registration successful. Please verify your email.'
+        : 'Registration successful. You can now login.',
       data: {
         email: user.email,
-        requiresVerification: true,
+        requiresVerification: emailVerificationEnabled,
         expiryTime: verificationCodeExpiry
       }
     };
@@ -146,8 +158,9 @@ export class AuthService {
       throw new Error('Account is suspended');
     }
 
-    // Check if email is verified for pending accounts
-    if (user.status === UserStatus.PENDING && !user.emailVerified) {
+    // Check if email verification is enabled and if email is verified for pending accounts
+    const emailVerificationEnabled = process.env.EMAIL_VERIFICATION_ENABLED === 'true';
+    if (emailVerificationEnabled && user.status === UserStatus.PENDING && !user.emailVerified) {
       throw new Error('Please verify your email first');
     }
 
