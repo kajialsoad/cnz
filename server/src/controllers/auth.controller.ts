@@ -84,7 +84,7 @@ export async function logout(req: AuthRequest, res: Response) {
 export async function me(req: AuthRequest, res: Response) {
   try {
     if (!req.user) return res.status(401).json({ message: 'Unauthorized' });
-    const user = await authService.getProfile(req.user.sub);
+    const user = await authService.getProfile(req.user.sub.toString());
     return res.status(200).json({ user });
   } catch (err: any) {
     return res.status(400).json({ message: err?.message ?? 'Failed to load user' });
@@ -99,21 +99,21 @@ export async function forgotPassword(req: AuthRequest, res: Response) {
   try {
     const body = forgotPasswordSchema.parse(req.body);
     await authService.forgotPassword(body.email);
-    return res.status(200).json({ 
+    return res.status(200).json({
       success: true,
-      message: 'Password reset email sent successfully' 
+      message: 'Password reset email sent successfully'
     });
   } catch (err: any) {
     if (err?.name === 'ZodError') {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: 'Validation error', 
-        issues: err.issues 
+        message: 'Validation error',
+        issues: err.issues
       });
     }
-    return res.status(400).json({ 
+    return res.status(400).json({
       success: false,
-      message: err?.message ?? 'Failed to send password reset email' 
+      message: err?.message ?? 'Failed to send password reset email'
     });
   }
 }
@@ -127,21 +127,21 @@ export async function resetPassword(req: AuthRequest, res: Response) {
   try {
     const body = resetPasswordSchema.parse(req.body);
     await authService.resetPassword(body.token, body.password);
-    return res.status(200).json({ 
+    return res.status(200).json({
       success: true,
-      message: 'Password reset successfully' 
+      message: 'Password reset successfully'
     });
   } catch (err: any) {
     if (err?.name === 'ZodError') {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: 'Validation error', 
-        issues: err.issues 
+        message: 'Validation error',
+        issues: err.issues
       });
     }
-    return res.status(400).json({ 
+    return res.status(400).json({
       success: false,
-      message: err?.message ?? 'Failed to reset password' 
+      message: err?.message ?? 'Failed to reset password'
     });
   }
 }
@@ -154,21 +154,21 @@ export async function verifyEmail(req: AuthRequest, res: Response) {
   try {
     const body = verifyEmailSchema.parse(req.body);
     await authService.verifyEmail(body.token);
-    return res.status(200).json({ 
+    return res.status(200).json({
       success: true,
-      message: 'Email verified successfully' 
+      message: 'Email verified successfully'
     });
   } catch (err: any) {
     if (err?.name === 'ZodError') {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: 'Validation error', 
-        issues: err.issues 
+        message: 'Validation error',
+        issues: err.issues
       });
     }
-    return res.status(400).json({ 
+    return res.status(400).json({
       success: false,
-      message: err?.message ?? 'Email verification failed' 
+      message: err?.message ?? 'Email verification failed'
     });
   }
 }
@@ -183,49 +183,101 @@ const updateProfileSchema = z.object({
 
 export async function updateProfile(req: AuthRequest, res: Response) {
   try {
-    if (!req.user) return res.status(401).json({ 
+    if (!req.user) return res.status(401).json({
       success: false,
-      message: 'Unauthorized' 
+      message: 'Unauthorized'
     });
-    
+
     const body = updateProfileSchema.parse(req.body);
-    const user = await authService.updateProfile(req.user.sub, body);
-    return res.status(200).json({ 
+    const user = await authService.updateProfile(req.user.sub.toString(), body);
+    return res.status(200).json({
       success: true,
       message: 'Profile updated successfully',
-      user 
+      user
     });
   } catch (err: any) {
     if (err?.name === 'ZodError') {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: 'Validation error', 
-        issues: err.issues 
+        message: 'Validation error',
+        issues: err.issues
       });
     }
-    return res.status(400).json({ 
+    return res.status(400).json({
       success: false,
-      message: err?.message ?? 'Failed to update profile' 
+      message: err?.message ?? 'Failed to update profile'
     });
   }
 }
 
 export async function resendVerificationEmail(req: AuthRequest, res: Response) {
   try {
-    if (!req.user) return res.status(401).json({ 
+    if (!req.user) return res.status(401).json({
       success: false,
-      message: 'Unauthorized' 
+      message: 'Unauthorized'
     });
-    
-    await authService.resendVerificationEmail(req.user.sub);
-    return res.status(200).json({ 
+
+    await authService.resendVerificationEmail(req.user.sub.toString());
+    return res.status(200).json({
       success: true,
-      message: 'Verification email sent successfully' 
+      message: 'Verification email sent successfully'
     });
   } catch (err: any) {
-    return res.status(400).json({ 
+    return res.status(400).json({
       success: false,
-      message: err?.message ?? 'Failed to resend verification email' 
+      message: err?.message ?? 'Failed to resend verification email'
+    });
+  }
+}
+
+// Verification code endpoint schemas
+const verifyEmailCodeSchema = z.object({
+  email: z.string().email(),
+  code: z.string().length(6, 'Verification code must be 6 digits'),
+});
+
+const resendVerificationCodeSchema = z.object({
+  email: z.string().email(),
+});
+
+// 7.2 Verify email with code endpoint
+export async function verifyEmailWithCode(req: AuthRequest, res: Response) {
+  try {
+    const body = verifyEmailCodeSchema.parse(req.body);
+    const result = await authService.verifyEmailWithCode(body.email, body.code);
+    return res.status(200).json(result);
+  } catch (err: any) {
+    if (err?.name === 'ZodError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        issues: err.issues
+      });
+    }
+    return res.status(400).json({
+      success: false,
+      message: err?.message ?? 'Email verification failed'
+    });
+  }
+}
+
+// 7.3 Resend verification code endpoint
+export async function resendVerificationCode(req: AuthRequest, res: Response) {
+  try {
+    const body = resendVerificationCodeSchema.parse(req.body);
+    const result = await authService.resendVerificationCode(body.email);
+    return res.status(200).json(result);
+  } catch (err: any) {
+    if (err?.name === 'ZodError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        issues: err.issues
+      });
+    }
+    return res.status(400).json({
+      success: false,
+      message: err?.message ?? 'Failed to resend verification code'
     });
   }
 }

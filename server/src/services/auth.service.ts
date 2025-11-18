@@ -69,9 +69,11 @@ export class AuthService {
         zone: input.zone,
         address: input.address,
         role: input.role || UserRole.CUSTOMER,
-        status: UserStatus.PENDING,
-        emailVerified: false,
+        status: emailVerificationEnabled ? UserStatus.PENDING : UserStatus.ACTIVE,
+        emailVerified: !emailVerificationEnabled, // Mark as verified if verification is disabled
         phoneVerified: false,
+        verificationCode: hashedCode,
+        verificationCodeExpiry: verificationCodeExpiry,
       },
       select: {
         id: true,
@@ -104,8 +106,14 @@ export class AuthService {
 
     return {
       success: true,
-      message: 'Registration successful. Please check your email to verify your account.',
-      user
+      message: emailVerificationEnabled
+        ? 'Registration successful. Please verify your email.'
+        : 'Registration successful. You can now login.',
+      data: {
+        email: user.email,
+        requiresVerification: emailVerificationEnabled,
+        expiryTime: verificationCodeExpiry
+      }
     };
   }
 
@@ -137,7 +145,9 @@ export class AuthService {
       throw new Error('Account is suspended');
     }
 
-    if (user.status === UserStatus.PENDING && !user.emailVerified) {
+    // Check if email verification is enabled and if email is verified for pending accounts
+    const emailVerificationEnabled = process.env.EMAIL_VERIFICATION_ENABLED === 'true';
+    if (emailVerificationEnabled && user.status === UserStatus.PENDING && !user.emailVerified) {
       throw new Error('Please verify your email first');
     }
 
@@ -555,6 +565,184 @@ export class AuthService {
       success: true,
       message: 'Password changed successfully. Please login again with your new password.'
     };
+  }
+
+  // Generate 6-digit verification code
+  private generateVerificationCode(): string {
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    return code;
+  }
+
+  // Hash verification code using bcrypt
+  private async hashVerificationCode(code: string): Promise<string> {
+    return hash(code, 12);
+  }
+
+  // Check if verification code is expired
+  private isCodeExpired(expiryTime: Date | null): boolean {
+    if (!expiryTime) return true;
+    return new Date() > expiryTime;
+  }
+
+  // Verify email with code (new verification flow)
+  async verifyEmailWithCode(email: string, code: string) {
+    const user = await prisma.user.findUnique({
+      where: { email }
+    });
+
+    if (!user) {
+      throw new Error('No pending registration found for this email');
+    }
+
+    // Check if code is expired
+    if (this.isCodeExpired(user.verificationCodeExpiry)) {
+      throw new Error('Verification code has expired. Please request a new one.');
+    }
+
+    // Verify code
+    if (!user.verificationCode) {
+      throw new Error('No verification code found');
+    }
+
+    const isCodeValid = await compare(code, user.verificationCode);
+    if (!isCodeValid) {
+      throw new Error('Invalid verification code');
+    }
+
+    // Update user status to active and mark email as verified
+    const updatedUser = await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        emailVerified: true,
+        status: UserStatus.ACTIVE
+      },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        role: true,
+        status: true,
+        emailVerified: true,
+        createdAt: true
+      }
+    });
+
+    // Generate tokens
+    const accessToken = signAccessToken({
+      sub: updatedUser.id,
+      role: updatedUser.role,
+      email: updatedUser.email ?? undefined,
+      phone: updatedUser.phone ?? undefined
+    });
+
+    const refreshToken = signRefreshToken({
+      sub: updatedUser.id,
+      role: updatedUser.role,
+      email: updatedUser.email ?? undefined,
+      phone: updatedUser.phone ?? undefined
+    });
+
+    // Store refresh token
+    await prisma.refreshToken.create({
+      data: {
+        token: refreshToken,
+        userId: updatedUser.id,
+        expiresAt: new Date(Date.now() + env.REFRESH_TTL_SECONDS * 1000)
+      }
+    });
+
+    return {
+      success: true,
+      message: 'Email verified successfully',
+      data: {
+        accessToken,
+        refreshToken,
+        user: updatedUser
+      }
+    };
+  }
+
+  // Resend verification code
+  async resendVerificationCode(email: string) {
+    const user = await prisma.user.findUnique({
+      where: { email }
+    });
+
+    if (!user) {
+      throw new Error('No pending registration found for this email');
+    }
+
+    if (user.emailVerified) {
+      throw new Error('Email is already verified');
+    }
+
+    // Generate new verification code
+    const code = this.generateVerificationCode();
+    const hashedCode = await this.hashVerificationCode(code);
+    const expiryMinutes = parseInt(process.env.VERIFICATION_CODE_EXPIRY_MINUTES || '15');
+    const expiryTime = new Date(Date.now() + expiryMinutes * 60 * 1000);
+
+    // Update user with new code (invalidate old code)
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        verificationCode: hashedCode,
+        verificationCodeExpiry: expiryTime
+      }
+    });
+
+    // Send verification email
+    if (user.email) {
+      await emailService.sendVerificationEmail(user.email, {
+        userName: user.firstName || 'User',
+        verificationCode: code,
+        expiryMinutes: expiryMinutes
+      });
+    }
+
+    return {
+      success: true,
+      message: 'Verification code has been resent to your email',
+      data: {
+        expiryTime
+      }
+    };
+  }
+
+  // Clean up expired pending accounts (24 hours)
+  async cleanupExpiredAccounts() {
+    const cleanupHours = parseInt(process.env.PENDING_ACCOUNT_CLEANUP_HOURS || '24');
+    const expiryTime = new Date(Date.now() - (cleanupHours * 60 * 60 * 1000));
+
+    // Query users with "pending_verification" status older than cleanup hours
+    const expiredUsers = await prisma.user.findMany({
+      where: {
+        createdAt: { lt: expiryTime },
+        emailVerified: false,
+        status: UserStatus.PENDING
+      },
+      select: {
+        id: true
+      }
+    });
+
+    // Delete expired pending accounts
+    if (expiredUsers.length > 0) {
+      const result = await prisma.user.deleteMany({
+        where: {
+          id: {
+            in: expiredUsers.map(u => u.id)
+          }
+        }
+      });
+
+      console.log(`Cleaned up ${result.count} expired pending accounts`);
+      return result;
+    }
+
+    return { count: 0 };
   }
 }
 

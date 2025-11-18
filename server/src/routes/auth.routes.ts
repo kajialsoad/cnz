@@ -2,13 +2,21 @@ import { Router } from 'express';
 import { authService } from '../services/auth.service';
 import { validateInput } from '../utils/validation';
 import { registerSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema } from '../utils/validation';
-import { createRateLimiter } from '../middlewares/auth.middleware';
+import { createRateLimiter, createEmailRateLimiter, createCodeRateLimiter } from '../middlewares/auth.middleware';
+import * as authController from '../controllers/auth.controller';
 
 const router = Router();
 
 // Rate limiters (increased for development)
 const authRateLimiter = createRateLimiter(15 * 60 * 1000, 50, 'Too many authentication attempts. Please try again later.');
 const registrationRateLimiter = createRateLimiter(60 * 60 * 1000, 50, 'Too many registration attempts. Please try again later.');
+
+// Email verification rate limiters
+// 3 requests per 15 minutes per email for resend verification
+const resendVerificationRateLimiter = createEmailRateLimiter(15 * 60 * 1000, 3, 'Too many verification code requests. Please try again in 15 minutes.');
+
+// 5 attempts per 15 minutes per email for verification
+const verifyEmailRateLimiter = createCodeRateLimiter(15 * 60 * 1000, 5, 'Too many verification attempts. Please try again in 15 minutes.');
 
 // Register endpoint
 router.post('/register', registrationRateLimiter, async (req, res) => {
@@ -250,6 +258,39 @@ router.post('/resend-verification', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Internal server error'
+    });
+  }
+});
+
+// Verify email with code endpoint (new verification flow)
+router.post('/verify-email-code', verifyEmailRateLimiter, authController.verifyEmailWithCode);
+
+// Resend verification code endpoint
+router.post('/resend-verification-code', resendVerificationRateLimiter, authController.resendVerificationCode);
+
+// Test email service connection endpoint (for development/testing)
+router.get('/test-email', async (req, res) => {
+  try {
+    const emailService = (await import('../services/email.service')).default;
+    const isConnected = await emailService.testConnection();
+
+    if (isConnected) {
+      res.json({
+        success: true,
+        message: 'Email service is configured correctly and ready to send emails'
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: 'Email service connection failed. Please check your SMTP configuration.'
+      });
+    }
+  } catch (error) {
+    console.error('Email test error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error testing email service',
+      error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 });

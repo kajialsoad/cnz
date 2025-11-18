@@ -8,6 +8,12 @@ const router = (0, express_1.Router)();
 // All routes require authentication and admin role
 router.use(auth_middleware_1.authGuard);
 router.use((0, auth_middleware_1.rbacGuard)('ADMIN', 'SUPER_ADMIN'));
+// Get all chat conversations (must be before /:complaintId to avoid route conflict)
+router.get('/', admin_chat_controller_1.getChatConversations);
+console.log('🔧 Admin chat route registered: GET /');
+// Get chat statistics
+router.get('/statistics', admin_chat_controller_1.getChatStatistics);
+console.log('🔧 Admin chat route registered: GET /statistics');
 // Get chat messages for a complaint
 router.get('/:complaintId', admin_chat_controller_1.getChatMessages);
 console.log('🔧 Admin chat route registered: GET /:complaintId');
