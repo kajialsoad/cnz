@@ -6,11 +6,11 @@ import env from '../config/env';
 import { UserRole, UserStatus } from '@prisma/client';
 
 export interface RegisterInput {
-  email: string;
+  email?: string;
   password: string;
   firstName: string;
   lastName: string;
-  phone?: string;
+  phone: string;
   role?: UserRole;
   ward?: string;
   zone?: string;
