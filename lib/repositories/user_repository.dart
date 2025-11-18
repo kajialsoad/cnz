@@ -27,6 +27,9 @@ class UserRepository {
     String? phone,
     String? email,
     String? avatar,
+    String? zone,
+    String? ward,
+    String? address,
   }) async {
     try {
       final body = <String, dynamic>{};
@@ -35,6 +38,9 @@ class UserRepository {
       if (phone != null) body['phone'] = phone;
       if (email != null) body['email'] = email;
       if (avatar != null) body['avatar'] = avatar;
+      if (zone != null) body['zone'] = zone;
+      if (ward != null) body['ward'] = ward;
+      if (address != null) body['address'] = address;
 
       final data = await api.put('/api/users/profile', body);
       

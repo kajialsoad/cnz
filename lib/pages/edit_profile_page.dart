@@ -21,6 +21,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
   late TextEditingController _lastNameController;
   late TextEditingController _phoneController;
   late TextEditingController _emailController;
+  late TextEditingController _addressController;
+  String? _selectedZone;
+  int? _selectedWard;
 
   bool _isLoading = false;
 
@@ -31,6 +34,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _lastNameController = TextEditingController(text: widget.user.lastName);
     _phoneController = TextEditingController(text: widget.user.phone);
     _emailController = TextEditingController(text: widget.user.email ?? '');
+    _addressController = TextEditingController(text: widget.user.address ?? '');
+    _selectedZone = widget.user.zone;
+    _selectedWard = widget.user.ward != null ? int.tryParse(widget.user.ward!) : null;
   }
 
   @override
@@ -39,6 +45,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _lastNameController.dispose();
     _phoneController.dispose();
     _emailController.dispose();
+    _addressController.dispose();
     super.dispose();
   }
 
@@ -57,6 +64,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
         lastName: _lastNameController.text.trim(),
         phone: _phoneController.text.trim(),
         email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
+        zone: _selectedZone,
+        ward: _selectedWard?.toString(),
+        address: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
       );
 
       if (!mounted) return;
@@ -308,6 +318,82 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   }
                   return null;
                 },
+              ),
+              const SizedBox(height: 16),
+
+              // City Corporation Selection
+              TranslatedText(
+                'City Corporation',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF2E2E2E),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: ChoiceChip(
+                      label: const Text('Dhaka South City'),
+                      selected: _selectedZone == 'DSCC',
+                      onSelected: (s) => setState(() => _selectedZone = s ? 'DSCC' : null),
+                      selectedColor: const Color(0xFF4CAF50),
+                      labelStyle: TextStyle(
+                        color: _selectedZone == 'DSCC' ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ChoiceChip(
+                      label: const Text('Dhaka North City'),
+                      selected: _selectedZone == 'DNCC',
+                      onSelected: (s) => setState(() => _selectedZone = s ? 'DNCC' : null),
+                      selectedColor: const Color(0xFF4CAF50),
+                      labelStyle: TextStyle(
+                        color: _selectedZone == 'DNCC' ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Ward Number
+              TranslatedText(
+                'Ward Number (1 to 72)',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF2E2E2E),
+                ),
+              ),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<int>(
+                value: _selectedWard,
+                decoration: _dec('Select Ward', icon: Icons.map),
+                items: List.generate(72, (i) => i + 1)
+                    .map((w) => DropdownMenuItem<int>(value: w, child: Text('Ward $w')))
+                    .toList(),
+                onChanged: (v) => setState(() => _selectedWard = v),
+              ),
+              const SizedBox(height: 16),
+
+              // Address
+              TranslatedText(
+                'Road Address (Optional)',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF2E2E2E),
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _addressController,
+                decoration: _dec('Road Address', hint: 'Road 7, Block B', icon: Icons.home),
+                maxLines: 2,
               ),
               const SizedBox(height: 32),
 

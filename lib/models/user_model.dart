@@ -9,6 +9,9 @@ class UserModel {
   final String status;
   final bool emailVerified;
   final bool phoneVerified;
+  final String? zone;
+  final String? ward;
+  final String? address;
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? lastLoginAt;
@@ -24,6 +27,9 @@ class UserModel {
     required this.status,
     required this.emailVerified,
     required this.phoneVerified,
+    this.zone,
+    this.ward,
+    this.address,
     required this.createdAt,
     required this.updatedAt,
     this.lastLoginAt,
@@ -41,6 +47,9 @@ class UserModel {
       status: json['status'] as String? ?? 'ACTIVE',
       emailVerified: (json['emailVerified'] as bool?) ?? false,
       phoneVerified: (json['phoneVerified'] as bool?) ?? false,
+      zone: json['zone'] as String?,
+      ward: json['ward'] as String?,
+      address: json['address'] as String?,
       createdAt: json['createdAt'] != null 
           ? DateTime.parse(json['createdAt'] as String)
           : DateTime.now(),
@@ -65,6 +74,9 @@ class UserModel {
       'status': status,
       'emailVerified': emailVerified,
       'phoneVerified': phoneVerified,
+      'zone': zone,
+      'ward': ward,
+      'address': address,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       'lastLoginAt': lastLoginAt?.toIso8601String(),

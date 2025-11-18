@@ -314,6 +314,33 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
             value: _user?.status ?? '',
             translateValue: true,
           ),
+          const SizedBox(height: 20),
+
+          // City Corporation / Zone
+          _buildInfoItem(
+            icon: Icons.location_city_outlined,
+            label: 'City Corporation',
+            value: _user?.zone ?? 'Not provided',
+            translateValue: _user?.zone == null,
+          ),
+          const SizedBox(height: 20),
+
+          // Ward Number
+          _buildInfoItem(
+            icon: Icons.map_outlined,
+            label: 'Ward Number',
+            value: _user?.ward ?? 'Not provided',
+            translateValue: _user?.ward == null,
+          ),
+          const SizedBox(height: 20),
+
+          // Address
+          _buildInfoItem(
+            icon: Icons.home_outlined,
+            label: 'Address',
+            value: _user?.address ?? 'Not provided',
+            translateValue: _user?.address == null,
+          ),
         ],
       ),
     );

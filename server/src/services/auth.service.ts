@@ -400,6 +400,9 @@ export class AuthService {
         emailVerified: true,
         phoneVerified: true,
         avatar: true,
+        zone: true,
+        ward: true,
+        address: true,
         createdAt: true,
         updatedAt: true,
         lastLoginAt: true
@@ -419,6 +422,9 @@ export class AuthService {
     lastName?: string;
     phone?: string;
     avatar?: string;
+    zone?: string;
+    ward?: string;
+    address?: string;
   }) {
     const user = await prisma.user.update({
       where: { id: parseInt(userId) },
@@ -434,6 +440,9 @@ export class AuthService {
         emailVerified: true,
         phoneVerified: true,
         avatar: true,
+        zone: true,
+        ward: true,
+        address: true,
         createdAt: true,
         updatedAt: true,
         lastLoginAt: true

@@ -105,6 +105,18 @@ export const updateProfileSchema = Joi.object({
     .messages({
       'string.uri': 'বৈধ ইমেজ URL প্রয়োজন',
     }),
+  zone: Joi.string().valid('DSCC', 'DNCC').optional()
+    .messages({
+      'any.only': 'জোন DSCC বা DNCC হতে হবে',
+    }),
+  ward: Joi.string().optional()
+    .messages({
+      'string.base': 'ওয়ার্ড নম্বর প্রয়োজন',
+    }),
+  address: Joi.string().max(255).optional()
+    .messages({
+      'string.max': 'ঠিকানা সর্বোচ্চ ২৫৫ অক্ষরের হতে হবে',
+    }),
 });
 
 export const changePasswordSchema = Joi.object({
@@ -116,7 +128,7 @@ export const changePasswordSchema = Joi.object({
     .messages({
       'string.empty': 'নতুন পাসওয়ার্ড প্রয়োজন',
       'string.min': 'নতুন পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে',
-            'string.max': 'নতুন পাসওয়ার্ড সর্বোচ্চ ১২৮ অক্ষরের হতে হবে',
+      'string.max': 'নতুন পাসওয়ার্ড সর্বোচ্চ ১২৮ অক্ষরের হতে হবে',
     }),
 });
 
