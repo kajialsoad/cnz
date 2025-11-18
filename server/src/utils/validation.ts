@@ -29,6 +29,18 @@ export const registerSchema = Joi.object({
       'string.min': 'পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে',
       'string.max': 'পাসওয়ার্ড সর্বোচ্চ ১২৮ অক্ষরের হতে হবে',
     }),
+  zone: Joi.string().valid('DSCC', 'DNCC').optional()
+    .messages({
+      'any.only': 'জোন DSCC বা DNCC হতে হবে',
+    }),
+  ward: Joi.string().optional()
+    .messages({
+      'string.base': 'ওয়ার্ড নম্বর প্রয়োজন',
+    }),
+  address: Joi.string().max(255).optional()
+    .messages({
+      'string.max': 'ঠিকানা সর্বোচ্চ ২৫৫ অক্ষরের হতে হবে',
+    }),
   role: Joi.string().valid('CUSTOMER', 'SERVICE_PROVIDER').optional()
     .messages({
       'any.only': 'রোল কাস্টমার অথবা সার্ভিস প্রোভাইডার হতে হবে',

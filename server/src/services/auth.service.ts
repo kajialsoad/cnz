@@ -14,6 +14,7 @@ export interface RegisterInput {
   role?: UserRole;
   ward?: string;
   zone?: string;
+  address?: string;
 }
 
 export interface LoginInput {
@@ -65,6 +66,7 @@ export class AuthService {
         phone: input.phone || '',
         ward: input.ward,
         zone: input.zone,
+        address: input.address,
         role: input.role || UserRole.CUSTOMER,
         status: UserStatus.PENDING,
         emailVerified: false,
@@ -77,6 +79,7 @@ export class AuthService {
         lastName: true,
         ward: true,
         zone: true,
+        address: true,
         role: true,
         status: true,
         createdAt: true
