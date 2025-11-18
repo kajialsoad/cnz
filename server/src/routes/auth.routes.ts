@@ -14,17 +14,9 @@ const registrationRateLimiter = createRateLimiter(60 * 60 * 1000, 50, 'Too many 
 router.post('/register', registrationRateLimiter, async (req, res) => {
   try {
     console.log('Register endpoint hit with body:', req.body);
-    const { error, value } = validateInput(registerSchema, req.body);
-    if (error) {
-      console.log('Validation error:', error.details);
-      return res.status(400).json({
-        success: false,
-        message: 'Validation error',
-        errors: error.details
-      });
-    }
-
-    console.log('Validation passed, calling authService.register');
+    const value = validateInput(registerSchema, req.body);
+    console.log('Validation passed, value object:', value);
+    console.log('Calling authService.register');
     const result = await authService.register(value);
     console.log('Registration result:', result);
     res.status(201).json(result);
