@@ -28,9 +28,6 @@ model User {
   ward                    String?
   zone                    String?
   address                 String?
-  accountStatus           String                   @default("pending_verification")
-  verificationCode        String?
-  verificationCodeExpiry  DateTime?
   receivedMessages        ChatMessage[]            @relation("ReceivedMessages")
   sentMessages            ChatMessage[]            @relation("SentMessages")
   complaints              Complaint[]
