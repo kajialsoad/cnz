@@ -95,9 +95,14 @@ export class AuthService {
       }
     });
 
-    // Send verification email
+    // Send verification email (non-blocking)
     if (user.email) {
-      await emailService.sendEmailVerificationEmail(user.email, verificationToken);
+      try {
+        await emailService.sendEmailVerificationEmail(user.email, verificationToken);
+      } catch (emailError) {
+        console.error('Email sending failed, but registration succeeded:', emailError);
+        // Continue with registration even if email fails
+      }
     }
 
     return {
@@ -135,9 +140,10 @@ export class AuthService {
       throw new Error('Account is suspended');
     }
 
-    if (user.status === UserStatus.PENDING && !user.emailVerified) {
-      throw new Error('Please verify your email first');
-    }
+    // Allow login without email verification for now
+    // if (user.status === UserStatus.PENDING && !user.emailVerified) {
+    //   throw new Error('Please verify your email first');
+    // }
 
     const isPasswordValid = await compare(input.password, user.passwordHash);
     if (!isPasswordValid) {
