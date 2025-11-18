@@ -89,12 +89,14 @@ model EmailVerificationToken {
   id        String   @id @default(uuid())
   userId    Int
   token     String   @unique
+  code      String?
   expiresAt DateTime
   used      Boolean  @default(false)
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId], map: "email_verification_tokens_userId_fkey")
+  @@index([code])
   @@map("email_verification_tokens")
 }
 

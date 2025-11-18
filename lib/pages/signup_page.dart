@@ -76,17 +76,25 @@ class _SignUpPageState extends State<SignUpPage> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'রেজিস্ট্রেশন সফল! $name এর জন্য একাউন্ট তৈরি হয়েছে ✓\nইমেইল ভেরিফাই করুন',
+      // Navigate to OTP verification page if email provided
+      if (email.isNotEmpty) {
+        Navigator.pushReplacementNamed(
+          context,
+          '/verify-otp',
+          arguments: email,
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'রেজিস্ট্রেশন সফল! $name এর জন্য একাউন্ট তৈরি হয়েছে ✓',
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
           ),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 4),
-        ),
-      );
-
-      Navigator.pushReplacementNamed(context, '/login');
+        );
+        Navigator.pushReplacementNamed(context, '/login');
+      }
     } catch (e) {
       if (!mounted) return;
 

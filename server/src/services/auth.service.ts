@@ -56,6 +56,7 @@ export class AuthService {
 
     const hashedPassword = await hash(input.password, 12);
     const verificationToken = generateSecureToken();
+    const verificationCode = generateOTP(6); // Generate 6-digit OTP
 
     const user = await prisma.user.create({
       data: {
@@ -86,18 +87,19 @@ export class AuthService {
       }
     });
 
-    // Create email verification token
+    // Create email verification token with OTP code
     await prisma.emailVerificationToken.create({
       data: {
         token: verificationToken,
+        code: verificationCode,
         userId: user.id,
-        expiresAt: new Date(Date.now() + env.EMAIL_VERIFICATION_TTL_SECONDS * 1000)
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes expiry for OTP
       }
     });
 
-    // Send verification email
+    // Send verification email with OTP code
     if (user.email) {
-      await emailService.sendEmailVerificationEmail(user.email, verificationToken);
+      await emailService.sendEmailVerificationEmail(user.email, verificationCode);
     }
 
     return {
@@ -316,7 +318,61 @@ export class AuthService {
     };
   }
 
-  // Verify email
+  // Verify email with OTP code
+  async verifyEmailWithCode(email: string, code: string) {
+    const user = await prisma.user.findUnique({
+      where: { email }
+    });
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    if (user.emailVerified) {
+      return {
+        success: true,
+        message: 'Email is already verified. You can login now.'
+      };
+    }
+
+    const verificationToken = await prisma.emailVerificationToken.findFirst({
+      where: {
+        userId: user.id,
+        code: code,
+        expiresAt: { gt: new Date() },
+        used: false
+      },
+      include: { user: true }
+    });
+
+    if (!verificationToken) {
+      throw new Error('Invalid or expired verification code');
+    }
+
+    await prisma.user.update({
+      where: { id: verificationToken.userId },
+      data: {
+        emailVerified: true,
+        status: UserStatus.ACTIVE
+      }
+    });
+
+    await prisma.emailVerificationToken.update({
+      where: { id: verificationToken.id },
+      data: { used: true }
+    });
+
+    if (verificationToken.user.email) {
+      await emailService.sendWelcomeEmail(verificationToken.user.email, verificationToken.user.firstName);
+    }
+
+    return {
+      success: true,
+      message: 'Email verified successfully. Welcome to Clean Care Bangladesh!'
+    };
+  }
+
+  // Verify email (legacy - for backward compatibility with token URLs)
   async verifyEmail(token: string) {
     const verificationToken = await prisma.emailVerificationToken.findFirst({
       where: {
@@ -363,28 +419,41 @@ export class AuthService {
     if (!user || user.emailVerified) {
       return {
         success: true,
-        message: 'If your email needs verification, a new verification link has been sent.'
+        message: 'If your email needs verification, a new verification code has been sent.'
       };
     }
 
     const verificationToken = generateSecureToken();
+    const verificationCode = generateOTP(6); // Generate 6-digit OTP
 
-    // Create new verification token
+    // Mark old tokens as used
+    await prisma.emailVerificationToken.updateMany({
+      where: {
+        userId: user.id,
+        used: false
+      },
+      data: {
+        used: true
+      }
+    });
+
+    // Create new verification token with OTP code
     await prisma.emailVerificationToken.create({
       data: {
         token: verificationToken,
+        code: verificationCode,
         userId: user.id,
-        expiresAt: new Date(Date.now() + env.EMAIL_VERIFICATION_TTL_SECONDS * 1000)
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes expiry for OTP
       }
     });
 
     if (user.email) {
-      await emailService.sendEmailVerificationEmail(user.email, verificationToken);
+      await emailService.sendEmailVerificationEmail(user.email, verificationCode);
     }
 
     return {
       success: true,
-      message: 'If your email needs verification, a new verification link has been sent.'
+      message: 'If your email needs verification, a new verification code has been sent.'
     };
   }
 
