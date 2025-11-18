@@ -240,15 +240,28 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                         </Box>
 
                         <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 45%' }, minWidth: { xs: '100%', sm: '200px' } }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: { xs: 1.5, sm: 2 } }}>
-                                <LocationIcon sx={{ color: 'text.secondary', fontSize: { xs: 18, sm: 20 } }} />
-                                <Box>
+                            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: { xs: 1.5, sm: 2 } }}>
+                                <LocationIcon sx={{ color: 'text.secondary', fontSize: { xs: 18, sm: 20 }, mt: 0.5 }} />
+                                <Box sx={{ flex: 1, minWidth: 0 }}>
                                     <Typography variant="caption" color="text.secondary">
                                         Location
                                     </Typography>
                                     <Typography variant="body2" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                                        {user.ward || 'N/A'} • {user.zone || 'N/A'}
+                                        {user.zone || 'N/A'} • Ward {user.ward || 'N/A'}
                                     </Typography>
+                                    {user.address && (
+                                        <Typography
+                                            variant="body2"
+                                            color="text.secondary"
+                                            sx={{
+                                                fontSize: { xs: '0.7rem', sm: '0.8rem' },
+                                                mt: 0.5,
+                                                wordBreak: 'break-word'
+                                            }}
+                                        >
+                                            {user.address}
+                                        </Typography>
+                                    )}
                                 </Box>
                             </Box>
                         </Box>

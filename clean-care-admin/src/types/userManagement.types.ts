@@ -47,6 +47,7 @@ export interface UserWithStats {
     avatar: string | null;
     ward: string | null;
     zone: string | null;
+    address: string | null;
     role: UserRole;
     status: UserStatus;
     emailVerified: boolean;
@@ -124,6 +125,7 @@ export interface CreateUserDto {
     password: string;
     ward?: string;
     zone?: string;
+    address?: string;
     role?: UserRole;
 }
 
@@ -135,6 +137,7 @@ export interface UpdateUserDto {
     phone?: string;
     ward?: string;
     zone?: string;
+    address?: string;
     role?: UserRole;
     status?: UserStatus;
 }
@@ -182,6 +185,7 @@ export interface CreateUserFormData {
     confirmPassword: string;
     ward: string;
     zone: string;
+    address: string;
     role: UserRole;
 }
 
@@ -192,6 +196,7 @@ export interface UpdateUserFormData {
     phone: string;
     ward: string;
     zone: string;
+    address: string;
     role: UserRole;
     status: UserStatus;
 }

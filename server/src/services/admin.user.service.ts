@@ -31,6 +31,7 @@ export interface UserWithStats {
     avatar: string | null;
     ward: string | null;
     zone: string | null;
+    address: string | null;
     role: UserRole;
     status: UserStatus;
     emailVerified: boolean;
@@ -155,6 +156,7 @@ export class AdminUserService {
                 avatar: true,
                 ward: true,
                 zone: true,
+                address: true,
                 role: true,
                 status: true,
                 emailVerified: true,
@@ -205,6 +207,7 @@ export class AdminUserService {
                 avatar: true,
                 ward: true,
                 zone: true,
+                address: true,
                 role: true,
                 status: true,
                 emailVerified: true,
