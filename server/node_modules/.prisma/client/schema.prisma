@@ -21,6 +21,9 @@ model User {
   status                  UserStatus               @default(PENDING)
   emailVerified           Boolean                  @default(false)
   phoneVerified           Boolean                  @default(false)
+  verificationCode        String?
+  verificationCodeExpiry  DateTime?
+  accountStatus           String                   @default("pending_verification")
   twoFactorEnabled        Boolean                  @default(false)
   twoFactorSecret         String?
   lastLoginAt             DateTime?

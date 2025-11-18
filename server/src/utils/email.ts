@@ -42,7 +42,7 @@ class EmailService {
 
   async sendPasswordResetEmail(email: string, resetToken: string): Promise<void> {
     const resetUrl = `${env.CLIENT_URL}/reset-password?token=${resetToken}`;
-    
+
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #333;">পাসওয়ার্ড রিসেট</h2>
@@ -65,7 +65,7 @@ class EmailService {
 
   async sendEmailVerificationEmail(email: string, verificationToken: string): Promise<void> {
     const verificationUrl = `${env.CLIENT_URL}/verify-email?token=${verificationToken}`;
-    
+
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #333;">ইমেইল ভেরিফিকেশন</h2>
@@ -105,6 +105,50 @@ class EmailService {
     await this.sendEmail({
       to: email,
       subject: 'স্বাগতম - ক্লিন কেয়ার',
+      html,
+      text,
+    });
+  }
+
+  async sendVerificationEmail(email: string, data: { userName: string; verificationCode: string; expiryMinutes: number }): Promise<void> {
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background: linear-gradient(135deg, #2E8B57 0%, #7CC289 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+          <h1 style="color: white; margin: 0;">ক্লিন কেয়ার বাংলাদেশ</h1>
+          <p style="color: white; margin: 10px 0 0 0;">ইমেইল ভেরিফিকেশন</p>
+        </div>
+        
+        <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+          <h2 style="color: #2E8B57; margin-top: 0;">হ্যালো ${data.userName}!</h2>
+          
+          <p>ক্লিন কেয়ার বাংলাদেশে নিবন্ধনের জন্য ধন্যবাদ। আপনার নিবন্ধন সম্পূর্ণ করতে আপনার ইমেইল ভেরিফাই করুন।</p>
+          
+          <div style="background: white; padding: 20px; border-radius: 8px; text-align: center; margin: 30px 0;">
+            <p style="margin: 0 0 10px 0; color: #666;">আপনার ভেরিফিকেশন কোড:</p>
+            <h1 style="color: #2E8B57; font-size: 36px; letter-spacing: 8px; margin: 10px 0;">${data.verificationCode}</h1>
+            <p style="margin: 10px 0 0 0; color: #999; font-size: 14px;">এই কোড ${data.expiryMinutes} মিনিটের মধ্যে মেয়াদ শেষ হবে</p>
+          </div>
+          
+          <p>অ্যাপে এই কোড প্রবেশ করুন আপনার অ্যাকাউন্ট সক্রিয় করতে।</p>
+          
+          <p style="color: #666; font-size: 14px; margin-top: 30px;">
+            যদি আপনি এই ভেরিফিকেশন অনুরোধ করেননি, তাহলে এই ইমেইল উপেক্ষা করুন।
+          </p>
+          
+          <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
+          
+          <p style="color: #999; font-size: 12px; text-align: center;">
+            © 2025 ক্লিন কেয়ার বাংলাদেশ। সর্বাধিকার সংরক্ষিত।
+          </p>
+        </div>
+      </div>
+    `;
+
+    const text = `হ্যালো ${data.userName},\n\nআপনার ভেরিফিকেশন কোড: ${data.verificationCode}\n\nএই কোড ${data.expiryMinutes} মিনিটের মধ্যে মেয়াদ শেষ হবে।\n\nধন্যবাদ,\nক্লিন কেয়ার বাংলাদেশ`;
+
+    await this.sendEmail({
+      to: email,
+      subject: 'ইমেইল ভেরিফিকেশন - ক্লিন কেয়ার বাংলাদেশ',
       html,
       text,
     });

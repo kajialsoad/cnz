@@ -227,4 +227,31 @@ router.post('/resend-verification', async (req, res) => {
   }
 });
 
+// Test email service connection endpoint (for development/testing)
+router.get('/test-email', async (req, res) => {
+  try {
+    const emailService = (await import('../services/email.service')).default;
+    const isConnected = await emailService.testConnection();
+
+    if (isConnected) {
+      res.json({
+        success: true,
+        message: 'Email service is configured correctly and ready to send emails'
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: 'Email service connection failed. Please check your SMTP configuration.'
+      });
+    }
+  } catch (error) {
+    console.error('Email test error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error testing email service',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 export default router;

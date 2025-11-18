@@ -7,19 +7,219 @@ exports.chatService = exports.ChatService = void 0;
 const prisma_1 = __importDefault(require("../utils/prisma"));
 class ChatService {
     /**
+     * Get all chat conversations with complaint and citizen details
+     */
+    async getChatConversations(query = {}) {
+        try {
+            const { search, district, upazila, ward, zone, status, unreadOnly = false, page = 1, limit = 20 } = query;
+            const skip = (page - 1) * limit;
+            // Build where clause for complaints that have chat messages
+            const where = {};
+            // Filter by status
+            if (status && status !== 'ALL') {
+                where.status = status;
+            }
+            // Filter by location (district/upazila in location string)
+            if (district) {
+                where.location = {
+                    contains: district
+                };
+            }
+            if (upazila) {
+                where.location = {
+                    contains: upazila
+                };
+            }
+            // Filter by ward (from user table)
+            if (ward) {
+                where.user = {
+                    ...where.user,
+                    ward: {
+                        contains: ward
+                    }
+                };
+            }
+            // Filter by zone (from user table)
+            if (zone) {
+                where.user = {
+                    ...where.user,
+                    zone: {
+                        contains: zone
+                    }
+                };
+            }
+            // Search filter
+            if (search) {
+                where.OR = [
+                    { title: { contains: search } },
+                    { description: { contains: search } },
+                    { location: { contains: search } },
+                    {
+                        user: {
+                            OR: [
+                                { firstName: { contains: search } },
+                                { lastName: { contains: search } },
+                                { phone: { contains: search } }
+                            ]
+                        }
+                    }
+                ];
+            }
+            // Get all complaints with chat messages
+            const complaintsWithChats = await prisma_1.default.complaint.findMany({
+                where: {
+                    ...where,
+                    chatMessages: {
+                        some: {} // Only complaints that have at least one chat message
+                    }
+                },
+                include: {
+                    user: {
+                        select: {
+                            id: true,
+                            firstName: true,
+                            lastName: true,
+                            phone: true,
+                            email: true,
+                            avatar: true,
+                            ward: true,
+                            zone: true
+                        }
+                    },
+                    chatMessages: {
+                        orderBy: {
+                            createdAt: 'desc'
+                        },
+                        take: 1 // Get only the last message
+                    }
+                },
+                orderBy: {
+                    updatedAt: 'desc' // Sort by last activity
+                }
+            });
+            // Get unread counts for all complaints
+            const complaintIds = complaintsWithChats.map(c => c.id);
+            const unreadCounts = await this.getUnreadMessageCounts(complaintIds, 0, 'ADMIN');
+            // Format the response
+            let conversations = complaintsWithChats.map(complaint => {
+                const lastMessage = complaint.chatMessages[0];
+                const unreadCount = unreadCounts[complaint.id] || 0;
+                // Parse location details
+                const locationParts = complaint.location?.split(',') || [];
+                const wardMatch = complaint.location?.match(/Ward:\s*(\d+)/i);
+                const ward = wardMatch ? wardMatch[1] : null;
+                const district = locationParts[1]?.trim() || '';
+                const upazila = locationParts[2]?.trim() || '';
+                return {
+                    complaintId: complaint.id,
+                    trackingNumber: `C${String(complaint.id).padStart(6, '0')}`,
+                    complaintTitle: complaint.title,
+                    complaintCategory: this.extractCategory(complaint.description),
+                    complaintStatus: complaint.status,
+                    complaintCreatedAt: complaint.createdAt,
+                    citizen: {
+                        id: complaint.user?.id || 0,
+                        firstName: complaint.user?.firstName || 'Unknown',
+                        lastName: complaint.user?.lastName || 'User',
+                        phone: complaint.user?.phone || '',
+                        email: complaint.user?.email || '',
+                        district,
+                        upazila,
+                        ward: ward || complaint.user?.ward || '',
+                        zone: complaint.user?.zone || '',
+                        address: locationParts[0]?.trim() || complaint.location,
+                        profilePicture: complaint.user?.avatar
+                    },
+                    lastMessage: lastMessage ? {
+                        id: lastMessage.id,
+                        text: lastMessage.message,
+                        timestamp: lastMessage.createdAt,
+                        senderType: lastMessage.senderType
+                    } : null,
+                    unreadCount,
+                    totalMessages: 0, // Will be calculated if needed
+                    isNew: unreadCount > 0 && !lastMessage?.read,
+                    lastActivity: lastMessage?.createdAt || complaint.updatedAt
+                };
+            });
+            // Filter by unread only if requested
+            if (unreadOnly) {
+                conversations = conversations.filter(c => c.unreadCount > 0);
+            }
+            // Sort by last activity (most recent first)
+            conversations.sort((a, b) => {
+                return new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime();
+            });
+            // Apply pagination
+            const total = conversations.length;
+            const paginatedConversations = conversations.slice(skip, skip + limit);
+            return {
+                chats: paginatedConversations,
+                pagination: {
+                    page,
+                    limit,
+                    total,
+                    totalPages: Math.ceil(total / limit),
+                    hasNextPage: page < Math.ceil(total / limit),
+                    hasPrevPage: page > 1
+                }
+            };
+        }
+        catch (error) {
+            console.error('Error getting chat conversations:', error);
+            throw new Error('Failed to fetch chat conversations');
+        }
+    }
+    /**
+     * Extract category from description or title
+     */
+    extractCategory(description) {
+        // Simple category extraction - can be enhanced
+        const categories = ['Road', 'Water', 'Electricity', 'Waste', 'Other'];
+        const lowerDesc = description.toLowerCase();
+        for (const category of categories) {
+            if (lowerDesc.includes(category.toLowerCase())) {
+                return category;
+            }
+        }
+        return 'General';
+    }
+    /**
      * Get chat messages for a complaint with pagination
+     * Enhanced to return complete complaint and citizen details
      */
     async getChatMessages(complaintId, query = {}) {
         try {
             const { page = 1, limit = 50 } = query;
             const skip = (page - 1) * limit;
-            // Verify complaint exists
+            // Fetch complaint with user details
             const complaint = await prisma_1.default.complaint.findUnique({
-                where: { id: complaintId }
+                where: { id: complaintId },
+                include: {
+                    user: {
+                        select: {
+                            id: true,
+                            firstName: true,
+                            lastName: true,
+                            phone: true,
+                            email: true,
+                            avatar: true,
+                            ward: true,
+                            zone: true,
+                            createdAt: true
+                        }
+                    }
+                }
             });
             if (!complaint) {
                 throw new Error('Complaint not found');
             }
+            // Parse location details
+            const locationParts = complaint.location?.split(',') || [];
+            const wardMatch = complaint.location?.match(/Ward:\s*(\d+)/i);
+            const ward = wardMatch ? wardMatch[1] : null;
+            const district = locationParts[1]?.trim() || '';
+            const upazila = locationParts[2]?.trim() || '';
             // Fetch messages with pagination
             const [messages, total] = await Promise.all([
                 prisma_1.default.complaintChatMessage.findMany({
@@ -68,6 +268,32 @@ class ChatService {
                 };
             }));
             return {
+                complaint: {
+                    id: complaint.id,
+                    trackingNumber: `C${String(complaint.id).padStart(6, '0')}`,
+                    title: complaint.title,
+                    description: complaint.description,
+                    category: this.extractCategory(complaint.description),
+                    status: complaint.status,
+                    priority: complaint.priority,
+                    createdAt: complaint.createdAt,
+                    updatedAt: complaint.updatedAt,
+                    imageUrl: complaint.imageUrl,
+                    audioUrl: complaint.audioUrl
+                },
+                citizen: complaint.user ? {
+                    id: complaint.user.id,
+                    firstName: complaint.user.firstName,
+                    lastName: complaint.user.lastName,
+                    phone: complaint.user.phone,
+                    email: complaint.user.email,
+                    district,
+                    upazila,
+                    ward: ward || complaint.user.ward || '',
+                    address: locationParts[0]?.trim() || complaint.location,
+                    profilePicture: complaint.user.avatar,
+                    memberSince: complaint.user.createdAt
+                } : null,
                 messages: messagesWithSenderInfo,
                 pagination: {
                     page,
@@ -268,6 +494,96 @@ class ChatService {
         catch (error) {
             console.error('Error getting latest message:', error);
             throw new Error('Failed to get latest message');
+        }
+    }
+    /**
+     * Get chat statistics
+     */
+    async getChatStatistics() {
+        try {
+            // Get all complaints with chat messages
+            const complaintsWithChats = await prisma_1.default.complaint.findMany({
+                where: {
+                    chatMessages: {
+                        some: {}
+                    }
+                },
+                include: {
+                    user: {
+                        select: {
+                            ward: true,
+                            zone: true
+                        }
+                    },
+                    chatMessages: {
+                        where: {
+                            senderType: 'CITIZEN',
+                            read: false
+                        }
+                    }
+                }
+            });
+            const totalChats = complaintsWithChats.length;
+            // Calculate unread count
+            const unreadCount = complaintsWithChats.reduce((sum, complaint) => {
+                return sum + complaint.chatMessages.length;
+            }, 0);
+            // Group by district, upazila, ward, zone, and status
+            const byDistrict = {};
+            const byUpazila = {};
+            const byWard = {};
+            const byZone = {};
+            const byStatus = {};
+            complaintsWithChats.forEach(complaint => {
+                // Parse location
+                const locationParts = complaint.location?.split(',') || [];
+                const district = locationParts[1]?.trim() || 'Unknown';
+                const upazila = locationParts[2]?.trim() || 'Unknown';
+                const ward = complaint.user?.ward || 'Unknown';
+                const zone = complaint.user?.zone || 'Unknown';
+                // Count by district
+                byDistrict[district] = (byDistrict[district] || 0) + 1;
+                // Count by upazila
+                byUpazila[upazila] = (byUpazila[upazila] || 0) + 1;
+                // Count by ward
+                if (ward && ward !== 'Unknown') {
+                    byWard[ward] = (byWard[ward] || 0) + 1;
+                }
+                // Count by zone
+                if (zone && zone !== 'Unknown') {
+                    byZone[zone] = (byZone[zone] || 0) + 1;
+                }
+                // Count by status
+                byStatus[complaint.status] = (byStatus[complaint.status] || 0) + 1;
+            });
+            return {
+                totalChats,
+                unreadCount,
+                byDistrict: Object.entries(byDistrict).map(([category, count]) => ({
+                    category,
+                    count
+                })),
+                byUpazila: Object.entries(byUpazila).map(([category, count]) => ({
+                    category,
+                    count
+                })),
+                byWard: Object.entries(byWard).map(([category, count]) => ({
+                    category,
+                    count
+                })),
+                byZone: Object.entries(byZone).map(([category, count]) => ({
+                    category,
+                    count
+                })),
+                byStatus: Object.entries(byStatus).map(([status, count]) => ({
+                    status,
+                    count
+                }))
+            };
+        }
+        catch (error) {
+            console.error('Error getting chat statistics:', error);
+            throw new Error('Failed to get chat statistics');
         }
     }
 }

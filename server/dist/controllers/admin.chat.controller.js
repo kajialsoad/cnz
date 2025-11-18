@@ -1,9 +1,60 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.getChatConversations = getChatConversations;
+exports.getChatStatistics = getChatStatistics;
 exports.getChatMessages = getChatMessages;
 exports.sendChatMessage = sendChatMessage;
 exports.markMessagesAsRead = markMessagesAsRead;
 const chat_service_1 = require("../services/chat.service");
+/**
+ * Get all chat conversations
+ */
+async function getChatConversations(req, res) {
+    try {
+        const { search, district, upazila, ward, zone, status, unreadOnly, page, limit } = req.query;
+        const result = await chat_service_1.chatService.getChatConversations({
+            search: search,
+            district: district,
+            upazila: upazila,
+            ward: ward,
+            zone: zone,
+            status: status,
+            unreadOnly: unreadOnly === 'true',
+            page: page ? parseInt(page) : undefined,
+            limit: limit ? parseInt(limit) : undefined
+        });
+        res.status(200).json({
+            success: true,
+            data: result
+        });
+    }
+    catch (error) {
+        console.error('Error in getChatConversations:', error);
+        res.status(500).json({
+            success: false,
+            message: error instanceof Error ? error.message : 'Failed to fetch chat conversations'
+        });
+    }
+}
+/**
+ * Get chat statistics
+ */
+async function getChatStatistics(req, res) {
+    try {
+        const statistics = await chat_service_1.chatService.getChatStatistics();
+        res.status(200).json({
+            success: true,
+            data: statistics
+        });
+    }
+    catch (error) {
+        console.error('Error in getChatStatistics:', error);
+        res.status(500).json({
+            success: false,
+            message: error instanceof Error ? error.message : 'Failed to fetch chat statistics'
+        });
+    }
+}
 /**
  * Get chat messages for a complaint
  */

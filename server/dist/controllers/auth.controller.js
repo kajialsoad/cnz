@@ -18,6 +18,9 @@ const registerSchema = zod_1.z.object({
     phone: zod_1.z.string().min(6),
     email: zod_1.z.string().email(),
     password: zod_1.z.string().min(6),
+    ward: zod_1.z.string().optional(),
+    zone: zod_1.z.string().optional(),
+    address: zod_1.z.string().optional(),
 });
 const loginSchema = zod_1.z
     .object({
@@ -38,6 +41,8 @@ async function register(req, res) {
             email: body.email,
             password: body.password,
             phone: body.phone,
+            ward: body.ward,
+            zone: body.zone,
         });
         return res.status(200).json(result);
     }
@@ -88,7 +93,7 @@ async function me(req, res) {
     try {
         if (!req.user)
             return res.status(401).json({ message: 'Unauthorized' });
-        const user = await auth_service_1.authService.getProfile(req.user.sub);
+        const user = await auth_service_1.authService.getProfile(req.user.sub.toString());
         return res.status(200).json({ user });
     }
     catch (err) {
@@ -189,7 +194,7 @@ async function updateProfile(req, res) {
                 message: 'Unauthorized'
             });
         const body = updateProfileSchema.parse(req.body);
-        const user = await auth_service_1.authService.updateProfile(req.user.sub, body);
+        const user = await auth_service_1.authService.updateProfile(req.user.sub.toString(), body);
         return res.status(200).json({
             success: true,
             message: 'Profile updated successfully',
@@ -217,7 +222,7 @@ async function resendVerificationEmail(req, res) {
                 success: false,
                 message: 'Unauthorized'
             });
-        await auth_service_1.authService.resendVerificationEmail(req.user.sub);
+        await auth_service_1.authService.resendVerificationEmail(req.user.sub.toString());
         return res.status(200).json({
             success: true,
             message: 'Verification email sent successfully'

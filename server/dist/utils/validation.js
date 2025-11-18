@@ -35,6 +35,18 @@ exports.registerSchema = joi_1.default.object({
         'string.min': 'পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে',
         'string.max': 'পাসওয়ার্ড সর্বোচ্চ ১২৮ অক্ষরের হতে হবে',
     }),
+    zone: joi_1.default.string().valid('DSCC', 'DNCC').optional()
+        .messages({
+        'any.only': 'জোন DSCC বা DNCC হতে হবে',
+    }),
+    ward: joi_1.default.string().optional()
+        .messages({
+        'string.base': 'ওয়ার্ড নম্বর প্রয়োজন',
+    }),
+    address: joi_1.default.string().max(255).optional()
+        .messages({
+        'string.max': 'ঠিকানা সর্বোচ্চ ২৫৫ অক্ষরের হতে হবে',
+    }),
     role: joi_1.default.string().valid('CUSTOMER', 'SERVICE_PROVIDER').optional()
         .messages({
         'any.only': 'রোল কাস্টমার অথবা সার্ভিস প্রোভাইডার হতে হবে',
@@ -105,6 +117,18 @@ exports.updateProfileSchema = joi_1.default.object({
     avatar: joi_1.default.string().uri().optional()
         .messages({
         'string.uri': 'বৈধ ইমেজ URL প্রয়োজন',
+    }),
+    zone: joi_1.default.string().valid('DSCC', 'DNCC').optional()
+        .messages({
+        'any.only': 'জোন DSCC বা DNCC হতে হবে',
+    }),
+    ward: joi_1.default.string().optional()
+        .messages({
+        'string.base': 'ওয়ার্ড নম্বর প্রয়োজন',
+    }),
+    address: joi_1.default.string().max(255).optional()
+        .messages({
+        'string.max': 'ঠিকানা সর্বোচ্চ ২৫৫ অক্ষরের হতে হবে',
     }),
 });
 exports.changePasswordSchema = joi_1.default.object({
