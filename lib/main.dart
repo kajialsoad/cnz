@@ -13,6 +13,7 @@ import 'pages/complaint_list_page.dart';
 import 'pages/complaint_page.dart';
 import 'pages/complaint_success_page.dart';
 import 'pages/customer_care_page.dart';
+import 'pages/email_verification_page.dart';
 import 'pages/emergency_page.dart';
 import 'pages/gallery_page.dart';
 import 'pages/government_calendar_page.dart';
@@ -21,9 +22,11 @@ import 'pages/live_chat_page.dart';
 import 'pages/login_page.dart';
 import 'pages/notice_board_page.dart';
 import 'pages/onboarding_screen.dart';
+import 'pages/otp_verification_page.dart';
 import 'pages/others_page.dart';
 import 'pages/payment_page.dart';
 import 'pages/profile_settings_page.dart';
+import 'pages/resend_verification_page.dart';
 import 'pages/signup_page.dart';
 import 'pages/waste_management_page.dart';
 import 'pages/welcome_screen.dart';
@@ -140,6 +143,29 @@ class MyApp extends StatelessWidget {
         fontFamily: GoogleFonts.notoSans().fontFamily,
       ),
       initialRoute: '/',
+      onGenerateRoute: (settings) {
+        // Handle /verify-email route with query parameters
+        if (settings.name == '/verify-email') {
+          final uri = Uri.parse(settings.name!);
+          final token = uri.queryParameters['token'];
+          return MaterialPageRoute(
+            builder: (_) => EmailVerificationPage(token: token),
+          );
+        }
+        
+        // Handle /verify-otp route with email parameter
+        if (settings.name == '/verify-otp') {
+          final email = settings.arguments as String?;
+          if (email == null) {
+            return MaterialPageRoute(builder: (_) => const LoginPage());
+          }
+          return MaterialPageRoute(
+            builder: (_) => OtpVerificationPage(email: email),
+          );
+        }
+        
+        return null;
+      },
       routes: {
         // Splash screen - checks login status
         '/': (_) => const SplashScreen(),
@@ -149,6 +175,7 @@ class MyApp extends StatelessWidget {
         '/welcome': (_) => const WelcomeScreen(),
         '/login': (_) => const LoginPage(),
         '/signup': (_) => const SignUpPage(),
+        '/resend-verification': (_) => const ResendVerificationPage(),
         
         // Protected routes (auth required)
         '/home': (_) => const AuthGuard(child: HomePage()),

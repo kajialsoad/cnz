@@ -207,23 +207,25 @@ class _SignUpPageState extends State<SignUpPage> {
 
       if (!mounted) return;
 
-      // Show verification section instead of navigating away
-      setState(() {
-        _showVerificationSection = true;
-        _isLoading = false;
-      });
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'রেজিস্ট্রেশন সফল! $email এ ভেরিফিকেশন কোড পাঠানো হয়েছে',
+      // Navigate to OTP verification page if email provided
+      if (email.isNotEmpty) {
+        Navigator.pushReplacementNamed(
+          context,
+          '/verify-otp',
+          arguments: email,
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'রেজিস্ট্রেশন সফল! $name এর জন্য একাউন্ট তৈরি হয়েছে ✓',
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
           ),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 4),
-        ),
-      );
-      
-      _startExpiryTimer();
+        );
+        Navigator.pushReplacementNamed(context, '/login');
+      }
     } catch (e) {
       if (!mounted) return;
 

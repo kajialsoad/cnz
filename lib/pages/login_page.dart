@@ -76,6 +76,25 @@ class _LoginPageState extends State<LoginPage> {
         errorMessage = 'সার্ভার সাড়া দিচ্ছে না, আবার চেষ্টা করুন';
       } else if (errorStr.contains('verify your email')) {
         errorMessage = 'প্রথমে আপনার ইমেইল ভেরিফাই করুন';
+        
+        // Show additional action for email verification
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(errorMessage),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 5),
+              action: SnackBarAction(
+                label: 'ইমেইল পাঠান',
+                textColor: Colors.white,
+                onPressed: () {
+                  Navigator.pushNamed(context, '/resend-verification');
+                },
+              ),
+            ),
+          );
+          return; // Exit early to avoid showing duplicate snackbar
+        }
       } else if (errorStr.contains('suspended')) {
         errorMessage = 'আপনার অ্যাকাউন্ট সাসপেন্ড করা হয়েছে';
       } else {
@@ -288,6 +307,20 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 16),
+                    // Email verification link
+                    GestureDetector(
+                      onTap: () => Navigator.pushNamed(context, '/resend-verification'),
+                      child: const Text(
+                        'ভেরিফিকেশন ইমেইল পাননি? নতুন ইমেইল পাঠান',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 13,
+                          decoration: TextDecoration.underline,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
                     ),
                   ],
                 ),

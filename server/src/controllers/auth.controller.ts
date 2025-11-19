@@ -265,7 +265,7 @@ export async function verifyEmailWithCode(req: AuthRequest, res: Response) {
 export async function resendVerificationCode(req: AuthRequest, res: Response) {
   try {
     const body = resendVerificationCodeSchema.parse(req.body);
-    const result = await authService.resendVerificationCode(body.email);
+    const result = await authService.resendVerificationEmail(body.email);
     return res.status(200).json(result);
   } catch (err: any) {
     if (err?.name === 'ZodError') {
