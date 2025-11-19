@@ -136,7 +136,7 @@ class AuthRepository {
 
   Future<void> verifyEmail(String email, String code) async {
     try {
-      final data = await api.post('/api/auth/verify-email', {
+      final data = await api.post('/api/auth/verify-email-code', {
         'email': email,
         'code': code,
       });
@@ -153,7 +153,7 @@ class AuthRepository {
 
   Future<void> resendVerificationCode(String email) async {
     try {
-      final data = await api.post('/api/auth/resend-verification', {
+      final data = await api.post('/api/auth/resend-verification-code', {
         'email': email,
       });
 
