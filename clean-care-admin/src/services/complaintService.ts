@@ -119,6 +119,7 @@ class ComplaintService {
 
     /**
      * Get all complaints with pagination and filters
+     * Supports filtering by category, subcategory, status, ward, date range, and search
      */
     async getComplaints(
         page: number = 1,
@@ -129,8 +130,27 @@ class ComplaintService {
             const params: any = {
                 page,
                 limit,
-                ...filters,
             };
+
+            // Add filters to params if provided
+            if (filters) {
+                if (filters.search) params.search = filters.search;
+                if (filters.status && filters.status !== 'ALL') params.status = filters.status;
+
+                // Handle "uncategorized" filter - send special value to backend
+                if (filters.category === 'uncategorized') {
+                    params.category = 'null'; // Backend will interpret this as NULL category filter
+                } else if (filters.category) {
+                    params.category = filters.category;
+                }
+
+                if (filters.subcategory) params.subcategory = filters.subcategory;
+                if (filters.ward) params.ward = filters.ward;
+                if (filters.startDate) params.startDate = filters.startDate;
+                if (filters.endDate) params.endDate = filters.endDate;
+                if (filters.sortBy) params.sortBy = filters.sortBy;
+                if (filters.sortOrder) params.sortOrder = filters.sortOrder;
+            }
 
             const response = await this.apiClient.get<{
                 success: boolean;

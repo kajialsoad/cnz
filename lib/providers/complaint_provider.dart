@@ -50,6 +50,7 @@ class ComplaintProvider extends ChangeNotifier {
   String _title = '';
   String _description = '';
   String _category = '';
+  String? _subcategory;  // NEW: Subcategory field
   String _urgencyLevel = '';
   String _location = '';
   String? _address;
@@ -71,6 +72,7 @@ class ComplaintProvider extends ChangeNotifier {
   String get title => _title;
   String get description => _description;
   String get category => _category;
+  String? get subcategory => _subcategory;  // NEW: Subcategory getter
   String get urgencyLevel => _urgencyLevel;
   String get location => _location;
   String? get address => _address;
@@ -104,6 +106,12 @@ class ComplaintProvider extends ChangeNotifier {
 
   void setCategory(String category) {
     _category = category;
+    notifyListeners();
+  }
+
+  // NEW: Setter for subcategory
+  void setSubcategory(String? subcategory) {
+    _subcategory = subcategory;
     notifyListeners();
   }
 
@@ -230,6 +238,8 @@ class ComplaintProvider extends ChangeNotifier {
     try {
       final complaint = await _complaintRepository.createComplaint(
         description: _description,
+        category: _category.isNotEmpty ? _category : null,  // NEW: Pass category
+        subcategory: _subcategory,  // NEW: Pass subcategory
         address: _address,
         district: _district,
         thana: _thana,
@@ -374,6 +384,7 @@ class ComplaintProvider extends ChangeNotifier {
     _title = '';
     _description = '';
     _category = '';
+    _subcategory = null;  // NEW: Clear subcategory
     _urgencyLevel = '';
     _location = '';
     _address = null;
@@ -395,6 +406,7 @@ class ComplaintProvider extends ChangeNotifier {
     _title = complaint.title;
     _description = complaint.description;
     _category = complaint.category;
+    _subcategory = complaint.subcategory;  // NEW: Load subcategory
     _urgencyLevel = complaint.urgencyLevel;
     _location = complaint.location;
     _address = complaint.address;

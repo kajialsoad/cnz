@@ -6,6 +6,7 @@ export interface AdminComplaintQueryInput {
     limit?: number;
     status?: ComplaintStatus | 'ALL';
     category?: string;
+    subcategory?: string;
     ward?: string;
     search?: string;
     startDate?: string;
@@ -32,6 +33,7 @@ export class AdminComplaintService {
                 limit = 20,
                 status,
                 category,
+                subcategory,
                 ward,
                 search,
                 startDate,
@@ -52,7 +54,32 @@ export class AdminComplaintService {
 
             // Category filter
             if (category) {
-                andConditions.push({ category });
+                // Handle "null" as a special value to filter for NULL categories
+                if (category === 'null') {
+                    andConditions.push({
+                        OR: [
+                            { category: null },
+                            { category: '' }
+                        ]
+                    });
+                } else {
+                    andConditions.push({ category });
+                }
+            }
+
+            // Subcategory filter
+            if (subcategory) {
+                // Handle "null" as a special value to filter for NULL subcategories
+                if (subcategory === 'null') {
+                    andConditions.push({
+                        OR: [
+                            { subcategory: null },
+                            { subcategory: '' }
+                        ]
+                    });
+                } else {
+                    andConditions.push({ subcategory });
+                }
             }
 
             // Ward filter

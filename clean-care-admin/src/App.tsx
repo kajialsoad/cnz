@@ -10,6 +10,7 @@ import Dashboard from './pages/Dashboard/Dashboard';
 import AllComplaints from './pages/AllComplaints';
 import UserManagement from './pages/UserManagement';
 import AdminChatPage from './pages/AdminChatPage';
+import CategoryAnalytics from './pages/CategoryAnalytics';
 import Reports from './pages/Reports';
 import Notifications from './pages/Notifications';
 import Settings from './pages/Settings';
@@ -92,6 +93,14 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <AdminChatPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/analytics/categories"
+                  element={
+                    <ProtectedRoute>
+                      <CategoryAnalytics />
                     </ProtectedRoute>
                   }
                 />

@@ -10,6 +10,8 @@ class ComplaintRepository {
   /// Create a new complaint with optional file uploads
   Future<Complaint> createComplaint({
     required String description,
+    String? category,  // NEW: Category parameter
+    String? subcategory,  // NEW: Subcategory parameter
     String? address,
     String? district,
     String? thana,
@@ -21,6 +23,8 @@ class ComplaintRepository {
       // Debug logging
       print('Creating complaint with:');
       print('- description: $description');
+      print('- category: $category');  // NEW: Log category
+      print('- subcategory: $subcategory');  // NEW: Log subcategory
       print('- address: $address (length: ${address?.length ?? 0})');
       print('- district: $district');
       print('- thana: $thana');
@@ -34,16 +38,27 @@ class ComplaintRepository {
         'ward': ward ?? '',
       };
 
+      // Build data map
+      final data = <String, dynamic>{
+        'description': description,
+        // Send location as nested object using bracket notation for multipart form
+        'location[address]': locationData['address'],
+        'location[district]': locationData['district'],
+        'location[thana]': locationData['thana'],
+        'location[ward]': locationData['ward'],
+      };
+
+      // NEW: Add category and subcategory if provided
+      if (category != null && category.isNotEmpty) {
+        data['category'] = category;
+      }
+      if (subcategory != null && subcategory.isNotEmpty) {
+        data['subcategory'] = subcategory;
+      }
+
       final response = await _apiClient.postMultipart(
         '/api/complaints',
-        data: {
-          'description': description,
-          // Send location as nested object using bracket notation for multipart form
-          'location[address]': locationData['address'],
-          'location[district]': locationData['district'],
-          'location[thana]': locationData['thana'],
-          'location[ward]': locationData['ward'],
-        },
+        data: data,
         files: [
           ...?images?.map((file) => MapEntry('images', file)),
           ...?audioFiles?.map((file) => MapEntry('audioFiles', file)),
@@ -53,10 +68,24 @@ class ComplaintRepository {
       if (response['success'] == true) {
         return Complaint.fromJson(response['data']);
       } else {
-        throw Exception(response['message'] ?? 'Failed to create complaint');
+        // NEW: Better error message handling
+        final errorMessage = response['message'] ?? 'Failed to create complaint';
+        throw Exception(errorMessage);
       }
     } catch (e) {
-      throw Exception('Error creating complaint: ${e.toString()}');
+      // NEW: Check if it's a category validation error
+      final errorString = e.toString();
+      if (errorString.contains('Invalid category') || 
+          errorString.contains('category') && errorString.contains('invalid')) {
+        throw Exception('Invalid category selected. Please select a valid category.');
+      } else if (errorString.contains('Invalid subcategory') || 
+                 errorString.contains('subcategory') && errorString.contains('invalid')) {
+        throw Exception('Invalid subcategory selected. Please select a valid subcategory.');
+      } else if (errorString.contains('category') && errorString.contains('required')) {
+        throw Exception('Please select a category before submitting your complaint.');
+      }
+      // Re-throw the original exception if not category-related
+      rethrow;
     }
   }
 

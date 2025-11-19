@@ -6,6 +6,7 @@ class Complaint {
   final String title;
   final String description;
   final String category;
+  final String? subcategory;  // NEW: Subcategory field
   final String urgencyLevel;
   final String location;
   final String? address;
@@ -22,6 +23,7 @@ class Complaint {
     required this.title,
     required this.description,
     required this.category,
+    this.subcategory,  // NEW: Subcategory parameter
     required this.urgencyLevel,
     required this.location,
     this.address,
@@ -43,6 +45,7 @@ class Complaint {
       title: complaintData['title'] ?? '',
       description: complaintData['description'] ?? '',
       category: complaintData['category'] ?? '',
+      subcategory: complaintData['subcategory'],  // NEW: Parse subcategory
       urgencyLevel: complaintData['urgencyLevel'] ?? '',
       location: complaintData['location'] ?? '',
       address: complaintData['address'],
@@ -152,6 +155,7 @@ class Complaint {
       'title': title,
       'description': description,
       'category': category,
+      'subcategory': subcategory,  // NEW: Include subcategory
       'urgencyLevel': urgencyLevel,
       'location': location,
       'address': address,
@@ -169,6 +173,7 @@ class Complaint {
     String? title,
     String? description,
     String? category,
+    String? subcategory,  // NEW: Subcategory parameter
     String? urgencyLevel,
     String? location,
     String? address,
@@ -185,6 +190,7 @@ class Complaint {
       title: title ?? this.title,
       description: description ?? this.description,
       category: category ?? this.category,
+      subcategory: subcategory ?? this.subcategory,  // NEW: Copy subcategory
       urgencyLevel: urgencyLevel ?? this.urgencyLevel,
       location: location ?? this.location,
       address: address ?? this.address,

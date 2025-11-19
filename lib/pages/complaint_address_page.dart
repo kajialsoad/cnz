@@ -478,20 +478,57 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
         Navigator.pop(context); // Close loading dialog
 
         if (complaintProvider.error != null) {
-          _showErrorSnackBar('Error: ${complaintProvider.error}');
+          // NEW: Enhanced error message handling for category validation
+          final errorMessage = complaintProvider.error!;
+          if (errorMessage.contains('category') || errorMessage.contains('subcategory')) {
+            _showErrorDialog(
+              'Category Error',
+              errorMessage,
+              showReturnButton: true,
+            );
+          } else {
+            _showErrorSnackBar('Error: $errorMessage');
+          }
         } else {
           // Navigate to success page
           _navigateToNextPage();
         }
       } catch (e) {
         Navigator.pop(context); // Close loading dialog
-        _showErrorSnackBar('Failed to submit complaint: ${e.toString()}');
+        
+        // NEW: Enhanced error handling for category validation
+        final errorString = e.toString();
+        if (errorString.contains('category') || errorString.contains('subcategory')) {
+          _showErrorDialog(
+            'Category Error',
+            errorString.replaceFirst('Exception: ', ''),
+            showReturnButton: true,
+          );
+        } else {
+          _showErrorSnackBar('Failed to submit complaint: $errorString');
+        }
       }
     }
   }
 
   bool _validateForm() {
     print('Validating form...');
+    
+    // NEW: Validate category is selected
+    final complaintProvider = Provider.of<ComplaintProvider>(
+      context,
+      listen: false,
+    );
+    
+    if (complaintProvider.category.isEmpty) {
+      _showErrorDialog(
+        'Category Required',
+        'Please select a category before submitting your complaint.',
+        showReturnButton: true,
+      );
+      return false;
+    }
+    
     print('selectedDistrict: $selectedDistrict');
     print('selectedThana: $selectedThana');
     print('selectedCityCorporation: $selectedCityCorporation');
@@ -551,6 +588,52 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
             ),
           ],
         ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
+
+  // NEW: Show error dialog with option to return to category selection
+  void _showErrorDialog(String title, String message, {bool showReturnButton = false}) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.error_outline, color: Colors.red, size: 28),
+            const SizedBox(width: 12),
+            Text(
+              title,
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+        content: Text(
+          message,
+          style: TextStyle(fontSize: 14, color: Colors.black87),
+        ),
+        actions: [
+          if (showReturnButton)
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context); // Close dialog
+                // Navigate back to category selection
+                Navigator.popUntil(context, (route) => route.isFirst);
+                Navigator.pushReplacementNamed(context, '/complaint');
+              },
+              child: Text(
+                'Select Category Again',
+                style: TextStyle(color: Color(0xFF4CAF50)),
+              ),
+            ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'OK',
+              style: TextStyle(color: Color(0xFF4CAF50), fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );

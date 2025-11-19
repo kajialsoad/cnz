@@ -13,7 +13,7 @@ class AdminComplaintService {
      */
     async getAdminComplaints(query = {}) {
         try {
-            const { page = 1, limit = 20, status, category, ward, search, startDate, endDate, sortBy = 'createdAt', sortOrder = 'desc' } = query;
+            const { page = 1, limit = 20, status, category, subcategory, ward, search, startDate, endDate, sortBy = 'createdAt', sortOrder = 'desc' } = query;
             const skip = (page - 1) * limit;
             // Build where clause - COMPLETELY REWRITTEN
             const andConditions = [];
@@ -23,7 +23,33 @@ class AdminComplaintService {
             }
             // Category filter
             if (category) {
-                andConditions.push({ category });
+                // Handle "null" as a special value to filter for NULL categories
+                if (category === 'null') {
+                    andConditions.push({
+                        OR: [
+                            { category: null },
+                            { category: '' }
+                        ]
+                    });
+                }
+                else {
+                    andConditions.push({ category });
+                }
+            }
+            // Subcategory filter
+            if (subcategory) {
+                // Handle "null" as a special value to filter for NULL subcategories
+                if (subcategory === 'null') {
+                    andConditions.push({
+                        OR: [
+                            { subcategory: null },
+                            { subcategory: '' }
+                        ]
+                    });
+                }
+                else {
+                    andConditions.push({ subcategory });
+                }
             }
             // Ward filter
             if (ward) {

@@ -270,7 +270,7 @@ async function verifyEmailWithCode(req, res) {
 async function resendVerificationCode(req, res) {
     try {
         const body = resendVerificationCodeSchema.parse(req.body);
-        const result = await auth_service_1.authService.resendVerificationCode(body.email);
+        const result = await auth_service_1.authService.resendVerificationEmail(body.email);
         return res.status(200).json(result);
     }
     catch (err) {

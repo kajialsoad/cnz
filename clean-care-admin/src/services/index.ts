@@ -5,6 +5,7 @@ export { complaintService } from './complaintService';
 export { analyticsService } from './analyticsService';
 export { chatService } from './chatService';
 export { translationService } from './translationService';
+export { categoryService } from './categoryService';
 
 // Export service types
 export type {
@@ -50,3 +51,19 @@ export type {
     ChatComplaintDetails,
     StatisticsByCategory,
 } from '../types/chat-page.types';
+
+export type {
+    CategoryItem,
+    SubcategoryItem,
+    CategoryStatistic,
+    SubcategoryStatistic,
+    CategoryTrendDataPoint,
+    CategoryMetadata,
+    CategoryStatisticsQuery,
+    CategoryTrendsQuery,
+    GetCategoriesResponse,
+    GetCategoryResponse,
+    GetSubcategoriesResponse,
+    GetCategoryStatisticsResponse,
+    GetCategoryTrendsResponse,
+} from '../types/category-service.types';

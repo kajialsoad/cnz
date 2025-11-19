@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';  // NEW: Import Provider
 
+import '../providers/complaint_provider.dart';  // NEW: Import ComplaintProvider
 import '../widgets/translated_text.dart';
 
 class HomeHouseCategoryPage extends StatefulWidget {
@@ -165,6 +167,11 @@ class _HomeHouseCategoryPageState extends State<HomeHouseCategoryPage> {
         setState(() {
           selectedCategory = category['id'];
         });
+        
+        // NEW: Store category and subcategory in provider
+        final complaintProvider = Provider.of<ComplaintProvider>(context, listen: false);
+        complaintProvider.setCategory('home');  // Set primary category as 'home'
+        complaintProvider.setSubcategory(category['id']);  // Set subcategory
         
         // Navigate to complaint details after short delay
         Future.delayed(const Duration(milliseconds: 300), () {

@@ -119,6 +119,8 @@ export class ComplaintController {
             id: complaint.id,
             title: complaint.title,
             description: complaint.description,
+            category: complaint.category,
+            subcategory: complaint.subcategory,
             priority: complaint.priority,
             status: complaint.status,
             imageUrls: complaint.imageUrls,

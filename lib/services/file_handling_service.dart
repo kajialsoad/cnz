@@ -51,20 +51,19 @@ class FileHandlingService {
   /// Pick image from gallery or camera
   Future<File?> pickImage({ImageSource source = ImageSource.gallery}) async {
     try {
+      final XFile? pickedFile = await _imagePicker.pickImage(
+        source: source,
+        maxWidth: 1920,
+        maxHeight: 1920,
+        imageQuality: 85,
+      );
+
+      if (pickedFile == null) return null;
+
       // Web platform handling
       if (kIsWeb) {
-        // On web, permissions are handled by browser
-        final XFile? pickedFile = await _imagePicker.pickImage(
-          source: source,
-          maxWidth: 1920,
-          maxHeight: 1920,
-          imageQuality: 85,
-        );
-
-        if (pickedFile == null) return null;
-
-        // For web, we can't create File objects, but we'll simulate it
-        // The actual file handling will be done differently for web
+        // For web, return a File with the XFile path
+        // The API client will handle reading bytes from XFile
         return File(pickedFile.path);
       }
 
@@ -78,19 +77,10 @@ class FileHandlingService {
         throw Exception('Permission denied for ${source == ImageSource.camera ? 'camera' : 'gallery'}');
       }
 
-      final XFile? pickedFile = await _imagePicker.pickImage(
-        source: source,
-        maxWidth: 1920,
-        maxHeight: 1920,
-        imageQuality: 85,
-      );
-
-      if (pickedFile == null) return null;
-
       final file = File(pickedFile.path);
       
       // Validate the picked image
-      if (!kIsWeb && !validateImageFile(file)) {
+      if (!validateImageFile(file)) {
         throw Exception(
           'Invalid image file. Please select a JPEG, PNG, or WebP image under ${maxImageSizeMB}MB.'
         );
@@ -105,14 +95,14 @@ class FileHandlingService {
   /// Pick multiple images
   Future<List<File>> pickMultipleImages() async {
     try {
+      final List<XFile> pickedFiles = await _imagePicker.pickMultiImage(
+        maxWidth: 1920,
+        maxHeight: 1920,
+        imageQuality: 85,
+      );
+
       // Web platform handling
       if (kIsWeb) {
-        final List<XFile> pickedFiles = await _imagePicker.pickMultiImage(
-          maxWidth: 1920,
-          maxHeight: 1920,
-          imageQuality: 85,
-        );
-
         return pickedFiles.map((file) => File(file.path)).toList();
       }
 
@@ -121,12 +111,6 @@ class FileHandlingService {
       if (!status.isGranted) {
         throw Exception('Permission denied for gallery access');
       }
-
-      final List<XFile> pickedFiles = await _imagePicker.pickMultiImage(
-        maxWidth: 1920,
-        maxHeight: 1920,
-        imageQuality: 85,
-      );
 
       final List<File> validFiles = [];
       final List<String> errors = [];

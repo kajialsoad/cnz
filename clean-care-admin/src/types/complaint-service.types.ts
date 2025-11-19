@@ -6,7 +6,8 @@ export interface Complaint {
     complaintId: string; // Display ID (e.g., C001234)
     title: string;
     description: string;
-    category: string;
+    category: string; // Category ID (e.g., 'home', 'road_environment')
+    subcategory: string; // Subcategory ID (e.g., 'not_collecting_waste')
     priority: number;
     status: ComplaintStatus;
     location: string; // Formatted location string
@@ -53,14 +54,27 @@ export interface StatusHistoryEntry {
     createdAt: string;
 }
 
+/**
+ * Filters for querying complaints
+ */
 export interface ComplaintFilters {
+    /** Search term to filter by title, description, or tracking number */
     search?: string;
+    /** Filter by complaint status (PENDING, IN_PROGRESS, RESOLVED, REJECTED, or ALL) */
     status?: ComplaintStatus | 'ALL';
+    /** Filter by category ID (e.g., 'home', 'road_environment', 'business') */
     category?: string;
+    /** Filter by subcategory ID (e.g., 'not_collecting_waste', 'worker_behavior') */
+    subcategory?: string;
+    /** Filter by ward number */
     ward?: string;
+    /** Filter complaints created after this date (ISO 8601 format) */
     startDate?: string;
+    /** Filter complaints created before this date (ISO 8601 format) */
     endDate?: string;
+    /** Field to sort by */
     sortBy?: 'createdAt' | 'updatedAt' | 'priority';
+    /** Sort order (ascending or descending) */
     sortOrder?: 'asc' | 'desc';
 }
 

@@ -8,10 +8,16 @@ const prisma_1 = __importDefault(require("../utils/prisma"));
 const client_1 = require("@prisma/client");
 const upload_service_1 = require("./upload.service");
 const upload_config_1 = require("../config/upload.config");
+const category_service_1 = require("./category.service");
 class ComplaintService {
     // Create a new complaint
     async createComplaint(input) {
         try {
+            // Validate category and subcategory combination
+            if (!category_service_1.categoryService.validateCategorySubcategory(input.category, input.subcategory)) {
+                const validSubcategories = category_service_1.categoryService.getAllSubcategoryIds(input.category);
+                throw new Error(`Invalid category and subcategory combination. Category '${input.category}' does not have subcategory '${input.subcategory}'. Valid subcategories: ${validSubcategories.join(', ')}`);
+            }
             // Generate tracking number
             const trackingNumber = await this.generateTrackingNumber();
             let finalImageUrls = [];
@@ -64,6 +70,8 @@ class ComplaintService {
                 data: {
                     title: title,
                     description: input.description,
+                    category: input.category,
+                    subcategory: input.subcategory,
                     priority: input.priority || 1, // Default priority is 1
                     status: client_1.ComplaintStatus.PENDING,
                     imageUrl: finalImageUrls.length > 0 ? JSON.stringify(finalImageUrls) : null,
@@ -164,6 +172,13 @@ class ComplaintService {
             if (input.voiceNoteUrl && !finalVoiceUrl) {
                 finalVoiceUrl = input.voiceNoteUrl;
             }
+            // Validate category/subcategory if both are being updated
+            if (input.category !== undefined && input.subcategory !== undefined) {
+                if (!category_service_1.categoryService.validateCategorySubcategory(input.category, input.subcategory)) {
+                    const validSubcategories = category_service_1.categoryService.getAllSubcategoryIds(input.category);
+                    throw new Error(`Invalid category and subcategory combination. Category '${input.category}' does not have subcategory '${input.subcategory}'. Valid subcategories: ${validSubcategories.join(', ')}`);
+                }
+            }
             // Prepare update data
             const updateData = {};
             if (input.title !== undefined)
@@ -172,6 +187,8 @@ class ComplaintService {
                 updateData.description = input.description;
             if (input.category !== undefined)
                 updateData.category = input.category;
+            if (input.subcategory !== undefined)
+                updateData.subcategory = input.subcategory;
             if (input.priority !== undefined)
                 updateData.priority = input.priority;
             if (input.status !== undefined)
@@ -415,7 +432,7 @@ class ComplaintService {
     }
     // Raw method for internal use
     async getComplaintsRaw(query = {}) {
-        const { page = 1, limit = 10, status, category, priority, sortBy = 'createdAt', sortOrder = 'desc', userId } = query;
+        const { page = 1, limit = 10, status, category, subcategory, priority, sortBy = 'createdAt', sortOrder = 'desc', userId } = query;
         const skip = (page - 1) * limit;
         // Build where clause
         const where = {};
@@ -423,6 +440,8 @@ class ComplaintService {
             where.status = status;
         if (category)
             where.category = category;
+        if (subcategory)
+            where.subcategory = subcategory;
         if (priority)
             where.priority = priority;
         if (userId)

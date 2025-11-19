@@ -30,11 +30,9 @@ class AuthService {
             }
         }
         const hashedPassword = await (0, bcrypt_1.hash)(input.password, 12);
-        // Generate verification code
-        const verificationCode = this.generateVerificationCode();
-        const hashedCode = await this.hashVerificationCode(verificationCode);
-        const expiryMinutes = parseInt(process.env.VERIFICATION_CODE_EXPIRY_MINUTES || '15');
-        const verificationCodeExpiry = new Date(Date.now() + expiryMinutes * 60 * 1000);
+        const verificationToken = (0, jwt_1.generateSecureToken)();
+        const verificationCode = (0, jwt_1.generateOTP)(6); // Generate 6-digit OTP
+        const emailVerificationEnabled = process.env.EMAIL_VERIFICATION_ENABLED === 'true';
         const user = await prisma_1.default.user.create({
             data: {
                 email: input.email,
@@ -46,11 +44,9 @@ class AuthService {
                 zone: input.zone,
                 address: input.address,
                 role: input.role || client_1.UserRole.CUSTOMER,
-                status: client_1.UserStatus.PENDING,
-                emailVerified: false,
+                status: emailVerificationEnabled ? client_1.UserStatus.PENDING : client_1.UserStatus.ACTIVE,
+                emailVerified: !emailVerificationEnabled, // Mark as verified if verification is disabled
                 phoneVerified: false,
-                verificationCode: hashedCode,
-                verificationCodeExpiry: verificationCodeExpiry,
             },
             select: {
                 id: true,
@@ -65,27 +61,27 @@ class AuthService {
                 createdAt: true
             }
         });
-        // Send verification email (non-blocking)
+        // Create email verification token with OTP code
+        await prisma_1.default.emailVerificationToken.create({
+            data: {
+                token: verificationToken,
+                code: verificationCode,
+                userId: user.id,
+                expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes expiry for OTP
+            }
+        });
+        // Send verification email with OTP code
         if (user.email) {
-            try {
-                await email_1.default.sendVerificationEmail(user.email, {
-                    userName: user.firstName || 'User',
-                    verificationCode: verificationCode,
-                    expiryMinutes: expiryMinutes
-                });
-            }
-            catch (emailError) {
-                console.error('Email sending failed, but registration succeeded:', emailError);
-                // Continue with registration even if email fails
-            }
+            await email_1.default.sendEmailVerificationEmail(user.email, verificationCode);
         }
         return {
             success: true,
-            message: 'Registration successful. Please verify your email.',
+            message: emailVerificationEnabled
+                ? 'Registration successful. Please verify your email.'
+                : 'Registration successful. You can now login.',
             data: {
                 email: user.email,
-                requiresVerification: true,
-                expiryTime: verificationCodeExpiry
+                requiresVerification: emailVerificationEnabled
             }
         };
     }
@@ -113,8 +109,9 @@ class AuthService {
         if (user.status === client_1.UserStatus.SUSPENDED) {
             throw new Error('Account is suspended');
         }
-        // Check if email is verified for pending accounts
-        if (user.status === client_1.UserStatus.PENDING && !user.emailVerified) {
+        // Check if email verification is enabled and if email is verified for pending accounts
+        const emailVerificationEnabled = process.env.EMAIL_VERIFICATION_ENABLED === 'true';
+        if (emailVerificationEnabled && user.status === client_1.UserStatus.PENDING && !user.emailVerified) {
             throw new Error('Please verify your email first');
         }
         const isPasswordValid = await (0, bcrypt_1.compare)(input.password, user.passwordHash);
@@ -267,7 +264,52 @@ class AuthService {
             message: 'Password reset successful. Please login with your new password.'
         };
     }
-    // Verify email
+    // Verify email with OTP code
+    async verifyEmailWithCode(email, code) {
+        const user = await prisma_1.default.user.findUnique({
+            where: { email }
+        });
+        if (!user) {
+            throw new Error('User not found');
+        }
+        if (user.emailVerified) {
+            return {
+                success: true,
+                message: 'Email is already verified. You can login now.'
+            };
+        }
+        const verificationToken = await prisma_1.default.emailVerificationToken.findFirst({
+            where: {
+                userId: user.id,
+                code: code,
+                expiresAt: { gt: new Date() },
+                used: false
+            },
+            include: { user: true }
+        });
+        if (!verificationToken) {
+            throw new Error('Invalid or expired verification code');
+        }
+        await prisma_1.default.user.update({
+            where: { id: verificationToken.userId },
+            data: {
+                emailVerified: true,
+                status: client_1.UserStatus.ACTIVE
+            }
+        });
+        await prisma_1.default.emailVerificationToken.update({
+            where: { id: verificationToken.id },
+            data: { used: true }
+        });
+        if (verificationToken.user.email) {
+            await email_1.default.sendWelcomeEmail(verificationToken.user.email, verificationToken.user.firstName);
+        }
+        return {
+            success: true,
+            message: 'Email verified successfully. Welcome to Clean Care Bangladesh!'
+        };
+    }
+    // Verify email (legacy - for backward compatibility with token URLs)
     async verifyEmail(token) {
         const verificationToken = await prisma_1.default.emailVerificationToken.findFirst({
             where: {
@@ -296,7 +338,7 @@ class AuthService {
         }
         return {
             success: true,
-            message: 'Email verified successfully. Welcome to Clean App Bangladesh!'
+            message: 'Email verified successfully. Welcome to Clean Care Bangladesh!'
         };
     }
     // Resend verification email
@@ -307,24 +349,36 @@ class AuthService {
         if (!user || user.emailVerified) {
             return {
                 success: true,
-                message: 'If your email needs verification, a new verification link has been sent.'
+                message: 'If your email needs verification, a new verification code has been sent.'
             };
         }
         const verificationToken = (0, jwt_1.generateSecureToken)();
-        // Create new verification token
+        const verificationCode = (0, jwt_1.generateOTP)(6); // Generate 6-digit OTP
+        // Mark old tokens as used
+        await prisma_1.default.emailVerificationToken.updateMany({
+            where: {
+                userId: user.id,
+                used: false
+            },
+            data: {
+                used: true
+            }
+        });
+        // Create new verification token with OTP code
         await prisma_1.default.emailVerificationToken.create({
             data: {
                 token: verificationToken,
+                code: verificationCode,
                 userId: user.id,
-                expiresAt: new Date(Date.now() + env_1.default.EMAIL_VERIFICATION_TTL_SECONDS * 1000)
+                expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes expiry for OTP
             }
         });
         if (user.email) {
-            await email_1.default.sendEmailVerificationEmail(user.email, verificationToken);
+            await email_1.default.sendEmailVerificationEmail(user.email, verificationCode);
         }
         return {
             success: true,
-            message: 'If your email needs verification, a new verification link has been sent.'
+            message: 'If your email needs verification, a new verification code has been sent.'
         };
     }
     // Get user profile
@@ -405,131 +459,6 @@ class AuthService {
         return {
             success: true,
             message: 'Password changed successfully. Please login again with your new password.'
-        };
-    }
-    // Generate 6-digit verification code
-    generateVerificationCode() {
-        const code = Math.floor(100000 + Math.random() * 900000).toString();
-        return code;
-    }
-    // Hash verification code using bcrypt
-    async hashVerificationCode(code) {
-        return (0, bcrypt_1.hash)(code, 12);
-    }
-    // Check if verification code is expired
-    isCodeExpired(expiryTime) {
-        if (!expiryTime)
-            return true;
-        return new Date() > expiryTime;
-    }
-    // Verify email with code (new verification flow)
-    async verifyEmailWithCode(email, code) {
-        const user = await prisma_1.default.user.findUnique({
-            where: { email }
-        });
-        if (!user) {
-            throw new Error('No pending registration found for this email');
-        }
-        // Check if code is expired
-        if (this.isCodeExpired(user.verificationCodeExpiry)) {
-            throw new Error('Verification code has expired. Please request a new one.');
-        }
-        // Verify code
-        if (!user.verificationCode) {
-            throw new Error('No verification code found');
-        }
-        const isCodeValid = await (0, bcrypt_1.compare)(code, user.verificationCode);
-        if (!isCodeValid) {
-            throw new Error('Invalid verification code');
-        }
-        // Update user status to active and mark email as verified
-        const updatedUser = await prisma_1.default.user.update({
-            where: { id: user.id },
-            data: {
-                emailVerified: true,
-                status: client_1.UserStatus.ACTIVE
-            },
-            select: {
-                id: true,
-                email: true,
-                firstName: true,
-                lastName: true,
-                phone: true,
-                role: true,
-                status: true,
-                emailVerified: true,
-                createdAt: true
-            }
-        });
-        // Generate tokens
-        const accessToken = (0, jwt_1.signAccessToken)({
-            sub: updatedUser.id,
-            role: updatedUser.role,
-            email: updatedUser.email ?? undefined,
-            phone: updatedUser.phone ?? undefined
-        });
-        const refreshToken = (0, jwt_1.signRefreshToken)({
-            sub: updatedUser.id,
-            role: updatedUser.role,
-            email: updatedUser.email ?? undefined,
-            phone: updatedUser.phone ?? undefined
-        });
-        // Store refresh token
-        await prisma_1.default.refreshToken.create({
-            data: {
-                token: refreshToken,
-                userId: updatedUser.id,
-                expiresAt: new Date(Date.now() + env_1.default.REFRESH_TTL_SECONDS * 1000)
-            }
-        });
-        return {
-            success: true,
-            message: 'Email verified successfully',
-            data: {
-                accessToken,
-                refreshToken,
-                user: updatedUser
-            }
-        };
-    }
-    // Resend verification code
-    async resendVerificationCode(email) {
-        const user = await prisma_1.default.user.findUnique({
-            where: { email }
-        });
-        if (!user) {
-            throw new Error('No pending registration found for this email');
-        }
-        if (user.emailVerified) {
-            throw new Error('Email is already verified');
-        }
-        // Generate new verification code
-        const code = this.generateVerificationCode();
-        const hashedCode = await this.hashVerificationCode(code);
-        const expiryMinutes = parseInt(process.env.VERIFICATION_CODE_EXPIRY_MINUTES || '15');
-        const expiryTime = new Date(Date.now() + expiryMinutes * 60 * 1000);
-        // Update user with new code (invalidate old code)
-        await prisma_1.default.user.update({
-            where: { id: user.id },
-            data: {
-                verificationCode: hashedCode,
-                verificationCodeExpiry: expiryTime
-            }
-        });
-        // Send verification email
-        if (user.email) {
-            await email_1.default.sendVerificationEmail(user.email, {
-                userName: user.firstName || 'User',
-                verificationCode: code,
-                expiryMinutes: expiryMinutes
-            });
-        }
-        return {
-            success: true,
-            message: 'Verification code has been resent to your email',
-            data: {
-                expiryTime
-            }
         };
     }
     // Clean up expired pending accounts (24 hours)

@@ -14,5 +14,11 @@ console.log('🔧 Admin analytics route registered: GET /');
 // Get complaint trends
 router.get('/trends', admin_analytics_controller_1.getComplaintTrends);
 console.log('🔧 Admin analytics route registered: GET /trends');
+// Get category statistics
+router.get('/categories', admin_analytics_controller_1.getCategoryStatistics);
+console.log('🔧 Admin analytics route registered: GET /categories');
+// Get category trends
+router.get('/categories/trends', admin_analytics_controller_1.getCategoryTrendsController);
+console.log('🔧 Admin analytics route registered: GET /categories/trends');
 console.log('✅ Admin analytics routes module loaded successfully');
 exports.default = router;

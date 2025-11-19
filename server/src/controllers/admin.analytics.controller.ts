@@ -53,3 +53,58 @@ export async function getComplaintTrends(req: AuthRequest, res: Response) {
         });
     }
 }
+
+/**
+ * Get category statistics
+ */
+export async function getCategoryStatistics(req: AuthRequest, res: Response) {
+    try {
+        const { startDate, endDate } = req.query;
+
+        const statistics = await analyticsService.getCategoryStatistics({
+            startDate: startDate as string,
+            endDate: endDate as string
+        });
+
+        res.status(200).json({
+            success: true,
+            data: {
+                statistics,
+                totalCategories: statistics.length,
+                totalComplaints: statistics.reduce((sum, cat) => sum + cat.totalCount, 0)
+            }
+        });
+    } catch (error) {
+        console.error('Error in getCategoryStatistics:', error);
+        res.status(500).json({
+            success: false,
+            message: error instanceof Error ? error.message : 'Failed to fetch category statistics'
+        });
+    }
+}
+
+/**
+ * Get category trends
+ */
+export async function getCategoryTrendsController(req: AuthRequest, res: Response) {
+    try {
+        const { period, startDate, endDate } = req.query;
+
+        const data = await analyticsService.getCategoryTrends({
+            period: period as 'day' | 'week' | 'month' | 'year',
+            startDate: startDate as string,
+            endDate: endDate as string
+        });
+
+        res.status(200).json({
+            success: true,
+            data
+        });
+    } catch (error) {
+        console.error('Error in getCategoryTrends:', error);
+        res.status(500).json({
+            success: false,
+            message: error instanceof Error ? error.message : 'Failed to fetch category trends'
+        });
+    }
+}

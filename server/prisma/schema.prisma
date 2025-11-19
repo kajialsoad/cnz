@@ -106,6 +106,8 @@ model Complaint {
   id            Int                    @id @default(autoincrement())
   title         String
   description   String                 @db.Text
+  category      String? // Category ID (e.g., 'home', 'road_environment') - Optional for backward compatibility
+  subcategory   String? // Subcategory ID (e.g., 'not_collecting_waste') - Optional for backward compatibility
   location      String
   imageUrl      String?                @db.Text
   audioUrl      String?                @db.Text
@@ -121,6 +123,9 @@ model Complaint {
   @@index([userId, status])
   @@index([status])
   @@index([createdAt])
+  @@index([category])
+  @@index([subcategory])
+  @@index([category, subcategory])
 }
 
 model ChatMessage {

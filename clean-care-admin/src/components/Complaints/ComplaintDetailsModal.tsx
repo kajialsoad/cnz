@@ -41,11 +41,13 @@ import {
     Audiotrack as AudiotrackIcon,
     Edit as EditIcon,
     Chat as ChatIcon,
+    HelpOutline,
 } from '@mui/icons-material';
 import toast from 'react-hot-toast';
 import { complaintService } from '../../services/complaintService';
 import { handleApiError } from '../../utils/errorHandler';
 import { scaleIn, slideInUp, animationConfig, statusBadgeTransition, fadeIn } from '../../styles/animations';
+import CategoryInfo from './CategoryInfo';
 import type { ComplaintDetails, ComplaintStatus } from '../../types/complaint-service.types';
 
 interface ComplaintDetailsModalProps {
@@ -531,21 +533,58 @@ const ComplaintDetailsModal: React.FC<ComplaintDetailsModalProps> = ({
                                 />
                             </Box>
 
-                            {/* Complaint Type/Category */}
+                            {/* Complaint Title */}
                             <Box sx={{ mb: { xs: 2, sm: 3 } }}>
                                 <Typography
                                     variant={isMobile ? 'caption' : 'subtitle2'}
                                     color="text.secondary"
                                     sx={{ mb: 0.5 }}
                                 >
-                                    Complaint Type
+                                    Complaint Title
                                 </Typography>
                                 <Typography
                                     variant={isMobile ? 'body2' : 'body1'}
                                     sx={{ fontWeight: 500 }}
                                 >
-                                    {complaint.category || complaint.title}
+                                    {complaint.title}
                                 </Typography>
+                            </Box>
+
+                            {/* Category Information */}
+                            <Box sx={{ mb: { xs: 2, sm: 3 } }}>
+                                <Typography
+                                    variant={isMobile ? 'caption' : 'subtitle2'}
+                                    color="text.secondary"
+                                    sx={{ mb: 1 }}
+                                >
+                                    Category
+                                </Typography>
+                                {complaint.category && complaint.subcategory ? (
+                                    <CategoryInfo
+                                        categoryId={complaint.category}
+                                        subcategoryId={complaint.subcategory}
+                                    />
+                                ) : (
+                                    <Box
+                                        sx={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 1,
+                                            p: 1.5,
+                                            backgroundColor: '#f5f5f5',
+                                            border: '1px dashed #bdbdbd',
+                                            borderRadius: 1,
+                                        }}
+                                    >
+                                        <HelpOutline sx={{ color: '#757575', fontSize: 20 }} />
+                                        <Typography
+                                            variant="body2"
+                                            sx={{ color: '#757575', fontStyle: 'italic' }}
+                                        >
+                                            This complaint has not been categorized yet. It was created before the category system was implemented.
+                                        </Typography>
+                                    </Box>
+                                )}
                             </Box>
 
                             {/* Description */}

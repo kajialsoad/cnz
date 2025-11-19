@@ -157,9 +157,15 @@ export const createComplaintSchema = Joi.object({
       'string.min': 'অভিযোগের বর্ণনা কমপক্ষে ৩ অক্ষরের হতে হবে',
       'string.max': 'অভিযোগের বর্ণনা সর্বোচ্চ ২০০০ অক্ষরের হতে হবে',
     }),
-  category: Joi.string().optional()
+  category: Joi.string().required()
     .messages({
       'string.empty': 'অভিযোগের ধরন নির্বাচন করুন',
+      'any.required': 'অভিযোগের ধরন নির্বাচন করুন',
+    }),
+  subcategory: Joi.string().required()
+    .messages({
+      'string.empty': 'নির্দিষ্ট সমস্যা নির্বাচন করুন',
+      'any.required': 'নির্দিষ্ট সমস্যা নির্বাচন করুন',
     }),
   priority: Joi.number().integer().min(1).max(4).optional()
     .messages({
@@ -212,6 +218,7 @@ export const updateComplaintSchema = Joi.object({
   title: Joi.string().min(5).max(200).optional(),
   description: Joi.string().min(10).max(2000).optional(),
   category: Joi.string().optional(),
+  subcategory: Joi.string().optional(),
   priority: Joi.number().integer().min(1).max(4).optional(),
   status: Joi.string().valid('PENDING', 'IN_PROGRESS', 'RESOLVED', 'REJECTED').optional(),
   location: Joi.object({
@@ -231,6 +238,7 @@ export const complaintQuerySchema = Joi.object({
   limit: Joi.number().integer().min(1).max(50).optional(),
   status: Joi.string().valid('PENDING', 'IN_PROGRESS', 'RESOLVED', 'REJECTED').optional(),
   category: Joi.string().optional(),
+  subcategory: Joi.string().optional(),
   priority: Joi.number().integer().min(1).max(4).optional(),
   sortBy: Joi.string().valid('createdAt', 'updatedAt', 'priority', 'status').optional(),
   sortOrder: Joi.string().valid('asc', 'desc').optional(),

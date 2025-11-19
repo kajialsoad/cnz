@@ -7,6 +7,7 @@ import 'package:http_parser/http_parser.dart';
 import 'package:mime/mime.dart';
 import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:image_picker/image_picker.dart';
 
 class ApiException implements Exception {
   final String message;
@@ -243,22 +244,22 @@ class ApiClient {
       if (files != null) {
         for (final entry in files) {
           final file = entry.value;
-          String fileName;
-          String mimeType;
-
+          
           if (kIsWeb) {
-            // For web, extract filename from path carefully to avoid _Namespace error
-            final pathParts = file.path.split('/');
-            fileName = pathParts.isNotEmpty ? pathParts.last : 'upload';
-            // If it's a blob URL, use a default name
-            if (fileName.startsWith('blob:') || fileName.contains('blob')) {
-              fileName = 'image_${DateTime.now().millisecondsSinceEpoch}.jpg';
-            }
-            mimeType = lookupMimeType(fileName) ?? 'application/octet-stream';
-
-            // For web, read file as bytes
+            // For web, use XFile to read bytes
             try {
-              final bytes = await file.readAsBytes();
+              // Create XFile from the path
+              final xFile = XFile(file.path);
+              final bytes = await xFile.readAsBytes();
+              
+              // Extract filename
+              String fileName = xFile.name;
+              if (fileName.isEmpty || fileName.startsWith('blob:')) {
+                fileName = 'upload_${DateTime.now().millisecondsSinceEpoch}.jpg';
+              }
+              
+              final mimeType = lookupMimeType(fileName) ?? 'application/octet-stream';
+              
               request.files.add(
                 http.MultipartFile.fromBytes(
                   entry.key,
@@ -269,12 +270,12 @@ class ApiClient {
               );
             } catch (e) {
               print('Error reading file bytes on web: $e');
-              throw ApiException('Failed to read file on web platform');
+              throw ApiException('Failed to read file on web platform: ${e.toString()}');
             }
           } else {
             // For mobile, use fromPath
-            fileName = p.basename(file.path);
-            mimeType = lookupMimeType(file.path) ?? 'application/octet-stream';
+            final fileName = p.basename(file.path);
+            final mimeType = lookupMimeType(file.path) ?? 'application/octet-stream';
 
             request.files.add(
               await http.MultipartFile.fromPath(
@@ -330,22 +331,22 @@ class ApiClient {
       if (files != null) {
         for (final entry in files) {
           final file = entry.value;
-          String fileName;
-          String mimeType;
-
+          
           if (kIsWeb) {
-            // For web, extract filename from path carefully to avoid _Namespace error
-            final pathParts = file.path.split('/');
-            fileName = pathParts.isNotEmpty ? pathParts.last : 'upload';
-            // If it's a blob URL, use a default name
-            if (fileName.startsWith('blob:') || fileName.contains('blob')) {
-              fileName = 'image_${DateTime.now().millisecondsSinceEpoch}.jpg';
-            }
-            mimeType = lookupMimeType(fileName) ?? 'application/octet-stream';
-
-            // For web, read file as bytes
+            // For web, use XFile to read bytes
             try {
-              final bytes = await file.readAsBytes();
+              // Create XFile from the path
+              final xFile = XFile(file.path);
+              final bytes = await xFile.readAsBytes();
+              
+              // Extract filename
+              String fileName = xFile.name;
+              if (fileName.isEmpty || fileName.startsWith('blob:')) {
+                fileName = 'upload_${DateTime.now().millisecondsSinceEpoch}.jpg';
+              }
+              
+              final mimeType = lookupMimeType(fileName) ?? 'application/octet-stream';
+              
               request.files.add(
                 http.MultipartFile.fromBytes(
                   entry.key,
@@ -356,12 +357,12 @@ class ApiClient {
               );
             } catch (e) {
               print('Error reading file bytes on web: $e');
-              throw ApiException('Failed to read file on web platform');
+              throw ApiException('Failed to read file on web platform: ${e.toString()}');
             }
           } else {
             // For mobile, use fromPath
-            fileName = p.basename(file.path);
-            mimeType = lookupMimeType(file.path) ?? 'application/octet-stream';
+            final fileName = p.basename(file.path);
+            final mimeType = lookupMimeType(file.path) ?? 'application/octet-stream';
 
             request.files.add(
               await http.MultipartFile.fromPath(

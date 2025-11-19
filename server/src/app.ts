@@ -12,6 +12,7 @@ import adminUserRoutes from './routes/admin.user.routes';
 import adminComplaintRoutes from './routes/admin.complaint.routes';
 import adminAnalyticsRoutes from './routes/admin.analytics.routes';
 import adminChatRoutes from './routes/admin.chat.routes';
+import categoryRoutes from './routes/category.routes';
 import { AuthRequest } from './middlewares/auth.middleware';
 
 console.log('🚀 Starting Clean Care API Server...');
@@ -86,6 +87,9 @@ console.log('✅ Admin analytics routes registered at /api/admin/analytics');
 
 app.use('/api/admin/chat', adminChatRoutes); // Admin chat routes
 console.log('✅ Admin chat routes registered at /api/admin/chat');
+
+app.use('/api/categories', categoryRoutes); // Category routes
+console.log('✅ Category routes registered at /api/categories');
 
 // Add test route to verify admin path works
 app.get('/api/admin/test', (req, res) => {

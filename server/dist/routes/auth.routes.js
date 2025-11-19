@@ -207,7 +207,33 @@ router.post('/reset-password', async (req, res) => {
         });
     }
 });
-// Verify email endpoint
+// Verify email with OTP code endpoint
+router.post('/verify-email-code', async (req, res) => {
+    try {
+        const { email, code } = req.body;
+        if (!email || !code) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email and verification code are required'
+            });
+        }
+        const result = await auth_service_1.authService.verifyEmailWithCode(email, code);
+        res.json(result);
+    }
+    catch (error) {
+        if (error instanceof Error) {
+            return res.status(400).json({
+                success: false,
+                message: error.message
+            });
+        }
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error'
+        });
+    }
+});
+// Verify email endpoint (legacy - for backward compatibility)
 router.get('/verify-email', async (req, res) => {
     try {
         const { token } = req.query;

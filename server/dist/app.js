@@ -17,6 +17,7 @@ const admin_user_routes_1 = __importDefault(require("./routes/admin.user.routes"
 const admin_complaint_routes_1 = __importDefault(require("./routes/admin.complaint.routes"));
 const admin_analytics_routes_1 = __importDefault(require("./routes/admin.analytics.routes"));
 const admin_chat_routes_1 = __importDefault(require("./routes/admin.chat.routes"));
+const category_routes_1 = __importDefault(require("./routes/category.routes"));
 console.log('🚀 Starting Clean Care API Server...');
 console.log('🔧 Importing admin auth routes...');
 console.log('🔧 Importing admin user routes...');
@@ -73,6 +74,8 @@ app.use('/api/admin/analytics', admin_analytics_routes_1.default); // Admin anal
 console.log('✅ Admin analytics routes registered at /api/admin/analytics');
 app.use('/api/admin/chat', admin_chat_routes_1.default); // Admin chat routes
 console.log('✅ Admin chat routes registered at /api/admin/chat');
+app.use('/api/categories', category_routes_1.default); // Category routes
+console.log('✅ Category routes registered at /api/categories');
 // Add test route to verify admin path works
 app.get('/api/admin/test', (req, res) => {
     res.json({

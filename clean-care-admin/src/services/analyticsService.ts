@@ -7,6 +7,11 @@ import type {
     AnalyticsQuery,
     GetAnalyticsResponse,
     GetTrendsResponse,
+    CategoryStatistic,
+    GetCategoryStatsResponse,
+    CategoryTrendDataPoint,
+    CategoryMetadata,
+    GetCategoryTrendsResponse,
 } from '../types/analytics-service.types';
 
 class AnalyticsService {
@@ -231,6 +236,129 @@ class AnalyticsService {
         period: 'day' | 'week' | 'month' | 'year'
     ): Promise<TrendData[]> {
         return this.getComplaintTrends({
+            period,
+        });
+    }
+
+    /**
+     * Get category statistics with caching
+     */
+    async getCategoryStats(query?: AnalyticsQuery): Promise<CategoryStatistic[]> {
+        try {
+            const cacheKey = this.getCacheKey('category-stats', query);
+
+            // Check cache first
+            const cachedData = this.getCachedData<CategoryStatistic[]>(cacheKey);
+            if (cachedData) {
+                return cachedData;
+            }
+
+            // Fetch from API
+            const response = await this.apiClient.get<GetCategoryStatsResponse>(
+                '/api/admin/analytics/categories',
+                {
+                    params: query,
+                }
+            );
+
+            const categoryStats = response.data.data.statistics;
+
+            // Cache the result
+            this.setCachedData(cacheKey, categoryStats);
+
+            return categoryStats;
+        } catch (error) {
+            if (axios.isAxiosError(error)) {
+                throw new Error(
+                    error.response?.data?.message || 'Failed to fetch category statistics'
+                );
+            }
+            throw error;
+        }
+    }
+
+    /**
+     * Get category statistics for a specific date range
+     */
+    async getCategoryStatsByDateRange(
+        startDate: string,
+        endDate: string
+    ): Promise<CategoryStatistic[]> {
+        return this.getCategoryStats({
+            startDate,
+            endDate,
+        });
+    }
+
+    /**
+     * Get category trends over time with caching
+     */
+    async getCategoryTrends(query?: AnalyticsQuery): Promise<{
+        trends: CategoryTrendDataPoint[];
+        categories: CategoryMetadata[];
+    }> {
+        try {
+            const cacheKey = this.getCacheKey('category-trends', query);
+
+            // Check cache first
+            const cachedData = this.getCachedData<{
+                trends: CategoryTrendDataPoint[];
+                categories: CategoryMetadata[];
+            }>(cacheKey);
+            if (cachedData) {
+                return cachedData;
+            }
+
+            // Fetch from API
+            const response = await this.apiClient.get<GetCategoryTrendsResponse>(
+                '/api/admin/analytics/categories/trends',
+                {
+                    params: query,
+                }
+            );
+
+            const trendsData = response.data.data;
+
+            // Cache the result
+            this.setCachedData(cacheKey, trendsData);
+
+            return trendsData;
+        } catch (error) {
+            if (axios.isAxiosError(error)) {
+                throw new Error(
+                    error.response?.data?.message || 'Failed to fetch category trends'
+                );
+            }
+            throw error;
+        }
+    }
+
+    /**
+     * Get category trends for a specific date range
+     */
+    async getCategoryTrendsByDateRange(
+        startDate: string,
+        endDate: string
+    ): Promise<{
+        trends: CategoryTrendDataPoint[];
+        categories: CategoryMetadata[];
+    }> {
+        return this.getCategoryTrends({
+            startDate,
+            endDate,
+        });
+    }
+
+    /**
+     * Get category trends for a specific period
+     */
+    async getCategoryTrendsByPeriod(
+        period: 'day' | 'week' | 'month' | 'year'
+    ): Promise<{
+        trends: CategoryTrendDataPoint[];
+        categories: CategoryMetadata[];
+    }> {
+        return this.getCategoryTrends({
             period,
         });
     }

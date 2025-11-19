@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:provider/provider.dart';  // NEW: Import Provider
 
+import '../providers/complaint_provider.dart';  // NEW: Import ComplaintProvider
 import '../widgets/translated_text.dart';
 
 class CategorySelectionPage extends StatefulWidget {
@@ -321,6 +323,13 @@ class _CategorySelectionPageState extends State<CategorySelectionPage> {
         setState(() {
           selectedCategory = category['id'];
         });
+        
+        // NEW: Store category and subcategory in provider
+        final complaintProvider = Provider.of<ComplaintProvider>(context, listen: false);
+        if (sectionData != null) {
+          complaintProvider.setCategory(sectionData!['id']);  // Set primary category (e.g., 'home', 'road_environment')
+        }
+        complaintProvider.setSubcategory(category['id']);  // Set subcategory (e.g., 'not_collecting_waste')
         
         // Navigate to complaint details after short delay
         Future.delayed(const Duration(milliseconds: 300), () {

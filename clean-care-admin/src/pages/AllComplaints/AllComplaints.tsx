@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -33,6 +33,9 @@ import MainLayout from '../../components/common/Layout/MainLayout';
 import ComplaintCardSkeleton from '../../components/common/ComplaintCardSkeleton';
 import ComplaintDetailsModal from '../../components/Complaints/ComplaintDetailsModal';
 import ChatModal from '../../components/Complaints/ChatModal';
+import CategoryFilter from '../../components/Complaints/CategoryFilter';
+import SubcategoryFilter from '../../components/Complaints/SubcategoryFilter';
+import CategoryBadge from '../../components/Complaints/CategoryBadge';
 import LoadingButton from '../../components/common/LoadingButton';
 import PageLoadingBar from '../../components/common/PageLoadingBar';
 import { complaintService } from '../../services/complaintService';
@@ -48,17 +51,22 @@ import type {
 
 const AllComplaints: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm')); // < 600px
 
-  // State management
+  // Initialize state from URL query parameters
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [errorType, setErrorType] = useState<ErrorType | null>(null);
   const [isRetryable, setIsRetryable] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<ComplaintStatus | 'ALL'>('ALL');
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
+  const [statusFilter, setStatusFilter] = useState<ComplaintStatus | 'ALL'>(
+    (searchParams.get('status') as ComplaintStatus) || 'ALL'
+  );
+  const [categoryFilter, setCategoryFilter] = useState(searchParams.get('category') || '');
+  const [subcategoryFilter, setSubcategoryFilter] = useState(searchParams.get('subcategory') || '');
   const [statusCounts, setStatusCounts] = useState<ComplaintStats>({
     total: 0,
     pending: 0,
@@ -67,8 +75,8 @@ const AllComplaints: React.FC = () => {
     rejected: 0,
   });
   const [pagination, setPagination] = useState({
-    page: 1,
-    limit: 20,
+    page: parseInt(searchParams.get('page') || '1', 10),
+    limit: parseInt(searchParams.get('limit') || '20', 10),
     total: 0,
     totalPages: 0,
   });
@@ -86,6 +94,22 @@ const AllComplaints: React.FC = () => {
 
   // Debounce search term to avoid excessive API calls
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
+
+  /**
+   * Update URL query parameters when filters change
+   */
+  useEffect(() => {
+    const params = new URLSearchParams();
+
+    if (searchTerm) params.set('search', searchTerm);
+    if (statusFilter !== 'ALL') params.set('status', statusFilter);
+    if (categoryFilter) params.set('category', categoryFilter);
+    if (subcategoryFilter) params.set('subcategory', subcategoryFilter);
+    if (pagination.page !== 1) params.set('page', pagination.page.toString());
+    if (pagination.limit !== 20) params.set('limit', pagination.limit.toString());
+
+    setSearchParams(params, { replace: true });
+  }, [searchTerm, statusFilter, categoryFilter, subcategoryFilter, pagination.page, pagination.limit]);
 
   /**
    * Fetch complaints from the backend
@@ -107,6 +131,16 @@ const AllComplaints: React.FC = () => {
       // Add search term if present
       if (debouncedSearchTerm) {
         filters.search = debouncedSearchTerm;
+      }
+
+      // Add category filter if present
+      if (categoryFilter) {
+        filters.category = categoryFilter;
+      }
+
+      // Add subcategory filter if present
+      if (subcategoryFilter) {
+        filters.subcategory = subcategoryFilter;
       }
 
       console.log('Fetching complaints with params:', {
@@ -153,7 +187,7 @@ const AllComplaints: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [pagination.page, pagination.limit, statusFilter, debouncedSearchTerm]);
+  }, [pagination.page, pagination.limit, statusFilter, categoryFilter, subcategoryFilter, debouncedSearchTerm]);
 
   /**
    * Fetch complaints on component mount and when filters change
@@ -190,11 +224,33 @@ const AllComplaints: React.FC = () => {
   };
 
   /**
+   * Handle category filter change
+   */
+  const handleCategoryFilterChange = (value: string) => {
+    setCategoryFilter(value);
+    // Reset subcategory when category changes
+    setSubcategoryFilter('');
+    // Reset to page 1 when filter changes
+    setPagination((prev) => ({ ...prev, page: 1 }));
+  };
+
+  /**
+   * Handle subcategory filter change
+   */
+  const handleSubcategoryFilterChange = (value: string) => {
+    setSubcategoryFilter(value);
+    // Reset to page 1 when filter changes
+    setPagination((prev) => ({ ...prev, page: 1 }));
+  };
+
+  /**
    * Clear all filters
    */
   const handleClearFilters = () => {
     setSearchTerm('');
     setStatusFilter('ALL');
+    setCategoryFilter('');
+    setSubcategoryFilter('');
     setPagination((prev) => ({ ...prev, page: 1 }));
   };
 
@@ -650,8 +706,21 @@ const AllComplaints: React.FC = () => {
                 </Select>
               </FormControl>
 
+              {/* Category Filter */}
+              <CategoryFilter
+                value={categoryFilter}
+                onChange={handleCategoryFilterChange}
+              />
+
+              {/* Subcategory Filter */}
+              <SubcategoryFilter
+                categoryId={categoryFilter}
+                value={subcategoryFilter}
+                onChange={handleSubcategoryFilterChange}
+              />
+
               {/* Clear Filters Button */}
-              {(searchTerm || statusFilter !== 'ALL') && (
+              {(searchTerm || statusFilter !== 'ALL' || categoryFilter || subcategoryFilter) && (
                 <Button
                   variant="outlined"
                   onClick={handleClearFilters}
@@ -886,9 +955,17 @@ const AllComplaints: React.FC = () => {
                             variant={isMobile ? 'body2' : 'body1'}
                             sx={{ fontWeight: 500 }}
                           >
-                            {complaint.category || complaint.title}
+                            {complaint.title}
                           </Typography>
                         </Box>
+
+                        {/* Category Badge - NEW */}
+                        {complaint.category && (
+                          <CategoryBadge
+                            categoryId={complaint.category}
+                            subcategoryId={complaint.subcategory}
+                          />
+                        )}
 
                         <Box sx={{
                           display: 'flex',

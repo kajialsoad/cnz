@@ -2,11 +2,13 @@ import prisma from '../utils/prisma';
 import { ComplaintStatus } from '@prisma/client';
 import { uploadService } from './upload.service';
 import { getFileUrl } from '../config/upload.config';
+import { categoryService } from './category.service';
 
 export interface CreateComplaintInput {
   title?: string; // Optional - will be auto-generated from description
   description: string;
-  category?: string;
+  category: string; // Required
+  subcategory: string; // Required
   priority?: number;
   location: {
     address: string;
@@ -27,6 +29,7 @@ export interface UpdateComplaintInput {
   title?: string;
   description?: string;
   category?: string;
+  subcategory?: string;
   priority?: number;
   status?: ComplaintStatus;
   location?: {
@@ -49,6 +52,7 @@ export interface ComplaintQueryInput {
   limit?: number;
   status?: ComplaintStatus;
   category?: string;
+  subcategory?: string;
   priority?: number;
   sortBy?: 'createdAt' | 'updatedAt' | 'priority' | 'status';
   sortOrder?: 'asc' | 'desc';
@@ -59,6 +63,14 @@ export class ComplaintService {
   // Create a new complaint
   async createComplaint(input: CreateComplaintInput) {
     try {
+      // Validate category and subcategory combination
+      if (!categoryService.validateCategorySubcategory(input.category, input.subcategory)) {
+        const validSubcategories = categoryService.getAllSubcategoryIds(input.category);
+        throw new Error(
+          `Invalid category and subcategory combination. Category '${input.category}' does not have subcategory '${input.subcategory}'. Valid subcategories: ${validSubcategories.join(', ')}`
+        );
+      }
+
       // Generate tracking number
       const trackingNumber = await this.generateTrackingNumber();
 
@@ -120,6 +132,8 @@ export class ComplaintService {
         data: {
           title: title,
           description: input.description,
+          category: input.category,
+          subcategory: input.subcategory,
           priority: input.priority || 1, // Default priority is 1
           status: ComplaintStatus.PENDING,
           imageUrl: finalImageUrls.length > 0 ? JSON.stringify(finalImageUrls) : null,
@@ -231,12 +245,23 @@ export class ComplaintService {
         finalVoiceUrl = input.voiceNoteUrl;
       }
 
+      // Validate category/subcategory if both are being updated
+      if (input.category !== undefined && input.subcategory !== undefined) {
+        if (!categoryService.validateCategorySubcategory(input.category, input.subcategory)) {
+          const validSubcategories = categoryService.getAllSubcategoryIds(input.category);
+          throw new Error(
+            `Invalid category and subcategory combination. Category '${input.category}' does not have subcategory '${input.subcategory}'. Valid subcategories: ${validSubcategories.join(', ')}`
+          );
+        }
+      }
+
       // Prepare update data
       const updateData: any = {};
 
       if (input.title !== undefined) updateData.title = input.title;
       if (input.description !== undefined) updateData.description = input.description;
       if (input.category !== undefined) updateData.category = input.category;
+      if (input.subcategory !== undefined) updateData.subcategory = input.subcategory;
       if (input.priority !== undefined) updateData.priority = input.priority;
       if (input.status !== undefined) updateData.status = input.status;
 
@@ -520,6 +545,7 @@ export class ComplaintService {
       limit = 10,
       status,
       category,
+      subcategory,
       priority,
       sortBy = 'createdAt',
       sortOrder = 'desc',
@@ -533,6 +559,7 @@ export class ComplaintService {
 
     if (status) where.status = status;
     if (category) where.category = category;
+    if (subcategory) where.subcategory = subcategory;
     if (priority) where.priority = priority;
     if (userId) where.userId = userId;
 

@@ -156,9 +156,15 @@ exports.createComplaintSchema = joi_1.default.object({
         'string.min': 'অভিযোগের বর্ণনা কমপক্ষে ৩ অক্ষরের হতে হবে',
         'string.max': 'অভিযোগের বর্ণনা সর্বোচ্চ ২০০০ অক্ষরের হতে হবে',
     }),
-    category: joi_1.default.string().optional()
+    category: joi_1.default.string().required()
         .messages({
         'string.empty': 'অভিযোগের ধরন নির্বাচন করুন',
+        'any.required': 'অভিযোগের ধরন নির্বাচন করুন',
+    }),
+    subcategory: joi_1.default.string().required()
+        .messages({
+        'string.empty': 'নির্দিষ্ট সমস্যা নির্বাচন করুন',
+        'any.required': 'নির্দিষ্ট সমস্যা নির্বাচন করুন',
     }),
     priority: joi_1.default.number().integer().min(1).max(4).optional()
         .messages({
@@ -210,6 +216,7 @@ exports.updateComplaintSchema = joi_1.default.object({
     title: joi_1.default.string().min(5).max(200).optional(),
     description: joi_1.default.string().min(10).max(2000).optional(),
     category: joi_1.default.string().optional(),
+    subcategory: joi_1.default.string().optional(),
     priority: joi_1.default.number().integer().min(1).max(4).optional(),
     status: joi_1.default.string().valid('PENDING', 'IN_PROGRESS', 'RESOLVED', 'REJECTED').optional(),
     location: joi_1.default.object({
@@ -228,6 +235,7 @@ exports.complaintQuerySchema = joi_1.default.object({
     limit: joi_1.default.number().integer().min(1).max(50).optional(),
     status: joi_1.default.string().valid('PENDING', 'IN_PROGRESS', 'RESOLVED', 'REJECTED').optional(),
     category: joi_1.default.string().optional(),
+    subcategory: joi_1.default.string().optional(),
     priority: joi_1.default.number().integer().min(1).max(4).optional(),
     sortBy: joi_1.default.string().valid('createdAt', 'updatedAt', 'priority', 'status').optional(),
     sortOrder: joi_1.default.string().valid('asc', 'desc').optional(),
