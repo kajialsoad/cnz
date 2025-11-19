@@ -90,10 +90,22 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
       // Scroll to bottom
       _scrollToBottom();
     } catch (e) {
+      String userFriendlyError = 'Failed to load messages';
+      
+      // Parse error message for better user experience
+      final errorString = e.toString();
+      if (errorString.contains('Complaint not found')) {
+        userFriendlyError = 'এই অভিযোগটি খুঁজে পাওয়া যায়নি। দয়া করে আবার চেষ্টা করুন।';
+      } else if (errorString.contains('Network') || errorString.contains('connection')) {
+        userFriendlyError = 'ইন্টারনেট সংযোগ নেই। দয়া করে আপনার সংযোগ পরীক্ষা করুন।';
+      } else if (errorString.contains('timeout')) {
+        userFriendlyError = 'সার্ভার সাড়া দিচ্ছে না। দয়া করে পরে আবার চেষ্টা করুন।';
+      }
+      
       setState(() {
         isLoading = false;
         hasError = true;
-        errorMessage = e.toString();
+        errorMessage = userFriendlyError;
       });
       print('Error loading messages: $e');
     }

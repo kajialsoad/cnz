@@ -454,6 +454,10 @@ class _ComplaintListPageState extends State<ComplaintListPage> {
           // Haptic feedback on tap
           HapticFeedback.selectionClick();
           
+          // Load the complaint into provider first
+          final provider = Provider.of<ComplaintProvider>(context, listen: false);
+          provider.loadFormFromComplaint(complaint);
+          
           // Navigate to complaint detail view
           Navigator.pushNamed(
             context,
