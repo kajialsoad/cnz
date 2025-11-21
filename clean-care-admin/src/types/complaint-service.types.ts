@@ -33,6 +33,14 @@ export interface Complaint {
         zone?: string | null;
         ward?: string | null;
         address?: string | null;
+        cityCorporation?: {
+            code: string;
+            name: string;
+        } | null;
+        thana?: {
+            id: number;
+            name: string;
+        } | null;
     };
     trackingNumber?: string;
     createdAt: string;
@@ -66,8 +74,12 @@ export interface ComplaintFilters {
     category?: string;
     /** Filter by subcategory ID (e.g., 'not_collecting_waste', 'worker_behavior') */
     subcategory?: string;
+    /** Filter by city corporation code (e.g., 'DSCC', 'DNCC') */
+    cityCorporationCode?: string;
     /** Filter by ward number */
     ward?: string;
+    /** Filter by thana ID */
+    thanaId?: number;
     /** Filter complaints created after this date (ISO 8601 format) */
     startDate?: string;
     /** Filter complaints created before this date (ISO 8601 format) */

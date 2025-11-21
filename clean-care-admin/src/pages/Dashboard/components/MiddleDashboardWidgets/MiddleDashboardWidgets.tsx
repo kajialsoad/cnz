@@ -1,12 +1,16 @@
 import React from 'react';
 import { Box } from '@mui/material';
-import { 
-  ComplaintStatusOverview, 
-  CitizenSatisfactionScore, 
-  AverageServiceTime 
+import {
+  ComplaintStatusOverview,
+  CitizenSatisfactionScore,
+  AverageServiceTime
 } from '../ComplaintsChart';
 
-const MiddleDashboardWidgets: React.FC = () => {
+interface MiddleDashboardWidgetsProps {
+  cityCorporationCode?: string;
+}
+
+const MiddleDashboardWidgets: React.FC<MiddleDashboardWidgetsProps> = ({ cityCorporationCode }) => {
   return (
     <Box
       sx={{
@@ -19,9 +23,9 @@ const MiddleDashboardWidgets: React.FC = () => {
         mb: 4,
       }}
     >
-      <ComplaintStatusOverview />
-      <CitizenSatisfactionScore />
-      <AverageServiceTime />
+      <ComplaintStatusOverview cityCorporationCode={cityCorporationCode} />
+      <CitizenSatisfactionScore cityCorporationCode={cityCorporationCode} />
+      <AverageServiceTime cityCorporationCode={cityCorporationCode} />
     </Box>
   );
 };

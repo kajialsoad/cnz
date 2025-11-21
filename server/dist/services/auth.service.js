@@ -10,6 +10,8 @@ const jwt_1 = require("../utils/jwt");
 const email_1 = __importDefault(require("../utils/email"));
 const env_1 = __importDefault(require("../config/env"));
 const client_1 = require("@prisma/client");
+const city_corporation_service_1 = __importDefault(require("./city-corporation.service"));
+const thana_service_1 = __importDefault(require("./thana.service"));
 class AuthService {
     // User registration
     async register(input) {
@@ -29,6 +31,54 @@ class AuthService {
                 throw new Error('User already exists with this email');
             }
         }
+        // Validate city corporation if provided
+        if (input.cityCorporationCode) {
+            try {
+                const cityCorporation = await city_corporation_service_1.default.getCityCorporationByCode(input.cityCorporationCode);
+                // Check if city corporation is active
+                if (cityCorporation.status !== 'ACTIVE') {
+                    throw new Error(`City Corporation ${input.cityCorporationCode} is not currently accepting registrations`);
+                }
+                // Validate ward if provided
+                if (input.ward) {
+                    const wardNum = parseInt(input.ward);
+                    if (isNaN(wardNum)) {
+                        throw new Error('Ward must be a valid number');
+                    }
+                    const isValidWard = await city_corporation_service_1.default.validateWard(input.cityCorporationCode, wardNum);
+                    if (!isValidWard) {
+                        throw new Error(`Ward must be between ${cityCorporation.minWard} and ${cityCorporation.maxWard} for ${cityCorporation.name}`);
+                    }
+                }
+                // Validate thana if provided
+                if (input.thanaId) {
+                    try {
+                        const thana = await thana_service_1.default.getThanaById(input.thanaId);
+                        // Check if thana belongs to selected city corporation
+                        const belongsToCityCorporation = await thana_service_1.default.validateThanaBelongsToCityCorporation(input.thanaId, input.cityCorporationCode);
+                        if (!belongsToCityCorporation) {
+                            throw new Error(`Selected thana does not belong to ${cityCorporation.name}`);
+                        }
+                        // Check if thana is active
+                        if (thana.status !== 'ACTIVE') {
+                            throw new Error('Selected thana is not currently available');
+                        }
+                    }
+                    catch (error) {
+                        if (error instanceof Error) {
+                            throw error;
+                        }
+                        throw new Error('Invalid thana selected');
+                    }
+                }
+            }
+            catch (error) {
+                if (error instanceof Error) {
+                    throw error;
+                }
+                throw new Error('Invalid city corporation');
+            }
+        }
         const hashedPassword = await (0, bcrypt_1.hash)(input.password, 12);
         const verificationToken = (0, jwt_1.generateSecureToken)();
         const verificationCode = (0, jwt_1.generateOTP)(6); // Generate 6-digit OTP
@@ -43,6 +93,8 @@ class AuthService {
                 ward: input.ward,
                 zone: input.zone,
                 address: input.address,
+                cityCorporationCode: input.cityCorporationCode,
+                thanaId: input.thanaId,
                 role: input.role || client_1.UserRole.CUSTOMER,
                 status: emailVerificationEnabled ? client_1.UserStatus.PENDING : client_1.UserStatus.ACTIVE,
                 emailVerified: !emailVerificationEnabled, // Mark as verified if verification is disabled
@@ -56,6 +108,8 @@ class AuthService {
                 ward: true,
                 zone: true,
                 address: true,
+                cityCorporationCode: true,
+                thanaId: true,
                 role: true,
                 status: true,
                 createdAt: true
@@ -399,6 +453,8 @@ class AuthService {
                 zone: true,
                 ward: true,
                 address: true,
+                cityCorporationCode: true,
+                thanaId: true,
                 createdAt: true,
                 updatedAt: true,
                 lastLoginAt: true
@@ -411,6 +467,54 @@ class AuthService {
     }
     // Update profile
     async updateProfile(userId, data) {
+        // Validate city corporation if being updated
+        if (data.cityCorporationCode) {
+            try {
+                const cityCorporation = await city_corporation_service_1.default.getCityCorporationByCode(data.cityCorporationCode);
+                // Check if city corporation is active
+                if (cityCorporation.status !== 'ACTIVE') {
+                    throw new Error(`City Corporation ${data.cityCorporationCode} is not currently available`);
+                }
+                // Validate ward if provided
+                if (data.ward) {
+                    const wardNum = parseInt(data.ward);
+                    if (isNaN(wardNum)) {
+                        throw new Error('Ward must be a valid number');
+                    }
+                    const isValidWard = await city_corporation_service_1.default.validateWard(data.cityCorporationCode, wardNum);
+                    if (!isValidWard) {
+                        throw new Error(`Ward must be between ${cityCorporation.minWard} and ${cityCorporation.maxWard} for ${cityCorporation.name}`);
+                    }
+                }
+                // Validate thana if provided
+                if (data.thanaId) {
+                    try {
+                        const thana = await thana_service_1.default.getThanaById(data.thanaId);
+                        // Check if thana belongs to selected city corporation
+                        const belongsToCityCorporation = await thana_service_1.default.validateThanaBelongsToCityCorporation(data.thanaId, data.cityCorporationCode);
+                        if (!belongsToCityCorporation) {
+                            throw new Error(`Selected thana does not belong to ${cityCorporation.name}`);
+                        }
+                        // Check if thana is active
+                        if (thana.status !== 'ACTIVE') {
+                            throw new Error('Selected thana is not currently available');
+                        }
+                    }
+                    catch (error) {
+                        if (error instanceof Error) {
+                            throw error;
+                        }
+                        throw new Error('Invalid thana selected');
+                    }
+                }
+            }
+            catch (error) {
+                if (error instanceof Error) {
+                    throw error;
+                }
+                throw new Error('Invalid city corporation');
+            }
+        }
         const user = await prisma_1.default.user.update({
             where: { id: parseInt(userId) },
             data,
@@ -428,6 +532,8 @@ class AuthService {
                 zone: true,
                 ward: true,
                 address: true,
+                cityCorporationCode: true,
+                thanaId: true,
                 createdAt: true,
                 updatedAt: true,
                 lastLoginAt: true

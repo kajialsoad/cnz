@@ -12,7 +12,11 @@ const weeklyData = [
   { week: 'Sun', complaints: 40, resolved: 38 },
 ];
 
-const WeeklyTrendAnalysis: React.FC = () => {
+interface WeeklyTrendAnalysisProps {
+  cityCorporationCode?: string;
+}
+
+const WeeklyTrendAnalysis: React.FC<WeeklyTrendAnalysisProps> = ({ cityCorporationCode }) => {
   return (
     <Card sx={{ height: '100%' }}>
       <CardContent sx={{ p: 3 }}>
@@ -48,29 +52,29 @@ const WeeklyTrendAnalysis: React.FC = () => {
             >
               <defs>
                 <linearGradient id="complaintsGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#6366F1" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#6366F1" stopOpacity={0}/>
+                  <stop offset="5%" stopColor="#6366F1" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#6366F1" stopOpacity={0} />
                 </linearGradient>
                 <linearGradient id="resolvedGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#10B981" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#10B981" stopOpacity={0}/>
+                  <stop offset="5%" stopColor="#10B981" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-              <XAxis 
-                dataKey="week" 
+              <XAxis
+                dataKey="week"
                 axisLine={false}
                 tickLine={false}
                 tick={{ fontSize: 12, fill: '#6B7280' }}
               />
-              <YAxis 
+              <YAxis
                 axisLine={false}
                 tickLine={false}
                 tick={{ fontSize: 12, fill: '#6B7280' }}
                 domain={[0, 'dataMax + 5']}
               />
-              <Legend 
-                wrapperStyle={{ 
+              <Legend
+                wrapperStyle={{
                   paddingTop: '20px',
                   fontSize: '12px'
                 }}

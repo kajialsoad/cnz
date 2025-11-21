@@ -34,6 +34,8 @@ const AdminChatPage: React.FC = () => {
         upazila: undefined,
         ward: undefined,
         zone: undefined,
+        cityCorporationCode: undefined,
+        thanaId: undefined,
         status: undefined,
         unreadOnly: false,
         page: 1,

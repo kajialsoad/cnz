@@ -52,8 +52,7 @@ export class AdminComplaintServiceFixed {
             if (ward) {
                 andConditions.push({
                     location: {
-                        contains: ward,
-                        mode: 'insensitive'
+                        contains: ward
                     }
                 });
             }
@@ -70,31 +69,31 @@ export class AdminComplaintServiceFixed {
                 andConditions.push({ createdAt: dateFilter });
             }
 
-            // Search filter - FIXED VERSION
+            // Search filter - MySQL string comparisons are case-insensitive by default
             if (search && search.trim()) {
                 andConditions.push({
                     OR: [
-                        { title: { contains: search, mode: 'insensitive' } },
-                        { description: { contains: search, mode: 'insensitive' } },
-                        { location: { contains: search, mode: 'insensitive' } },
+                        { title: { contains: search } },
+                        { description: { contains: search } },
+                        { location: { contains: search } },
                         {
                             user: {
-                                firstName: { contains: search, mode: 'insensitive' }
+                                firstName: { contains: search }
                             }
                         },
                         {
                             user: {
-                                lastName: { contains: search, mode: 'insensitive' }
+                                lastName: { contains: search }
                             }
                         },
                         {
                             user: {
-                                phone: { contains: search, mode: 'insensitive' }
+                                phone: { contains: search }
                             }
                         },
                         {
                             user: {
-                                email: { contains: search, mode: 'insensitive' }
+                                email: { contains: search }
                             }
                         }
                     ]

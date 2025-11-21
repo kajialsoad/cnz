@@ -1,5 +1,5 @@
-import React from 'react';
-import { Box } from '@mui/material';
+import React, { useEffect, useState } from 'react';
+import { Box, CircularProgress } from '@mui/material';
 import {
   Assignment as AssignmentIcon,
   CheckCircle as CheckCircleIcon,
@@ -7,51 +7,95 @@ import {
   Speed as SpeedIcon,
 } from '@mui/icons-material';
 import StatCard from './StatCard';
+import { analyticsService } from '../../../../services/analyticsService';
 
-const StatsCards: React.FC = () => {
+interface StatsCardsProps {
+  cityCorporationCode?: string;
+}
+
+const StatsCards: React.FC<StatsCardsProps> = ({ cityCorporationCode }) => {
+  const [loading, setLoading] = useState(true);
+  const [analytics, setAnalytics] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchAnalytics = async () => {
+      try {
+        setLoading(true);
+        const data = await analyticsService.getAnalytics({
+          cityCorporationCode
+        });
+        setAnalytics(data);
+      } catch (error) {
+        console.error('Error fetching analytics:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAnalytics();
+  }, [cityCorporationCode]);
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (!analytics) {
+    return null;
+  }
+
+  const totalComplaints = analytics.totalComplaints || 0;
+  const resolved = analytics.statusBreakdown?.resolved || 0;
+  const inProgress = analytics.statusBreakdown?.inProgress || 0;
+  const resolutionRate = analytics.resolutionRate || 0;
+  const avgResolutionTime = analytics.averageResolutionTime || 0;
+
   const statsData = [
     {
       title: 'Total Complaints',
-      value: '1028',
-      subtitle: 'All time complaints',
+      value: totalComplaints.toString(),
+      subtitle: cityCorporationCode ? 'For selected city corporation' : 'All time complaints',
       trend: {
-        value: 8,
+        value: 0,
         isPositive: true,
-        label: 'vs last month',
+        label: 'total',
       },
       color: 'info' as const,
       icon: <AssignmentIcon />,
     },
     {
       title: 'Resolved',
-      value: '342',
-      subtitle: '66.5% Success Rate',
+      value: resolved.toString(),
+      subtitle: `${resolutionRate.toFixed(1)}% Success Rate`,
       trend: {
-        value: 12,
+        value: resolutionRate,
         isPositive: true,
-        label: 'vs last month',
+        label: 'resolution rate',
       },
       color: 'success' as const,
       icon: <CheckCircleIcon />,
     },
     {
       title: 'In Progress',
-      value: '127',
-      subtitle: '24.7% Currently Active',
+      value: inProgress.toString(),
+      subtitle: `${totalComplaints > 0 ? ((inProgress / totalComplaints) * 100).toFixed(1) : 0}% Currently Active`,
       trend: {
-        value: 5,
+        value: 0,
         isPositive: false,
-        label: 'vs last week',
+        label: 'active',
       },
       color: 'warning' as const,
       icon: <ScheduleIcon />,
     },
     {
       title: 'Avg Response',
-      value: '45',
-      subtitle: '8.6% Improvement',
+      value: avgResolutionTime.toFixed(0),
+      subtitle: 'Hours to resolve',
       trend: {
-        value: 3,
+        value: 0,
         isPositive: true,
         label: 'response time',
       },

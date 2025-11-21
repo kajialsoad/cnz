@@ -291,6 +291,12 @@ class ChatService {
             if (filters?.zone) {
                 params.append('zone', filters.zone);
             }
+            if (filters?.cityCorporationCode) {
+                params.append('cityCorporationCode', filters.cityCorporationCode);
+            }
+            if (filters?.thanaId) {
+                params.append('thanaId', filters.thanaId.toString());
+            }
             if (filters?.status) {
                 params.append('status', filters.status);
             }
@@ -360,6 +366,12 @@ class ChatService {
             }
             if (filters?.zone) {
                 params.append('zone', filters.zone);
+            }
+            if (filters?.cityCorporationCode) {
+                params.append('cityCorporationCode', filters.cityCorporationCode);
+            }
+            if (filters?.thanaId) {
+                params.append('thanaId', filters.thanaId.toString());
             }
             if (filters?.status) {
                 params.append('status', filters.status);

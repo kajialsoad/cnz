@@ -17,6 +17,10 @@ export interface ChatCitizen {
     zone: string;
     address: string;
     profilePicture?: string;
+    cityCorporationCode?: string;
+    cityCorporationName?: string;
+    thanaId?: number;
+    thanaName?: string;
 }
 
 /**
@@ -56,6 +60,8 @@ export interface ChatFilters {
     upazila?: string;
     ward?: string;
     zone?: string;
+    cityCorporationCode?: string;
+    thanaId?: number;
     status?: ComplaintStatus;
     unreadOnly?: boolean;
     page?: number;

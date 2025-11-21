@@ -8,6 +8,38 @@ datasource db {
   shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
+model CityCorporation {
+  id        Int                   @id @default(autoincrement())
+  code      String                @unique
+  name      String
+  minWard   Int
+  maxWard   Int
+  status    CityCorporationStatus @default(ACTIVE)
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
+  thanas    Thana[]
+  users     User[]
+
+  @@index([status])
+  @@index([code])
+  @@map("city_corporations")
+}
+
+model Thana {
+  id                Int             @id @default(autoincrement())
+  name              String
+  cityCorporationId Int
+  cityCorporation   CityCorporation @relation(fields: [cityCorporationId], references: [id])
+  status            ThanaStatus     @default(ACTIVE)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  users             User[]
+
+  @@unique([name, cityCorporationId])
+  @@index([cityCorporationId, status])
+  @@map("thanas")
+}
+
 model User {
   id                      Int                      @id @default(autoincrement())
   email                   String?                  @unique
@@ -25,11 +57,15 @@ model User {
   lastLoginAt             DateTime?
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
-  ward                    String?
-  zone                    String?
-  address                 String?
-  verificationCode        String?
-  verificationCodeExpiry  DateTime?
+  ward                   String?
+  zone                   String?
+  address                String?
+  verificationCode       String?
+  verificationCodeExpiry DateTime?
+  cityCorporationCode    String?
+  thanaId                Int?
+  cityCorporation        CityCorporation? @relation(fields: [cityCorporationCode], references: [code])
+  thana                  Thana?           @relation(fields: [thanaId], references: [id])
   receivedMessages        ChatMessage[]            @relation("ReceivedMessages")
   sentMessages            ChatMessage[]            @relation("SentMessages")
   complaints              Complaint[]
@@ -45,6 +81,10 @@ model User {
   @@index([status])
   @@index([role])
   @@index([createdAt])
+  @@index([cityCorporationCode])
+  @@index([ward])
+  @@index([thanaId])
+  @@index([cityCorporationCode, ward])
   @@map("users")
 }
 
@@ -240,4 +280,14 @@ enum ChatMessageType {
 enum SenderType {
   ADMIN
   CITIZEN
+}
+
+enum CityCorporationStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum ThanaStatus {
+  ACTIVE
+  INACTIVE
 }

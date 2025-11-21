@@ -153,7 +153,7 @@ const ChatListItem: React.FC<ChatListItemProps> = ({ chat, isSelected, onClick }
                         #{chat.trackingNumber} • {chat.complaintTitle}
                     </Typography>
 
-                    {/* Location */}
+                    {/* Location with City Corporation and Thana */}
                     <Typography
                         variant="caption"
                         color="text.secondary"
@@ -166,7 +166,9 @@ const ChatListItem: React.FC<ChatListItemProps> = ({ chat, isSelected, onClick }
                             fontSize: '0.7rem',
                         }}
                     >
-                        📍 {chat.citizen.district}, {chat.citizen.upazila}
+                        📍 {chat.citizen.cityCorporationName || chat.citizen.district}
+                        {chat.citizen.thanaName && `, ${chat.citizen.thanaName}`}
+                        {!chat.citizen.cityCorporationName && `, ${chat.citizen.upazila}`}
                     </Typography>
 
                     {/* Last Message Preview */}

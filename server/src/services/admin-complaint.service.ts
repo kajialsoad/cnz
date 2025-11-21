@@ -8,6 +8,8 @@ export interface AdminComplaintQueryInput {
     category?: string;
     subcategory?: string;
     ward?: string;
+    cityCorporationCode?: string;
+    thanaId?: number;
     search?: string;
     startDate?: string;
     endDate?: string;
@@ -35,6 +37,8 @@ export class AdminComplaintService {
                 category,
                 subcategory,
                 ward,
+                cityCorporationCode,
+                thanaId,
                 search,
                 startDate,
                 endDate,
@@ -82,12 +86,29 @@ export class AdminComplaintService {
                 }
             }
 
-            // Ward filter
+            // City Corporation filter (filter through user relationship)
+            if (cityCorporationCode) {
+                andConditions.push({
+                    user: {
+                        cityCorporationCode: cityCorporationCode
+                    }
+                });
+            }
+
+            // Ward filter (filter through user relationship)
             if (ward) {
                 andConditions.push({
-                    location: {
-                        contains: ward,
-                        mode: 'insensitive'
+                    user: {
+                        ward: ward
+                    }
+                });
+            }
+
+            // Thana filter (filter through user relationship)
+            if (thanaId) {
+                andConditions.push({
+                    user: {
+                        thanaId: thanaId
                     }
                 });
             }
@@ -105,30 +126,31 @@ export class AdminComplaintService {
             }
 
             // Search filter - searches across multiple fields
+            // Note: MySQL string comparisons are case-insensitive by default
             if (search && search.trim()) {
                 andConditions.push({
                     OR: [
-                        { title: { contains: search, mode: 'insensitive' } },
-                        { description: { contains: search, mode: 'insensitive' } },
-                        { location: { contains: search, mode: 'insensitive' } },
+                        { title: { contains: search } },
+                        { description: { contains: search } },
+                        { location: { contains: search } },
                         {
                             user: {
-                                firstName: { contains: search, mode: 'insensitive' }
+                                firstName: { contains: search }
                             }
                         },
                         {
                             user: {
-                                lastName: { contains: search, mode: 'insensitive' }
+                                lastName: { contains: search }
                             }
                         },
                         {
                             user: {
-                                phone: { contains: search, mode: 'insensitive' }
+                                phone: { contains: search }
                             }
                         },
                         {
                             user: {
-                                email: { contains: search, mode: 'insensitive' }
+                                email: { contains: search }
                             }
                         }
                     ]
@@ -159,13 +181,27 @@ export class AdminComplaintService {
                                 phone: true,
                                 ward: true,
                                 zone: true,
-                                address: true
+                                address: true,
+                                cityCorporationCode: true,
+                                thanaId: true,
+                                cityCorporation: {
+                                    select: {
+                                        code: true,
+                                        name: true
+                                    }
+                                },
+                                thana: {
+                                    select: {
+                                        id: true,
+                                        name: true
+                                    }
+                                }
                             }
                         }
                     }
                 }),
                 prisma.complaint.count({ where }),
-                this.getStatusCounts()
+                this.getStatusCounts(cityCorporationCode)
             ]);
 
             // Format complaints with parsed file URLs
@@ -208,7 +244,21 @@ export class AdminComplaintService {
                             ward: true,
                             zone: true,
                             address: true,
-                            createdAt: true
+                            createdAt: true,
+                            cityCorporationCode: true,
+                            thanaId: true,
+                            cityCorporation: {
+                                select: {
+                                    code: true,
+                                    name: true
+                                }
+                            },
+                            thana: {
+                                select: {
+                                    id: true,
+                                    name: true
+                                }
+                            }
                         }
                     }
                 }
@@ -381,13 +431,39 @@ export class AdminComplaintService {
 
     /**
      * Get status counts for all complaints
+     * Optionally filtered by city corporation
      */
-    private async getStatusCounts() {
+    private async getStatusCounts(cityCorporationCode?: string) {
+        // Build where clause for city corporation filter
+        const whereClause = cityCorporationCode
+            ? { user: { cityCorporationCode } }
+            : {};
+
         const [pending, inProgress, resolved, rejected] = await Promise.all([
-            prisma.complaint.count({ where: { status: ComplaintStatus.PENDING } }),
-            prisma.complaint.count({ where: { status: ComplaintStatus.IN_PROGRESS } }),
-            prisma.complaint.count({ where: { status: ComplaintStatus.RESOLVED } }),
-            prisma.complaint.count({ where: { status: ComplaintStatus.REJECTED } })
+            prisma.complaint.count({
+                where: {
+                    ...whereClause,
+                    status: ComplaintStatus.PENDING
+                }
+            }),
+            prisma.complaint.count({
+                where: {
+                    ...whereClause,
+                    status: ComplaintStatus.IN_PROGRESS
+                }
+            }),
+            prisma.complaint.count({
+                where: {
+                    ...whereClause,
+                    status: ComplaintStatus.RESOLVED
+                }
+            }),
+            prisma.complaint.count({
+                where: {
+                    ...whereClause,
+                    status: ComplaintStatus.REJECTED
+                }
+            })
         ]);
 
         return {

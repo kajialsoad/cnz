@@ -64,16 +64,37 @@ class UserManagementService {
     // Get all users with pagination and filters
     async getUsers(query?: GetUsersQuery): Promise<GetUsersResponse> {
         try {
-            const response = await this.apiClient.get<{
-                success: boolean;
-                data: GetUsersResponse;
-            }>('/api/admin/users', {
+            console.log('🔍 Fetching users with query:', query);
+
+            const response = await this.apiClient.get('/api/admin/users', {
                 params: query,
             });
 
-            return response.data.data;
+            console.log('✅ Full response:', response);
+            console.log('✅ Response data:', response.data);
+            console.log('✅ Response data type:', typeof response.data);
+            console.log('✅ Response data keys:', Object.keys(response.data || {}));
+
+            // Handle different response structures
+            if (response.data?.success && response.data?.data) {
+                // Backend returns { success: true, data: { users: [...], pagination: {...} } }
+                console.log('✅ Using response.data.data structure');
+                return response.data.data;
+            } else if (response.data?.users && response.data?.pagination) {
+                // Backend returns { users: [...], pagination: {...} } directly
+                console.log('✅ Using direct structure');
+                return response.data;
+            } else {
+                console.error('❌ Unexpected response structure:', response.data);
+                throw new Error('Unexpected response structure from server');
+            }
         } catch (error) {
+            console.error('❌ Error fetching users:', error);
             if (axios.isAxiosError(error)) {
+                console.error('Response data:', error.response?.data);
+                console.error('Response status:', error.response?.status);
+                console.error('Request URL:', error.config?.url);
+                console.error('Request params:', error.config?.params);
                 throw new Error(
                     error.response?.data?.message || 'Failed to fetch users'
                 );
@@ -102,12 +123,14 @@ class UserManagementService {
     }
 
     // Get user statistics
-    async getUserStatistics(): Promise<UserStatisticsResponse> {
+    async getUserStatistics(cityCorporationCode?: string): Promise<UserStatisticsResponse> {
         try {
             const response = await this.apiClient.get<{
                 success: boolean;
                 data: UserStatisticsResponse;
-            }>('/api/admin/users/statistics');
+            }>('/api/admin/users/statistics', {
+                params: cityCorporationCode ? { cityCorporationCode } : undefined,
+            });
 
             return response.data.data;
         } catch (error) {

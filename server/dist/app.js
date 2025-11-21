@@ -18,6 +18,9 @@ const admin_complaint_routes_1 = __importDefault(require("./routes/admin.complai
 const admin_analytics_routes_1 = __importDefault(require("./routes/admin.analytics.routes"));
 const admin_chat_routes_1 = __importDefault(require("./routes/admin.chat.routes"));
 const category_routes_1 = __importDefault(require("./routes/category.routes"));
+const city_corporation_routes_1 = __importDefault(require("./routes/city-corporation.routes"));
+const public_city_corporation_routes_1 = __importDefault(require("./routes/public-city-corporation.routes"));
+const thana_routes_1 = __importDefault(require("./routes/thana.routes"));
 console.log('🚀 Starting Clean Care API Server...');
 console.log('🔧 Importing admin auth routes...');
 console.log('🔧 Importing admin user routes...');
@@ -76,6 +79,12 @@ app.use('/api/admin/chat', admin_chat_routes_1.default); // Admin chat routes
 console.log('✅ Admin chat routes registered at /api/admin/chat');
 app.use('/api/categories', category_routes_1.default); // Category routes
 console.log('✅ Category routes registered at /api/categories');
+app.use('/api/admin/city-corporations', city_corporation_routes_1.default); // City Corporation routes
+console.log('✅ City Corporation routes registered at /api/admin/city-corporations');
+app.use('/api/city-corporations', public_city_corporation_routes_1.default); // Public City Corporation routes
+console.log('✅ Public City Corporation routes registered at /api/city-corporations');
+app.use('/api/admin/thanas', thana_routes_1.default); // Thana routes
+console.log('✅ Thana routes registered at /api/admin/thanas');
 // Add test route to verify admin path works
 app.get('/api/admin/test', (req, res) => {
     res.json({

@@ -60,6 +60,12 @@ const baseMenuItems = [
     path: '/users',
   },
   {
+    id: 'city-corporations',
+    label: 'City Corporations',
+    icon: adminIcon,
+    path: '/city-corporations',
+  },
+  {
     id: 'reports',
     label: 'Reports',
     icon: reportIcon,

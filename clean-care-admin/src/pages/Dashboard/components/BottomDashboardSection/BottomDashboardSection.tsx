@@ -1,13 +1,17 @@
 import React from 'react';
 import { Box } from '@mui/material';
-import { 
-  WardZonePerformance, 
-  WeeklyTrendAnalysis, 
-  TotalUsersWidget 
+import {
+  WardZonePerformance,
+  WeeklyTrendAnalysis,
+  TotalUsersWidget
 } from '../QuickActions';
 import { OperationalMonitoring } from '../OperationalMonitoring';
 
-const BottomDashboardSection: React.FC = () => {
+interface BottomDashboardSectionProps {
+  cityCorporationCode?: string;
+}
+
+const BottomDashboardSection: React.FC<BottomDashboardSectionProps> = ({ cityCorporationCode }) => {
   return (
     <Box sx={{ mb: 4 }}>
       {/* Top Row: Ward Performance + Total Users */}
@@ -22,17 +26,17 @@ const BottomDashboardSection: React.FC = () => {
           mb: 3,
         }}
       >
-        <WardZonePerformance />
-        <TotalUsersWidget />
+        <WardZonePerformance cityCorporationCode={cityCorporationCode} />
+        <TotalUsersWidget cityCorporationCode={cityCorporationCode} />
       </Box>
 
       {/* Middle Row: Weekly Trend Analysis (Full Width) */}
       <Box sx={{ mb: 3 }}>
-        <WeeklyTrendAnalysis />
+        <WeeklyTrendAnalysis cityCorporationCode={cityCorporationCode} />
       </Box>
 
       {/* Bottom Row: Operational Monitoring */}
-      <OperationalMonitoring />
+      <OperationalMonitoring cityCorporationCode={cityCorporationCode} />
     </Box>
   );
 };

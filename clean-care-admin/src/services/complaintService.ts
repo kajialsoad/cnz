@@ -145,7 +145,9 @@ class ComplaintService {
                 }
 
                 if (filters.subcategory) params.subcategory = filters.subcategory;
+                if (filters.cityCorporationCode) params.cityCorporationCode = filters.cityCorporationCode;
                 if (filters.ward) params.ward = filters.ward;
+                if (filters.thanaId) params.thanaId = filters.thanaId;
                 if (filters.startDate) params.startDate = filters.startDate;
                 if (filters.endDate) params.endDate = filters.endDate;
                 if (filters.sortBy) params.sortBy = filters.sortBy;
@@ -157,16 +159,31 @@ class ComplaintService {
                 data: GetComplaintsResponse;
             }>('/api/admin/complaints', { params });
 
+            // Validate response structure
+            if (!response.data || !response.data.data) {
+                console.error('Invalid response structure:', response.data);
+                throw new Error('Invalid response structure from server');
+            }
+
+            const responseData = response.data.data;
+
+            // Ensure complaints is an array
+            if (!Array.isArray(responseData.complaints)) {
+                console.error('Complaints is not an array:', responseData);
+                throw new Error('Invalid complaints data from server');
+            }
+
             // Parse media URLs for each complaint
-            const complaints = response.data.data.complaints.map((complaint) =>
+            const complaints = responseData.complaints.map((complaint) =>
                 this.parseMediaUrls(complaint)
             );
 
             return {
-                ...response.data.data,
+                ...responseData,
                 complaints,
             };
         } catch (error) {
+            console.error('Error in getComplaints:', error);
             throw error;
         }
     }

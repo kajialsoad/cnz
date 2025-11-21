@@ -2,7 +2,11 @@ import React from 'react';
 import { Card, CardContent, Typography, Box, Rating } from '@mui/material';
 import { CircularProgress } from '@mui/material';
 
-const CitizenSatisfactionScore: React.FC = () => {
+interface CitizenSatisfactionScoreProps {
+  cityCorporationCode?: string;
+}
+
+const CitizenSatisfactionScore: React.FC<CitizenSatisfactionScoreProps> = ({ cityCorporationCode }) => {
   const score = 4.2;
   const maxScore = 5.0;
   const percentage = (score / maxScore) * 100;

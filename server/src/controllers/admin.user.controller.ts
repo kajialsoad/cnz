@@ -15,6 +15,9 @@ const getUsersQuerySchema = z.object({
     role: z.nativeEnum(UserRole).optional(),
     sortBy: z.string().optional().default('createdAt'),
     sortOrder: z.enum(['asc', 'desc']).optional().default('desc'),
+    cityCorporationCode: z.string().optional(),
+    ward: z.string().optional(),
+    thanaId: z.string().optional().transform(val => val ? parseInt(val) : undefined),
 });
 
 const createUserSchema = z.object({
@@ -117,9 +120,11 @@ export async function getUserById(req: AuthRequest, res: Response) {
 // Get user statistics
 export async function getUserStatistics(req: AuthRequest, res: Response) {
     try {
-        console.log('📊 Fetching user statistics');
+        const cityCorporationCode = req.query.cityCorporationCode as string | undefined;
 
-        const statistics = await adminUserService.getUserStatistics();
+        console.log('📊 Fetching user statistics', cityCorporationCode ? `for ${cityCorporationCode}` : '');
+
+        const statistics = await adminUserService.getUserStatistics(cityCorporationCode);
 
         return res.status(200).json({
             success: true,

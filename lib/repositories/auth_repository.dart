@@ -1,5 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_client.dart';
+import '../models/city_corporation_model.dart';
+import '../models/thana_model.dart';
 
 class AuthRepository {
   final ApiClient api;
@@ -13,6 +15,8 @@ class AuthRepository {
     String? ward,
     String? zone,
     String? address,
+    String? CityCorporationCode,
+    int? thanaId,
   }) async {
     // Split name into firstName and lastName
     final nameParts = name.trim().split(' ');
@@ -30,6 +34,8 @@ class AuthRepository {
         if (ward != null) 'ward': ward,
         if (zone != null) 'zone': zone,
         if (address != null) 'address': address,
+        if (CityCorporationCode != null) 'CityCorporationCode': CityCorporationCode,
+        if (thanaId != null) 'thanaId': thanaId,
       });
 
       // Backend returns: { success: true, message: "...", user: {...} }
@@ -164,6 +170,40 @@ class AuthRepository {
       throw Exception(e.message);
     } catch (e) {
       throw Exception('Failed to resend verification code: ${e.toString()}');
+    }
+  }
+
+  Future<List<CityCorporation>> getActiveCityCorporations() async {
+    try {
+      final data = await api.get('/api/city-corporations/active');
+      
+      if (data['cityCorporations'] != null) {
+        final cityCorps = data['cityCorporations'] as List;
+        return cityCorps.map((cc) => CityCorporation.fromJson(cc as Map<String, dynamic>)).toList();
+      } else {
+        throw Exception('Failed to load city corporations');
+      }
+    } on ApiException catch (e) {
+      throw Exception(e.message);
+    } catch (e) {
+      throw Exception('Failed to load city corporations: ${e.toString()}');
+    }
+  }
+
+  Future<List<Thana>> getThanasByCityCorporation(String CityCorporationCode) async {
+    try {
+      final data = await api.get('/api/city-corporations/$CityCorporationCode/thanas');
+      
+      if (data['thanas'] != null) {
+        final thanas = data['thanas'] as List;
+        return thanas.map((t) => Thana.fromJson(t as Map<String, dynamic>)).toList();
+      } else {
+        throw Exception('Failed to load thanas');
+      }
+    } on ApiException catch (e) {
+      throw Exception(e.message);
+    } catch (e) {
+      throw Exception('Failed to load thanas: ${e.toString()}');
     }
   }
 }

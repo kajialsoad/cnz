@@ -11,6 +11,9 @@ export interface GetUsersQuery {
     role?: UserRole;
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
+    cityCorporationCode?: string;
+    ward?: string;
+    thanaId?: number;
 }
 
 // Response interfaces
@@ -39,6 +42,10 @@ export interface UserWithStats {
     createdAt: Date;
     updatedAt: Date;
     lastLoginAt: Date | null;
+    cityCorporationCode: string | null;
+    cityCorporation: any | null;
+    thanaId: number | null;
+    thana: any | null;
     statistics: UserStatistics;
 }
 
@@ -136,6 +143,21 @@ export class AdminUserService {
             where.role = query.role;
         }
 
+        // Apply city corporation filter
+        if (query.cityCorporationCode) {
+            where.cityCorporationCode = query.cityCorporationCode;
+        }
+
+        // Apply ward filter
+        if (query.ward) {
+            where.ward = query.ward;
+        }
+
+        // Apply thana filter
+        if (query.thanaId) {
+            where.thanaId = query.thanaId;
+        }
+
         // Get total count
         const total = await prisma.user.count({ where });
 
@@ -164,6 +186,22 @@ export class AdminUserService {
                 createdAt: true,
                 updatedAt: true,
                 lastLoginAt: true,
+                cityCorporationCode: true,
+                cityCorporation: {
+                    select: {
+                        code: true,
+                        name: true,
+                        minWard: true,
+                        maxWard: true,
+                    },
+                },
+                thanaId: true,
+                thana: {
+                    select: {
+                        id: true,
+                        name: true,
+                    },
+                },
                 _count: {
                     select: {
                         complaints: true,
@@ -172,16 +210,62 @@ export class AdminUserService {
             },
         });
 
-        // Calculate statistics for each user
-        const usersWithStats: UserWithStats[] = await Promise.all(
-            users.map(async (user) => {
-                const statistics = await this.calculateUserStats(user.id);
-                return {
-                    ...user,
-                    statistics,
-                };
-            })
-        );
+        // Get all user IDs for batch statistics query
+        const userIds = users.map(u => u.id);
+
+        // Batch query for all complaint statistics at once
+        const complaintStats = await prisma.complaint.groupBy({
+            by: ['userId', 'status'],
+            where: {
+                userId: { in: userIds },
+            },
+            _count: {
+                id: true,
+            },
+        });
+
+        // Build statistics map for quick lookup
+        const statsMap = new Map<number, UserStatistics>();
+
+        // Initialize stats for all users
+        userIds.forEach(userId => {
+            statsMap.set(userId, {
+                totalComplaints: 0,
+                resolvedComplaints: 0,
+                unresolvedComplaints: 0,
+                pendingComplaints: 0,
+                inProgressComplaints: 0,
+            });
+        });
+
+        // Populate stats from grouped data
+        complaintStats.forEach(stat => {
+            // Skip if userId is null (shouldn't happen but TypeScript requires the check)
+            if (!stat.userId) return;
+
+            const userStat = statsMap.get(stat.userId);
+            if (!userStat) return; // Skip if user not in our list
+
+            const count = stat._count.id;
+
+            userStat.totalComplaints += count;
+
+            if (stat.status === ComplaintStatus.RESOLVED) {
+                userStat.resolvedComplaints += count;
+            } else if (stat.status === ComplaintStatus.PENDING) {
+                userStat.pendingComplaints += count;
+                userStat.unresolvedComplaints += count;
+            } else if (stat.status === ComplaintStatus.IN_PROGRESS) {
+                userStat.inProgressComplaints += count;
+                userStat.unresolvedComplaints += count;
+            }
+        });
+
+        // Map users with their statistics
+        const usersWithStats: UserWithStats[] = users.map(user => ({
+            ...user,
+            statistics: statsMap.get(user.id)!,
+        }));
 
         return {
             users: usersWithStats,
@@ -215,6 +299,22 @@ export class AdminUserService {
                 createdAt: true,
                 updatedAt: true,
                 lastLoginAt: true,
+                cityCorporationCode: true,
+                cityCorporation: {
+                    select: {
+                        code: true,
+                        name: true,
+                        minWard: true,
+                        maxWard: true,
+                    },
+                },
+                thanaId: true,
+                thana: {
+                    select: {
+                        id: true,
+                        name: true,
+                    },
+                },
             },
         });
 
@@ -250,20 +350,34 @@ export class AdminUserService {
     }
 
     // Get aggregate statistics
-    async getUserStatistics(): Promise<UserStatisticsResponse> {
+    async getUserStatistics(cityCorporationCode?: string): Promise<UserStatisticsResponse> {
+        // Build base where clause for city corporation filter
+        const userWhere: Prisma.UserWhereInput = cityCorporationCode
+            ? { cityCorporationCode }
+            : {};
+
         // Total citizens
         const totalCitizens = await prisma.user.count({
             where: {
+                ...userWhere,
                 role: UserRole.CUSTOMER,
             },
         });
 
+        // For complaints, we need to filter by user's city corporation
+        const complaintWhere: Prisma.ComplaintWhereInput = cityCorporationCode
+            ? { user: { cityCorporationCode } }
+            : {};
+
         // Total complaints
-        const totalComplaints = await prisma.complaint.count();
+        const totalComplaints = await prisma.complaint.count({
+            where: complaintWhere,
+        });
 
         // Resolved complaints
         const resolvedComplaints = await prisma.complaint.count({
             where: {
+                ...complaintWhere,
                 status: ComplaintStatus.RESOLVED,
             },
         });
@@ -282,6 +396,7 @@ export class AdminUserService {
 
         const activeUsers = await prisma.user.count({
             where: {
+                ...userWhere,
                 lastLoginAt: {
                     gte: thirtyDaysAgo,
                 },
@@ -295,6 +410,7 @@ export class AdminUserService {
 
         const newUsersThisMonth = await prisma.user.count({
             where: {
+                ...userWhere,
                 createdAt: {
                     gte: startOfMonth,
                 },
@@ -303,10 +419,10 @@ export class AdminUserService {
 
         // Status breakdown
         const statusBreakdown = {
-            active: await prisma.user.count({ where: { status: UserStatus.ACTIVE } }),
-            inactive: await prisma.user.count({ where: { status: UserStatus.INACTIVE } }),
-            suspended: await prisma.user.count({ where: { status: UserStatus.SUSPENDED } }),
-            pending: await prisma.user.count({ where: { status: UserStatus.PENDING } }),
+            active: await prisma.user.count({ where: { ...userWhere, status: UserStatus.ACTIVE } }),
+            inactive: await prisma.user.count({ where: { ...userWhere, status: UserStatus.INACTIVE } }),
+            suspended: await prisma.user.count({ where: { ...userWhere, status: UserStatus.SUSPENDED } }),
+            pending: await prisma.user.count({ where: { ...userWhere, status: UserStatus.PENDING } }),
         };
 
         return {
@@ -378,6 +494,22 @@ export class AdminUserService {
                 createdAt: true,
                 updatedAt: true,
                 lastLoginAt: true,
+                cityCorporationCode: true,
+                cityCorporation: {
+                    select: {
+                        code: true,
+                        name: true,
+                        minWard: true,
+                        maxWard: true,
+                    },
+                },
+                thanaId: true,
+                thana: {
+                    select: {
+                        id: true,
+                        name: true,
+                    },
+                },
             },
         });
 
@@ -453,6 +585,22 @@ export class AdminUserService {
                 createdAt: true,
                 updatedAt: true,
                 lastLoginAt: true,
+                cityCorporationCode: true,
+                cityCorporation: {
+                    select: {
+                        code: true,
+                        name: true,
+                        minWard: true,
+                        maxWard: true,
+                    },
+                },
+                thanaId: true,
+                thana: {
+                    select: {
+                        id: true,
+                        name: true,
+                    },
+                },
             },
         });
 
@@ -497,6 +645,22 @@ export class AdminUserService {
                 createdAt: true,
                 updatedAt: true,
                 lastLoginAt: true,
+                cityCorporationCode: true,
+                cityCorporation: {
+                    select: {
+                        code: true,
+                        name: true,
+                        minWard: true,
+                        maxWard: true,
+                    },
+                },
+                thanaId: true,
+                thana: {
+                    select: {
+                        id: true,
+                        name: true,
+                    },
+                },
             },
         });
 

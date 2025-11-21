@@ -6,6 +6,7 @@ export interface AnalyticsQueryInput {
     period?: 'day' | 'week' | 'month' | 'year';
     startDate?: string;
     endDate?: string;
+    cityCorporationCode?: string;
 }
 
 export interface CategoryStatistic {
@@ -50,7 +51,7 @@ export class AnalyticsService {
      */
     async getComplaintAnalytics(query: AnalyticsQueryInput = {}) {
         try {
-            const { startDate, endDate } = query;
+            const { startDate, endDate, cityCorporationCode } = query;
 
             // Build date filter
             const dateFilter: any = {};
@@ -62,6 +63,13 @@ export class AnalyticsService {
                 if (endDate) {
                     dateFilter.createdAt.lte = new Date(endDate);
                 }
+            }
+
+            // Add city corporation filter through user relationship
+            if (cityCorporationCode) {
+                dateFilter.user = {
+                    cityCorporationCode: cityCorporationCode
+                };
             }
 
             // Get all analytics data in parallel
@@ -100,19 +108,29 @@ export class AnalyticsService {
      */
     async getComplaintTrends(query: AnalyticsQueryInput = {}): Promise<TrendDataPoint[]> {
         try {
-            const { period = 'week', startDate, endDate } = query;
+            const { period = 'week', startDate, endDate, cityCorporationCode } = query;
 
             // Calculate date range based on period
             const dateRange = this.calculateDateRange(period, startDate, endDate);
 
+            // Build where clause
+            const where: any = {
+                createdAt: {
+                    gte: dateRange.start,
+                    lte: dateRange.end
+                }
+            };
+
+            // Add city corporation filter through user relationship
+            if (cityCorporationCode) {
+                where.user = {
+                    cityCorporationCode: cityCorporationCode
+                };
+            }
+
             // Get complaints within date range
             const complaints = await prisma.complaint.findMany({
-                where: {
-                    createdAt: {
-                        gte: dateRange.start,
-                        lte: dateRange.end
-                    }
-                },
+                where,
                 select: {
                     createdAt: true,
                     status: true
@@ -198,7 +216,7 @@ export class AnalyticsService {
      */
     async getCategoryStatistics(query: AnalyticsQueryInput = {}): Promise<CategorySummary[]> {
         try {
-            const { startDate, endDate } = query;
+            const { startDate, endDate, cityCorporationCode } = query;
 
             // Build date filter
             const dateFilter: any = {};
@@ -210,6 +228,13 @@ export class AnalyticsService {
                 if (endDate) {
                     dateFilter.createdAt.lte = new Date(endDate);
                 }
+            }
+
+            // Add city corporation filter through user relationship
+            if (cityCorporationCode) {
+                dateFilter.user = {
+                    cityCorporationCode: cityCorporationCode
+                };
             }
 
             // Get complaints grouped by category and subcategory
@@ -300,19 +325,29 @@ export class AnalyticsService {
      */
     async getCategoryTrends(query: AnalyticsQueryInput = {}): Promise<any> {
         try {
-            const { period = 'week', startDate, endDate } = query;
+            const { period = 'week', startDate, endDate, cityCorporationCode } = query;
 
             // Calculate date range based on period
             const dateRange = this.calculateDateRange(period, startDate, endDate);
 
+            // Build where clause
+            const where: any = {
+                createdAt: {
+                    gte: dateRange.start,
+                    lte: dateRange.end
+                }
+            };
+
+            // Add city corporation filter through user relationship
+            if (cityCorporationCode) {
+                where.user = {
+                    cityCorporationCode: cityCorporationCode
+                };
+            }
+
             // Get complaints within date range with category info
             const complaints = await prisma.complaint.findMany({
-                where: {
-                    createdAt: {
-                        gte: dateRange.start,
-                        lte: dateRange.end
-                    }
-                },
+                where,
                 select: {
                     createdAt: true,
                     category: true,

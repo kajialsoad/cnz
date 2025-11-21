@@ -13,6 +13,9 @@ import adminComplaintRoutes from './routes/admin.complaint.routes';
 import adminAnalyticsRoutes from './routes/admin.analytics.routes';
 import adminChatRoutes from './routes/admin.chat.routes';
 import categoryRoutes from './routes/category.routes';
+import cityCorporationRoutes from './routes/city-corporation.routes';
+import publicCityCorporationRoutes from './routes/public-city-corporation.routes';
+import thanaRoutes from './routes/thana.routes';
 import { AuthRequest } from './middlewares/auth.middleware';
 
 console.log('🚀 Starting Clean Care API Server...');
@@ -90,6 +93,15 @@ console.log('✅ Admin chat routes registered at /api/admin/chat');
 
 app.use('/api/categories', categoryRoutes); // Category routes
 console.log('✅ Category routes registered at /api/categories');
+
+app.use('/api/admin/city-corporations', cityCorporationRoutes); // City Corporation routes
+console.log('✅ City Corporation routes registered at /api/admin/city-corporations');
+
+app.use('/api/city-corporations', publicCityCorporationRoutes); // Public City Corporation routes
+console.log('✅ Public City Corporation routes registered at /api/city-corporations');
+
+app.use('/api/admin/thanas', thanaRoutes); // Thana routes
+console.log('✅ Thana routes registered at /api/admin/thanas');
 
 // Add test route to verify admin path works
 app.get('/api/admin/test', (req, res) => {

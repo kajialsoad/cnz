@@ -43,20 +43,28 @@ const CategoryBadge: React.FC<CategoryBadgeProps> = ({
                     return;
                 }
 
-                // Fetch category and subcategory names
-                const [catName, subName, color] = await Promise.all([
-                    categoryService.getCategoryName(categoryId, 'en'),
-                    categoryService.getSubcategoryName(categoryId, subcategoryId, 'en'),
-                    categoryService.getCategoryColor(categoryId),
-                ]);
+                // Fetch category and subcategory names with individual error handling
+                try {
+                    const [catName, subName, color] = await Promise.all([
+                        categoryService.getCategoryName(categoryId, 'en').catch(() => 'Unknown Category'),
+                        categoryService.getSubcategoryName(categoryId, subcategoryId, 'en').catch(() => 'Unknown'),
+                        categoryService.getCategoryColor(categoryId).catch(() => '#808080'),
+                    ]);
 
-                setCategoryName(catName);
-                setSubcategoryName(subName);
-                setCategoryColor(color);
+                    setCategoryName(catName);
+                    setSubcategoryName(subName);
+                    setCategoryColor(color);
+                } catch (innerError) {
+                    console.error('Error fetching category details:', innerError);
+                    setCategoryName('Unknown');
+                    setSubcategoryName('Unknown');
+                    setCategoryColor('#808080');
+                }
             } catch (error) {
                 console.error('Error fetching category info:', error);
                 setCategoryName('Unknown');
                 setSubcategoryName('Unknown');
+                setCategoryColor('#808080');
             } finally {
                 setLoading(false);
             }

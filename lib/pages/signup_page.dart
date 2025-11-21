@@ -7,6 +7,8 @@ import 'package:flutter/services.dart';
 import '../config/api_config.dart';
 import '../repositories/auth_repository.dart';
 import '../services/api_client.dart';
+import '../models/city_corporation_model.dart';
+import '../models/thana_model.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -31,6 +33,14 @@ class _SignUpPageState extends State<SignUpPage> {
   int? _ward;
   late final AuthRepository _auth;
   
+  // City Corporation and Thana state
+  List<CityCorporation> _CityCorporations = [];
+  CityCorporation? _selectedCityCorporation;
+  List<Thana> _thanas = [];
+  Thana? _selectedThana;
+  bool _isLoadingCityCorps = false;
+  bool _isLoadingThanas = false;
+  
   // Email verification state
   bool _showVerificationSection = false;
   bool _isVerifying = false;
@@ -44,6 +54,65 @@ class _SignUpPageState extends State<SignUpPage> {
   void initState() {
     super.initState();
     _auth = AuthRepository(ApiClient(ApiConfig.baseUrl));
+    _loadCityCorporations();
+  }
+
+  Future<void> _loadCityCorporations() async {
+    setState(() => _isLoadingCityCorps = true);
+    
+    try {
+      final cityCorps = await _auth.getActiveCityCorporations();
+      if (mounted) {
+        setState(() {
+          _CityCorporations = cityCorps;
+          _isLoadingCityCorps = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingCityCorps = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('সিটি কর্পোরেশন লোড করতে ব্যর্থ: ${e.toString().replaceAll('Exception: ', '')}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _onCityCorporationChanged(CityCorporation? CityCorporation) async {
+    setState(() {
+      _selectedCityCorporation = CityCorporation;
+      _city = CityCorporation?.code;
+      _ward = null;
+      _selectedThana = null;
+      _thanas = [];
+    });
+
+    if (CityCorporation != null) {
+      setState(() => _isLoadingThanas = true);
+      
+      try {
+        final thanas = await _auth.getThanasByCityCorporation(CityCorporation.code);
+        if (mounted) {
+          setState(() {
+            _thanas = thanas;
+            _isLoadingThanas = false;
+          });
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() => _isLoadingThanas = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('থানা লোড করতে ব্যর্থ: ${e.toString().replaceAll('Exception: ', '')}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
   }
 
   @override
@@ -203,6 +272,8 @@ class _SignUpPageState extends State<SignUpPage> {
         ward: _ward?.toString(),
         zone: _city,
         address: _roadController.text.trim().isEmpty ? null : _roadController.text.trim(),
+        CityCorporationCode: _selectedCityCorporation?.code,
+        thanaId: _selectedThana?.id,
       );
 
       if (!mounted) return;
@@ -429,40 +500,74 @@ class _SignUpPageState extends State<SignUpPage> {
                     const SizedBox(height: 12),
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Text('City Corporation Selection', style: Theme.of(context).textTheme.bodyMedium),
+                      child: Text('City Corporation', style: Theme.of(context).textTheme.bodyMedium),
                     ),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ChoiceChip(
-                            label: const Text('Dhaka South City'),
-                            selected: _city == 'DSCC',
-                            onSelected: (s) => setState(() => _city = s ? 'DSCC' : null),
+                    _isLoadingCityCorps
+                        ? const Center(child: CircularProgressIndicator())
+                        : DropdownButtonFormField<CityCorporation>(
+                            value: _selectedCityCorporation,
+                            decoration: _dec('Select City Corporation'),
+                            items: _CityCorporations.map((cc) {
+                              return DropdownMenuItem<CityCorporation>(
+                                value: cc,
+                                child: Text(cc.name),
+                              );
+                            }).toList(),
+                            onChanged: _onCityCorporationChanged,
+                            validator: (v) => v == null ? 'সিটি কর্পোরেশন নির্বাচন করুন' : null,
                           ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: ChoiceChip(
-                            label: const Text('Dhaka North City'),
-                            selected: _city == 'DNCC',
-                            onSelected: (s) => setState(() => _city = s ? 'DNCC' : null),
-                          ),
-                        ),
-                      ],
-                    ),
                     const SizedBox(height: 12),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Text('Ward Number (1 to 72)', style: Theme.of(context).textTheme.bodyMedium),
-                    ),
-                    DropdownButtonFormField<int>(
-                      value: _ward,
-                      decoration: _dec('Select Ward'),
-                      items: List.generate(72, (i) => i + 1)
-                          .map((w) => DropdownMenuItem<int>(value: w, child: Text('$w')))
-                          .toList(),
-                      onChanged: (v) => setState(() => _ward = v),
-                    ),
+                    if (_selectedCityCorporation != null) ...[
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text(
+                          'Ward Number (${_selectedCityCorporation!.minWard} to ${_selectedCityCorporation!.maxWard})',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                      ),
+                      DropdownButtonFormField<int>(
+                        value: _ward,
+                        decoration: _dec('Select Ward'),
+                        items: _selectedCityCorporation!.wardRange
+                            .map((w) => DropdownMenuItem<int>(value: w, child: Text('Ward $w')))
+                            .toList(),
+                        onChanged: (v) => setState(() => _ward = v),
+                        validator: (v) => v == null ? 'ওয়ার্ড নির্বাচন করুন' : null,
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                    if (_selectedCityCorporation != null && _thanas.isNotEmpty) ...[
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text('Thana/Area (Optional)', style: Theme.of(context).textTheme.bodyMedium),
+                      ),
+                      _isLoadingThanas
+                          ? const Center(child: CircularProgressIndicator())
+                          : DropdownButtonFormField<Thana>(
+                              value: _selectedThana,
+                              decoration: _dec('Select Thana/Area'),
+                              items: _thanas.map((thana) {
+                                return DropdownMenuItem<Thana>(
+                                  value: thana,
+                                  child: Text(thana.name),
+                                );
+                              }).toList(),
+                              onChanged: (v) => setState(() => _selectedThana = v),
+                            ),
+                      const SizedBox(height: 12),
+                    ],
+                    if (_selectedCityCorporation != null && _thanas.isEmpty && !_isLoadingThanas) ...[
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Text(
+                          'এই সিটি কর্পোরেশনের জন্য কোন থানা উপলব্ধ নেই',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Colors.grey[600],
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 12),
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -796,3 +901,4 @@ class _DashedRectPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
+

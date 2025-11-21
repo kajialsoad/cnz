@@ -11,6 +11,7 @@ import AllComplaints from './pages/AllComplaints';
 import UserManagement from './pages/UserManagement';
 import AdminChatPage from './pages/AdminChatPage';
 import CategoryAnalytics from './pages/CategoryAnalytics';
+import CityCorporationManagement from './pages/CityCorporationManagement';
 import Reports from './pages/Reports';
 import Notifications from './pages/Notifications';
 import Settings from './pages/Settings';
@@ -101,6 +102,14 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <CategoryAnalytics />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/city-corporations"
+                  element={
+                    <ProtectedRoute>
+                      <CityCorporationManagement />
                     </ProtectedRoute>
                   }
                 />

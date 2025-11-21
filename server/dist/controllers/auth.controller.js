@@ -23,6 +23,8 @@ const registerSchema = zod_1.z.object({
     ward: zod_1.z.string().optional(),
     zone: zod_1.z.string().optional(),
     address: zod_1.z.string().optional(),
+    cityCorporationCode: zod_1.z.string().optional(),
+    thanaId: zod_1.z.number().int().positive().optional(),
 });
 const loginSchema = zod_1.z
     .object({
@@ -45,6 +47,8 @@ async function register(req, res) {
             phone: body.phone,
             ward: body.ward,
             zone: body.zone,
+            cityCorporationCode: body.cityCorporationCode,
+            thanaId: body.thanaId,
         });
         return res.status(200).json(result);
     }
@@ -187,6 +191,10 @@ const updateProfileSchema = zod_1.z.object({
     phone: zod_1.z.string().min(6).optional(),
     address: zod_1.z.string().optional(),
     avatar: zod_1.z.string().url().optional(),
+    ward: zod_1.z.string().optional(),
+    zone: zod_1.z.string().optional(),
+    cityCorporationCode: zod_1.z.string().optional(),
+    thanaId: zod_1.z.number().int().positive().optional(),
 });
 async function updateProfile(req, res) {
     try {

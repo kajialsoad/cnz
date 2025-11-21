@@ -29,6 +29,18 @@ class AdminUserService {
         if (query.role) {
             where.role = query.role;
         }
+        // Apply city corporation filter
+        if (query.cityCorporationCode) {
+            where.cityCorporationCode = query.cityCorporationCode;
+        }
+        // Apply ward filter
+        if (query.ward) {
+            where.ward = query.ward;
+        }
+        // Apply thana filter
+        if (query.thanaId) {
+            where.thanaId = query.thanaId;
+        }
         // Get total count
         const total = await prisma_1.default.user.count({ where });
         // Get users with pagination
@@ -56,6 +68,22 @@ class AdminUserService {
                 createdAt: true,
                 updatedAt: true,
                 lastLoginAt: true,
+                cityCorporationCode: true,
+                cityCorporation: {
+                    select: {
+                        code: true,
+                        name: true,
+                        minWard: true,
+                        maxWard: true,
+                    },
+                },
+                thanaId: true,
+                thana: {
+                    select: {
+                        id: true,
+                        name: true,
+                    },
+                },
                 _count: {
                     select: {
                         complaints: true,
@@ -102,6 +130,22 @@ class AdminUserService {
                 createdAt: true,
                 updatedAt: true,
                 lastLoginAt: true,
+                cityCorporationCode: true,
+                cityCorporation: {
+                    select: {
+                        code: true,
+                        name: true,
+                        minWard: true,
+                        maxWard: true,
+                    },
+                },
+                thanaId: true,
+                thana: {
+                    select: {
+                        id: true,
+                        name: true,
+                    },
+                },
             },
         });
         if (!user) {
@@ -132,18 +176,30 @@ class AdminUserService {
         };
     }
     // Get aggregate statistics
-    async getUserStatistics() {
+    async getUserStatistics(cityCorporationCode) {
+        // Build base where clause for city corporation filter
+        const userWhere = cityCorporationCode
+            ? { cityCorporationCode }
+            : {};
         // Total citizens
         const totalCitizens = await prisma_1.default.user.count({
             where: {
+                ...userWhere,
                 role: client_1.UserRole.CUSTOMER,
             },
         });
+        // For complaints, we need to filter by user's city corporation
+        const complaintWhere = cityCorporationCode
+            ? { user: { cityCorporationCode } }
+            : {};
         // Total complaints
-        const totalComplaints = await prisma_1.default.complaint.count();
+        const totalComplaints = await prisma_1.default.complaint.count({
+            where: complaintWhere,
+        });
         // Resolved complaints
         const resolvedComplaints = await prisma_1.default.complaint.count({
             where: {
+                ...complaintWhere,
                 status: client_1.ComplaintStatus.RESOLVED,
             },
         });
@@ -158,6 +214,7 @@ class AdminUserService {
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
         const activeUsers = await prisma_1.default.user.count({
             where: {
+                ...userWhere,
                 lastLoginAt: {
                     gte: thirtyDaysAgo,
                 },
@@ -169,6 +226,7 @@ class AdminUserService {
         startOfMonth.setHours(0, 0, 0, 0);
         const newUsersThisMonth = await prisma_1.default.user.count({
             where: {
+                ...userWhere,
                 createdAt: {
                     gte: startOfMonth,
                 },
@@ -176,10 +234,10 @@ class AdminUserService {
         });
         // Status breakdown
         const statusBreakdown = {
-            active: await prisma_1.default.user.count({ where: { status: client_1.UserStatus.ACTIVE } }),
-            inactive: await prisma_1.default.user.count({ where: { status: client_1.UserStatus.INACTIVE } }),
-            suspended: await prisma_1.default.user.count({ where: { status: client_1.UserStatus.SUSPENDED } }),
-            pending: await prisma_1.default.user.count({ where: { status: client_1.UserStatus.PENDING } }),
+            active: await prisma_1.default.user.count({ where: { ...userWhere, status: client_1.UserStatus.ACTIVE } }),
+            inactive: await prisma_1.default.user.count({ where: { ...userWhere, status: client_1.UserStatus.INACTIVE } }),
+            suspended: await prisma_1.default.user.count({ where: { ...userWhere, status: client_1.UserStatus.SUSPENDED } }),
+            pending: await prisma_1.default.user.count({ where: { ...userWhere, status: client_1.UserStatus.PENDING } }),
         };
         return {
             totalCitizens,
@@ -244,6 +302,22 @@ class AdminUserService {
                 createdAt: true,
                 updatedAt: true,
                 lastLoginAt: true,
+                cityCorporationCode: true,
+                cityCorporation: {
+                    select: {
+                        code: true,
+                        name: true,
+                        minWard: true,
+                        maxWard: true,
+                    },
+                },
+                thanaId: true,
+                thana: {
+                    select: {
+                        id: true,
+                        name: true,
+                    },
+                },
             },
         });
         // Get statistics
@@ -310,6 +384,22 @@ class AdminUserService {
                 createdAt: true,
                 updatedAt: true,
                 lastLoginAt: true,
+                cityCorporationCode: true,
+                cityCorporation: {
+                    select: {
+                        code: true,
+                        name: true,
+                        minWard: true,
+                        maxWard: true,
+                    },
+                },
+                thanaId: true,
+                thana: {
+                    select: {
+                        id: true,
+                        name: true,
+                    },
+                },
             },
         });
         // Get statistics
@@ -349,6 +439,22 @@ class AdminUserService {
                 createdAt: true,
                 updatedAt: true,
                 lastLoginAt: true,
+                cityCorporationCode: true,
+                cityCorporation: {
+                    select: {
+                        code: true,
+                        name: true,
+                        minWard: true,
+                        maxWard: true,
+                    },
+                },
+                thanaId: true,
+                thana: {
+                    select: {
+                        id: true,
+                        name: true,
+                    },
+                },
             },
         });
         // Get statistics

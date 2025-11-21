@@ -7,12 +7,13 @@ import { analyticsService } from '../services/analytics.service';
  */
 export async function getComplaintAnalytics(req: AuthRequest, res: Response) {
     try {
-        const { period, startDate, endDate } = req.query;
+        const { period, startDate, endDate, cityCorporationCode } = req.query;
 
         const analytics = await analyticsService.getComplaintAnalytics({
             period: period as 'day' | 'week' | 'month' | 'year',
             startDate: startDate as string,
-            endDate: endDate as string
+            endDate: endDate as string,
+            cityCorporationCode: cityCorporationCode as string
         });
 
         res.status(200).json({
@@ -33,12 +34,13 @@ export async function getComplaintAnalytics(req: AuthRequest, res: Response) {
  */
 export async function getComplaintTrends(req: AuthRequest, res: Response) {
     try {
-        const { period, startDate, endDate } = req.query;
+        const { period, startDate, endDate, cityCorporationCode } = req.query;
 
         const trends = await analyticsService.getComplaintTrends({
             period: period as 'day' | 'week' | 'month' | 'year',
             startDate: startDate as string,
-            endDate: endDate as string
+            endDate: endDate as string,
+            cityCorporationCode: cityCorporationCode as string
         });
 
         res.status(200).json({
@@ -59,11 +61,12 @@ export async function getComplaintTrends(req: AuthRequest, res: Response) {
  */
 export async function getCategoryStatistics(req: AuthRequest, res: Response) {
     try {
-        const { startDate, endDate } = req.query;
+        const { startDate, endDate, cityCorporationCode } = req.query;
 
         const statistics = await analyticsService.getCategoryStatistics({
             startDate: startDate as string,
-            endDate: endDate as string
+            endDate: endDate as string,
+            cityCorporationCode: cityCorporationCode as string
         });
 
         res.status(200).json({
@@ -88,12 +91,13 @@ export async function getCategoryStatistics(req: AuthRequest, res: Response) {
  */
 export async function getCategoryTrendsController(req: AuthRequest, res: Response) {
     try {
-        const { period, startDate, endDate } = req.query;
+        const { period, startDate, endDate, cityCorporationCode } = req.query;
 
         const data = await analyticsService.getCategoryTrends({
             period: period as 'day' | 'week' | 'month' | 'year',
             startDate: startDate as string,
-            endDate: endDate as string
+            endDate: endDate as string,
+            cityCorporationCode: cityCorporationCode as string
         });
 
         res.status(200).json({

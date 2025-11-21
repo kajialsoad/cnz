@@ -18,6 +18,22 @@ class ComplaintService {
                 const validSubcategories = category_service_1.categoryService.getAllSubcategoryIds(input.category);
                 throw new Error(`Invalid category and subcategory combination. Category '${input.category}' does not have subcategory '${input.subcategory}'. Valid subcategories: ${validSubcategories.join(', ')}`);
             }
+            // Auto-fetch user's city corporation and thana when creating complaint
+            let userCityCorporation = null;
+            let userThana = null;
+            if (input.userId && !input.forSomeoneElse) {
+                const user = await prisma_1.default.user.findUnique({
+                    where: { id: input.userId },
+                    include: {
+                        cityCorporation: true,
+                        thana: true
+                    }
+                });
+                if (user) {
+                    userCityCorporation = user.cityCorporation;
+                    userThana = user.thana;
+                }
+            }
             // Generate tracking number
             const trackingNumber = await this.generateTrackingNumber();
             let finalImageUrls = [];
@@ -87,6 +103,10 @@ class ComplaintService {
                             lastName: true,
                             email: true,
                             phone: true,
+                        },
+                        include: {
+                            cityCorporation: true,
+                            thana: true
                         }
                     }
                 }
@@ -123,6 +143,10 @@ class ComplaintService {
                             lastName: true,
                             email: true,
                             phone: true,
+                        },
+                        include: {
+                            cityCorporation: true,
+                            thana: true
                         }
                     }
                 }
@@ -223,6 +247,10 @@ class ComplaintService {
                             lastName: true,
                             email: true,
                             phone: true,
+                        },
+                        include: {
+                            cityCorporation: true,
+                            thana: true
                         }
                     }
                 }
@@ -345,6 +373,10 @@ class ComplaintService {
                             lastName: true,
                             email: true,
                             phone: true,
+                        },
+                        include: {
+                            cityCorporation: true,
+                            thana: true
                         }
                     }
                 },
@@ -407,6 +439,9 @@ class ComplaintService {
     formatComplaintResponse(complaint) {
         const parsedImages = this.parseFileUrls(complaint.imageUrl || '');
         const parsedAudio = this.parseFileUrls(complaint.audioUrl || '');
+        // Extract city corporation and thana from user if available
+        const cityCorporation = complaint.user?.cityCorporation || null;
+        const thana = complaint.user?.thana || null;
         return {
             ...complaint,
             imageUrls: parsedImages.imageUrls,
@@ -414,7 +449,10 @@ class ComplaintService {
             voiceNoteUrl: parsedAudio.imageUrls[0], // First audio URL for backward compatibility
             // Keep original fields for backward compatibility
             imageUrl: complaint.imageUrl,
-            audioUrl: complaint.audioUrl
+            audioUrl: complaint.audioUrl,
+            // Include city corporation and thana information
+            cityCorporation: cityCorporation,
+            thana: thana
         };
     }
     // Update getComplaints to return formatted responses
@@ -463,6 +501,10 @@ class ComplaintService {
                             lastName: true,
                             email: true,
                             phone: true,
+                        },
+                        include: {
+                            cityCorporation: true,
+                            thana: true
                         }
                     }
                 }

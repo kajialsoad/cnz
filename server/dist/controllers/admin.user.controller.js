@@ -20,6 +20,9 @@ const getUsersQuerySchema = zod_1.z.object({
     role: zod_1.z.nativeEnum(client_1.UserRole).optional(),
     sortBy: zod_1.z.string().optional().default('createdAt'),
     sortOrder: zod_1.z.enum(['asc', 'desc']).optional().default('desc'),
+    cityCorporationCode: zod_1.z.string().optional(),
+    ward: zod_1.z.string().optional(),
+    thanaId: zod_1.z.string().optional().transform(val => val ? parseInt(val) : undefined),
 });
 const createUserSchema = zod_1.z.object({
     firstName: zod_1.z.string().min(1, 'First name is required'),
@@ -107,8 +110,9 @@ async function getUserById(req, res) {
 // Get user statistics
 async function getUserStatistics(req, res) {
     try {
-        console.log('📊 Fetching user statistics');
-        const statistics = await admin_user_service_1.adminUserService.getUserStatistics();
+        const cityCorporationCode = req.query.cityCorporationCode;
+        console.log('📊 Fetching user statistics', cityCorporationCode ? `for ${cityCorporationCode}` : '');
+        const statistics = await admin_user_service_1.adminUserService.getUserStatistics(cityCorporationCode);
         return res.status(200).json({
             success: true,
             data: statistics,

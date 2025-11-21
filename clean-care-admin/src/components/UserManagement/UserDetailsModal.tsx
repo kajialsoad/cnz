@@ -246,8 +246,18 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                                     <Typography variant="caption" color="text.secondary">
                                         Location
                                     </Typography>
+                                    {user.cityCorporation && (
+                                        <Typography variant="body2" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 500 }}>
+                                            {user.cityCorporation.name}
+                                        </Typography>
+                                    )}
+                                    {user.thana && (
+                                        <Typography variant="body2" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                                            Thana: {user.thana.name}
+                                        </Typography>
+                                    )}
                                     <Typography variant="body2" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                                        {user.zone || 'N/A'} • Ward {user.ward || 'N/A'}
+                                        Ward {user.ward || 'N/A'} • Zone {user.zone || 'N/A'}
                                     </Typography>
                                     {user.address && (
                                         <Typography

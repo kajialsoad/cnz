@@ -45,6 +45,10 @@ import UserAddModal from '../../components/UserManagement/UserAddModal';
 import EmptyState from '../../components/common/EmptyState';
 import ErrorBoundary from '../../components/common/ErrorBoundary';
 import { userManagementService } from '../../services/userManagementService';
+import { cityCorporationService } from '../../services/cityCorporationService';
+import { thanaService } from '../../services/thanaService';
+import type { CityCorporation } from '../../services/cityCorporationService';
+import type { Thana } from '../../services/thanaService';
 import type {
   UserWithStats,
   UserStatisticsResponse,
@@ -69,6 +73,16 @@ const UserManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<UserStatus | 'ALL'>('ALL');
+
+  // State for city corporation filters
+  const [cityCorporations, setCityCorporations] = useState<CityCorporation[]>([]);
+  const [selectedCityCorporation, setSelectedCityCorporation] = useState<string>('ALL');
+  const [selectedWard, setSelectedWard] = useState<string>('ALL');
+  const [selectedThana, setSelectedThana] = useState<number | null>(null);
+  const [wardRange, setWardRange] = useState<{ min: number; max: number }>({ min: 1, max: 100 });
+  const [thanas, setThanas] = useState<Thana[]>([]);
+  const [cityCorporationsLoading, setCityCorporationsLoading] = useState<boolean>(false);
+  const [thanasLoading, setThanasLoading] = useState<boolean>(false);
 
   // State for statistics
   const [statistics, setStatistics] = useState<UserStatisticsResponse | null>(null);
@@ -115,15 +129,64 @@ const UserManagement: React.FC = () => {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
+  // Fetch city corporations on mount
+  useEffect(() => {
+    fetchCityCorporations();
+  }, []);
+
+  // Update ward range and thanas when city corporation changes
+  useEffect(() => {
+    if (selectedCityCorporation !== 'ALL') {
+      const cityCorporation = cityCorporations.find(cc => cc.code === selectedCityCorporation);
+      if (cityCorporation) {
+        setWardRange({ min: cityCorporation.minWard, max: cityCorporation.maxWard });
+        fetchThanas(cityCorporation.code);
+      }
+    } else {
+      setWardRange({ min: 1, max: 100 });
+      setThanas([]);
+    }
+    setSelectedWard('ALL');
+    setSelectedThana(null);
+  }, [selectedCityCorporation, cityCorporations]);
+
   // Fetch users when filters change
   useEffect(() => {
     fetchUsers();
-  }, [debouncedSearchTerm, statusFilter, pagination.page]);
+  }, [debouncedSearchTerm, statusFilter, selectedCityCorporation, selectedWard, selectedThana, pagination.page]);
 
-  // Fetch statistics on mount
+  // Fetch statistics when city corporation filter changes
   useEffect(() => {
     fetchStatistics();
-  }, []);
+  }, [selectedCityCorporation]);
+
+  // Fetch city corporations function
+  const fetchCityCorporations = async () => {
+    try {
+      setCityCorporationsLoading(true);
+      const cityCorps = await cityCorporationService.getCityCorporations('ACTIVE');
+      setCityCorporations(cityCorps);
+    } catch (err: any) {
+      console.error('Error fetching city corporations:', err);
+      showToast('Failed to load city corporations', 'error');
+    } finally {
+      setCityCorporationsLoading(false);
+    }
+  };
+
+  // Fetch thanas function
+  const fetchThanas = async (cityCorporationCode: string) => {
+    try {
+      setThanasLoading(true);
+      const thanasData = await thanaService.getThanasByCityCorporation(cityCorporationCode, 'ACTIVE');
+      setThanas(thanasData);
+    } catch (err: any) {
+      console.error('Error fetching thanas:', err);
+      showToast('Failed to load thanas', 'error');
+    } finally {
+      setThanasLoading(false);
+    }
+  };
 
   // Fetch users function
   const fetchUsers = useCallback(async () => {
@@ -136,6 +199,9 @@ const UserManagement: React.FC = () => {
         limit: pagination.limit,
         search: debouncedSearchTerm || undefined,
         status: statusFilter !== 'ALL' ? statusFilter : undefined,
+        cityCorporationCode: selectedCityCorporation !== 'ALL' ? selectedCityCorporation : undefined,
+        ward: selectedWard !== 'ALL' ? selectedWard : undefined,
+        thanaId: selectedThana || undefined,
       });
 
       setUsers(response.users);
@@ -150,13 +216,15 @@ const UserManagement: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearchTerm, statusFilter, pagination.page, pagination.limit]);
+  }, [debouncedSearchTerm, statusFilter, selectedCityCorporation, selectedWard, selectedThana, pagination.page, pagination.limit]);
 
   // Fetch statistics function
   const fetchStatistics = async () => {
     try {
       setStatsLoading(true);
-      const stats = await userManagementService.getUserStatistics();
+      const stats = await userManagementService.getUserStatistics(
+        selectedCityCorporation !== 'ALL' ? selectedCityCorporation : undefined
+      );
       setStatistics(stats);
     } catch (err: any) {
       console.error('Error fetching statistics:', err);
@@ -182,6 +250,9 @@ const UserManagement: React.FC = () => {
   const handleClearFilters = () => {
     setSearchTerm('');
     setStatusFilter('ALL');
+    setSelectedCityCorporation('ALL');
+    setSelectedWard('ALL');
+    setSelectedThana(null);
     setPagination(prev => ({ ...prev, page: 1 }));
   };
 
@@ -439,31 +510,6 @@ const UserManagement: React.FC = () => {
                 </Typography>
 
                 <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                  <FormControl sx={{ minWidth: 150 }}>
-                    <InputLabel id="status-filter-label" sx={{ top: -8 }}>Status</InputLabel>
-                    <Select
-                      labelId="status-filter-label"
-                      value={statusFilter}
-                      onChange={(e) => handleStatusFilter(e.target.value as UserStatus | 'ALL')}
-                      label="Status"
-                      startAdornment={
-                        <InputAdornment position="start">
-                          <FilterIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
-                        </InputAdornment>
-                      }
-                      sx={{
-                        height: 40,
-                        backgroundColor: '#f8f9fa',
-                      }}
-                    >
-                      <MenuItem value="ALL">All Status</MenuItem>
-                      <MenuItem value="ACTIVE">Active</MenuItem>
-                      <MenuItem value="INACTIVE">Inactive</MenuItem>
-                      <MenuItem value="SUSPENDED">Suspended</MenuItem>
-                      <MenuItem value="PENDING">Pending</MenuItem>
-                    </Select>
-                  </FormControl>
-
                   <TextField
                     placeholder="Search by name, email, or ward..."
                     value={searchTerm}
@@ -486,6 +532,137 @@ const UserManagement: React.FC = () => {
                 </Box>
               </Box>
 
+              {/* Filters Row */}
+              <Box sx={{
+                display: 'flex',
+                gap: 2,
+                mb: 3,
+                flexWrap: 'wrap',
+                alignItems: 'center',
+              }}>
+                {/* City Corporation Filter */}
+                <FormControl sx={{ minWidth: 200 }}>
+                  <InputLabel id="city-corporation-filter-label" sx={{ top: -8 }}>
+                    City Corporation
+                  </InputLabel>
+                  <Select
+                    labelId="city-corporation-filter-label"
+                    value={selectedCityCorporation}
+                    onChange={(e) => setSelectedCityCorporation(e.target.value)}
+                    label="City Corporation"
+                    disabled={cityCorporationsLoading}
+                    sx={{
+                      height: 40,
+                      backgroundColor: '#f8f9fa',
+                    }}
+                  >
+                    <MenuItem value="ALL">All City Corporations</MenuItem>
+                    {cityCorporations && cityCorporations.map((cc) => (
+                      <MenuItem key={cc.code} value={cc.code}>
+                        {cc.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                {/* Ward Filter */}
+                <FormControl sx={{ minWidth: 150 }}>
+                  <InputLabel id="ward-filter-label" sx={{ top: -8 }}>Ward</InputLabel>
+                  <Select
+                    labelId="ward-filter-label"
+                    value={selectedWard}
+                    onChange={(e) => setSelectedWard(e.target.value)}
+                    label="Ward"
+                    disabled={selectedCityCorporation === 'ALL'}
+                    sx={{
+                      height: 40,
+                      backgroundColor: '#f8f9fa',
+                    }}
+                  >
+                    <MenuItem value="ALL">All Wards</MenuItem>
+                    {Array.from(
+                      { length: wardRange.max - wardRange.min + 1 },
+                      (_, i) => wardRange.min + i
+                    ).map((ward) => (
+                      <MenuItem key={ward} value={ward.toString()}>
+                        Ward {ward}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                {/* Thana Filter */}
+                <FormControl sx={{ minWidth: 200 }}>
+                  <InputLabel id="thana-filter-label" sx={{ top: -8 }}>
+                    Thana/Area
+                  </InputLabel>
+                  <Select
+                    labelId="thana-filter-label"
+                    value={selectedThana || ''}
+                    onChange={(e) => setSelectedThana(e.target.value ? Number(e.target.value) : null)}
+                    label="Thana/Area"
+                    disabled={selectedCityCorporation === 'ALL' || thanasLoading || !thanas || thanas.length === 0}
+                    sx={{
+                      height: 40,
+                      backgroundColor: '#f8f9fa',
+                    }}
+                  >
+                    <MenuItem value="">All Thanas</MenuItem>
+                    {thanas && thanas.map((thana) => (
+                      <MenuItem key={thana.id} value={thana.id}>
+                        {thana.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                {/* Status Filter */}
+                <FormControl sx={{ minWidth: 150 }}>
+                  <InputLabel id="status-filter-label" sx={{ top: -8 }}>Status</InputLabel>
+                  <Select
+                    labelId="status-filter-label"
+                    value={statusFilter}
+                    onChange={(e) => handleStatusFilter(e.target.value as UserStatus | 'ALL')}
+                    label="Status"
+                    startAdornment={
+                      <InputAdornment position="start">
+                        <FilterIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+                      </InputAdornment>
+                    }
+                    sx={{
+                      height: 40,
+                      backgroundColor: '#f8f9fa',
+                    }}
+                  >
+                    <MenuItem value="ALL">All Status</MenuItem>
+                    <MenuItem value="ACTIVE">Active</MenuItem>
+                    <MenuItem value="INACTIVE">Inactive</MenuItem>
+                    <MenuItem value="SUSPENDED">Suspended</MenuItem>
+                    <MenuItem value="PENDING">Pending</MenuItem>
+                  </Select>
+                </FormControl>
+
+                {/* Clear Filters Button */}
+                {(searchTerm || statusFilter !== 'ALL' || selectedCityCorporation !== 'ALL' || selectedWard !== 'ALL' || selectedThana) && (
+                  <Button
+                    variant="outlined"
+                    onClick={handleClearFilters}
+                    sx={{
+                      height: 40,
+                      textTransform: 'none',
+                      borderColor: '#e0e0e0',
+                      color: 'text.secondary',
+                      '&:hover': {
+                        borderColor: '#4CAF50',
+                        color: '#4CAF50',
+                      },
+                    }}
+                  >
+                    Clear Filters
+                  </Button>
+                )}
+              </Box>
+
               {/* Users Table */}
               <TableContainer component={Paper} elevation={0}>
                 <Table sx={{ minWidth: 650 }}>
@@ -493,6 +670,7 @@ const UserManagement: React.FC = () => {
                     <TableRow sx={{ backgroundColor: '#f8f9fa' }}>
                       <TableCell sx={{ fontWeight: 600 }}>Citizen</TableCell>
                       <TableCell sx={{ fontWeight: 600 }}>Contact</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>City Corporation</TableCell>
                       <TableCell sx={{ fontWeight: 600 }}>Location</TableCell>
                       <TableCell sx={{ fontWeight: 600 }}>Complaints</TableCell>
                       <TableCell sx={{ fontWeight: 600 }}>Resolved</TableCell>
@@ -514,12 +692,13 @@ const UserManagement: React.FC = () => {
                           <TableCell><Skeleton variant="rectangular" height={40} /></TableCell>
                           <TableCell><Skeleton variant="rectangular" height={40} /></TableCell>
                           <TableCell><Skeleton variant="rectangular" height={40} /></TableCell>
+                          <TableCell><Skeleton variant="rectangular" height={40} /></TableCell>
                         </TableRow>
                       ))
                     ) : error ? (
                       // Error state
                       <TableRow>
-                        <TableCell colSpan={8}>
+                        <TableCell colSpan={9}>
                           <Alert severity="error" sx={{ my: 2 }}>
                             {error}
                           </Alert>
@@ -528,7 +707,7 @@ const UserManagement: React.FC = () => {
                     ) : users.length === 0 ? (
                       // Empty state
                       <TableRow>
-                        <TableCell colSpan={8}>
+                        <TableCell colSpan={9}>
                           <EmptyState
                             icon={
                               searchTerm || statusFilter !== 'ALL' ? (
@@ -602,13 +781,29 @@ const UserManagement: React.FC = () => {
                           </TableCell>
                           <TableCell>
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                {user.cityCorporation?.name || user.zone || 'N/A'}
+                              </Typography>
+                              {user.cityCorporation && (
+                                <Typography variant="caption" color="text.secondary">
+                                  {user.cityCorporation.code}
+                                </Typography>
+                              )}
+                            </Box>
+                          </TableCell>
+                          <TableCell>
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                 <LocationIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                                <Typography variant="body2">{user.ward || 'N/A'}</Typography>
+                                <Typography variant="body2">
+                                  Ward {user.ward || 'N/A'}
+                                </Typography>
                               </Box>
-                              <Typography variant="body2" color="text.secondary">
-                                {user.zone || 'N/A'}
-                              </Typography>
+                              {user.thana && (
+                                <Typography variant="body2" color="text.secondary">
+                                  {user.thana.name}
+                                </Typography>
+                              )}
                             </Box>
                           </TableCell>
                           <TableCell>
@@ -692,6 +887,115 @@ const UserManagement: React.FC = () => {
                   </TableBody>
                 </Table>
               </TableContainer>
+
+              {/* Pagination */}
+              {!loading && !error && users.length > 0 && (
+                <Box
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    p: 2,
+                    borderTop: '1px solid #e0e0e0',
+                    flexWrap: 'wrap',
+                    gap: 2,
+                  }}
+                >
+                  {/* Pagination Info */}
+                  <Typography variant="body2" color="text.secondary">
+                    Showing {((pagination.page - 1) * pagination.limit) + 1} to{' '}
+                    {Math.min(pagination.page * pagination.limit, pagination.total)} of{' '}
+                    {pagination.total.toLocaleString()} users
+                  </Typography>
+
+                  {/* Pagination Controls */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+                    {/* Rows per page selector */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Rows per page:
+                      </Typography>
+                      <Select
+                        value={pagination.limit}
+                        onChange={(e) => setPagination(prev => ({ ...prev, limit: Number(e.target.value), page: 1 }))}
+                        size="small"
+                        sx={{ minWidth: 80 }}
+                      >
+                        <MenuItem value={20}>20</MenuItem>
+                        <MenuItem value={50}>50</MenuItem>
+                        <MenuItem value={100}>100</MenuItem>
+                        <MenuItem value={200}>200</MenuItem>
+                      </Select>
+                    </Box>
+
+                    {/* Page navigation */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Button
+                        size="small"
+                        onClick={() => setPagination(prev => ({ ...prev, page: 1 }))}
+                        disabled={pagination.page === 1}
+                        sx={{ minWidth: 'auto', px: 1 }}
+                      >
+                        First
+                      </Button>
+                      <Button
+                        size="small"
+                        onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
+                        disabled={pagination.page === 1}
+                        sx={{ minWidth: 'auto', px: 1 }}
+                      >
+                        Previous
+                      </Button>
+
+                      <Typography variant="body2" sx={{ mx: 2 }}>
+                        Page {pagination.page} of {Math.ceil(pagination.total / pagination.limit)}
+                      </Typography>
+
+                      <Button
+                        size="small"
+                        onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
+                        disabled={pagination.page >= Math.ceil(pagination.total / pagination.limit)}
+                        sx={{ minWidth: 'auto', px: 1 }}
+                      >
+                        Next
+                      </Button>
+                      <Button
+                        size="small"
+                        onClick={() => setPagination(prev => ({ ...prev, page: Math.ceil(pagination.total / pagination.limit) }))}
+                        disabled={pagination.page >= Math.ceil(pagination.total / pagination.limit)}
+                        sx={{ minWidth: 'auto', px: 1 }}
+                      >
+                        Last
+                      </Button>
+                    </Box>
+
+                    {/* Direct page input */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Go to:
+                      </Typography>
+                      <TextField
+                        type="number"
+                        size="small"
+                        value={pagination.page}
+                        onChange={(e) => {
+                          const page = parseInt(e.target.value);
+                          const maxPage = Math.ceil(pagination.total / pagination.limit);
+                          if (page >= 1 && page <= maxPage) {
+                            setPagination(prev => ({ ...prev, page }));
+                          }
+                        }}
+                        inputProps={{
+                          min: 1,
+                          max: Math.ceil(pagination.total / pagination.limit),
+                          style: { textAlign: 'center' }
+                        }}
+                        sx={{ width: 80 }}
+                      />
+                    </Box>
+                  </Box>
+                </Box>
+              )}
             </CardContent>
           </Card>
         </Box>

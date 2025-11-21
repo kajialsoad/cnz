@@ -10,7 +10,11 @@ const wardData = [
   { ward: 'Ward 44', pending: 18, resolved: 85 },
 ];
 
-const WardZonePerformance: React.FC = () => {
+interface WardZonePerformanceProps {
+  cityCorporationCode?: string;
+}
+
+const WardZonePerformance: React.FC<WardZonePerformanceProps> = ({ cityCorporationCode }) => {
   return (
     <Card sx={{ height: '100%' }}>
       <CardContent sx={{ p: 3 }}>
@@ -46,36 +50,36 @@ const WardZonePerformance: React.FC = () => {
               barCategoryGap="20%"
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-              <XAxis 
-                dataKey="ward" 
+              <XAxis
+                dataKey="ward"
                 axisLine={false}
                 tickLine={false}
                 tick={{ fontSize: 12, fill: '#6B7280' }}
               />
-              <YAxis 
+              <YAxis
                 axisLine={false}
                 tickLine={false}
                 tick={{ fontSize: 12, fill: '#6B7280' }}
                 domain={[0, 'dataMax + 10']}
               />
-              <Legend 
-                wrapperStyle={{ 
+              <Legend
+                wrapperStyle={{
                   paddingTop: '20px',
                   fontSize: '12px'
                 }}
                 iconType="rect"
               />
-              <Bar 
-                dataKey="pending" 
+              <Bar
+                dataKey="pending"
                 name="Pending"
-                fill="#F59E0B" 
+                fill="#F59E0B"
                 radius={[4, 4, 0, 0]}
                 maxBarSize={40}
               />
-              <Bar 
-                dataKey="resolved" 
+              <Bar
+                dataKey="resolved"
                 name="Resolved"
-                fill="#10B981" 
+                fill="#10B981"
                 radius={[4, 4, 0, 0]}
                 maxBarSize={40}
               />

@@ -39,6 +39,10 @@ import CategoryBadge from '../../components/Complaints/CategoryBadge';
 import LoadingButton from '../../components/common/LoadingButton';
 import PageLoadingBar from '../../components/common/PageLoadingBar';
 import { complaintService } from '../../services/complaintService';
+import { cityCorporationService } from '../../services/cityCorporationService';
+import { thanaService } from '../../services/thanaService';
+import type { CityCorporation } from '../../services/cityCorporationService';
+import type { Thana } from '../../services/thanaService';
 import { useDebounce } from '../../hooks/useDebounce';
 import { formatTimeAgo } from '../../utils/dateUtils';
 import { handleApiError, logError, ErrorType } from '../../utils/errorHandler';
@@ -67,6 +71,23 @@ const AllComplaints: React.FC = () => {
   );
   const [categoryFilter, setCategoryFilter] = useState(searchParams.get('category') || '');
   const [subcategoryFilter, setSubcategoryFilter] = useState(searchParams.get('subcategory') || '');
+
+  // City Corporation filters
+  const [cityCorporations, setCityCorporations] = useState<CityCorporation[]>([]);
+  const [selectedCityCorporation, setSelectedCityCorporation] = useState<string>(
+    searchParams.get('cityCorporation') || 'ALL'
+  );
+  const [selectedWard, setSelectedWard] = useState<string>(
+    searchParams.get('ward') || 'ALL'
+  );
+  const [selectedThana, setSelectedThana] = useState<number | null>(
+    searchParams.get('thana') ? Number(searchParams.get('thana')) : null
+  );
+  const [wardRange, setWardRange] = useState<{ min: number; max: number }>({ min: 1, max: 100 });
+  const [thanas, setThanas] = useState<Thana[]>([]);
+  const [cityCorporationsLoading, setCityCorporationsLoading] = useState<boolean>(false);
+  const [thanasLoading, setThanasLoading] = useState<boolean>(false);
+
   const [statusCounts, setStatusCounts] = useState<ComplaintStats>({
     total: 0,
     pending: 0,
@@ -96,6 +117,31 @@ const AllComplaints: React.FC = () => {
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
   /**
+   * Fetch city corporations on mount
+   */
+  useEffect(() => {
+    fetchCityCorporations();
+  }, []);
+
+  /**
+   * Update ward range and thanas when city corporation changes
+   */
+  useEffect(() => {
+    if (selectedCityCorporation !== 'ALL') {
+      const cityCorporation = cityCorporations.find(cc => cc.code === selectedCityCorporation);
+      if (cityCorporation) {
+        setWardRange({ min: cityCorporation.minWard, max: cityCorporation.maxWard });
+        fetchThanas(cityCorporation.code);
+      }
+    } else {
+      setWardRange({ min: 1, max: 100 });
+      setThanas([]);
+    }
+    setSelectedWard('ALL');
+    setSelectedThana(null);
+  }, [selectedCityCorporation, cityCorporations]);
+
+  /**
    * Update URL query parameters when filters change
    */
   useEffect(() => {
@@ -105,11 +151,46 @@ const AllComplaints: React.FC = () => {
     if (statusFilter !== 'ALL') params.set('status', statusFilter);
     if (categoryFilter) params.set('category', categoryFilter);
     if (subcategoryFilter) params.set('subcategory', subcategoryFilter);
+    if (selectedCityCorporation !== 'ALL') params.set('cityCorporation', selectedCityCorporation);
+    if (selectedWard !== 'ALL') params.set('ward', selectedWard);
+    if (selectedThana) params.set('thana', selectedThana.toString());
     if (pagination.page !== 1) params.set('page', pagination.page.toString());
     if (pagination.limit !== 20) params.set('limit', pagination.limit.toString());
 
     setSearchParams(params, { replace: true });
-  }, [searchTerm, statusFilter, categoryFilter, subcategoryFilter, pagination.page, pagination.limit]);
+  }, [searchTerm, statusFilter, categoryFilter, subcategoryFilter, selectedCityCorporation, selectedWard, selectedThana, pagination.page, pagination.limit]);
+
+  /**
+   * Fetch city corporations
+   */
+  const fetchCityCorporations = async () => {
+    try {
+      setCityCorporationsLoading(true);
+      const cityCorps = await cityCorporationService.getCityCorporations('ACTIVE');
+      setCityCorporations(cityCorps);
+    } catch (err: any) {
+      console.error('Error fetching city corporations:', err);
+      showErrorToast('Failed to load city corporations');
+    } finally {
+      setCityCorporationsLoading(false);
+    }
+  };
+
+  /**
+   * Fetch thanas for selected city corporation
+   */
+  const fetchThanas = async (cityCorporationCode: string) => {
+    try {
+      setThanasLoading(true);
+      const thanasData = await thanaService.getThanasByCityCorporation(cityCorporationCode, 'ACTIVE');
+      setThanas(thanasData);
+    } catch (err: any) {
+      console.error('Error fetching thanas:', err);
+      showErrorToast('Failed to load thanas');
+    } finally {
+      setThanasLoading(false);
+    }
+  };
 
   /**
    * Fetch complaints from the backend
@@ -141,6 +222,21 @@ const AllComplaints: React.FC = () => {
       // Add subcategory filter if present
       if (subcategoryFilter) {
         filters.subcategory = subcategoryFilter;
+      }
+
+      // Add city corporation filter if present
+      if (selectedCityCorporation !== 'ALL') {
+        filters.cityCorporationCode = selectedCityCorporation;
+      }
+
+      // Add ward filter if present
+      if (selectedWard !== 'ALL') {
+        filters.ward = selectedWard;
+      }
+
+      // Add thana filter if present
+      if (selectedThana) {
+        filters.thanaId = selectedThana;
       }
 
       console.log('Fetching complaints with params:', {
@@ -187,7 +283,7 @@ const AllComplaints: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [pagination.page, pagination.limit, statusFilter, categoryFilter, subcategoryFilter, debouncedSearchTerm]);
+  }, [pagination.page, pagination.limit, statusFilter, categoryFilter, subcategoryFilter, selectedCityCorporation, selectedWard, selectedThana, debouncedSearchTerm]);
 
   /**
    * Fetch complaints on component mount and when filters change
@@ -244,6 +340,33 @@ const AllComplaints: React.FC = () => {
   };
 
   /**
+   * Handle city corporation filter change
+   */
+  const handleCityCorporationFilterChange = (value: string) => {
+    setSelectedCityCorporation(value);
+    // Reset to page 1 when filter changes
+    setPagination((prev) => ({ ...prev, page: 1 }));
+  };
+
+  /**
+   * Handle ward filter change
+   */
+  const handleWardFilterChange = (value: string) => {
+    setSelectedWard(value);
+    // Reset to page 1 when filter changes
+    setPagination((prev) => ({ ...prev, page: 1 }));
+  };
+
+  /**
+   * Handle thana filter change
+   */
+  const handleThanaFilterChange = (value: number | null) => {
+    setSelectedThana(value);
+    // Reset to page 1 when filter changes
+    setPagination((prev) => ({ ...prev, page: 1 }));
+  };
+
+  /**
    * Clear all filters
    */
   const handleClearFilters = () => {
@@ -251,6 +374,9 @@ const AllComplaints: React.FC = () => {
     setStatusFilter('ALL');
     setCategoryFilter('');
     setSubcategoryFilter('');
+    setSelectedCityCorporation('ALL');
+    setSelectedWard('ALL');
+    setSelectedThana(null);
     setPagination((prev) => ({ ...prev, page: 1 }));
   };
 
@@ -718,9 +844,131 @@ const AllComplaints: React.FC = () => {
                 value={subcategoryFilter}
                 onChange={handleSubcategoryFilterChange}
               />
+            </Box>
+
+            {/* Second Row - City Corporation Filters */}
+            <Box sx={{
+              display: 'flex',
+              flexDirection: { xs: 'column', sm: 'row' },
+              gap: { xs: 1.5, sm: 2 },
+              alignItems: { xs: 'stretch', sm: 'center' },
+            }}>
+              {/* City Corporation Filter */}
+              <FormControl sx={{ minWidth: { xs: '100%', sm: 200 } }}>
+                <Select
+                  value={selectedCityCorporation}
+                  onChange={(e) => handleCityCorporationFilterChange(e.target.value)}
+                  displayEmpty
+                  disabled={cityCorporationsLoading}
+                  sx={{
+                    backgroundColor: 'white',
+                    height: { xs: 40, sm: 44 },
+                    '& .MuiSelect-select': {
+                      display: 'flex',
+                      alignItems: 'center',
+                      fontSize: { xs: '0.875rem', sm: '0.95rem' },
+                    },
+                    '&:hover': {
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#4CAF50',
+                      },
+                    },
+                    '&.Mui-focused': {
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#4CAF50',
+                        borderWidth: 2,
+                      },
+                    },
+                  }}
+                >
+                  <MenuItem value="ALL">All City Corporations</MenuItem>
+                  {cityCorporations && cityCorporations.map((cc) => (
+                    <MenuItem key={cc.code} value={cc.code}>
+                      {cc.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              {/* Ward Filter */}
+              <FormControl sx={{ minWidth: { xs: '100%', sm: 150 } }}>
+                <Select
+                  value={selectedWard}
+                  onChange={(e) => handleWardFilterChange(e.target.value)}
+                  displayEmpty
+                  disabled={selectedCityCorporation === 'ALL'}
+                  sx={{
+                    backgroundColor: 'white',
+                    height: { xs: 40, sm: 44 },
+                    '& .MuiSelect-select': {
+                      display: 'flex',
+                      alignItems: 'center',
+                      fontSize: { xs: '0.875rem', sm: '0.95rem' },
+                    },
+                    '&:hover': {
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#4CAF50',
+                      },
+                    },
+                    '&.Mui-focused': {
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#4CAF50',
+                        borderWidth: 2,
+                      },
+                    },
+                  }}
+                >
+                  <MenuItem value="ALL">All Wards</MenuItem>
+                  {Array.from(
+                    { length: wardRange.max - wardRange.min + 1 },
+                    (_, i) => wardRange.min + i
+                  ).map((ward) => (
+                    <MenuItem key={ward} value={ward.toString()}>
+                      Ward {ward}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              {/* Thana Filter */}
+              <FormControl sx={{ minWidth: { xs: '100%', sm: 200 } }}>
+                <Select
+                  value={selectedThana || ''}
+                  onChange={(e) => handleThanaFilterChange(e.target.value ? Number(e.target.value) : null)}
+                  displayEmpty
+                  disabled={selectedCityCorporation === 'ALL' || thanasLoading || !thanas || thanas.length === 0}
+                  sx={{
+                    backgroundColor: 'white',
+                    height: { xs: 40, sm: 44 },
+                    '& .MuiSelect-select': {
+                      display: 'flex',
+                      alignItems: 'center',
+                      fontSize: { xs: '0.875rem', sm: '0.95rem' },
+                    },
+                    '&:hover': {
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#4CAF50',
+                      },
+                    },
+                    '&.Mui-focused': {
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#4CAF50',
+                        borderWidth: 2,
+                      },
+                    },
+                  }}
+                >
+                  <MenuItem value="">All Thanas</MenuItem>
+                  {thanas && thanas.map((thana) => (
+                    <MenuItem key={thana.id} value={thana.id}>
+                      {thana.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
 
               {/* Clear Filters Button */}
-              {(searchTerm || statusFilter !== 'ALL' || categoryFilter || subcategoryFilter) && (
+              {(searchTerm || statusFilter !== 'ALL' || categoryFilter || subcategoryFilter || selectedCityCorporation !== 'ALL' || selectedWard !== 'ALL' || selectedThana) && (
                 <Button
                   variant="outlined"
                   onClick={handleClearFilters}
@@ -767,7 +1015,7 @@ const AllComplaints: React.FC = () => {
             )}
 
             {/* Active Filters Display */}
-            {(searchTerm || statusFilter !== 'ALL') && (
+            {(searchTerm || statusFilter !== 'ALL' || selectedCityCorporation !== 'ALL' || selectedWard !== 'ALL' || selectedThana) && (
               <Box sx={{
                 display: 'flex',
                 alignItems: 'center',
@@ -797,6 +1045,42 @@ const AllComplaints: React.FC = () => {
                     label={`Status: ${statusFilter.replace('_', ' ')}`}
                     size="small"
                     onDelete={() => handleStatusFilterChange('ALL')}
+                    sx={{
+                      backgroundColor: 'white',
+                      fontSize: '0.75rem',
+                      height: 24,
+                    }}
+                  />
+                )}
+                {selectedCityCorporation !== 'ALL' && (
+                  <Chip
+                    label={`City Corp: ${cityCorporations.find(cc => cc.code === selectedCityCorporation)?.name || selectedCityCorporation}`}
+                    size="small"
+                    onDelete={() => handleCityCorporationFilterChange('ALL')}
+                    sx={{
+                      backgroundColor: 'white',
+                      fontSize: '0.75rem',
+                      height: 24,
+                    }}
+                  />
+                )}
+                {selectedWard !== 'ALL' && (
+                  <Chip
+                    label={`Ward: ${selectedWard}`}
+                    size="small"
+                    onDelete={() => handleWardFilterChange('ALL')}
+                    sx={{
+                      backgroundColor: 'white',
+                      fontSize: '0.75rem',
+                      height: 24,
+                    }}
+                  />
+                )}
+                {selectedThana && (
+                  <Chip
+                    label={`Thana: ${thanas.find(t => t.id === selectedThana)?.name || selectedThana}`}
+                    size="small"
+                    onDelete={() => handleThanaFilterChange(null)}
                     sx={{
                       backgroundColor: 'white',
                       fontSize: '0.75rem',

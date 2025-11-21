@@ -328,6 +328,41 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
                         Location Information
                     </Typography>
 
+                    {/* City Corporation and Thana - Read Only */}
+                    {(user?.cityCorporation || user?.thana) && (
+                        <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+                            {user?.cityCorporation && (
+                                <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
+                                    <TextField
+                                        fullWidth
+                                        label="City Corporation"
+                                        value={user.cityCorporation.name}
+                                        disabled
+                                        InputProps={{
+                                            readOnly: true,
+                                        }}
+                                        helperText="Cannot be changed"
+                                    />
+                                </Box>
+                            )}
+
+                            {user?.thana && (
+                                <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
+                                    <TextField
+                                        fullWidth
+                                        label="Thana"
+                                        value={user.thana.name}
+                                        disabled
+                                        InputProps={{
+                                            readOnly: true,
+                                        }}
+                                        helperText="Cannot be changed"
+                                    />
+                                </Box>
+                            )}
+                        </Box>
+                    )}
+
                     <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
                         <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
                             <TextField

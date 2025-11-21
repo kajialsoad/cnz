@@ -7,7 +7,11 @@ import {
   Chip,
 } from '@mui/material';
 
-const OperationalMonitoring: React.FC = () => {
+interface OperationalMonitoringProps {
+  cityCorporationCode?: string;
+}
+
+const OperationalMonitoring: React.FC<OperationalMonitoringProps> = ({ cityCorporationCode }) => {
   const monitoringItems = [
     {
       title: 'Real-time Map',

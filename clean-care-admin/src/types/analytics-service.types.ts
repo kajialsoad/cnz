@@ -27,6 +27,7 @@ export interface AnalyticsQuery {
     period?: 'day' | 'week' | 'month' | 'year';
     startDate?: string;
     endDate?: string;
+    cityCorporationCode?: string;
 }
 
 export interface GetAnalyticsResponse {

@@ -1,11 +1,47 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, Typography, Box, LinearProgress } from '@mui/material';
 import { CircularProgress } from '@mui/material';
+import { analyticsService } from '../../../../services/analyticsService';
 
-const AverageServiceTime: React.FC = () => {
-  const averageDays = 4.3;
+interface AverageServiceTimeProps {
+  cityCorporationCode?: string;
+}
+
+const AverageServiceTime: React.FC<AverageServiceTimeProps> = ({ cityCorporationCode }) => {
+  const [loading, setLoading] = useState(true);
+  const [averageHours, setAverageHours] = useState(0);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const analytics = await analyticsService.getAnalytics({
+          cityCorporationCode
+        });
+        setAverageHours(analytics.averageResolutionTime || 0);
+      } catch (error) {
+        console.error('Error fetching average service time:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [cityCorporationCode]);
+
+  const averageDays = (averageHours / 24).toFixed(1);
   const targetDays = 5;
-  const progressPercentage = (averageDays / targetDays) * 100;
+  const progressPercentage = Math.min((parseFloat(averageDays) / targetDays) * 100, 100);
+
+  if (loading) {
+    return (
+      <Card sx={{ height: '100%' }}>
+        <CardContent sx={{ p: 3, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 300 }}>
+          <CircularProgress />
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card sx={{ height: '100%' }}>

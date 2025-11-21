@@ -19,6 +19,8 @@ export interface ChatListQueryInput {
     upazila?: string;
     ward?: string;
     zone?: string;
+    cityCorporationCode?: string;
+    thanaId?: number;
     status?: string;
     unreadOnly?: boolean;
     page?: number;
@@ -37,6 +39,8 @@ export class ChatService {
                 upazila,
                 ward,
                 zone,
+                cityCorporationCode,
+                thanaId,
                 status,
                 unreadOnly = false,
                 page = 1,
@@ -86,6 +90,22 @@ export class ChatService {
                 };
             }
 
+            // Filter by city corporation code (from user table)
+            if (cityCorporationCode && cityCorporationCode !== 'ALL') {
+                where.user = {
+                    ...where.user,
+                    cityCorporationCode: cityCorporationCode
+                };
+            }
+
+            // Filter by thana ID (from user table)
+            if (thanaId) {
+                where.user = {
+                    ...where.user,
+                    thanaId: thanaId
+                };
+            }
+
             // Search filter
             if (search) {
                 where.OR = [
@@ -122,7 +142,21 @@ export class ChatService {
                             email: true,
                             avatar: true,
                             ward: true,
-                            zone: true
+                            zone: true,
+                            cityCorporationCode: true,
+                            thanaId: true,
+                            cityCorporation: {
+                                select: {
+                                    code: true,
+                                    name: true
+                                }
+                            },
+                            thana: {
+                                select: {
+                                    id: true,
+                                    name: true
+                                }
+                            }
                         }
                     },
                     chatMessages: {
@@ -170,6 +204,16 @@ export class ChatService {
                         upazila,
                         ward: ward || complaint.user?.ward || '',
                         zone: complaint.user?.zone || '',
+                        cityCorporationCode: complaint.user?.cityCorporationCode || null,
+                        cityCorporation: complaint.user?.cityCorporation ? {
+                            code: complaint.user.cityCorporation.code,
+                            name: complaint.user.cityCorporation.name
+                        } : null,
+                        thanaId: complaint.user?.thanaId || null,
+                        thana: complaint.user?.thana ? {
+                            id: complaint.user.thana.id,
+                            name: complaint.user.thana.name
+                        } : null,
                         address: locationParts[0]?.trim() || complaint.location,
                         profilePicture: complaint.user?.avatar
                     },
@@ -257,6 +301,20 @@ export class ChatService {
                             avatar: true,
                             ward: true,
                             zone: true,
+                            cityCorporationCode: true,
+                            thanaId: true,
+                            cityCorporation: {
+                                select: {
+                                    code: true,
+                                    name: true
+                                }
+                            },
+                            thana: {
+                                select: {
+                                    id: true,
+                                    name: true
+                                }
+                            },
                             createdAt: true
                         }
                     }
@@ -349,6 +407,16 @@ export class ChatService {
                     district,
                     upazila,
                     ward: ward || complaint.user.ward || '',
+                    cityCorporationCode: complaint.user.cityCorporationCode || null,
+                    cityCorporation: complaint.user.cityCorporation ? {
+                        code: complaint.user.cityCorporation.code,
+                        name: complaint.user.cityCorporation.name
+                    } : null,
+                    thanaId: complaint.user.thanaId || null,
+                    thana: complaint.user.thana ? {
+                        id: complaint.user.thana.id,
+                        name: complaint.user.thana.name
+                    } : null,
                     address: locationParts[0]?.trim() || complaint.location,
                     profilePicture: complaint.user.avatar,
                     memberSince: complaint.user.createdAt

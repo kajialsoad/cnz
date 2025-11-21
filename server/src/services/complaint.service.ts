@@ -71,6 +71,24 @@ export class ComplaintService {
         );
       }
 
+      // Auto-fetch user's city corporation and thana when creating complaint
+      let userCityCorporation = null;
+      let userThana = null;
+      if (input.userId && !input.forSomeoneElse) {
+        const user = await prisma.user.findUnique({
+          where: { id: input.userId },
+          include: {
+            cityCorporation: true,
+            thana: true
+          }
+        });
+
+        if (user) {
+          userCityCorporation = user.cityCorporation;
+          userThana = user.thana;
+        }
+      }
+
       // Generate tracking number
       const trackingNumber = await this.generateTrackingNumber();
 
@@ -143,12 +161,9 @@ export class ComplaintService {
         },
         include: {
           user: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              email: true,
-              phone: true,
+            include: {
+              cityCorporation: true,
+              thana: true
             }
           }
         }
@@ -181,12 +196,9 @@ export class ComplaintService {
         where: { id },
         include: {
           user: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              email: true,
-              phone: true,
+            include: {
+              cityCorporation: true,
+              thana: true
             }
           }
         }
@@ -294,12 +306,9 @@ export class ComplaintService {
         data: updateData,
         include: {
           user: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              email: true,
-              phone: true,
+            include: {
+              cityCorporation: true,
+              thana: true
             }
           }
         }
@@ -419,11 +428,12 @@ export class ComplaintService {
   // Search complaints
   async searchComplaints(searchTerm: string, userId?: number) {
     try {
+      // Note: MySQL string comparisons are case-insensitive by default
       const where: any = {
         OR: [
-          { title: { contains: searchTerm, mode: 'insensitive' } },
-          { description: { contains: searchTerm, mode: 'insensitive' } },
-          { trackingNumber: { contains: searchTerm, mode: 'insensitive' } },
+          { title: { contains: searchTerm } },
+          { description: { contains: searchTerm } },
+          { trackingNumber: { contains: searchTerm } },
         ]
       };
 
@@ -435,12 +445,9 @@ export class ComplaintService {
         where,
         include: {
           user: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              email: true,
-              phone: true,
+            include: {
+              cityCorporation: true,
+              thana: true
             }
           }
         },
@@ -513,6 +520,10 @@ export class ComplaintService {
     const parsedImages = this.parseFileUrls(complaint.imageUrl || '');
     const parsedAudio = this.parseFileUrls(complaint.audioUrl || '');
 
+    // Extract city corporation and thana from user if available
+    const cityCorporation = complaint.user?.cityCorporation || null;
+    const thana = complaint.user?.thana || null;
+
     return {
       ...complaint,
       imageUrls: parsedImages.imageUrls,
@@ -520,7 +531,10 @@ export class ComplaintService {
       voiceNoteUrl: parsedAudio.imageUrls[0], // First audio URL for backward compatibility
       // Keep original fields for backward compatibility
       imageUrl: complaint.imageUrl,
-      audioUrl: complaint.audioUrl
+      audioUrl: complaint.audioUrl,
+      // Include city corporation and thana information
+      cityCorporation: cityCorporation,
+      thana: thana
     };
   }
 
@@ -575,12 +589,9 @@ export class ComplaintService {
         orderBy,
         include: {
           user: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              email: true,
-              phone: true,
+            include: {
+              cityCorporation: true,
+              thana: true
             }
           }
         }

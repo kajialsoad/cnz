@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
     Box,
     Typography,
@@ -28,6 +28,8 @@ import { useDebounce } from '../../hooks/useDebounce';
 import ChatListItem from './ChatListItem';
 import ChatListSkeleton from './ChatListSkeleton';
 import EmptyState from './EmptyState';
+import { cityCorporationService, type CityCorporation } from '../../services/cityCorporationService';
+import { thanaService, type Thana } from '../../services/thanaService';
 
 interface ChatListPanelProps {
     chats: ChatConversation[];
@@ -71,6 +73,12 @@ const ChatListPanel: React.FC<ChatListPanelProps> = ({
     // Local state for search input (before debounce)
     const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm);
 
+    // State for city corporations and thanas
+    const [cityCorporations, setCityCorporations] = useState<CityCorporation[]>([]);
+    const [thanas, setThanas] = useState<Thana[]>([]);
+    const [loadingCityCorporations, setLoadingCityCorporations] = useState(false);
+    const [loadingThanas, setLoadingThanas] = useState(false);
+
     // Debounce search to avoid excessive filtering
     const debouncedSearchTerm = useDebounce(localSearchTerm, 500);
 
@@ -78,6 +86,49 @@ const ChatListPanel: React.FC<ChatListPanelProps> = ({
     React.useEffect(() => {
         onSearchChange(debouncedSearchTerm);
     }, [debouncedSearchTerm, onSearchChange]);
+
+    // Fetch city corporations on mount
+    useEffect(() => {
+        const fetchCityCorporations = async () => {
+            try {
+                setLoadingCityCorporations(true);
+                const corps = await cityCorporationService.getCityCorporations('ACTIVE');
+                setCityCorporations(corps);
+            } catch (error) {
+                console.error('Error fetching city corporations:', error);
+            } finally {
+                setLoadingCityCorporations(false);
+            }
+        };
+
+        fetchCityCorporations();
+    }, []);
+
+    // Fetch thanas when city corporation changes
+    useEffect(() => {
+        const fetchThanas = async () => {
+            if (!filters.cityCorporationCode) {
+                setThanas([]);
+                return;
+            }
+
+            try {
+                setLoadingThanas(true);
+                const thanasData = await thanaService.getThanasByCityCorporation(
+                    filters.cityCorporationCode,
+                    'ACTIVE'
+                );
+                setThanas(thanasData);
+            } catch (error) {
+                console.error('Error fetching thanas:', error);
+                setThanas([]);
+            } finally {
+                setLoadingThanas(false);
+            }
+        };
+
+        fetchThanas();
+    }, [filters.cityCorporationCode]);
 
     /**
      * Handle local search input change
@@ -124,6 +175,25 @@ const ChatListPanel: React.FC<ChatListPanelProps> = ({
     };
 
     /**
+     * Handle city corporation filter change
+     */
+    const handleCityCorporationChange = (value: string) => {
+        onFilterChange({
+            cityCorporationCode: value === 'ALL' ? undefined : value,
+            thanaId: undefined, // Reset thana when city corporation changes
+        });
+    };
+
+    /**
+     * Handle thana filter change
+     */
+    const handleThanaChange = (value: string) => {
+        onFilterChange({
+            thanaId: value === 'ALL' ? undefined : parseInt(value, 10),
+        });
+    };
+
+    /**
      * Handle status filter change
      */
     const handleStatusChange = (value: string) => {
@@ -152,6 +222,8 @@ const ChatListPanel: React.FC<ChatListPanelProps> = ({
             upazila: undefined,
             ward: undefined,
             zone: undefined,
+            cityCorporationCode: undefined,
+            thanaId: undefined,
             status: undefined,
             unreadOnly: false,
         });
@@ -167,6 +239,8 @@ const ChatListPanel: React.FC<ChatListPanelProps> = ({
             filters.upazila !== undefined ||
             filters.ward !== undefined ||
             filters.zone !== undefined ||
+            filters.cityCorporationCode !== undefined ||
+            filters.thanaId !== undefined ||
             filters.status !== undefined ||
             filters.unreadOnly === true
         );
@@ -276,12 +350,13 @@ const ChatListPanel: React.FC<ChatListPanelProps> = ({
 
                 {/* Filter Dropdowns */}
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    {/* District Filter */}
+                    {/* City Corporation Filter */}
                     <FormControl fullWidth size="small">
                         <Select
-                            value={filters.district || 'ALL'}
-                            onChange={(e) => handleDistrictChange(e.target.value)}
+                            value={filters.cityCorporationCode || 'ALL'}
+                            onChange={(e) => handleCityCorporationChange(e.target.value)}
                             displayEmpty
+                            disabled={loadingCityCorporations}
                             startAdornment={
                                 <InputAdornment position="start">
                                     <FilterIcon sx={{ color: 'text.secondary', fontSize: 18 }} />
@@ -297,35 +372,37 @@ const ChatListPanel: React.FC<ChatListPanelProps> = ({
                                 },
                             }}
                         >
-                            <MenuItem value="ALL">All Districts</MenuItem>
-                            {getDistricts().map((district) => (
-                                <MenuItem key={district} value={district}>
-                                    {district}
+                            <MenuItem value="ALL">All City Corporations</MenuItem>
+                            {cityCorporations && cityCorporations.map((cc) => (
+                                <MenuItem key={cc.code} value={cc.code}>
+                                    {cc.name}
                                 </MenuItem>
                             ))}
                         </Select>
                     </FormControl>
 
-                    {/* Upazila Filter */}
+                    {/* Thana Filter */}
                     <FormControl fullWidth size="small">
                         <Select
-                            value={filters.upazila || 'ALL'}
-                            onChange={(e) => handleUpazilaChange(e.target.value)}
+                            value={filters.thanaId?.toString() || 'ALL'}
+                            onChange={(e) => handleThanaChange(e.target.value)}
                             displayEmpty
-                            disabled={!filters.district}
+                            disabled={!filters.cityCorporationCode || loadingThanas}
                             sx={{
                                 backgroundColor: 'background.default',
                                 fontSize: '0.875rem',
                             }}
                         >
-                            <MenuItem value="ALL">All Upazilas</MenuItem>
-                            {getUpazilas().map((upazila) => (
-                                <MenuItem key={upazila} value={upazila}>
-                                    {upazila}
+                            <MenuItem value="ALL">All Thanas</MenuItem>
+                            {thanas && thanas.map((thana) => (
+                                <MenuItem key={thana.id} value={thana.id.toString()}>
+                                    {thana.name}
                                 </MenuItem>
                             ))}
                         </Select>
                     </FormControl>
+
+                    {/* District and Upazila filters hidden - not needed for DSCC/DNCC filtering */}
 
                     {/* Ward Filter */}
                     <FormControl fullWidth size="small">

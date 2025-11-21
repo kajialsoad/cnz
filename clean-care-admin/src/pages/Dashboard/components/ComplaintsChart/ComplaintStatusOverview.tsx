@@ -1,15 +1,72 @@
-import React from 'react';
-import { Card, CardContent, Typography, Box, List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
+import React, { useEffect, useState } from 'react';
+import { Card, CardContent, Typography, Box, List, ListItem, ListItemIcon, ListItemText, CircularProgress as LoadingSpinner } from '@mui/material';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
+import { analyticsService } from '../../../../services/analyticsService';
 
-const data = [
-  { name: 'Submitted', value: 514, percentage: 50, color: '#6366F1' },
-  { name: 'Solved', value: 342, percentage: 33, color: '#10B981' },
-  { name: 'Pending', value: 127, percentage: 12, color: '#F59E0B' },
-  { name: 'In Progress', value: 45, percentage: 4, color: '#EF4444' },
-];
+interface ComplaintStatusOverviewProps {
+  cityCorporationCode?: string;
+}
 
-const ComplaintStatusOverview: React.FC = () => {
+const ComplaintStatusOverview: React.FC<ComplaintStatusOverviewProps> = ({ cityCorporationCode }) => {
+  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const analytics = await analyticsService.getAnalytics({
+          cityCorporationCode
+        });
+
+        const total = analytics.totalComplaints || 1; // Avoid division by zero
+        const statusData = [
+          {
+            name: 'Pending',
+            value: analytics.statusBreakdown?.pending || 0,
+            percentage: Math.round(((analytics.statusBreakdown?.pending || 0) / total) * 100),
+            color: '#F59E0B'
+          },
+          {
+            name: 'In Progress',
+            value: analytics.statusBreakdown?.inProgress || 0,
+            percentage: Math.round(((analytics.statusBreakdown?.inProgress || 0) / total) * 100),
+            color: '#6366F1'
+          },
+          {
+            name: 'Resolved',
+            value: analytics.statusBreakdown?.resolved || 0,
+            percentage: Math.round(((analytics.statusBreakdown?.resolved || 0) / total) * 100),
+            color: '#10B981'
+          },
+          {
+            name: 'Rejected',
+            value: analytics.statusBreakdown?.rejected || 0,
+            percentage: Math.round(((analytics.statusBreakdown?.rejected || 0) / total) * 100),
+            color: '#EF4444'
+          },
+        ];
+
+        setData(statusData);
+      } catch (error) {
+        console.error('Error fetching complaint status:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [cityCorporationCode]);
+
+  if (loading) {
+    return (
+      <Card sx={{ height: '100%' }}>
+        <CardContent sx={{ p: 3, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 300 }}>
+          <LoadingSpinner />
+        </CardContent>
+      </Card>
+    );
+  }
   return (
     <Card sx={{ height: '100%' }}>
       <CardContent sx={{ p: 3 }}>
@@ -64,7 +121,10 @@ const ComplaintStatusOverview: React.FC = () => {
               }}
             >
               <Typography variant="h4" sx={{ fontWeight: 700, color: '#374151' }}>
-                50%
+                {data.find(d => d.name === 'Resolved')?.percentage || 0}%
+              </Typography>
+              <Typography variant="caption" sx={{ color: '#6B7280', fontSize: '0.7rem' }}>
+                Resolved
               </Typography>
             </Box>
           </Box>

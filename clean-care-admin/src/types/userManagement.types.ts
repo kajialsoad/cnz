@@ -37,6 +37,18 @@ export interface UserStatistics {
     inProgressComplaints: number;
 }
 
+// City Corporation info
+export interface CityCorporationInfo {
+    code: string;
+    name: string;
+}
+
+// Thana info
+export interface ThanaInfo {
+    id: number;
+    name: string;
+}
+
 // User with statistics
 export interface UserWithStats {
     id: number;
@@ -56,6 +68,10 @@ export interface UserWithStats {
     updatedAt: string;
     lastLoginAt: string | null;
     statistics: UserStatistics;
+    cityCorporation?: CityCorporationInfo;
+    thana?: ThanaInfo;
+    cityCorporationCode?: string | null;
+    thanaId?: number | null;
 }
 
 // Pagination
@@ -75,6 +91,9 @@ export interface GetUsersQuery {
     role?: UserRole;
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
+    cityCorporationCode?: string;
+    ward?: string;
+    thanaId?: number;
 }
 
 // Get users response

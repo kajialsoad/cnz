@@ -714,7 +714,7 @@ const ComplaintDetailsModal: React.FC<ComplaintDetailsModalProps> = ({
                                             City Corporation
                                         </Typography>
                                         <Typography variant={isMobile ? 'body2' : 'body1'}>
-                                            {complaint.user.zone || 'N/A'}
+                                            {complaint.user.cityCorporation?.name || complaint.user.zone || 'N/A'}
                                         </Typography>
                                     </Box>
                                     <Box>
@@ -723,6 +723,14 @@ const ComplaintDetailsModal: React.FC<ComplaintDetailsModalProps> = ({
                                         </Typography>
                                         <Typography variant={isMobile ? 'body2' : 'body1'}>
                                             {complaint.user.ward ? `Ward ${complaint.user.ward}` : 'N/A'}
+                                        </Typography>
+                                    </Box>
+                                    <Box>
+                                        <Typography variant={isMobile ? 'caption' : 'body2'} color="text.secondary">
+                                            Thana/Area
+                                        </Typography>
+                                        <Typography variant={isMobile ? 'body2' : 'body1'}>
+                                            {complaint.user.thana?.name || 'N/A'}
                                         </Typography>
                                     </Box>
                                     {complaint.user.address && (

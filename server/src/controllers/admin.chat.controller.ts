@@ -7,7 +7,7 @@ import { chatService } from '../services/chat.service';
  */
 export async function getChatConversations(req: AuthRequest, res: Response) {
     try {
-        const { search, district, upazila, ward, zone, status, unreadOnly, page, limit } = req.query;
+        const { search, district, upazila, ward, zone, cityCorporationCode, thanaId, status, unreadOnly, page, limit } = req.query;
 
         const result = await chatService.getChatConversations({
             search: search as string,
@@ -15,6 +15,8 @@ export async function getChatConversations(req: AuthRequest, res: Response) {
             upazila: upazila as string,
             ward: ward as string,
             zone: zone as string,
+            cityCorporationCode: cityCorporationCode as string,
+            thanaId: thanaId ? parseInt(thanaId as string) : undefined,
             status: status as string,
             unreadOnly: unreadOnly === 'true',
             page: page ? parseInt(page as string) : undefined,
