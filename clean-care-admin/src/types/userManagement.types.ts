@@ -142,6 +142,8 @@ export interface CreateUserDto {
     phone: string;
     email?: string;
     password: string;
+    cityCorporationCode?: string;
+    thanaId?: number;
     ward?: string;
     zone?: string;
     address?: string;
@@ -154,11 +156,14 @@ export interface UpdateUserDto {
     lastName?: string;
     email?: string;
     phone?: string;
+    cityCorporationCode?: string;
+    thanaId?: number;
     ward?: string;
     zone?: string;
     address?: string;
     role?: UserRole;
     status?: UserStatus;
+    password?: string;
 }
 
 // Update status DTO

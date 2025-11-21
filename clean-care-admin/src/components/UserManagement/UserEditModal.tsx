@@ -12,10 +12,13 @@ import {
     IconButton,
     CircularProgress,
     Alert,
+    InputAdornment,
 } from '@mui/material';
 import {
     Close as CloseIcon,
     Save as SaveIcon,
+    Visibility as VisibilityIcon,
+    VisibilityOff as VisibilityOffIcon,
 } from '@mui/icons-material';
 import ConfirmDialog from '../common/ConfirmDialog';
 import type { UserWithStats, UpdateUserDto, UserRole, UserStatus } from '../../types/userManagement.types';
@@ -36,6 +39,8 @@ interface FormData {
     zone: string;
     role: UserRole;
     status: UserStatus;
+    newPassword: string;
+    confirmPassword: string;
 }
 
 interface FormErrors {
@@ -45,6 +50,8 @@ interface FormErrors {
     phone?: string;
     ward?: string;
     zone?: string;
+    newPassword?: string;
+    confirmPassword?: string;
 }
 
 const UserEditModal: React.FC<UserEditModalProps> = ({
@@ -62,7 +69,12 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
         zone: '',
         role: 'CUSTOMER' as UserRole,
         status: 'ACTIVE' as UserStatus,
+        newPassword: '',
+        confirmPassword: '',
     });
+
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     const [errors, setErrors] = useState<FormErrors>({});
     const [loading, setLoading] = useState(false);
@@ -81,6 +93,8 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
                 zone: user.zone || '',
                 role: user.role,
                 status: user.status,
+                newPassword: '',
+                confirmPassword: '',
             });
             setErrors({});
             setSubmitError(null);
@@ -120,6 +134,16 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
         // Optional email validation
         if (formData.email && !validateEmail(formData.email)) {
             newErrors.email = 'Invalid email format';
+        }
+
+        // Password validation (optional - only if user wants to change password)
+        if (formData.newPassword || formData.confirmPassword) {
+            if (formData.newPassword.length < 8) {
+                newErrors.newPassword = 'Password must be at least 8 characters';
+            }
+            if (formData.newPassword !== formData.confirmPassword) {
+                newErrors.confirmPassword = 'Passwords do not match';
+            }
         }
 
         setErrors(newErrors);
@@ -193,6 +217,10 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
             }
             if (formData.status !== user?.status) {
                 updateData.status = formData.status;
+            }
+            // Add password if provided
+            if (formData.newPassword) {
+                updateData.password = formData.newPassword;
             }
 
             await onSave(updateData);
@@ -385,6 +413,69 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
                                 error={!!errors.zone}
                                 helperText={errors.zone}
                                 disabled={loading}
+                            />
+                        </Box>
+                    </Box>
+
+                    {/* Change Password (Optional) */}
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2, mt: 3 }}>
+                        Change Password (Optional)
+                    </Typography>
+
+                    <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+                        <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
+                            <TextField
+                                fullWidth
+                                label="New Password"
+                                type={showPassword ? 'text' : 'password'}
+                                value={formData.newPassword}
+                                onChange={handleChange('newPassword')}
+                                error={!!errors.newPassword}
+                                helperText={errors.newPassword || 'Leave blank to keep current password'}
+                                disabled={loading}
+                                slotProps={{
+                                    input: {
+                                        endAdornment: (
+                                            <InputAdornment position="end">
+                                                <IconButton
+                                                    onClick={() => setShowPassword(!showPassword)}
+                                                    edge="end"
+                                                    size="small"
+                                                >
+                                                    {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                                                </IconButton>
+                                            </InputAdornment>
+                                        ),
+                                    },
+                                }}
+                            />
+                        </Box>
+
+                        <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
+                            <TextField
+                                fullWidth
+                                label="Confirm New Password"
+                                type={showConfirmPassword ? 'text' : 'password'}
+                                value={formData.confirmPassword}
+                                onChange={handleChange('confirmPassword')}
+                                error={!!errors.confirmPassword}
+                                helperText={errors.confirmPassword}
+                                disabled={loading}
+                                slotProps={{
+                                    input: {
+                                        endAdornment: (
+                                            <InputAdornment position="end">
+                                                <IconButton
+                                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                                    edge="end"
+                                                    size="small"
+                                                >
+                                                    {showConfirmPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                                                </IconButton>
+                                            </InputAdornment>
+                                        ),
+                                    },
+                                }}
                             />
                         </Box>
                     </Box>

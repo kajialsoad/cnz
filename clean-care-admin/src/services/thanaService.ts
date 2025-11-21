@@ -87,10 +87,10 @@ class ThanaService {
 
             const response = await this.apiClient.get<{
                 success: boolean;
-                data: { thanas: Thana[] };
+                data: Thana[];
             }>('/api/admin/thanas', { params });
 
-            return response.data.data.thanas;
+            return response.data.data;
         } catch (error) {
             if (axios.isAxiosError(error)) {
                 throw new Error(
@@ -106,10 +106,10 @@ class ThanaService {
         try {
             const response = await this.apiClient.post<{
                 success: boolean;
-                data: { thana: Thana };
+                data: Thana;
             }>('/api/admin/thanas', data);
 
-            return response.data.data.thana;
+            return response.data.data;
         } catch (error) {
             if (axios.isAxiosError(error)) {
                 throw new Error(
@@ -125,10 +125,10 @@ class ThanaService {
         try {
             const response = await this.apiClient.put<{
                 success: boolean;
-                data: { thana: Thana };
+                data: Thana;
             }>(`/api/admin/thanas/${id}`, data);
 
-            return response.data.data.thana;
+            return response.data.data;
         } catch (error) {
             if (axios.isAxiosError(error)) {
                 throw new Error(

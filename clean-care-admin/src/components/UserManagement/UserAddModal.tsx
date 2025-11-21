@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Dialog,
     DialogTitle,
@@ -21,6 +21,10 @@ import {
     VisibilityOff as VisibilityOffIcon,
 } from '@mui/icons-material';
 import type { CreateUserDto, UserRole } from '../../types/userManagement.types';
+import { cityCorporationService } from '../../services/cityCorporationService';
+import { thanaService } from '../../services/thanaService';
+import type { CityCorporation } from '../../services/cityCorporationService';
+import type { Thana } from '../../services/thanaService';
 
 interface UserAddModalProps {
     open: boolean;
@@ -35,6 +39,8 @@ interface FormData {
     phone: string;
     password: string;
     confirmPassword: string;
+    cityCorporationCode: string;
+    thanaId: string;
     ward: string;
     zone: string;
     role: UserRole;
@@ -63,6 +69,8 @@ const UserAddModal: React.FC<UserAddModalProps> = ({
         phone: '',
         password: '',
         confirmPassword: '',
+        cityCorporationCode: '',
+        thanaId: '',
         ward: '',
         zone: '',
         role: 'CUSTOMER' as UserRole,
@@ -73,6 +81,61 @@ const UserAddModal: React.FC<UserAddModalProps> = ({
     const [submitError, setSubmitError] = useState<string | null>(null);
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+    // City Corporation and Thana state
+    const [cityCorporations, setCityCorporations] = useState<CityCorporation[]>([]);
+    const [thanas, setThanas] = useState<Thana[]>([]);
+    const [cityCorporationsLoading, setCityCorporationsLoading] = useState(false);
+    const [thanasLoading, setThanasLoading] = useState(false);
+    const [wardRange, setWardRange] = useState<{ min: number; max: number }>({ min: 1, max: 100 });
+
+    // Fetch city corporations on mount
+    useEffect(() => {
+        fetchCityCorporations();
+    }, []);
+
+    // Fetch thanas when city corporation changes
+    useEffect(() => {
+        if (formData.cityCorporationCode) {
+            const cityCorporation = cityCorporations.find(cc => cc.code === formData.cityCorporationCode);
+            if (cityCorporation) {
+                setWardRange({ min: cityCorporation.minWard, max: cityCorporation.maxWard });
+                fetchThanas(cityCorporation.code);
+            }
+        } else {
+            setWardRange({ min: 1, max: 100 });
+            setThanas([]);
+            setFormData(prev => ({ ...prev, thanaId: '', ward: '' }));
+        }
+    }, [formData.cityCorporationCode, cityCorporations]);
+
+    const fetchCityCorporations = async () => {
+        try {
+            setCityCorporationsLoading(true);
+            const cityCorps = await cityCorporationService.getCityCorporations('ACTIVE');
+            setCityCorporations(Array.isArray(cityCorps) ? cityCorps : []);
+        } catch (err: any) {
+            console.error('Error fetching city corporations:', err);
+            setCityCorporations([]);
+            setSubmitError('Failed to load city corporations. Please try again.');
+        } finally {
+            setCityCorporationsLoading(false);
+        }
+    };
+
+    const fetchThanas = async (cityCorporationCode: string) => {
+        try {
+            setThanasLoading(true);
+            const thanasData = await thanaService.getThanasByCityCorporation(cityCorporationCode, 'ACTIVE');
+            setThanas(Array.isArray(thanasData) ? thanasData : []);
+        } catch (err: any) {
+            console.error('Error fetching thanas:', err);
+            setThanas([]);
+            // Don't show error for thanas as it's optional
+        } finally {
+            setThanasLoading(false);
+        }
+    };
 
     const validateEmail = (email: string): boolean => {
         if (!email) return true; // Email is optional
@@ -175,6 +238,12 @@ const UserAddModal: React.FC<UserAddModalProps> = ({
             if (formData.email) {
                 createData.email = formData.email;
             }
+            if (formData.cityCorporationCode) {
+                createData.cityCorporationCode = formData.cityCorporationCode;
+            }
+            if (formData.thanaId) {
+                createData.thanaId = parseInt(formData.thanaId);
+            }
             if (formData.ward) {
                 createData.ward = formData.ward;
             }
@@ -192,6 +261,8 @@ const UserAddModal: React.FC<UserAddModalProps> = ({
                 phone: '',
                 password: '',
                 confirmPassword: '',
+                cityCorporationCode: '',
+                thanaId: '',
                 ward: '',
                 zone: '',
                 role: 'CUSTOMER' as UserRole,
@@ -220,6 +291,8 @@ const UserAddModal: React.FC<UserAddModalProps> = ({
                 phone: '',
                 password: '',
                 confirmPassword: '',
+                cityCorporationCode: '',
+                thanaId: '',
                 ward: '',
                 zone: '',
                 role: 'CUSTOMER' as UserRole,
@@ -401,13 +474,71 @@ const UserAddModal: React.FC<UserAddModalProps> = ({
                         <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
                             <TextField
                                 fullWidth
+                                select
+                                label="City Corporation"
+                                value={formData.cityCorporationCode}
+                                onChange={handleChange('cityCorporationCode')}
+                                disabled={loading || cityCorporationsLoading}
+                                helperText="Optional"
+                            >
+                                <MenuItem value="">None</MenuItem>
+                                {cityCorporations.map((cc) => (
+                                    <MenuItem key={cc.code} value={cc.code}>
+                                        {cc.name}
+                                    </MenuItem>
+                                ))}
+                            </TextField>
+                        </Box>
+
+                        <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
+                            <TextField
+                                fullWidth
+                                select
+                                label="Thana/Area"
+                                value={formData.thanaId}
+                                onChange={handleChange('thanaId')}
+                                disabled={loading || thanasLoading || !formData.cityCorporationCode || !thanas || thanas.length === 0}
+                                helperText={
+                                    !formData.cityCorporationCode
+                                        ? "Select City Corporation first"
+                                        : thanasLoading
+                                            ? "Loading thanas..."
+                                            : thanas && thanas.length === 0
+                                                ? "No thanas available"
+                                                : "Optional"
+                                }
+                            >
+                                <MenuItem value="">None</MenuItem>
+                                {thanas && Array.isArray(thanas) && thanas.map((thana) => (
+                                    <MenuItem key={thana.id} value={thana.id.toString()}>
+                                        {thana.name}
+                                    </MenuItem>
+                                ))}
+                            </TextField>
+                        </Box>
+                    </Box>
+
+                    <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+                        <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
+                            <TextField
+                                fullWidth
+                                select
                                 label="Ward"
                                 value={formData.ward}
                                 onChange={handleChange('ward')}
-                                error={!!errors.ward}
-                                helperText={errors.ward || 'Optional'}
-                                disabled={loading}
-                            />
+                                disabled={loading || !formData.cityCorporationCode}
+                                helperText="Optional - Select City Corporation first"
+                            >
+                                <MenuItem value="">None</MenuItem>
+                                {Array.from(
+                                    { length: wardRange.max - wardRange.min + 1 },
+                                    (_, i) => wardRange.min + i
+                                ).map((ward) => (
+                                    <MenuItem key={ward} value={ward.toString()}>
+                                        Ward {ward}
+                                    </MenuItem>
+                                ))}
+                            </TextField>
                         </Box>
 
                         <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>

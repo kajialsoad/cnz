@@ -95,6 +95,8 @@ export interface CreateUserDto {
     phone: string;
     email?: string;
     password: string;
+    cityCorporationCode?: string;
+    thanaId?: number;
     ward?: string;
     zone?: string;
     role?: UserRole;
@@ -105,10 +107,13 @@ export interface UpdateUserDto {
     lastName?: string;
     email?: string;
     phone?: string;
+    cityCorporationCode?: string;
+    thanaId?: number;
     ward?: string;
     zone?: string;
     role?: UserRole;
     status?: UserStatus;
+    password?: string;
 }
 
 export interface UpdateStatusDto {
@@ -123,7 +128,7 @@ export class AdminUserService {
         const limit = query.limit || 20;
         const skip = (page - 1) * limit;
         const sortBy = query.sortBy || 'createdAt';
-        const sortOrder = query.sortOrder || 'desc';
+        const sortOrder = query.sortOrder || 'asc'; // Changed to 'asc' to show oldest users first
 
         // Build where clause
         const where: Prisma.UserWhereInput = {};
@@ -470,6 +475,8 @@ export class AdminUserService {
                 passwordHash: hashedPassword,
                 firstName: data.firstName,
                 lastName: data.lastName,
+                cityCorporationCode: data.cityCorporationCode,
+                thanaId: data.thanaId,
                 ward: data.ward,
                 zone: data.zone,
                 role: data.role || UserRole.CUSTOMER,
@@ -555,6 +562,12 @@ export class AdminUserService {
             }
         }
 
+        // Hash password if provided
+        let hashedPassword: string | undefined;
+        if (data.password) {
+            hashedPassword = await hash(data.password, 12);
+        }
+
         // Update user
         const user = await prisma.user.update({
             where: { id: userId },
@@ -563,10 +576,13 @@ export class AdminUserService {
                 lastName: data.lastName,
                 email: data.email,
                 phone: data.phone,
+                cityCorporationCode: data.cityCorporationCode,
+                thanaId: data.thanaId,
                 ward: data.ward,
                 zone: data.zone,
                 role: data.role,
                 status: data.status,
+                ...(hashedPassword && { passwordHash: hashedPassword }),
             },
             select: {
                 id: true,
