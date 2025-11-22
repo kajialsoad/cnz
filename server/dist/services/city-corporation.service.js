@@ -13,19 +13,39 @@ class CityCorporationService {
         }
         const cityCorporations = await prisma.cityCorporation.findMany({
             where,
-            include: {
-                _count: {
-                    select: {
-                        thanas: true,
-                        users: true,
-                    },
-                },
-            },
             orderBy: {
                 code: 'asc',
             },
         });
-        return cityCorporations;
+        // Fetch statistics for each city corporation
+        const cityCorporationsWithStats = await Promise.all(cityCorporations.map(async (cc) => {
+            // Get total users
+            const totalUsers = await prisma.user.count({
+                where: { cityCorporationCode: cc.code },
+            });
+            // Get total complaints
+            const totalComplaints = await prisma.complaint.count({
+                where: {
+                    user: {
+                        cityCorporationCode: cc.code,
+                    },
+                },
+            });
+            // Get active thanas count
+            const activeThanas = await prisma.thana.count({
+                where: {
+                    cityCorporationId: cc.id,
+                    status: 'ACTIVE',
+                },
+            });
+            return {
+                ...cc,
+                totalUsers,
+                totalComplaints,
+                activeThanas,
+            };
+        }));
+        return cityCorporationsWithStats;
     }
     /**
      * Get single city corporation by code

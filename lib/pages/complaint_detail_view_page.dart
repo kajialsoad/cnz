@@ -9,6 +9,7 @@ import '../widgets/translated_text.dart';
 import '../providers/complaint_provider.dart';
 import '../models/complaint.dart';
 import '../config/api_config.dart';
+import '../config/url_helper.dart';
 import 'complaint_chat_page.dart';
 
 class ComplaintDetailViewPage extends StatefulWidget {
@@ -22,35 +23,11 @@ class ComplaintDetailViewPage extends StatefulWidget {
 class _ComplaintDetailViewPageState extends State<ComplaintDetailViewPage> {
   int _currentIndex = 0;
   String? complaintId;
-  final AudioPlayer _audioPlayer = AudioPlayer();
-  bool _isPlaying = false;
-  Duration _duration = Duration.zero;
-  Duration _position = Duration.zero;
 
   @override
   void initState() {
     super.initState();
     
-    // Setup audio player listeners
-    _audioPlayer.onDurationChanged.listen((duration) {
-      setState(() {
-        _duration = duration;
-      });
-    });
-
-    _audioPlayer.onPositionChanged.listen((position) {
-      setState(() {
-        _position = position;
-      });
-    });
-
-    _audioPlayer.onPlayerComplete.listen((_) {
-      setState(() {
-        _isPlaying = false;
-        _position = Duration.zero;
-      });
-    });
-
     // Load complaint after frame is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final args = ModalRoute.of(context)?.settings.arguments;
@@ -60,12 +37,6 @@ class _ComplaintDetailViewPageState extends State<ComplaintDetailViewPage> {
             .loadComplaint(complaintId!);
       }
     });
-  }
-
-  @override
-  void dispose() {
-    _audioPlayer.dispose();
-    super.dispose();
   }
 
   @override
@@ -581,85 +552,7 @@ class _ComplaintDetailViewPageState extends State<ComplaintDetailViewPage> {
             ],
           ),
           SizedBox(height: 12),
-          ...audioUrls.map((audioUrl) => _buildAudioPlayer(audioUrl)).toList(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAudioPlayer(String audioUrl) {
-    final fullAudioUrl = _getFullAudioUrl(audioUrl);
-    
-    return Container(
-      margin: EdgeInsets.only(bottom: 8),
-      padding: EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Color(0xFF4CAF50).withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              IconButton(
-                icon: Icon(
-                  _isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled,
-                  size: 40,
-                  color: Color(0xFF4CAF50),
-                ),
-                onPressed: () {
-                  HapticFeedback.selectionClick();
-                  _toggleAudio(fullAudioUrl);
-                },
-              ),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SliderTheme(
-                      data: SliderThemeData(
-                        trackHeight: 2,
-                        thumbShape: RoundSliderThumbShape(enabledThumbRadius: 6),
-                      ),
-                      child: Slider(
-                        value: _position.inSeconds.toDouble(),
-                        max: _duration.inSeconds.toDouble() > 0
-                            ? _duration.inSeconds.toDouble()
-                            : 1,
-                        activeColor: Color(0xFF4CAF50),
-                        inactiveColor: Colors.grey[300],
-                        onChanged: (value) async {
-                          await _audioPlayer.seek(Duration(seconds: value.toInt()));
-                        },
-                      ),
-                    ),
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 8),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            _formatDuration(_position),
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                          Text(
-                            _formatDuration(_duration),
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+          ...audioUrls.map((audioUrl) => AudioPlayerWidget(audioUrl: _getFullAudioUrl(audioUrl))).toList(),
         ],
       ),
     );
@@ -852,17 +745,11 @@ class _ComplaintDetailViewPageState extends State<ComplaintDetailViewPage> {
   }
 
   String _getFullImageUrl(String imageUrl) {
-    if (imageUrl.startsWith('http')) {
-      return imageUrl;
-    }
-    return '${ApiConfig.baseUrl}$imageUrl';
+    return UrlHelper.getImageUrl(imageUrl);
   }
 
   String _getFullAudioUrl(String audioUrl) {
-    if (audioUrl.startsWith('http')) {
-      return audioUrl;
-    }
-    return '${ApiConfig.baseUrl}$audioUrl';
+    return UrlHelper.getAudioUrl(audioUrl);
   }
 
   void _viewFullImage(String imageUrl, List<String> allImages, int initialIndex) {
@@ -875,27 +762,6 @@ class _ComplaintDetailViewPageState extends State<ComplaintDetailViewPage> {
         ),
       ),
     );
-  }
-
-  Future<void> _toggleAudio(String audioUrl) async {
-    if (_isPlaying) {
-      await _audioPlayer.pause();
-      setState(() {
-        _isPlaying = false;
-      });
-    } else {
-      await _audioPlayer.play(UrlSource(audioUrl));
-      setState(() {
-        _isPlaying = true;
-      });
-    }
-  }
-
-  String _formatDuration(Duration duration) {
-    String twoDigits(int n) => n.toString().padLeft(2, '0');
-    final minutes = twoDigits(duration.inMinutes.remainder(60));
-    final seconds = twoDigits(duration.inSeconds.remainder(60));
-    return '$minutes:$seconds';
   }
 
   String _formatDateTime(DateTime dateTime) {
@@ -1006,6 +872,175 @@ class _FullScreenImageViewerState extends State<FullScreenImageViewer> {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+
+// Separate Audio Player Widget to prevent page rebuilds
+class AudioPlayerWidget extends StatefulWidget {
+  final String audioUrl;
+
+  const AudioPlayerWidget({
+    super.key,
+    required this.audioUrl,
+  });
+
+  @override
+  State<AudioPlayerWidget> createState() => _AudioPlayerWidgetState();
+}
+
+class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  bool _isPlaying = false;
+  Duration _duration = Duration.zero;
+  Duration _position = Duration.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    
+    // Setup audio player listeners
+    _audioPlayer.onDurationChanged.listen((duration) {
+      if (mounted) {
+        setState(() {
+          _duration = duration;
+        });
+      }
+    });
+
+    _audioPlayer.onPositionChanged.listen((position) {
+      if (mounted) {
+        setState(() {
+          _position = position;
+        });
+      }
+    });
+
+    _audioPlayer.onPlayerComplete.listen((_) {
+      if (mounted) {
+        setState(() {
+          _isPlaying = false;
+          _position = Duration.zero;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _audioPlayer.dispose();
+    super.dispose();
+  }
+
+  Future<void> _toggleAudio() async {
+    try {
+      if (_isPlaying) {
+        await _audioPlayer.pause();
+        setState(() {
+          _isPlaying = false;
+        });
+      } else {
+        print('🎵 Attempting to play audio: ${widget.audioUrl}');
+        await _audioPlayer.play(UrlSource(widget.audioUrl));
+        setState(() {
+          _isPlaying = true;
+        });
+      }
+    } catch (e) {
+      print('❌ Audio playback error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('অডিও চালাতে সমস্যা হয়েছে'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+          ),
+        );
+        setState(() {
+          _isPlaying = false;
+        });
+      }
+    }
+  }
+
+  String _formatDuration(Duration duration) {
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    final minutes = twoDigits(duration.inMinutes.remainder(60));
+    final seconds = twoDigits(duration.inSeconds.remainder(60));
+    return '$minutes:$seconds';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: EdgeInsets.only(bottom: 8),
+      padding: EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Color(0xFF4CAF50).withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            icon: Icon(
+              _isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled,
+              size: 40,
+              color: Color(0xFF4CAF50),
+            ),
+            onPressed: () {
+              HapticFeedback.selectionClick();
+              _toggleAudio();
+            },
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SliderTheme(
+                  data: SliderThemeData(
+                    trackHeight: 2,
+                    thumbShape: RoundSliderThumbShape(enabledThumbRadius: 6),
+                  ),
+                  child: Slider(
+                    value: _position.inSeconds.toDouble(),
+                    max: _duration.inSeconds.toDouble() > 0
+                        ? _duration.inSeconds.toDouble()
+                        : 1,
+                    activeColor: Color(0xFF4CAF50),
+                    inactiveColor: Colors.grey[300],
+                    onChanged: (value) async {
+                      await _audioPlayer.seek(Duration(seconds: value.toInt()));
+                    },
+                  ),
+                ),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        _formatDuration(_position),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      Text(
+                        _formatDuration(_duration),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

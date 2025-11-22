@@ -185,6 +185,25 @@ class CategoryService {
                         english: 'Provide description'
                     }
                 ]
+            },
+            {
+                id: 'other',
+                bangla: 'অন্যান্য',
+                english: 'Other',
+                color: '#607D8B',
+                icon: 'other',
+                subcategories: [
+                    {
+                        id: 'general',
+                        bangla: 'সাধারণ',
+                        english: 'General'
+                    },
+                    {
+                        id: 'other_description',
+                        bangla: 'বর্ণনা দিন',
+                        english: 'Provide description'
+                    }
+                ]
             }
         ];
     }

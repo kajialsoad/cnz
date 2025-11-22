@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.complaintController = exports.ComplaintController = void 0;
 const complaint_service_1 = require("../services/complaint.service");
@@ -311,6 +344,125 @@ class ComplaintController {
                 success: false,
                 message: error instanceof Error ? error.message : 'Failed to fetch complaint',
                 error: process.env.NODE_ENV === 'development' ? error : undefined
+            });
+        }
+    }
+    // Get chat messages for a complaint (user endpoint)
+    async getChatMessages(req, res) {
+        try {
+            const complaintId = parseInt(req.params.id);
+            const page = parseInt(req.query.page) || 1;
+            const limit = parseInt(req.query.limit) || 50;
+            if (!req.user) {
+                return res.status(401).json({
+                    success: false,
+                    message: 'Authentication required'
+                });
+            }
+            // Import chat service
+            const { chatService } = await Promise.resolve().then(() => __importStar(require('../services/chat.service')));
+            const result = await chatService.getChatMessages(complaintId, { page, limit });
+            res.status(200).json({
+                success: true,
+                data: result
+            });
+        }
+        catch (error) {
+            console.error('Error in getChatMessages:', error);
+            res.status(500).json({
+                success: false,
+                message: error instanceof Error ? error.message : 'Failed to fetch chat messages'
+            });
+        }
+    }
+    // Send a chat message (user endpoint)
+    async sendChatMessage(req, res) {
+        try {
+            const complaintId = parseInt(req.params.id);
+            const { message, imageUrl, voiceUrl } = req.body;
+            if (!req.user) {
+                return res.status(401).json({
+                    success: false,
+                    message: 'Authentication required'
+                });
+            }
+            // Import message validator
+            const { validateMessage, sanitizeMessage, validateImageUrl, validateVoiceUrl } = await Promise.resolve().then(() => __importStar(require('../utils/message-validator')));
+            // Validate message
+            const messageValidation = validateMessage(message);
+            if (!messageValidation.valid) {
+                return res.status(400).json({
+                    success: false,
+                    message: messageValidation.error
+                });
+            }
+            // Validate image URL if provided
+            if (imageUrl) {
+                const imageValidation = validateImageUrl(imageUrl);
+                if (!imageValidation.valid) {
+                    return res.status(400).json({
+                        success: false,
+                        message: imageValidation.error
+                    });
+                }
+            }
+            if (voiceUrl) {
+                const voiceValidation = validateVoiceUrl(voiceUrl);
+                if (!voiceValidation.valid) {
+                    return res.status(400).json({
+                        success: false,
+                        message: voiceValidation.error
+                    });
+                }
+            }
+            // Sanitize message
+            const sanitizedMessage = sanitizeMessage(message);
+            // Import chat service
+            const { chatService } = await Promise.resolve().then(() => __importStar(require('../services/chat.service')));
+            const chatMessage = await chatService.sendChatMessage({
+                complaintId,
+                senderId: req.user.sub,
+                senderType: 'CITIZEN',
+                message: sanitizedMessage,
+                imageUrl,
+                voiceUrl
+            });
+            res.status(201).json({
+                success: true,
+                data: { message: chatMessage }
+            });
+        }
+        catch (error) {
+            console.error('Error in sendChatMessage:', error);
+            res.status(500).json({
+                success: false,
+                message: error instanceof Error ? error.message : 'Failed to send message'
+            });
+        }
+    }
+    // Mark messages as read (user endpoint)
+    async markMessagesAsRead(req, res) {
+        try {
+            const complaintId = parseInt(req.params.id);
+            if (!req.user) {
+                return res.status(401).json({
+                    success: false,
+                    message: 'Authentication required'
+                });
+            }
+            // Import chat service
+            const { chatService } = await Promise.resolve().then(() => __importStar(require('../services/chat.service')));
+            const result = await chatService.markMessagesAsRead(complaintId, req.user.sub, 'CITIZEN');
+            res.status(200).json({
+                success: true,
+                data: result
+            });
+        }
+        catch (error) {
+            console.error('Error in markMessagesAsRead:', error);
+            res.status(500).json({
+                success: false,
+                message: error instanceof Error ? error.message : 'Failed to mark messages as read'
             });
         }
     }

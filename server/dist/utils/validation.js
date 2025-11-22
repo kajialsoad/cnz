@@ -39,9 +39,18 @@ exports.registerSchema = joi_1.default.object({
         .messages({
         'any.only': 'জোন DSCC বা DNCC হতে হবে',
     }),
+    cityCorporationCode: joi_1.default.string().valid('DSCC', 'DNCC').optional()
+        .messages({
+        'any.only': 'সিটি কর্পোরেশন DSCC বা DNCC হতে হবে',
+    }),
     ward: joi_1.default.string().optional()
         .messages({
         'string.base': 'ওয়ার্ড নম্বর প্রয়োজন',
+    }),
+    thanaId: joi_1.default.number().integer().positive().optional()
+        .messages({
+        'number.base': 'বৈধ থানা আইডি প্রয়োজন',
+        'number.positive': 'থানা আইডি পজিটিভ হতে হবে',
     }),
     address: joi_1.default.string().max(255).optional()
         .messages({

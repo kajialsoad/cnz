@@ -22,7 +22,7 @@ router.get('/active', async (req, res) => {
         }));
         res.json({
             success: true,
-            data: publicData,
+            cityCorporations: publicData,
         });
     }
     catch (error) {
@@ -30,7 +30,6 @@ router.get('/active', async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Failed to fetch city corporations',
-            error: error.message,
         });
     }
 });
@@ -49,7 +48,7 @@ router.get('/:code/thanas', async (req, res) => {
         }));
         res.json({
             success: true,
-            data: activeThanas,
+            thanas: activeThanas,
         });
     }
     catch (error) {
@@ -64,7 +63,6 @@ router.get('/:code/thanas', async (req, res) => {
             res.status(500).json({
                 success: false,
                 message: 'Failed to fetch thanas',
-                error: error.message,
             });
         }
     }

@@ -10,13 +10,15 @@ const admin_complaint_service_1 = require("../services/admin-complaint.service")
  */
 async function getAdminComplaints(req, res) {
     try {
-        const { page, limit, status, category, ward, search, startDate, endDate, sortBy, sortOrder } = req.query;
+        const { page, limit, status, category, ward, cityCorporationCode, thanaId, search, startDate, endDate, sortBy, sortOrder } = req.query;
         const result = await admin_complaint_service_1.adminComplaintService.getAdminComplaints({
             page: page ? parseInt(page) : undefined,
             limit: limit ? parseInt(limit) : undefined,
             status: status,
             category: category,
             ward: ward,
+            cityCorporationCode: cityCorporationCode,
+            thanaId: thanaId ? parseInt(thanaId) : undefined,
             search: search,
             startDate: startDate,
             endDate: endDate,

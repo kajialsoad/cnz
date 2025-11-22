@@ -11,13 +11,15 @@ const chat_service_1 = require("../services/chat.service");
  */
 async function getChatConversations(req, res) {
     try {
-        const { search, district, upazila, ward, zone, status, unreadOnly, page, limit } = req.query;
+        const { search, district, upazila, ward, zone, cityCorporationCode, thanaId, status, unreadOnly, page, limit } = req.query;
         const result = await chat_service_1.chatService.getChatConversations({
             search: search,
             district: district,
             upazila: upazila,
             ward: ward,
             zone: zone,
+            cityCorporationCode: cityCorporationCode,
+            thanaId: thanaId ? parseInt(thanaId) : undefined,
             status: status,
             unreadOnly: unreadOnly === 'true',
             page: page ? parseInt(page) : undefined,
@@ -98,7 +100,7 @@ async function sendChatMessage(req, res) {
                 message: 'Invalid complaint ID'
             });
         }
-        const { message, imageUrl } = req.body;
+        const { message, imageUrl, voiceUrl } = req.body;
         if (!message || message.trim().length === 0) {
             return res.status(400).json({
                 success: false,
@@ -116,7 +118,8 @@ async function sendChatMessage(req, res) {
             senderId: req.user.sub,
             senderType: 'ADMIN',
             message: message.trim(),
-            imageUrl
+            imageUrl,
+            voiceUrl
         });
         res.status(201).json({
             success: true,

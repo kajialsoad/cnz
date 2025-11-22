@@ -13,7 +13,7 @@ class AnalyticsService {
      */
     async getComplaintAnalytics(query = {}) {
         try {
-            const { startDate, endDate } = query;
+            const { startDate, endDate, cityCorporationCode } = query;
             // Build date filter
             const dateFilter = {};
             if (startDate || endDate) {
@@ -24,6 +24,12 @@ class AnalyticsService {
                 if (endDate) {
                     dateFilter.createdAt.lte = new Date(endDate);
                 }
+            }
+            // Add city corporation filter through user relationship
+            if (cityCorporationCode) {
+                dateFilter.user = {
+                    cityCorporationCode: cityCorporationCode
+                };
             }
             // Get all analytics data in parallel
             const [totalComplaints, statusBreakdown, categoryBreakdown, wardBreakdown, averageResolutionTime, resolutionRate] = await Promise.all([
@@ -53,17 +59,25 @@ class AnalyticsService {
      */
     async getComplaintTrends(query = {}) {
         try {
-            const { period = 'week', startDate, endDate } = query;
+            const { period = 'week', startDate, endDate, cityCorporationCode } = query;
             // Calculate date range based on period
             const dateRange = this.calculateDateRange(period, startDate, endDate);
+            // Build where clause
+            const where = {
+                createdAt: {
+                    gte: dateRange.start,
+                    lte: dateRange.end
+                }
+            };
+            // Add city corporation filter through user relationship
+            if (cityCorporationCode) {
+                where.user = {
+                    cityCorporationCode: cityCorporationCode
+                };
+            }
             // Get complaints within date range
             const complaints = await prisma_1.default.complaint.findMany({
-                where: {
-                    createdAt: {
-                        gte: dateRange.start,
-                        lte: dateRange.end
-                    }
-                },
+                where,
                 select: {
                     createdAt: true,
                     status: true
@@ -141,7 +155,7 @@ class AnalyticsService {
      */
     async getCategoryStatistics(query = {}) {
         try {
-            const { startDate, endDate } = query;
+            const { startDate, endDate, cityCorporationCode } = query;
             // Build date filter
             const dateFilter = {};
             if (startDate || endDate) {
@@ -152,6 +166,12 @@ class AnalyticsService {
                 if (endDate) {
                     dateFilter.createdAt.lte = new Date(endDate);
                 }
+            }
+            // Add city corporation filter through user relationship
+            if (cityCorporationCode) {
+                dateFilter.user = {
+                    cityCorporationCode: cityCorporationCode
+                };
             }
             // Get complaints grouped by category and subcategory
             const complaints = await prisma_1.default.complaint.findMany({
@@ -229,17 +249,25 @@ class AnalyticsService {
      */
     async getCategoryTrends(query = {}) {
         try {
-            const { period = 'week', startDate, endDate } = query;
+            const { period = 'week', startDate, endDate, cityCorporationCode } = query;
             // Calculate date range based on period
             const dateRange = this.calculateDateRange(period, startDate, endDate);
+            // Build where clause
+            const where = {
+                createdAt: {
+                    gte: dateRange.start,
+                    lte: dateRange.end
+                }
+            };
+            // Add city corporation filter through user relationship
+            if (cityCorporationCode) {
+                where.user = {
+                    cityCorporationCode: cityCorporationCode
+                };
+            }
             // Get complaints within date range with category info
             const complaints = await prisma_1.default.complaint.findMany({
-                where: {
-                    createdAt: {
-                        gte: dateRange.start,
-                        lte: dateRange.end
-                    }
-                },
+                where,
                 select: {
                     createdAt: true,
                     category: true,

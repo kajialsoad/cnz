@@ -10,11 +10,12 @@ const analytics_service_1 = require("../services/analytics.service");
  */
 async function getComplaintAnalytics(req, res) {
     try {
-        const { period, startDate, endDate } = req.query;
+        const { period, startDate, endDate, cityCorporationCode } = req.query;
         const analytics = await analytics_service_1.analyticsService.getComplaintAnalytics({
             period: period,
             startDate: startDate,
-            endDate: endDate
+            endDate: endDate,
+            cityCorporationCode: cityCorporationCode
         });
         res.status(200).json({
             success: true,
@@ -34,11 +35,12 @@ async function getComplaintAnalytics(req, res) {
  */
 async function getComplaintTrends(req, res) {
     try {
-        const { period, startDate, endDate } = req.query;
+        const { period, startDate, endDate, cityCorporationCode } = req.query;
         const trends = await analytics_service_1.analyticsService.getComplaintTrends({
             period: period,
             startDate: startDate,
-            endDate: endDate
+            endDate: endDate,
+            cityCorporationCode: cityCorporationCode
         });
         res.status(200).json({
             success: true,
@@ -58,10 +60,11 @@ async function getComplaintTrends(req, res) {
  */
 async function getCategoryStatistics(req, res) {
     try {
-        const { startDate, endDate } = req.query;
+        const { startDate, endDate, cityCorporationCode } = req.query;
         const statistics = await analytics_service_1.analyticsService.getCategoryStatistics({
             startDate: startDate,
-            endDate: endDate
+            endDate: endDate,
+            cityCorporationCode: cityCorporationCode
         });
         res.status(200).json({
             success: true,
@@ -85,11 +88,12 @@ async function getCategoryStatistics(req, res) {
  */
 async function getCategoryTrendsController(req, res) {
     try {
-        const { period, startDate, endDate } = req.query;
+        const { period, startDate, endDate, cityCorporationCode } = req.query;
         const data = await analytics_service_1.analyticsService.getCategoryTrends({
             period: period,
             startDate: startDate,
-            endDate: endDate
+            endDate: endDate,
+            cityCorporationCode: cityCorporationCode
         });
         res.status(200).json({
             success: true,

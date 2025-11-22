@@ -97,13 +97,6 @@ class ComplaintService {
                 },
                 include: {
                     user: {
-                        select: {
-                            id: true,
-                            firstName: true,
-                            lastName: true,
-                            email: true,
-                            phone: true,
-                        },
                         include: {
                             cityCorporation: true,
                             thana: true
@@ -137,13 +130,6 @@ class ComplaintService {
                 where: { id },
                 include: {
                     user: {
-                        select: {
-                            id: true,
-                            firstName: true,
-                            lastName: true,
-                            email: true,
-                            phone: true,
-                        },
                         include: {
                             cityCorporation: true,
                             thana: true
@@ -241,13 +227,6 @@ class ComplaintService {
                 data: updateData,
                 include: {
                     user: {
-                        select: {
-                            id: true,
-                            firstName: true,
-                            lastName: true,
-                            email: true,
-                            phone: true,
-                        },
                         include: {
                             cityCorporation: true,
                             thana: true
@@ -353,11 +332,12 @@ class ComplaintService {
     // Search complaints
     async searchComplaints(searchTerm, userId) {
         try {
+            // Note: MySQL string comparisons are case-insensitive by default
             const where = {
                 OR: [
-                    { title: { contains: searchTerm, mode: 'insensitive' } },
-                    { description: { contains: searchTerm, mode: 'insensitive' } },
-                    { trackingNumber: { contains: searchTerm, mode: 'insensitive' } },
+                    { title: { contains: searchTerm } },
+                    { description: { contains: searchTerm } },
+                    { trackingNumber: { contains: searchTerm } },
                 ]
             };
             if (userId) {
@@ -367,13 +347,6 @@ class ComplaintService {
                 where,
                 include: {
                     user: {
-                        select: {
-                            id: true,
-                            firstName: true,
-                            lastName: true,
-                            email: true,
-                            phone: true,
-                        },
                         include: {
                             cityCorporation: true,
                             thana: true
@@ -495,13 +468,6 @@ class ComplaintService {
                 orderBy,
                 include: {
                     user: {
-                        select: {
-                            id: true,
-                            firstName: true,
-                            lastName: true,
-                            email: true,
-                            phone: true,
-                        },
                         include: {
                             cityCorporation: true,
                             thana: true

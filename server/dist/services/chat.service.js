@@ -11,7 +11,7 @@ class ChatService {
      */
     async getChatConversations(query = {}) {
         try {
-            const { search, district, upazila, ward, zone, status, unreadOnly = false, page = 1, limit = 20 } = query;
+            const { search, district, upazila, ward, zone, cityCorporationCode, thanaId, status, unreadOnly = false, page = 1, limit = 20 } = query;
             const skip = (page - 1) * limit;
             // Build where clause for complaints that have chat messages
             const where = {};
@@ -46,6 +46,20 @@ class ChatService {
                     zone: {
                         contains: zone
                     }
+                };
+            }
+            // Filter by city corporation code (from user table)
+            if (cityCorporationCode && cityCorporationCode !== 'ALL') {
+                where.user = {
+                    ...where.user,
+                    cityCorporationCode: cityCorporationCode
+                };
+            }
+            // Filter by thana ID (from user table)
+            if (thanaId) {
+                where.user = {
+                    ...where.user,
+                    thanaId: thanaId
                 };
             }
             // Search filter
@@ -83,7 +97,21 @@ class ChatService {
                             email: true,
                             avatar: true,
                             ward: true,
-                            zone: true
+                            zone: true,
+                            cityCorporationCode: true,
+                            thanaId: true,
+                            cityCorporation: {
+                                select: {
+                                    code: true,
+                                    name: true
+                                }
+                            },
+                            thana: {
+                                select: {
+                                    id: true,
+                                    name: true
+                                }
+                            }
                         }
                     },
                     chatMessages: {
@@ -127,6 +155,16 @@ class ChatService {
                         upazila,
                         ward: ward || complaint.user?.ward || '',
                         zone: complaint.user?.zone || '',
+                        cityCorporationCode: complaint.user?.cityCorporationCode || null,
+                        cityCorporation: complaint.user?.cityCorporation ? {
+                            code: complaint.user.cityCorporation.code,
+                            name: complaint.user.cityCorporation.name
+                        } : null,
+                        thanaId: complaint.user?.thanaId || null,
+                        thana: complaint.user?.thana ? {
+                            id: complaint.user.thana.id,
+                            name: complaint.user.thana.name
+                        } : null,
                         address: locationParts[0]?.trim() || complaint.location,
                         profilePicture: complaint.user?.avatar
                     },
@@ -206,6 +244,20 @@ class ChatService {
                             avatar: true,
                             ward: true,
                             zone: true,
+                            cityCorporationCode: true,
+                            thanaId: true,
+                            cityCorporation: {
+                                select: {
+                                    code: true,
+                                    name: true
+                                }
+                            },
+                            thana: {
+                                select: {
+                                    id: true,
+                                    name: true
+                                }
+                            },
                             createdAt: true
                         }
                     }
@@ -290,6 +342,16 @@ class ChatService {
                     district,
                     upazila,
                     ward: ward || complaint.user.ward || '',
+                    cityCorporationCode: complaint.user.cityCorporationCode || null,
+                    cityCorporation: complaint.user.cityCorporation ? {
+                        code: complaint.user.cityCorporation.code,
+                        name: complaint.user.cityCorporation.name
+                    } : null,
+                    thanaId: complaint.user.thanaId || null,
+                    thana: complaint.user.thana ? {
+                        id: complaint.user.thana.id,
+                        name: complaint.user.thana.name
+                    } : null,
                     address: locationParts[0]?.trim() || complaint.location,
                     profilePicture: complaint.user.avatar,
                     memberSince: complaint.user.createdAt
@@ -337,6 +399,7 @@ class ChatService {
                     senderType: input.senderType,
                     message: input.message,
                     imageUrl: input.imageUrl,
+                    voiceUrl: input.voiceUrl,
                     read: false
                 }
             });
@@ -501,6 +564,8 @@ class ChatService {
      */
     async getChatStatistics() {
         try {
+            // Test database connection first
+            await prisma_1.default.$queryRaw `SELECT 1`;
             // Get all complaints with chat messages
             const complaintsWithChats = await prisma_1.default.complaint.findMany({
                 where: {
@@ -512,7 +577,17 @@ class ChatService {
                     user: {
                         select: {
                             ward: true,
-                            zone: true
+                            zone: true,
+                            cityCorporation: {
+                                select: {
+                                    name: true
+                                }
+                            },
+                            thana: {
+                                select: {
+                                    name: true
+                                }
+                            }
                         }
                     },
                     chatMessages: {

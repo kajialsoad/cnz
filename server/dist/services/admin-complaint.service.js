@@ -13,7 +13,7 @@ class AdminComplaintService {
      */
     async getAdminComplaints(query = {}) {
         try {
-            const { page = 1, limit = 20, status, category, subcategory, ward, search, startDate, endDate, sortBy = 'createdAt', sortOrder = 'desc' } = query;
+            const { page = 1, limit = 20, status, category, subcategory, ward, cityCorporationCode, thanaId, search, startDate, endDate, sortBy = 'createdAt', sortOrder = 'desc' } = query;
             const skip = (page - 1) * limit;
             // Build where clause - COMPLETELY REWRITTEN
             const andConditions = [];
@@ -51,12 +51,27 @@ class AdminComplaintService {
                     andConditions.push({ subcategory });
                 }
             }
-            // Ward filter
+            // City Corporation filter (filter through user relationship)
+            if (cityCorporationCode) {
+                andConditions.push({
+                    user: {
+                        cityCorporationCode: cityCorporationCode
+                    }
+                });
+            }
+            // Ward filter (filter through user relationship)
             if (ward) {
                 andConditions.push({
-                    location: {
-                        contains: ward,
-                        mode: 'insensitive'
+                    user: {
+                        ward: ward
+                    }
+                });
+            }
+            // Thana filter (filter through user relationship)
+            if (thanaId) {
+                andConditions.push({
+                    user: {
+                        thanaId: thanaId
                     }
                 });
             }
@@ -72,30 +87,31 @@ class AdminComplaintService {
                 andConditions.push({ createdAt: dateFilter });
             }
             // Search filter - searches across multiple fields
+            // Note: MySQL string comparisons are case-insensitive by default
             if (search && search.trim()) {
                 andConditions.push({
                     OR: [
-                        { title: { contains: search, mode: 'insensitive' } },
-                        { description: { contains: search, mode: 'insensitive' } },
-                        { location: { contains: search, mode: 'insensitive' } },
+                        { title: { contains: search } },
+                        { description: { contains: search } },
+                        { location: { contains: search } },
                         {
                             user: {
-                                firstName: { contains: search, mode: 'insensitive' }
+                                firstName: { contains: search }
                             }
                         },
                         {
                             user: {
-                                lastName: { contains: search, mode: 'insensitive' }
+                                lastName: { contains: search }
                             }
                         },
                         {
                             user: {
-                                phone: { contains: search, mode: 'insensitive' }
+                                phone: { contains: search }
                             }
                         },
                         {
                             user: {
-                                email: { contains: search, mode: 'insensitive' }
+                                email: { contains: search }
                             }
                         }
                     ]
@@ -123,13 +139,27 @@ class AdminComplaintService {
                                 phone: true,
                                 ward: true,
                                 zone: true,
-                                address: true
+                                address: true,
+                                cityCorporationCode: true,
+                                thanaId: true,
+                                cityCorporation: {
+                                    select: {
+                                        code: true,
+                                        name: true
+                                    }
+                                },
+                                thana: {
+                                    select: {
+                                        id: true,
+                                        name: true
+                                    }
+                                }
                             }
                         }
                     }
                 }),
                 prisma_1.default.complaint.count({ where }),
-                this.getStatusCounts()
+                this.getStatusCounts(cityCorporationCode)
             ]);
             // Format complaints with parsed file URLs
             const formattedComplaints = complaints.map(complaint => this.formatComplaintResponse(complaint));
@@ -170,7 +200,21 @@ class AdminComplaintService {
                             ward: true,
                             zone: true,
                             address: true,
-                            createdAt: true
+                            createdAt: true,
+                            cityCorporationCode: true,
+                            thanaId: true,
+                            cityCorporation: {
+                                select: {
+                                    code: true,
+                                    name: true
+                                }
+                            },
+                            thana: {
+                                select: {
+                                    id: true,
+                                    name: true
+                                }
+                            }
                         }
                     }
                 }
@@ -329,13 +373,38 @@ class AdminComplaintService {
     }
     /**
      * Get status counts for all complaints
+     * Optionally filtered by city corporation
      */
-    async getStatusCounts() {
+    async getStatusCounts(cityCorporationCode) {
+        // Build where clause for city corporation filter
+        const whereClause = cityCorporationCode
+            ? { user: { cityCorporationCode } }
+            : {};
         const [pending, inProgress, resolved, rejected] = await Promise.all([
-            prisma_1.default.complaint.count({ where: { status: client_1.ComplaintStatus.PENDING } }),
-            prisma_1.default.complaint.count({ where: { status: client_1.ComplaintStatus.IN_PROGRESS } }),
-            prisma_1.default.complaint.count({ where: { status: client_1.ComplaintStatus.RESOLVED } }),
-            prisma_1.default.complaint.count({ where: { status: client_1.ComplaintStatus.REJECTED } })
+            prisma_1.default.complaint.count({
+                where: {
+                    ...whereClause,
+                    status: client_1.ComplaintStatus.PENDING
+                }
+            }),
+            prisma_1.default.complaint.count({
+                where: {
+                    ...whereClause,
+                    status: client_1.ComplaintStatus.IN_PROGRESS
+                }
+            }),
+            prisma_1.default.complaint.count({
+                where: {
+                    ...whereClause,
+                    status: client_1.ComplaintStatus.RESOLVED
+                }
+            }),
+            prisma_1.default.complaint.count({
+                where: {
+                    ...whereClause,
+                    status: client_1.ComplaintStatus.REJECTED
+                }
+            })
         ]);
         return {
             pending,

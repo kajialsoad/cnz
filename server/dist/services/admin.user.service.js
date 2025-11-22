@@ -14,7 +14,7 @@ class AdminUserService {
         const limit = query.limit || 20;
         const skip = (page - 1) * limit;
         const sortBy = query.sortBy || 'createdAt';
-        const sortOrder = query.sortOrder || 'desc';
+        const sortOrder = query.sortOrder || 'asc'; // Changed to 'asc' to show oldest users first
         // Build where clause
         const where = {};
         // Apply search filter
@@ -91,13 +91,56 @@ class AdminUserService {
                 },
             },
         });
-        // Calculate statistics for each user
-        const usersWithStats = await Promise.all(users.map(async (user) => {
-            const statistics = await this.calculateUserStats(user.id);
-            return {
-                ...user,
-                statistics,
-            };
+        // Get all user IDs for batch statistics query
+        const userIds = users.map(u => u.id);
+        // Batch query for all complaint statistics at once
+        const complaintStats = await prisma_1.default.complaint.groupBy({
+            by: ['userId', 'status'],
+            where: {
+                userId: { in: userIds },
+            },
+            _count: {
+                id: true,
+            },
+        });
+        // Build statistics map for quick lookup
+        const statsMap = new Map();
+        // Initialize stats for all users
+        userIds.forEach(userId => {
+            statsMap.set(userId, {
+                totalComplaints: 0,
+                resolvedComplaints: 0,
+                unresolvedComplaints: 0,
+                pendingComplaints: 0,
+                inProgressComplaints: 0,
+            });
+        });
+        // Populate stats from grouped data
+        complaintStats.forEach(stat => {
+            // Skip if userId is null (shouldn't happen but TypeScript requires the check)
+            if (!stat.userId)
+                return;
+            const userStat = statsMap.get(stat.userId);
+            if (!userStat)
+                return; // Skip if user not in our list
+            const count = stat._count.id;
+            userStat.totalComplaints += count;
+            if (stat.status === client_1.ComplaintStatus.RESOLVED) {
+                userStat.resolvedComplaints += count;
+            }
+            else if (stat.status === client_1.ComplaintStatus.PENDING) {
+                userStat.pendingComplaints += count;
+                userStat.unresolvedComplaints += count;
+            }
+            else if (stat.status === client_1.ComplaintStatus.IN_PROGRESS) {
+                userStat.inProgressComplaints += count;
+                userStat.unresolvedComplaints += count;
+            }
+        });
+        // Map users with their statistics
+        const usersWithStats = users.map(user => ({
+            ...user,
+            statistics: statsMap.get(user.id),
         }));
         return {
             users: usersWithStats,
@@ -278,6 +321,8 @@ class AdminUserService {
                 passwordHash: hashedPassword,
                 firstName: data.firstName,
                 lastName: data.lastName,
+                cityCorporationCode: data.cityCorporationCode,
+                thanaId: data.thanaId,
                 ward: data.ward,
                 zone: data.zone,
                 role: data.role || client_1.UserRole.CUSTOMER,
@@ -354,6 +399,11 @@ class AdminUserService {
                 throw new Error('Email already in use');
             }
         }
+        // Hash password if provided
+        let hashedPassword;
+        if (data.password) {
+            hashedPassword = await (0, bcrypt_1.hash)(data.password, 12);
+        }
         // Update user
         const user = await prisma_1.default.user.update({
             where: { id: userId },
@@ -362,10 +412,13 @@ class AdminUserService {
                 lastName: data.lastName,
                 email: data.email,
                 phone: data.phone,
+                cityCorporationCode: data.cityCorporationCode,
+                thanaId: data.thanaId,
                 ward: data.ward,
                 zone: data.zone,
                 role: data.role,
                 status: data.status,
+                ...(hashedPassword && { passwordHash: hashedPassword }),
             },
             select: {
                 id: true,
