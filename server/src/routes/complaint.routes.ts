@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { complaintController } from '../controllers/complaint.controller';
 import { uploadController } from '../controllers/upload.controller';
 import { authGuard } from '../middlewares/auth.middleware';
+import { messageRateLimit, apiRateLimit } from '../middlewares/rate-limit.middleware';
 
 const router = Router();
 
@@ -116,5 +117,32 @@ router.get('/files/:type/:filename/info', uploadController.getFileInfo.bind(uplo
  * @param   filename - filename to serve
  */
 router.get('/files/:type/:filename', uploadController.serveFile.bind(uploadController));
+
+// Chat routes for users
+/**
+ * @route   GET /api/complaints/:id/chat
+ * @desc    Get chat messages for a complaint
+ * @access  Private (Complaint owner only)
+ * @param   id - Complaint ID
+ * @query   { page?, limit? }
+ */
+router.get('/:id/chat', complaintController.getChatMessages.bind(complaintController));
+
+/**
+ * @route   POST /api/complaints/:id/chat
+ * @desc    Send a chat message for a complaint
+ * @access  Private (Complaint owner only)
+ * @param   id - Complaint ID
+ * @body    { message, imageUrl? }
+ */
+router.post('/:id/chat', messageRateLimit, complaintController.sendChatMessage.bind(complaintController));
+
+/**
+ * @route   PATCH /api/complaints/:id/chat/read
+ * @desc    Mark chat messages as read for a complaint
+ * @access  Private (Complaint owner only)
+ * @param   id - Complaint ID
+ */
+router.patch('/:id/chat/read', complaintController.markMessagesAsRead.bind(complaintController));
 
 export default router;

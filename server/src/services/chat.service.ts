@@ -6,6 +6,7 @@ export interface SendChatMessageInput {
     senderType: 'ADMIN' | 'CITIZEN';
     message: string;
     imageUrl?: string;
+    voiceUrl?: string;
 }
 
 export interface ChatMessageQueryInput {
@@ -462,14 +463,15 @@ export class ChatService {
 
             // Create chat message
             const message = await prisma.complaintChatMessage.create({
-                data: {
+                data: ({
                     complaintId: input.complaintId,
                     senderId: input.senderId,
                     senderType: input.senderType,
                     message: input.message,
                     imageUrl: input.imageUrl,
+                    voiceUrl: input.voiceUrl,
                     read: false
-                }
+                } as any)
             });
 
             // Get sender name
@@ -649,6 +651,9 @@ export class ChatService {
      */
     async getChatStatistics() {
         try {
+            // Test database connection first
+            await prisma.$queryRaw`SELECT 1`;
+
             // Get all complaints with chat messages
             const complaintsWithChats = await prisma.complaint.findMany({
                 where: {
@@ -660,7 +665,17 @@ export class ChatService {
                     user: {
                         select: {
                             ward: true,
-                            zone: true
+                            zone: true,
+                            cityCorporation: {
+                                select: {
+                                    name: true
+                                }
+                            },
+                            thana: {
+                                select: {
+                                    name: true
+                                }
+                            }
                         }
                     },
                     chatMessages: {

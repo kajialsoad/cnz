@@ -6,6 +6,7 @@ class ChatMessage {
   final String senderName;
   final String message;
   final String? imageUrl;
+  final String? voiceUrl;
   final bool read;
   final DateTime createdAt;
 
@@ -17,6 +18,7 @@ class ChatMessage {
     required this.senderName,
     required this.message,
     this.imageUrl,
+    this.voiceUrl,
     required this.read,
     required this.createdAt,
   });
@@ -31,6 +33,7 @@ class ChatMessage {
       senderName: json['senderName'] ?? 'Unknown',
       message: json['message'] as String,
       imageUrl: json['imageUrl'] as String?,
+      voiceUrl: json['voiceUrl'] as String?,
       read: json['read'] as bool,
       createdAt: DateTime.parse(json['createdAt'] as String),
     );
@@ -46,6 +49,7 @@ class ChatMessage {
       'senderName': senderName,
       'message': message,
       'imageUrl': imageUrl,
+      'voiceUrl': voiceUrl,
       'read': read,
       'createdAt': createdAt.toIso8601String(),
     };
@@ -66,6 +70,7 @@ class ChatMessage {
     String? senderName,
     String? message,
     String? imageUrl,
+    String? voiceUrl,
     bool? read,
     DateTime? createdAt,
   }) {
@@ -77,6 +82,7 @@ class ChatMessage {
       senderName: senderName ?? this.senderName,
       message: message ?? this.message,
       imageUrl: imageUrl ?? this.imageUrl,
+      voiceUrl: voiceUrl ?? this.voiceUrl,
       read: read ?? this.read,
       createdAt: createdAt ?? this.createdAt,
     );

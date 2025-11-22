@@ -4,6 +4,7 @@ import '../repositories/auth_repository.dart';
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
 import '../config/api_config.dart';
+import '../services/connectivity_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -70,10 +71,13 @@ class _LoginPageState extends State<LoginPage> {
       
       if (errorStr.contains('Invalid credentials')) {
         errorMessage = 'ভুল ফোন নম্বর বা পাসওয়ার্ড';
-      } else if (errorStr.contains('Network error')) {
-        errorMessage = 'ইন্টারনেট সংযোগ চেক করুন';
-      } else if (errorStr.contains('timeout')) {
-        errorMessage = 'সার্ভার সাড়া দিচ্ছে না, আবার চেষ্টা করুন';
+      } else if (errorStr.contains('Network error') || errorStr.contains('timeout')) {
+        final hasInternet = await ConnectivityService.hasInternetAccess();
+        if (hasInternet) {
+          errorMessage = 'সার্ভারের সাথে যোগাযোগ নেই';
+        } else {
+          errorMessage = 'ইন্টারনেট সংযোগ চেক করুন';
+        }
       } else if (errorStr.contains('verify your email')) {
         errorMessage = 'প্রথমে আপনার ইমেইল ভেরিফাই করুন';
         

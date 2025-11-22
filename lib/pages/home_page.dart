@@ -738,7 +738,68 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   void _openCamera() {
-    Navigator.pushNamed(context, '/camera');
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Icon(Icons.camera_alt, color: Color(0xFF2E8B57)),
+              SizedBox(width: 8),
+              Expanded(
+                child: TranslatedText(
+                  'Camera',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: TranslatedText(
+            'Do you want to use the camera to take a picture and submit a complaint?',
+            style: TextStyle(fontSize: 14),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.grey[600],
+              ),
+              child: TranslatedText(
+                'No',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                Navigator.pushNamed(context, '/camera');
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Color(0xFF2E8B57),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
+              ),
+              child: TranslatedText(
+                'Yes',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _handleLanguageSwitch() {

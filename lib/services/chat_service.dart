@@ -1,11 +1,16 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
+import 'package:mime/mime.dart';
+import 'package:flutter/foundation.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/chat_message.dart';
 import '../config/api_config.dart';
 
 class ChatService {
-  final String baseUrl = ApiConfig.baseUrl;
+  String get baseUrl => ApiConfig.baseUrl;
 
   /// Get authentication token from SharedPreferences
   Future<String?> _getToken() async {
@@ -25,11 +30,15 @@ class ChatService {
         throw Exception('Authentication token not found');
       }
 
-      final uri = Uri.parse('$baseUrl/admin/chat/$complaintId')
+      // Use user endpoint: /api/complaints/:id/chat
+      final uri = Uri.parse('$baseUrl/api/complaints/$complaintId/chat')
           .replace(queryParameters: {
         'page': page.toString(),
         'limit': limit.toString(),
       });
+
+      print('📡 API Request: GET $uri');
+      print('   Token: ${token.substring(0, 20)}...');
 
       final response = await http.get(
         uri,
@@ -38,6 +47,8 @@ class ChatService {
           'Content-Type': 'application/json',
         },
       );
+
+      print('📥 API Response: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -63,6 +74,7 @@ class ChatService {
     int complaintId,
     String message, {
     String? imageUrl,
+    String? voiceUrl,
   }) async {
     try {
       final token = await _getToken();
@@ -70,8 +82,9 @@ class ChatService {
         throw Exception('Authentication token not found');
       }
 
+      // Use user endpoint: /api/complaints/:id/chat
       final response = await http.post(
-        Uri.parse('$baseUrl/admin/chat/$complaintId'),
+        Uri.parse('$baseUrl/api/complaints/$complaintId/chat'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -79,6 +92,7 @@ class ChatService {
         body: json.encode({
           'message': message,
           if (imageUrl != null) 'imageUrl': imageUrl,
+          if (voiceUrl != null) 'voiceUrl': voiceUrl,
         }),
       );
 
@@ -101,6 +115,213 @@ class ChatService {
     }
   }
 
+  /// Upload image and return URL
+  Future<String> uploadImage(XFile xfile) async {
+    final token = await _getToken();
+    if (token == null) {
+      throw Exception('Authentication token not found');
+    }
+
+    final uri = Uri.parse('$baseUrl/api/complaints/upload');
+    final request = http.MultipartRequest('POST', uri);
+    request.headers['Authorization'] = 'Bearer $token';
+
+    if (kIsWeb) {
+      final bytes = await xfile.readAsBytes();
+      // Detect MIME from header bytes for web blobs
+      final detectedMime = lookupMimeType('', headerBytes: bytes) ?? 'image/jpeg';
+      final ext = detectedMime.contains('png')
+          ? 'png'
+          : detectedMime.contains('webp')
+              ? 'webp'
+              : 'jpg';
+      var filename = xfile.name;
+      if (filename.isEmpty || filename.startsWith('blob:')) {
+        filename = 'upload_${DateTime.now().millisecondsSinceEpoch}.$ext';
+      }
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'images',
+          bytes,
+          filename: filename,
+          contentType: MediaType.parse(detectedMime),
+        ),
+      );
+    } else {
+      final file = File(xfile.path);
+      final mimeType = lookupMimeType(file.path) ?? 'application/octet-stream';
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'images',
+          file.path,
+          contentType: MediaType.parse(mimeType),
+        ),
+      );
+    }
+
+    final streamed = await request.send();
+    final response = await http.Response.fromStream(streamed);
+    if (response.statusCode != 200) {
+      throw Exception('Image upload failed: ${response.statusCode}');
+   }
+    final raw = response.body;
+    print('🖼️ Upload image response: $raw');
+    final data = json.decode(raw);
+    final payload = data['data'];
+    if (payload == null) {
+      throw Exception('No image returned');
+    }
+    // Standard: images: [ { url: ... } ]
+    if (payload is Map && payload['images'] is List && (payload['images'] as List).isNotEmpty) {
+      final first = (payload['images'] as List).first;
+      return first['url'] as String;
+    }
+    // Fallback: single image object
+    if (payload is Map && payload['image'] is Map && payload['image']['url'] != null) {
+      return payload['image']['url'] as String;
+    }
+    // Fallback: fileUrls array
+    if (payload is Map && payload['fileUrls'] is List && (payload['fileUrls'] as List).isNotEmpty) {
+      return (payload['fileUrls'] as List).first as String;
+    }
+    throw Exception('No image returned');
+  }
+
+  /// Upload image for a specific complaint and return URL
+  Future<String> uploadImageForComplaint(int complaintId, XFile xfile) async {
+    final token = await _getToken();
+    if (token == null) {
+      throw Exception('Authentication token not found');
+    }
+
+    final uri = Uri.parse('$baseUrl/api/complaints/$complaintId/upload');
+    final request = http.MultipartRequest('POST', uri);
+    request.headers['Authorization'] = 'Bearer $token';
+
+    if (kIsWeb) {
+      final bytes = await xfile.readAsBytes();
+      final detectedMime = lookupMimeType('', headerBytes: bytes) ?? 'image/jpeg';
+      final ext = detectedMime.contains('png')
+          ? 'png'
+          : detectedMime.contains('webp')
+              ? 'webp'
+              : 'jpg';
+      var filename = xfile.name;
+      if (filename.isEmpty || filename.startsWith('blob:')) {
+        filename = 'upload_${DateTime.now().millisecondsSinceEpoch}.$ext';
+      }
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'images',
+          bytes,
+          filename: filename,
+          contentType: MediaType.parse(detectedMime),
+        ),
+      );
+    } else {
+      final file = File(xfile.path);
+      final mimeType = lookupMimeType(file.path) ?? 'application/octet-stream';
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'images',
+          file.path,
+          contentType: MediaType.parse(mimeType),
+        ),
+      );
+    }
+
+    final streamed = await request.send();
+    final response = await http.Response.fromStream(streamed);
+    if (response.statusCode != 200) {
+      throw Exception('Image upload failed: ${response.statusCode}');
+    }
+    final raw = response.body;
+    print('🖼️ Upload image (complaint) response: $raw');
+    final data = json.decode(raw);
+    final payload = data['data'];
+    if (payload == null) {
+      throw Exception('No image returned');
+    }
+    // Complaint upload endpoint returns fileUrls array
+    if (payload is Map && payload['fileUrls'] is List && (payload['fileUrls'] as List).isNotEmpty) {
+      return (payload['fileUrls'] as List).first as String;
+    }
+    // Fallback to images array if provided
+    if (payload is Map && payload['images'] is List && (payload['images'] as List).isNotEmpty) {
+      final first = (payload['images'] as List).first;
+      return first['url'] as String;
+    }
+    throw Exception('No image returned');
+  }
+
+  /// Upload voice and return URL
+  Future<String> uploadVoice(XFile xfile) async {
+    final token = await _getToken();
+    if (token == null) {
+      throw Exception('Authentication token not found');
+    }
+
+    final uri = Uri.parse('$baseUrl/api/complaints/upload');
+    final request = http.MultipartRequest('POST', uri);
+    request.headers['Authorization'] = 'Bearer $token';
+
+    if (kIsWeb) {
+      final bytes = await xfile.readAsBytes();
+      final detectedMime = lookupMimeType('', headerBytes: bytes) ?? 'audio/m4a';
+      final ext = detectedMime.contains('mpeg') || detectedMime.contains('mp3')
+          ? 'mp3'
+          : detectedMime.contains('wav')
+              ? 'wav'
+              : detectedMime.contains('ogg')
+                  ? 'ogg'
+                  : 'm4a';
+      var filename = xfile.name;
+      if (filename.isEmpty || filename.startsWith('blob:')) {
+        filename = 'voice_${DateTime.now().millisecondsSinceEpoch}.$ext';
+      }
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'voice',
+          bytes,
+          filename: filename,
+          contentType: MediaType.parse(detectedMime),
+        ),
+      );
+    } else {
+      final file = File(xfile.path);
+      final mimeType = lookupMimeType(file.path) ?? 'application/octet-stream';
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'voice',
+          file.path,
+          contentType: MediaType.parse(mimeType),
+        ),
+      );
+    }
+
+    final streamed = await request.send();
+    final response = await http.Response.fromStream(streamed);
+    if (response.statusCode != 200) {
+      throw Exception('Voice upload failed: ${response.statusCode}');
+    }
+    final raw = response.body;
+    print('🎙️ Upload voice response: $raw');
+    final data = json.decode(raw);
+    final payload = data['data'];
+    if (payload == null) {
+      throw Exception('No voice file returned');
+    }
+    // Standard: voice: { url: ... }
+    if (payload is Map && payload['voice'] is Map && payload['voice']['url'] != null) {
+      return payload['voice']['url'] as String;
+    }
+    // Fallback: fileUrls array
+    if (payload is Map && payload['fileUrls'] is List && (payload['fileUrls'] as List).isNotEmpty) {
+      return (payload['fileUrls'] as List).first as String;
+    }
+    throw Exception('No voice file returned');
+  }
+
   /// Mark messages as read for a complaint
   Future<void> markMessagesAsRead(int complaintId) async {
     try {
@@ -109,8 +330,9 @@ class ChatService {
         throw Exception('Authentication token not found');
       }
 
+      // Use user endpoint: /api/complaints/:id/chat/read
       final response = await http.patch(
-        Uri.parse('$baseUrl/admin/chat/$complaintId/read'),
+        Uri.parse('$baseUrl/api/complaints/$complaintId/chat/read'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',

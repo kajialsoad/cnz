@@ -1,6 +1,12 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:record/record.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/foundation.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
 import '../components/custom_bottom_nav.dart';
 import '../widgets/translated_text.dart';
 import '../services/chat_service.dart';
@@ -29,10 +35,15 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final ChatService _chatService = ChatService();
+  final ImagePicker _picker = ImagePicker();
+  AudioRecorder? _recorder; // Initialize only on non-web platforms
+  final AudioPlayer _audioPlayer = AudioPlayer();
 
   List<model.ChatMessage> messages = [];
   bool isLoading = true;
   bool isSending = false;
+  bool isRecording = false;
+  String? _recordedVoiceUrl;
   bool hasError = false;
   String errorMessage = '';
   Timer? _pollingTimer;
@@ -50,6 +61,10 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
       duration: const Duration(milliseconds: 1500),
       vsync: this,
     )..repeat();
+
+    if (!kIsWeb) {
+      _recorder = AudioRecorder();
+    }
 
     // Load initial messages
     _loadMessages();
@@ -76,8 +91,14 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
         hasError = false;
       });
 
+      print('🔍 Loading chat for complaint ID: ${widget.complaintId}');
+      print('   Complaint title: ${widget.complaintTitle}');
+      
       final complaintIdInt = int.parse(widget.complaintId);
+      print('   Parsed complaint ID: $complaintIdInt');
+      
       final fetchedMessages = await _chatService.getChatMessages(complaintIdInt);
+      print('✅ Fetched ${fetchedMessages.length} messages');
 
       setState(() {
         messages = fetchedMessages;
@@ -94,8 +115,10 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
       
       // Parse error message for better user experience
       final errorString = e.toString();
-      if (errorString.contains('Complaint not found')) {
-        userFriendlyError = 'এই অভিযোগটি খুঁজে পাওয়া যায়নি। দয়া করে আবার চেষ্টা করুন।';
+      if (errorString.contains('Complaint not found') || errorString.contains('Unauthorized')) {
+        userFriendlyError = 'এই অভিযোগটি খুঁজে পাওয়া যায়নি বা আপনার অ্যাক্সেস নেই।';
+        // Stop polling if complaint not found
+        _pollingTimer?.cancel();
       } else if (errorString.contains('Network') || errorString.contains('connection')) {
         userFriendlyError = 'ইন্টারনেট সংযোগ নেই। দয়া করে আপনার সংযোগ পরীক্ষা করুন।';
       } else if (errorString.contains('timeout')) {
@@ -134,7 +157,17 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
       }
     } catch (e) {
       print('Error polling messages: $e');
-      // Don't show error for polling failures
+      
+      // If complaint not found or unauthorized, stop polling and show error
+      final errorString = e.toString();
+      if (errorString.contains('Complaint not found') || errorString.contains('Unauthorized')) {
+        _pollingTimer?.cancel();
+        setState(() {
+          hasError = true;
+          errorMessage = 'এই অভিযোগটি খুঁজে পাওয়া যায়নি বা আপনার অ্যাক্সেস নেই।';
+        });
+      }
+      // Don't show error for other polling failures (network issues, etc.)
     }
   }
 
@@ -154,11 +187,13 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
       final sentMessage = await _chatService.sendMessage(
         complaintIdInt,
         messageText,
+        voiceUrl: _recordedVoiceUrl,
       );
 
       setState(() {
         messages.add(sentMessage);
         isSending = false;
+        _recordedVoiceUrl = null;
       });
 
       _scrollToBottom();
@@ -181,6 +216,109 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
               },
             ),
           ),
+        );
+      }
+    }
+  }
+
+  Future<void> _pickImageAndSend() async {
+    try {
+      final xfile = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+      if (xfile == null) return;
+      setState(() {
+        isSending = true;
+      });
+      final complaintIdInt = int.parse(widget.complaintId);
+      final url = await _chatService.uploadImageForComplaint(complaintIdInt, xfile);
+      final sentMessage = await _chatService.sendMessage(
+        complaintIdInt,
+        _messageController.text.trim().isEmpty ? ' ' : _messageController.text.trim(),
+        imageUrl: url,
+      );
+      setState(() {
+        messages.add(sentMessage);
+        isSending = false;
+        _messageController.clear();
+      });
+      _scrollToBottom();
+    } catch (e) {
+      setState(() {
+        isSending = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: TranslatedText('ছবি পাঠাতে ব্যর্থ: ${e.toString()}'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _toggleRecord() async {
+    try {
+      if (kIsWeb) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: TranslatedText('ওয়েবে ভয়েস রেকর্ডিং সমর্থিত নয়'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      if (_recorder == null) return;
+
+      if (!isRecording) {
+        final hasPermission = await _recorder!.hasPermission();
+        if (!hasPermission) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: TranslatedText('মাইক্রোফোন অনুমতি প্রয়োজন'), backgroundColor: Colors.red),
+            );
+          }
+          return;
+        }
+        final dir = await getTemporaryDirectory();
+        final filePath = p.join(dir.path, 'voice_${DateTime.now().millisecondsSinceEpoch}.m4a');
+        await _recorder!.start(const RecordConfig(), path: filePath);
+        setState(() {
+          isRecording = true;
+        });
+      } else {
+        final path = await _recorder!.stop();
+        setState(() {
+          isRecording = false;
+        });
+        if (path == null) return;
+        final xfile = XFile(path);
+        setState(() {
+          isSending = true;
+        });
+        final url = await _chatService.uploadVoice(xfile);
+        _recordedVoiceUrl = url;
+        final complaintIdInt = int.parse(widget.complaintId);
+        final sentMessage = await _chatService.sendMessage(
+          complaintIdInt,
+          _messageController.text.trim().isEmpty ? 'ভয়েস মেসেজ' : _messageController.text.trim(),
+          voiceUrl: url,
+        );
+        setState(() {
+          messages.add(sentMessage);
+          isSending = false;
+          _messageController.clear();
+          _recordedVoiceUrl = null;
+        });
+        _scrollToBottom();
+      }
+    } catch (e) {
+      setState(() {
+        isRecording = false;
+        isSending = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: TranslatedText('ভয়েস পাঠাতে ব্যর্থ: ${e.toString()}'), backgroundColor: Colors.red),
         );
       }
     }
@@ -356,14 +494,29 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
                 style: const TextStyle(color: Colors.grey),
               ),
               const SizedBox(height: 24),
-              ElevatedButton.icon(
-                onPressed: _loadMessages,
-                icon: const Icon(Icons.refresh),
-                label: const TranslatedText('পুনরায় চেষ্টা করুন'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2E8B57),
-                  foregroundColor: Colors.white,
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.arrow_back),
+                    label: const TranslatedText('ফিরে যান'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton.icon(
+                    onPressed: _loadMessages,
+                    icon: const Icon(Icons.refresh),
+                    label: const TranslatedText('পুনরায় চেষ্টা করুন'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2E8B57),
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -512,6 +665,26 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
                       ),
                     ),
                   ],
+                  if (message.voiceUrl != null) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.play_arrow),
+                          onPressed: () async {
+                            await _audioPlayer.stop();
+                            await _audioPlayer.play(UrlSource(message.voiceUrl!));
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.pause),
+                          onPressed: () async {
+                            await _audioPlayer.pause();
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
                   const SizedBox(height: 4),
                   // Timestamp
                   Text(
@@ -565,6 +738,17 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
       ),
       child: Row(
         children: [
+          IconButton(
+            onPressed: isSending ? null : _pickImageAndSend,
+            icon: const Icon(Icons.image, color: Color(0xFF2E8B57)),
+          ),
+          IconButton(
+            onPressed: isSending ? null : _toggleRecord,
+            icon: Icon(
+              isRecording ? Icons.stop_circle : Icons.mic,
+              color: isRecording ? Colors.red : const Color(0xFF2E8B57),
+            ),
+          ),
           Expanded(
             child: Container(
               decoration: BoxDecoration(

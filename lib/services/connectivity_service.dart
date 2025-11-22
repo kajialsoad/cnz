@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:http/http.dart' as http;
 
 /// Service to monitor network connectivity status
 class ConnectivityService {
@@ -32,24 +33,38 @@ class ConnectivityService {
   Future<bool> checkConnectivity() async {
     try {
       final result = await _connectivity.checkConnectivity();
-      _updateConnectionStatus(result);
+      await _updateConnectionStatus(result);
       return _isOnline;
     } catch (e) {
-      // Error checking connectivity, assume offline
       _isOnline = false;
       return false;
     }
   }
 
   /// Update connection status based on connectivity result
-  void _updateConnectionStatus(ConnectivityResult result) {
-    // Consider online if any connection type is available (except none)
+  Future<void> _updateConnectionStatus(ConnectivityResult result) async {
     final wasOnline = _isOnline;
-    _isOnline = result != ConnectivityResult.none;
-    
-    // Notify listeners if status changed
+    final hasNetwork = result != ConnectivityResult.none;
+    bool hasInternet = false;
+    if (hasNetwork) {
+      hasInternet = await hasInternetAccess();
+    }
+    _isOnline = hasNetwork && hasInternet;
+
     if (wasOnline != _isOnline) {
       _connectivityController.add(_isOnline);
+    }
+  }
+
+  /// Perform a lightweight request to ensure actual internet availability
+  static Future<bool> hasInternetAccess({Duration timeout = const Duration(seconds: 3)}) async {
+    try {
+      final res = await http
+          .get(Uri.parse('https://www.google.com/generate_204'))
+          .timeout(timeout);
+      return res.statusCode == 204;
+    } catch (_) {
+      return false;
     }
   }
 

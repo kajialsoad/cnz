@@ -105,7 +105,7 @@ export async function sendChatMessage(req: AuthRequest, res: Response) {
             });
         }
 
-        const { message, imageUrl } = req.body;
+        const { message, imageUrl, voiceUrl } = req.body;
 
         if (!message || message.trim().length === 0) {
             return res.status(400).json({
@@ -126,7 +126,8 @@ export async function sendChatMessage(req: AuthRequest, res: Response) {
             senderId: req.user.sub,
             senderType: 'ADMIN',
             message: message.trim(),
-            imageUrl
+            imageUrl,
+            voiceUrl
         });
 
         res.status(201).json({

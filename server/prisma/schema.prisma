@@ -29,10 +29,10 @@ model Thana {
   id                Int             @id @default(autoincrement())
   name              String
   cityCorporationId Int
-  cityCorporation   CityCorporation @relation(fields: [cityCorporationId], references: [id])
   status            ThanaStatus     @default(ACTIVE)
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
+  cityCorporation   CityCorporation @relation(fields: [cityCorporationId], references: [id])
   users             User[]
 
   @@unique([name, cityCorporationId])
@@ -57,15 +57,13 @@ model User {
   lastLoginAt             DateTime?
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
-  ward                   String?
-  zone                   String?
-  address                String?
-  verificationCode       String?
-  verificationCodeExpiry DateTime?
-  cityCorporationCode    String?
-  thanaId                Int?
-  cityCorporation        CityCorporation? @relation(fields: [cityCorporationCode], references: [code])
-  thana                  Thana?           @relation(fields: [thanaId], references: [id])
+  ward                    String?
+  zone                    String?
+  address                 String?
+  verificationCode        String?
+  verificationCodeExpiry  DateTime?
+  cityCorporationCode     String?
+  thanaId                 Int?
   receivedMessages        ChatMessage[]            @relation("ReceivedMessages")
   sentMessages            ChatMessage[]            @relation("SentMessages")
   complaints              Complaint[]
@@ -75,6 +73,8 @@ model User {
   passwordResetTokens     PasswordResetToken[]
   refreshTokens           RefreshToken[]
   sessions                Session[]
+  cityCorporation         CityCorporation?         @relation(fields: [cityCorporationCode], references: [code])
+  thana                   Thana?                   @relation(fields: [thanaId], references: [id])
 
   @@index([phone])
   @@index([email])
@@ -131,10 +131,10 @@ model EmailVerificationToken {
   id        String   @id @default(uuid())
   userId    Int
   token     String   @unique
-  code      String?
   expiresAt DateTime
   used      Boolean  @default(false)
   createdAt DateTime @default(now())
+  code      String?
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId], map: "email_verification_tokens_userId_fkey")
@@ -146,8 +146,6 @@ model Complaint {
   id            Int                    @id @default(autoincrement())
   title         String
   description   String                 @db.Text
-  category      String? // Category ID (e.g., 'home', 'road_environment') - Optional for backward compatibility
-  subcategory   String? // Subcategory ID (e.g., 'not_collecting_waste') - Optional for backward compatibility
   location      String
   imageUrl      String?                @db.Text
   audioUrl      String?                @db.Text
@@ -156,6 +154,8 @@ model Complaint {
   userId        Int?
   createdAt     DateTime               @default(now())
   updatedAt     DateTime               @updatedAt
+  category      String?
+  subcategory   String?
   user          User?                  @relation(fields: [userId], references: [id])
   chatMessages  ComplaintChatMessage[]
   statusHistory StatusHistory[]
@@ -193,6 +193,7 @@ model ComplaintChatMessage {
   imageUrl    String?
   read        Boolean    @default(false)
   createdAt   DateTime   @default(now())
+  voiceUrl    String?
   complaint   Complaint  @relation(fields: [complaintId], references: [id], onDelete: Cascade)
 
   @@index([complaintId])
