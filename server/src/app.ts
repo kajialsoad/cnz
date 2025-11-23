@@ -60,6 +60,13 @@ app.use(cors({
 }));
 
 // Health check endpoint
+app.get('/', (_req: Request, res: Response) => {
+  res.json({
+    message: 'Clean Care API Server is running!',
+    status: 'active',
+    timestamp: new Date().toISOString()
+  });
+});
 app.get('/health', (_req: Request, res: Response) => res.json({ ok: true, status: 'healthy' }));
 app.get('/api/health', (_req: Request, res: Response) => res.json({ ok: true, status: 'healthy' }));
 
