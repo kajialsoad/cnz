@@ -1,5 +1,22 @@
+// Dynamic URL selection based on environment
+const USE_PRODUCTION = import.meta.env.VITE_USE_PRODUCTION === 'true';
+const PRODUCTION_API_URL = import.meta.env.VITE_PRODUCTION_API_URL || 'https://munna-production.up.railway.app';
+const LOCAL_API_URL = import.meta.env.VITE_LOCAL_API_URL || 'http://192.168.0.100:4000';
+const PRODUCTION_WS_URL = import.meta.env.VITE_PRODUCTION_WS_URL || 'wss://munna-production.up.railway.app';
+const LOCAL_WS_URL = import.meta.env.VITE_LOCAL_WS_URL || 'ws://192.168.0.100:4000';
+
+// Select URL based on USE_PRODUCTION flag
+const BASE_URL = USE_PRODUCTION ? PRODUCTION_API_URL : LOCAL_API_URL;
+export const WEBSOCKET_URL = USE_PRODUCTION ? PRODUCTION_WS_URL : LOCAL_WS_URL;
+
+// Log configuration on startup
+console.log('🔧 Admin Panel Configuration:');
+console.log('   USE_PRODUCTION:', USE_PRODUCTION);
+console.log('   API URL:', BASE_URL);
+console.log('   WebSocket URL:', WEBSOCKET_URL);
+
 export const API_CONFIG = {
-  BASE_URL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000',
+  BASE_URL,
   TIMEOUT: 30000, // Increased to 30 seconds for slow database queries
   FALLBACK_TIMEOUT: 3000, // Fast timeout for local server check
   ENDPOINTS: {

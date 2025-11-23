@@ -1,4 +1,5 @@
 import express, { Request, Response } from 'express';
+import path from 'path';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import prisma from './utils/prisma';
@@ -69,6 +70,20 @@ app.get('/', (_req: Request, res: Response) => {
 });
 app.get('/health', (_req: Request, res: Response) => res.json({ ok: true, status: 'healthy' }));
 app.get('/api/health', (_req: Request, res: Response) => res.json({ ok: true, status: 'healthy' }));
+
+// Serve admin panel static files
+const adminPanelPath = path.join(__dirname, '../../clean-care-admin/dist');
+console.log('🔧 Admin panel path:', adminPanelPath);
+
+// Serve static files from admin panel dist folder at /admin
+app.use('/admin', express.static(adminPanelPath));
+
+// Handle SPA routing for admin panel - serve index.html for any /admin/* requests
+app.get('/admin/*', (_req: Request, res: Response) => {
+  res.sendFile(path.join(adminPanelPath, 'index.html'));
+});
+
+console.log('✅ Admin panel served at /admin');
 
 // API routes with /api prefix
 app.use('/api/auth', authRoutes);

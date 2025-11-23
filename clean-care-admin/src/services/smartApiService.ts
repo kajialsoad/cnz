@@ -3,25 +3,12 @@ import type { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { API_CONFIG } from '../config/apiConfig';
 
 class SmartApiService {
-    private primaryClient: AxiosInstance;
-    private fallbackClient: AxiosInstance;
-    private useVercel: boolean = false;
-    private lastLocalCheck: Date | null = null;
-    private recheckInterval = 30000; // 30 seconds
+    private client: AxiosInstance;
 
     constructor() {
-        // Primary client (localhost)
-        this.primaryClient = axios.create({
+        // Use the BASE_URL which is already dynamically selected based on USE_PRODUCTION
+        this.client = axios.create({
             baseURL: API_CONFIG.BASE_URL,
-            timeout: API_CONFIG.FALLBACK_TIMEOUT,
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        });
-
-        // Fallback client (Vercel)
-        this.fallbackClient = axios.create({
-            baseURL: API_CONFIG.VERCEL_URL,
             timeout: API_CONFIG.TIMEOUT,
             headers: {
                 'Content-Type': 'application/json',
@@ -41,52 +28,15 @@ class SmartApiService {
             return config;
         };
 
-        this.primaryClient.interceptors.request.use(addAuthToken);
-        this.fallbackClient.interceptors.request.use(addAuthToken);
-    }
-
-    private shouldRecheckLocal(): boolean {
-        if (!this.lastLocalCheck) return true;
-        return Date.now() - this.lastLocalCheck.getTime() > this.recheckInterval;
-    }
-
-    private async checkLocalServer(): Promise<boolean> {
-        this.lastLocalCheck = new Date();
-        try {
-            await this.primaryClient.get('/api/health', { timeout: 2000 });
-            console.log('✅ Local server is back online');
-            this.useVercel = false;
-            return true;
-        } catch {
-            return false;
-        }
+        this.client.interceptors.request.use(addAuthToken);
     }
 
     async request<T>(config: AxiosRequestConfig): Promise<T> {
-        // Recheck local if using Vercel
-        if (this.useVercel && this.shouldRecheckLocal()) {
-            await this.checkLocalServer();
-        }
-
         try {
-            // Try primary (local) first
-            if (!this.useVercel) {
-                try {
-                    const response = await this.primaryClient.request<T>(config);
-                    return response.data;
-                } catch (error: any) {
-                    console.warn('⚠️ Local server failed, switching to Vercel:', error.message);
-                    this.useVercel = true;
-                    this.lastLocalCheck = new Date();
-                }
-            }
-
-            // Use Vercel fallback
-            console.log('🌐 Using Vercel server');
-            const response = await this.fallbackClient.request<T>(config);
+            const response = await this.client.request<T>(config);
             return response.data;
         } catch (error: any) {
-            console.error('❌ Both servers failed:', error);
+            console.error('❌ API request failed:', error);
             throw error;
         }
     }
@@ -112,20 +62,7 @@ class SmartApiService {
     }
 
     getCurrentServer(): string {
-        return this.useVercel ? 'Vercel (Cloud)' : 'Local WiFi';
-    }
-
-    isUsingVercel(): boolean {
-        return this.useVercel;
-    }
-
-    forceVercel() {
-        this.useVercel = true;
-        this.lastLocalCheck = new Date();
-    }
-
-    forceLocal() {
-        this.useVercel = false;
+        return API_CONFIG.BASE_URL;
     }
 }
 
