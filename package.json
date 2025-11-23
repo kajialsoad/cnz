@@ -1,0 +1,12 @@
+{
+    "name": "clean-care-root",
+    "version": "1.0.0",
+    "scripts": {
+        "postinstall": "cd server && npm install",
+        "build": "cd server && npm run build",
+        "start": "cd server && npm start"
+    },
+    "engines": {
+        "node": "18.x"
+    }
+}
