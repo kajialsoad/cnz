@@ -95,6 +95,10 @@ android/app/proguard-rules.pro
 !server/dist/
 !server/dist/**
 
+# allow admin panel dist for Railway deployment
+!clean-care-admin/dist/
+!clean-care-admin/dist/**
+
 # Server specific files
 /server/node_modules/
 # keep server/dist tracked
