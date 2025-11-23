@@ -80,7 +80,8 @@ android/app/proguard-rules.pro
 **/yarn-error.log*
 **/package-lock.json
 **/yarn.lock
-**/.env
+# Allow root .env for Flutter app configuration
+# **/.env
 **/.env.local
 **/.env.development.local
 **/.env.test.local

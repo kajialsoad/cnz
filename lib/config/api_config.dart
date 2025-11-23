@@ -1,21 +1,32 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class ApiConfig {
-  // Change this to your production API URL when deploying
-  static const String productionUrl = 'http://192.168.0.100:4000';
+  // Get production URL from environment variable (set this to your Render/Railway URL)
+  static String get productionUrl => 
+    dotenv.env['PRODUCTION_URL'] ?? 'http://localhost:4000';
   
   // Local development URLs
-  static const String localWebUrl = 'http://localhost:4000';
-  static const String localAndroidUrl = 'http://192.168.0.100:4000';
-  static const String localIosUrl = 'http://localhost:4000'; // iOS simulator
+  static String get localWebUrl => 
+    dotenv.env['LOCAL_WEB_URL'] ?? 'http://localhost:4000';
+  static String get localAndroidUrl => 
+    dotenv.env['LOCAL_ANDROID_URL'] ?? 'http://192.168.0.100:4000';
+  static String get localIosUrl => 
+    dotenv.env['LOCAL_IOS_URL'] ?? 'http://localhost:4000';
   
-  // Get the appropriate base URL based on platform and environment
+  // Check if we should use production server
+  static bool get useProduction {
+    final envValue = dotenv.env['USE_PRODUCTION']?.toLowerCase();
+    return envValue == 'true' || kReleaseMode;
+  }
+  
+  // Get the appropriate base URL based on environment variable and platform
   static String get baseUrl {
-    if (kReleaseMode) {
-      // Production mode
+    if (useProduction) {
+      // Production mode - use production server
       return productionUrl;
     } else {
-      // Development mode
+      // Development mode - use platform-specific local URLs
       if (kIsWeb) {
         return localWebUrl;
       } else if (defaultTargetPlatform == TargetPlatform.android) {
@@ -35,4 +46,5 @@ class ApiConfig {
   
   // Timeout duration
   static const Duration timeout = Duration(seconds: 30);
+  static const Duration fallbackTimeout = Duration(seconds: 3); // Fast timeout for local check
 }

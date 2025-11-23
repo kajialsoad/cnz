@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
@@ -35,14 +36,26 @@ import 'providers/language_provider.dart';
 import 'repositories/complaint_repository.dart';
 import 'services/api_client.dart';
 import 'services/auth_service.dart';
+import 'services/smart_api_client.dart';
 
-void main() {
+void main() async {
+  // Ensure Flutter is initialized
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Load environment variables
+  await dotenv.load(fileName: ".env");
+  
+  // Print current configuration for debugging
+  print('🔧 Environment Configuration:');
+  print('   USE_PRODUCTION: ${dotenv.env['USE_PRODUCTION']}');
+  print('   Server URL: ${ApiConfig.baseUrl}');
+  
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => LanguageProvider()),
         Provider<ApiClient>(
-          create: (_) => ApiClient(ApiConfig.baseUrl),
+          create: (_) => SmartApiClient.instance,
           dispose: (_, apiClient) => apiClient,
         ),
         ProxyProvider<ApiClient, ComplaintRepository>(

@@ -1,6 +1,7 @@
 export const API_CONFIG = {
   BASE_URL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000',
   TIMEOUT: 30000, // Increased to 30 seconds for slow database queries
+  FALLBACK_TIMEOUT: 3000, // Fast timeout for local server check
   ENDPOINTS: {
     AUTH: {
       LOGIN: '/api/admin/auth/login',
