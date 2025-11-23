@@ -75,8 +75,27 @@ app.get('/api/health', (_req: Request, res: Response) => res.json({ ok: true, st
 const adminPanelPath = path.join(__dirname, '../../clean-care-admin/dist');
 console.log('🔧 Admin panel path:', adminPanelPath);
 
+// Check if directory exists and log contents
+import fs from 'fs';
+try {
+  if (fs.existsSync(adminPanelPath)) {
+    console.log('✅ Admin panel directory exists');
+    const files = fs.readdirSync(adminPanelPath);
+    console.log('📂 Files in admin panel directory:', files);
+  } else {
+    console.error('❌ Admin panel directory does NOT exist at:', adminPanelPath);
+  }
+} catch (err) {
+  console.error('❌ Error checking admin panel directory:', err);
+}
+
 // Serve static files from admin panel dist folder at /admin
 app.use('/admin', express.static(adminPanelPath));
+
+// Explicitly handle /admin route (without trailing slash)
+app.get('/admin', (_req: Request, res: Response) => {
+  res.sendFile(path.join(adminPanelPath, 'index.html'));
+});
 
 // Handle SPA routing for admin panel - serve index.html for any /admin/* requests
 app.get('/admin/*', (_req: Request, res: Response) => {
