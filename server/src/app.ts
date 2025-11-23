@@ -72,8 +72,9 @@ app.get('/health', (_req: Request, res: Response) => res.json({ ok: true, status
 app.get('/api/health', (_req: Request, res: Response) => res.json({ ok: true, status: 'healthy' }));
 
 // Serve admin panel static files
-const adminPanelPath = path.join(__dirname, '../../clean-care-admin/dist');
-console.log('🔧 Admin panel path:', adminPanelPath);
+// Serve admin panel static files
+const adminPanelPath = path.resolve(__dirname, '../../clean-care-admin/dist');
+console.log('🔧 Admin panel path (resolved):', adminPanelPath);
 
 // Check if directory exists and log contents
 import fs from 'fs';
@@ -82,6 +83,13 @@ try {
     console.log('✅ Admin panel directory exists');
     const files = fs.readdirSync(adminPanelPath);
     console.log('📂 Files in admin panel directory:', files);
+
+    const indexPath = path.join(adminPanelPath, 'index.html');
+    if (fs.existsSync(indexPath)) {
+      console.log('✅ index.html exists at:', indexPath);
+    } else {
+      console.error('❌ index.html MISSING at:', indexPath);
+    }
   } else {
     console.error('❌ Admin panel directory does NOT exist at:', adminPanelPath);
   }
@@ -89,17 +97,35 @@ try {
   console.error('❌ Error checking admin panel directory:', err);
 }
 
+// Debug route to verify routing
+app.get('/admin/ping', (_req: Request, res: Response) => {
+  res.send('Admin route is working! Path: ' + adminPanelPath);
+});
+
 // Serve static files from admin panel dist folder at /admin
 app.use('/admin', express.static(adminPanelPath));
 
 // Explicitly handle /admin route (without trailing slash)
 app.get('/admin', (_req: Request, res: Response) => {
-  res.sendFile(path.join(adminPanelPath, 'index.html'));
+  const indexPath = path.join(adminPanelPath, 'index.html');
+  console.log('⚡ Serving index.html from:', indexPath);
+  res.sendFile(indexPath, (err) => {
+    if (err) {
+      console.error('❌ Error serving index.html:', err);
+      res.status(500).send('Error serving admin panel: ' + err.message);
+    }
+  });
 });
 
 // Handle SPA routing for admin panel - serve index.html for any /admin/* requests
 app.get('/admin/*', (_req: Request, res: Response) => {
-  res.sendFile(path.join(adminPanelPath, 'index.html'));
+  const indexPath = path.join(adminPanelPath, 'index.html');
+  res.sendFile(indexPath, (err) => {
+    if (err) {
+      console.error('❌ Error serving index.html for SPA:', err);
+      res.status(500).send('Error serving admin panel SPA');
+    }
+  });
 });
 
 console.log('✅ Admin panel served at /admin');
