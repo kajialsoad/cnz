@@ -5,9 +5,9 @@ import type { LoginCredentials, AuthResponse, User } from '../types/auth.types';
 
 class AuthService {
     private apiClient: AxiosInstance;
-  private isRefreshing = false;
-  private refreshSubscribers: ((token: string) => void)[] = [];
-  private accessTokenKey = 'accessToken';
+    private isRefreshing = false;
+    private refreshSubscribers: ((token: string) => void)[] = [];
+    private accessTokenKey = 'accessToken';
 
     constructor() {
         this.apiClient = axios.create({
@@ -25,7 +25,7 @@ class AuthService {
             if (existing) {
                 this.apiClient.defaults.headers.common['Authorization'] = `Bearer ${existing}`;
             }
-        } catch {}
+        } catch { }
 
         this.setupInterceptors();
     }
@@ -61,22 +61,7 @@ class AuthService {
 
                         originalRequest.headers = {
                             ...(originalRequest.headers || {}),
-                            Authorization: `Bearer ${newToken}`,
-                        };
-                        return this.apiClient(originalRequest);
-                    } catch (refreshError) {
-                        this.isRefreshing = false;
-                        this.refreshSubscribers = [];
-                        // Avoid reload loop on login page
-                        if (window.location.pathname !== '/login') {
-                            window.location.assign('/login');
                         }
-                        return Promise.reject(refreshError);
-                    }
-                }
-
-                return Promise.reject(error);
-            }
         );
     }
 
@@ -84,7 +69,7 @@ class AuthService {
         try {
             localStorage.setItem(this.accessTokenKey, token);
             this.apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-        } catch {}
+        } catch { }
     }
 
 
@@ -134,7 +119,7 @@ class AuthService {
         try {
             localStorage.removeItem(this.accessTokenKey);
             delete this.apiClient.defaults.headers.common['Authorization'];
-        } catch {}
+        } catch { }
     }
 
     async refreshToken(): Promise<string> {
