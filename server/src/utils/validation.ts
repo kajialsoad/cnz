@@ -33,18 +33,9 @@ export const registerSchema = Joi.object({
     .messages({
       'any.only': 'জোন DSCC বা DNCC হতে হবে',
     }),
-  cityCorporationCode: Joi.string().valid('DSCC', 'DNCC').optional()
-    .messages({
-      'any.only': 'সিটি কর্পোরেশন DSCC বা DNCC হতে হবে',
-    }),
-  ward: Joi.string().optional()
-    .messages({
-      'string.base': 'ওয়ার্ড নম্বর প্রয়োজন',
-    }),
   thanaId: Joi.number().integer().positive().optional()
     .messages({
       'number.base': 'বৈধ থানা আইডি প্রয়োজন',
-      'number.positive': 'থানা আইডি পজিটিভ হতে হবে',
     }),
   address: Joi.string().max(255).optional()
     .messages({
@@ -54,7 +45,7 @@ export const registerSchema = Joi.object({
     .messages({
       'any.only': 'রোল কাস্টমার অথবা সার্ভিস প্রোভাইডার হতে হবে',
     }),
-});
+}).rename('CityCorporationCode', 'cityCorporationCode', { ignoreUndefined: true });
 
 export const loginSchema = Joi.object({
   phone: Joi.string().pattern(/^01[3-9]\d{8}$/).optional()
