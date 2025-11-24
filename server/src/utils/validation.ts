@@ -33,6 +33,14 @@ export const registerSchema = Joi.object({
     .messages({
       'any.only': 'জোন DSCC বা DNCC হতে হবে',
     }),
+  cityCorporationCode: Joi.string().valid('DSCC', 'DNCC').optional()
+    .messages({
+      'any.only': 'সিটি কর্পোরেশন DSCC বা DNCC হতে হবে',
+    }),
+  ward: Joi.string().optional()
+    .messages({
+      'string.base': 'ওয়ার্ড নম্বর প্রয়োজন',
+    }),
   thanaId: Joi.number().integer().positive().optional()
     .messages({
       'number.base': 'বৈধ থানা আইডি প্রয়োজন',

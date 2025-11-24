@@ -15,21 +15,21 @@ class SmartApiClient {
   static const Duration _recheckInterval = Duration(seconds: 30);
 
   static ApiClient get instance {
-    _primaryClient ??= ApiClient(
-      ApiConfig.baseUrl,
-      timeout: ApiConfig.fallbackTimeout,
-    );
+    // In local development mode, use a single client with longer timeout
+    if (!ApiConfig.useProduction) {
+      _primaryClient ??= ApiClient(
+        ApiConfig.baseUrl,
+        timeout: ApiConfig.timeout, // Use full timeout for local development
+      );
+      return _primaryClient!;
+    }
+    
+    // In production mode, use the configured production client
     _fallbackClient ??= ApiClient(
       ApiConfig.productionUrl,
       timeout: ApiConfig.timeout,
     );
-
-    // If we're using production server, check if local is back online
-    if (_useProduction && _shouldRecheckLocal()) {
-      _checkLocalServer();
-    }
-
-    return _useProduction ? _fallbackClient! : _primaryClient!;
+    return _fallbackClient!;
   }
 
   static bool _shouldRecheckLocal() {

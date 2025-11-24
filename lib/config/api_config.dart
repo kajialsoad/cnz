@@ -44,7 +44,7 @@ class ApiConfig {
   static const String authRefresh = '/api/auth/refresh';
   static const String authMe = '/api/auth/me';
   
-  // Timeout duration
-  static const Duration timeout = Duration(seconds: 30);
-  static const Duration fallbackTimeout = Duration(seconds: 3); // Fast timeout for local check
+  // Timeout duration - optimized for local development
+  static const Duration timeout = Duration(seconds: 15); // Reduced for faster failure detection
+  static const Duration fallbackTimeout = Duration(seconds: 10); // Increased for reliable local connections
 }

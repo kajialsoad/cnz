@@ -130,7 +130,7 @@ export class AuthService {
     const hashedPassword = await hash(input.password, 12);
     const verificationToken = generateSecureToken();
     const verificationCode = generateOTP(6); // Generate 6-digit OTP
-    const emailVerificationEnabled = process.env.EMAIL_VERIFICATION_ENABLED === 'true';
+    const emailVerificationEnabled = env.EMAIL_VERIFICATION_ENABLED;
 
     const user = await prisma.user.create({
       data: {
@@ -221,7 +221,9 @@ export class AuthService {
     }
 
     // Check if email verification is enabled and if email is verified for pending accounts
-    const emailVerificationEnabled = process.env.EMAIL_VERIFICATION_ENABLED === 'true';
+    const emailVerificationEnabled = env.EMAIL_VERIFICATION_ENABLED;
+    console.log('Login - Email verification enabled:', emailVerificationEnabled);
+
     if (emailVerificationEnabled && user.status === UserStatus.PENDING && !user.emailVerified) {
       throw new Error('Please verify your email first');
     }

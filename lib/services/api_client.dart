@@ -25,6 +25,9 @@ class ApiClient {
   final Duration timeout;
   bool _isRefreshing = false;
   final List<Function> _refreshQueue = [];
+  
+  // Persistent HTTP client for connection reuse
+  static final http.Client _httpClient = http.Client();
 
   ApiClient(this.baseUrl, {this.timeout = const Duration(seconds: 30)});
 
@@ -67,7 +70,7 @@ class ApiClient {
         return false;
       }
 
-      final res = await http
+      final res = await _httpClient
           .post(
             Uri.parse('$baseUrl/api/auth/refresh'),
             headers: {'Content-Type': 'application/json'},
@@ -108,7 +111,7 @@ class ApiClient {
   ) async {
     try {
       final token = await _getAccessToken();
-      final res = await http
+      final res = await _httpClient
           .post(
             Uri.parse('$baseUrl$path'),
             headers: {
@@ -135,7 +138,7 @@ class ApiClient {
   Future<Map<String, dynamic>> get(String path) async {
     try {
       final token = await _getAccessToken();
-      final res = await http
+      final res = await _httpClient
           .get(
             Uri.parse('$baseUrl$path'),
             headers: {
@@ -164,7 +167,7 @@ class ApiClient {
   ) async {
     try {
       final token = await _getAccessToken();
-      final res = await http
+      final res = await _httpClient
           .put(
             Uri.parse('$baseUrl$path'),
             headers: {
@@ -194,7 +197,7 @@ class ApiClient {
   }) async {
     try {
       final token = await _getAccessToken();
-      final res = await http
+      final res = await _httpClient
           .delete(
             Uri.parse('$baseUrl$path'),
             headers: {
