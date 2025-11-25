@@ -114,7 +114,7 @@ android/app/proguard-rules.pro
 *.sqlite3
 
 # IDE files
-.vscode/
+# .vscode/
 *.swp
 *.swo
 
