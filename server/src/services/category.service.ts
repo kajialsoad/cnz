@@ -46,13 +46,18 @@ class CategoryService {
                     id: 'billing_issue',
                     bangla: 'বিল সংক্রান্ত ইস্যু',
                     english: 'Billing related issue'
+                },
+                {
+                    id: 'home_others',
+                    bangla: 'অন্যান্য',
+                    english: 'Others'
                 }
             ]
         },
         {
             id: 'road_environment',
-            bangla: 'রাস্তা ও পরিবেশ',
-            english: 'Road & Environment',
+            bangla: 'রাস্তা ও নর্দমা',
+            english: 'Road & Drainage',
             color: '#FF9800',
             icon: 'road',
             subcategories: [
@@ -67,9 +72,19 @@ class CategoryService {
                     english: 'Water logging on road'
                 },
                 {
+                    id: 'drainage_issue',
+                    bangla: 'নর্দমা সমস্যা',
+                    english: 'Drainage issue'
+                },
+                {
                     id: 'manhole_issue',
                     bangla: 'ম্যানহোল ঢাকনা নেই',
                     english: 'Missing manhole cover'
+                },
+                {
+                    id: 'road_others',
+                    bangla: 'অন্যান্য',
+                    english: 'Others'
                 }
             ]
         },
@@ -94,6 +109,11 @@ class CategoryService {
                     id: 'billing_issue',
                     bangla: 'বিল সংক্রান্ত সমস্যা',
                     english: 'Billing related issue'
+                },
+                {
+                    id: 'business_others',
+                    bangla: 'অন্যান্য',
+                    english: 'Others'
                 }
             ]
         },
@@ -118,6 +138,11 @@ class CategoryService {
                     id: 'billing_issue',
                     bangla: 'বিল সংক্রান্ত সমস্যা',
                     english: 'Billing related issue'
+                },
+                {
+                    id: 'office_others',
+                    bangla: 'অন্যান্য',
+                    english: 'Others'
                 }
             ]
         },
@@ -142,6 +167,11 @@ class CategoryService {
                     id: 'billing_issue',
                     bangla: 'বিল সংক্রান্ত সমস্যা',
                     english: 'Billing related issue'
+                },
+                {
+                    id: 'education_others',
+                    bangla: 'অন্যান্য',
+                    english: 'Others'
                 }
             ]
         },
@@ -149,7 +179,7 @@ class CategoryService {
             id: 'hospital',
             bangla: 'হাসপাতাল',
             english: 'Hospital',
-            color: '#E91E63',
+            color: '#E74C3C',
             icon: 'hospital',
             subcategories: [
                 {
@@ -166,6 +196,11 @@ class CategoryService {
                     id: 'billing_issue',
                     bangla: 'বিল সংক্রান্ত সমস্যা',
                     english: 'Billing related issue'
+                },
+                {
+                    id: 'hospital_others',
+                    bangla: 'অন্যান্য',
+                    english: 'Others'
                 }
             ]
         },
@@ -173,7 +208,7 @@ class CategoryService {
             id: 'religious',
             bangla: 'ধর্মীয় প্রতিষ্ঠান',
             english: 'Religious Place',
-            color: '#00BCD4',
+            color: '#F39C12',
             icon: 'religious',
             subcategories: [
                 {
@@ -190,20 +225,108 @@ class CategoryService {
                     id: 'billing_issue',
                     bangla: 'বিল সংক্রান্ত সমস্যা',
                     english: 'Billing related issue'
+                },
+                {
+                    id: 'religious_others',
+                    bangla: 'অন্যান্য',
+                    english: 'Others'
                 }
             ]
         },
         {
             id: 'events',
-            bangla: 'ইভেন্ট',
-            english: 'Events',
-            color: '#4CAF50',
+            bangla: 'মেলা ও আনন্দোৎসবের সৃষ্টি ময়লা',
+            english: 'Events & Celebration Waste',
+            color: '#E91E63',
             icon: 'events',
             subcategories: [
                 {
-                    id: 'event_description',
-                    bangla: 'বর্ণনা দিন',
-                    english: 'Provide description'
+                    id: 'fair_waste',
+                    bangla: 'মেলার ময়লা',
+                    english: 'Fair waste'
+                },
+                {
+                    id: 'celebration_waste',
+                    bangla: 'উৎসবের ময়লা',
+                    english: 'Celebration waste'
+                },
+                {
+                    id: 'event_waste',
+                    bangla: 'অনুষ্ঠানের ময়লা',
+                    english: 'Event waste'
+                },
+                {
+                    id: 'event_others',
+                    bangla: 'অন্যান্য',
+                    english: 'Others'
+                }
+            ]
+        },
+        {
+            id: 'canal_waterbody',
+            bangla: 'খাল ও জলাশয়',
+            english: 'Canal & Water Body',
+            color: '#00BCD4',
+            icon: 'water',
+            subcategories: [
+                {
+                    id: 'canal_waste',
+                    bangla: 'খালে ময়লা জমে আছে',
+                    english: 'Waste accumulated in canal'
+                },
+                {
+                    id: 'waterbody_waste',
+                    bangla: 'জলাশয়ে ময়লা',
+                    english: 'Waste in water body'
+                },
+                {
+                    id: 'canal_blocked',
+                    bangla: 'খাল বন্ধ হয়ে গেছে',
+                    english: 'Canal is blocked'
+                },
+                {
+                    id: 'water_pollution',
+                    bangla: 'পানি দূষণ',
+                    english: 'Water pollution'
+                },
+                {
+                    id: 'canal_waterbody_others',
+                    bangla: 'অন্যান্য',
+                    english: 'Others'
+                }
+            ]
+        },
+        {
+            id: 'drainage_waterlogging',
+            bangla: 'নর্দমা ও জলাবদ্ধতা',
+            english: 'Drainage & Waterlogging',
+            color: '#3F51B5',
+            icon: 'drainage',
+            subcategories: [
+                {
+                    id: 'drainage_blocked',
+                    bangla: 'নর্দমা বন্ধ',
+                    english: 'Drainage blocked'
+                },
+                {
+                    id: 'waterlogging',
+                    bangla: 'জলাবদ্ধতা',
+                    english: 'Waterlogging'
+                },
+                {
+                    id: 'drainage_cover_missing',
+                    bangla: 'নর্দমার ঢাকনা নেই',
+                    english: 'Missing drainage cover'
+                },
+                {
+                    id: 'bad_smell',
+                    bangla: 'দুর্গন্ধ',
+                    english: 'Bad smell'
+                },
+                {
+                    id: 'drainage_waterlogging_others',
+                    bangla: 'অন্যান্য',
+                    english: 'Others'
                 }
             ]
         },

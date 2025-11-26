@@ -52,6 +52,12 @@ class _CategorySelectionPageState extends State<CategorySelectionPage> {
           'svgAsset': 'assets/building.svg',
           'id': 'billing_issue',
         },
+        {
+          'bangla': 'অন্যান্য',
+          'english': 'Others',
+          'icon': Icons.more_horiz,
+          'id': 'home_others',
+        },
       ],
       'road_environment': [
         {
@@ -67,10 +73,22 @@ class _CategorySelectionPageState extends State<CategorySelectionPage> {
           'id': 'water_logging',
         },
         {
+          'bangla': 'নর্দমা সমস্যা',
+          'english': 'Drainage issue',
+          'icon': Icons.water_damage_outlined,
+          'id': 'drainage_issue',
+        },
+        {
           'bangla': 'ম্যানহোল ঢাকনা নেই',
           'english': 'Missing manhole cover',
           'icon': Icons.location_on_outlined,
           'id': 'manhole_issue',
+        },
+        {
+          'bangla': 'অন্যান্য',
+          'english': 'Others',
+          'icon': Icons.more_horiz,
+          'id': 'road_others',
         },
       ],
       'business': [
@@ -92,6 +110,12 @@ class _CategorySelectionPageState extends State<CategorySelectionPage> {
           'svgAsset': 'assets/building.svg',
           'id': 'billing_issue',
         },
+        {
+          'bangla': 'অন্যান্য',
+          'english': 'Others',
+          'icon': Icons.more_horiz,
+          'id': 'business_others',
+        },
       ],
       'office': [
         {
@@ -111,6 +135,12 @@ class _CategorySelectionPageState extends State<CategorySelectionPage> {
           'english': 'Billing related issue',
           'svgAsset': 'assets/building.svg',
           'id': 'billing_issue',
+        },
+        {
+          'bangla': 'অন্যান্য',
+          'english': 'Others',
+          'icon': Icons.more_horiz,
+          'id': 'office_others',
         },
       ],
       'education': [
@@ -132,6 +162,12 @@ class _CategorySelectionPageState extends State<CategorySelectionPage> {
           'svgAsset': 'assets/graduate.svg',
           'id': 'billing_issue',
         },
+        {
+          'bangla': 'অন্যান্য',
+          'english': 'Others',
+          'icon': Icons.more_horiz,
+          'id': 'education_others',
+        },
       ],
       'hospital': [
         {
@@ -151,6 +187,12 @@ class _CategorySelectionPageState extends State<CategorySelectionPage> {
           'english': 'Billing related issue',
           'svgAsset': 'assets/hospital.svg',
           'id': 'billing_issue',
+        },
+        {
+          'bangla': 'অন্যান্য',
+          'english': 'Others',
+          'icon': Icons.more_horiz,
+          'id': 'hospital_others',
         },
       ],
       'religious': [
@@ -172,13 +214,101 @@ class _CategorySelectionPageState extends State<CategorySelectionPage> {
           'svgAsset': 'assets/church.svg',
           'id': 'billing_issue',
         },
+        {
+          'bangla': 'অন্যান্য',
+          'english': 'Others',
+          'icon': Icons.more_horiz,
+          'id': 'religious_others',
+        },
       ],
       'events': [
         {
-          'bangla': 'বর্ণনা দিন',
-          'english': 'Provide description',
+          'bangla': 'মেলার ময়লা',
+          'english': 'Fair waste',
+          'icon': Icons.festival_outlined,
+          'id': 'fair_waste',
+        },
+        {
+          'bangla': 'উৎসবের ময়লা',
+          'english': 'Celebration waste',
+          'icon': Icons.celebration_outlined,
+          'id': 'celebration_waste',
+        },
+        {
+          'bangla': 'অনুষ্ঠানের ময়লা',
+          'english': 'Event waste',
           'svgAsset': 'assets/congratulations.svg',
-          'id': 'event_description',
+          'id': 'event_waste',
+        },
+        {
+          'bangla': 'অন্যান্য',
+          'english': 'Others',
+          'icon': Icons.more_horiz,
+          'id': 'event_others',
+        },
+      ],
+      'canal_waterbody': [
+        {
+          'bangla': 'খালে ময়লা জমে আছে',
+          'english': 'Waste accumulated in canal',
+          'icon': Icons.water,
+          'id': 'canal_waste',
+        },
+        {
+          'bangla': 'জলাশয়ে ময়লা',
+          'english': 'Waste in water body',
+          'icon': Icons.water_drop,
+          'id': 'waterbody_waste',
+        },
+        {
+          'bangla': 'খাল বন্ধ হয়ে গেছে',
+          'english': 'Canal is blocked',
+          'icon': Icons.block,
+          'id': 'canal_blocked',
+        },
+        {
+          'bangla': 'পানি দূষণ',
+          'english': 'Water pollution',
+          'icon': Icons.warning_amber,
+          'id': 'water_pollution',
+        },
+        {
+          'bangla': 'অন্যান্য',
+          'english': 'Others',
+          'icon': Icons.more_horiz,
+          'id': 'canal_waterbody_others',
+        },
+      ],
+      'drainage_waterlogging': [
+        {
+          'bangla': 'নর্দমা বন্ধ',
+          'english': 'Drainage blocked',
+          'icon': Icons.block,
+          'id': 'drainage_blocked',
+        },
+        {
+          'bangla': 'জলাবদ্ধতা',
+          'english': 'Waterlogging',
+          'icon': Icons.water_damage,
+          'id': 'waterlogging',
+        },
+        {
+          'bangla': 'নর্দমার ঢাকনা নেই',
+          'english': 'Missing drainage cover',
+          'icon': Icons.warning,
+          'id': 'drainage_cover_missing',
+        },
+        {
+          'bangla': 'দুর্গন্ধ',
+          'english': 'Bad smell',
+          'icon': Icons.air,
+          'id': 'bad_smell',
+        },
+        {
+          'bangla': 'অন্যান্য',
+          'english': 'Others',
+          'icon': Icons.more_horiz,
+          'id': 'drainage_waterlogging_others',
         },
       ],
     };

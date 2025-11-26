@@ -37,8 +37,8 @@ class _OthersPageState extends State<OthersPage> with TickerProviderStateMixin {
       'id': 'home',
     },
     {
-      'bangla': 'রাস্তা ও পরিবেশ',
-      'english': 'Road & Environment',
+      'bangla': 'রাস্তা ও নর্দমা',
+      'english': 'Road & Drainage',
       'svgAsset': 'assets/road.svg',
       'color': const Color(0xFFE8F5E8), // Keep old for reference
       'isSpecialStyle': true, // New green styling
@@ -91,13 +91,31 @@ class _OthersPageState extends State<OthersPage> with TickerProviderStateMixin {
       'id': 'religious',
     },
     {
-      'bangla': 'মেলা ও আনন্দোৎসব',
-      'english': 'Events & Celebration',
+      'bangla': 'মেলা ও আনন্দোৎসবের সৃষ্টি ময়লা',
+      'english': 'Events & Celebration Waste',
       'svgAsset': 'assets/congratulations.svg',
       'color': const Color(0xFFFCE4EC), // Keep old for reference
       'isSpecialStyle': true, // New pink styling
       'specialColor': const Color(0xFFE91E63), // Pink color
       'id': 'events',
+    },
+    {
+      'bangla': 'খাল ও জলাশয়',
+      'english': 'Canal & Water Body',
+      'icon': Icons.water,
+      'color': const Color(0xFFE0F7FA), // Keep old for reference
+      'isSpecialStyle': true, // New cyan styling
+      'specialColor': const Color(0xFF00BCD4), // Cyan color
+      'id': 'canal_waterbody',
+    },
+    {
+      'bangla': 'নর্দমা ও জলাবদ্ধতা',
+      'english': 'Drainage & Waterlogging',
+      'icon': Icons.water_damage,
+      'color': const Color(0xFFE8EAF6), // Keep old for reference
+      'isSpecialStyle': true, // New indigo styling
+      'specialColor': const Color(0xFF3F51B5), // Indigo color
+      'id': 'drainage_waterlogging',
     },
   ];
 
@@ -194,7 +212,7 @@ class _OthersPageState extends State<OthersPage> with TickerProviderStateMixin {
     return Column(
       children: [
         const Text(
-          'আপত্তিদায়ক করণ সিলেকশন করুন',
+          'অভিযোগের ধরণ সিলেকশন করুন',
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -295,15 +313,21 @@ class _OthersPageState extends State<OthersPage> with TickerProviderStateMixin {
                             color: color19Opacity, // 19% opacity
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: SvgPicture.asset(
-                            category['svgAsset'],
-                            width: 24,
-                            height: 24,
-                            colorFilter: ColorFilter.mode(
-                              specialColor,
-                              BlendMode.srcIn,
-                            ),
-                          ),
+                          child: category.containsKey('svgAsset')
+                              ? SvgPicture.asset(
+                                  category['svgAsset'],
+                                  width: 24,
+                                  height: 24,
+                                  colorFilter: ColorFilter.mode(
+                                    specialColor,
+                                    BlendMode.srcIn,
+                                  ),
+                                )
+                              : Icon(
+                                  category['icon'],
+                                  size: 24,
+                                  color: specialColor,
+                                ),
                         ),
                         const SizedBox(height: 8),
                         Text(
