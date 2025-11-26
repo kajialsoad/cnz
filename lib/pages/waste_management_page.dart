@@ -209,7 +209,7 @@ class _WasteManagementPageState extends State<WasteManagementPage>
           ),
           const SizedBox(width: 12),
           TranslatedText(
-            'Borjo Management',
+            'Waste Management',
             style: TextStyle(
               color: Colors.white,
               fontSize: 20,

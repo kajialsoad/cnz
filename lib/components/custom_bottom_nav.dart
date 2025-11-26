@@ -57,7 +57,7 @@ class CustomBottomNav extends StatelessWidget {
                       _buildNavItem(Icons.home, "Home", 0),
                       _buildNavItem(Icons.phone, "Emergency", 1),
                       SizedBox(width: screenWidth * 0.2), // Further reduced space
-                      _buildNavItem(Icons.recycling, "Borja", 2),
+                      _buildNavItem(Icons.recycling, "Waste", 2),
                       _buildNavItem(Icons.photo_library, "Gallery", 3),
                     ],
                   ),

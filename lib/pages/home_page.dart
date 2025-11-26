@@ -430,25 +430,31 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   horizontal: 16,
                   vertical: 4,
                 ),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 8,
-                    horizontal: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    color: green,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: const Text(
-                    'English',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w500,
-                      fontSize: 13,
-                    ),
-                  ),
+                child: Consumer<LanguageProvider>(
+                  builder: (context, languageProvider, child) {
+                    final isEnglish = languageProvider.isEnglish;
+                    return Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 8,
+                        horizontal: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isEnglish ? green : Colors.transparent,
+                        border: isEnglish ? null : Border.all(color: green, width: 1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        'English',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: isEnglish ? Colors.white : green,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 13,
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
               // Bengali Button
@@ -458,25 +464,31 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   horizontal: 16,
                   vertical: 4,
                 ),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 8,
-                    horizontal: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: green, width: 1),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    'বাংলা',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: green,
-                      fontWeight: FontWeight.w500,
-                      fontSize: 13,
-                    ),
-                  ),
+                child: Consumer<LanguageProvider>(
+                  builder: (context, languageProvider, child) {
+                    final isBangla = languageProvider.isBangla;
+                    return Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 8,
+                        horizontal: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isBangla ? green : Colors.transparent,
+                        border: isBangla ? null : Border.all(color: green, width: 1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        'বাংলা',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: isBangla ? Colors.white : green,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 13,
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
             ],
