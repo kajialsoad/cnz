@@ -88,6 +88,33 @@ class ComplaintService {
     }
 
     /**
+     * Fix image/audio URL to use current server
+     * Replaces localhost:4000 or any other hardcoded URL with current API base URL
+     */
+    private fixMediaUrl(url: string): string {
+        if (!url) return url;
+
+        // If URL is already using current server, return as is
+        if (url.startsWith(API_CONFIG.BASE_URL)) {
+            return url;
+        }
+
+        // If URL contains localhost:4000 or any other server, replace it
+        const urlPattern = /^https?:\/\/[^\/]+/;
+        if (urlPattern.test(url)) {
+            return url.replace(urlPattern, API_CONFIG.BASE_URL);
+        }
+
+        // If URL is relative (starts with /), prepend base URL
+        if (url.startsWith('/')) {
+            return `${API_CONFIG.BASE_URL}${url}`;
+        }
+
+        // Otherwise, prepend base URL with /
+        return `${API_CONFIG.BASE_URL}/${url}`;
+    }
+
+    /**
      * Parse image and audio URLs from JSON strings
      */
     private parseMediaUrls(complaint: any): Complaint {
@@ -96,7 +123,8 @@ class ComplaintService {
 
         try {
             if (complaint.imageUrl) {
-                imageUrls = JSON.parse(complaint.imageUrl);
+                const parsed = JSON.parse(complaint.imageUrl);
+                imageUrls = parsed.map((url: string) => this.fixMediaUrl(url));
             }
         } catch (e) {
             console.error('Error parsing imageUrl:', e);
@@ -104,7 +132,8 @@ class ComplaintService {
 
         try {
             if (complaint.audioUrl) {
-                audioUrls = JSON.parse(complaint.audioUrl);
+                const parsed = JSON.parse(complaint.audioUrl);
+                audioUrls = parsed.map((url: string) => this.fixMediaUrl(url));
             }
         } catch (e) {
             console.error('Error parsing audioUrl:', e);

@@ -82,7 +82,7 @@ class AuthService {
         const hashedPassword = await (0, bcrypt_1.hash)(input.password, 12);
         const verificationToken = (0, jwt_1.generateSecureToken)();
         const verificationCode = (0, jwt_1.generateOTP)(6); // Generate 6-digit OTP
-        const emailVerificationEnabled = process.env.EMAIL_VERIFICATION_ENABLED === 'true';
+        const emailVerificationEnabled = env_1.default.EMAIL_VERIFICATION_ENABLED;
         const user = await prisma_1.default.user.create({
             data: {
                 email: input.email,
@@ -164,7 +164,8 @@ class AuthService {
             throw new Error('Account is suspended');
         }
         // Check if email verification is enabled and if email is verified for pending accounts
-        const emailVerificationEnabled = process.env.EMAIL_VERIFICATION_ENABLED === 'true';
+        const emailVerificationEnabled = env_1.default.EMAIL_VERIFICATION_ENABLED;
+        console.log('Login - Email verification enabled:', emailVerificationEnabled);
         if (emailVerificationEnabled && user.status === client_1.UserStatus.PENDING && !user.emailVerified) {
             throw new Error('Please verify your email first');
         }

@@ -50,7 +50,6 @@ exports.registerSchema = joi_1.default.object({
     thanaId: joi_1.default.number().integer().positive().optional()
         .messages({
         'number.base': 'বৈধ থানা আইডি প্রয়োজন',
-        'number.positive': 'থানা আইডি পজিটিভ হতে হবে',
     }),
     address: joi_1.default.string().max(255).optional()
         .messages({
@@ -60,7 +59,7 @@ exports.registerSchema = joi_1.default.object({
         .messages({
         'any.only': 'রোল কাস্টমার অথবা সার্ভিস প্রোভাইডার হতে হবে',
     }),
-});
+}).rename('CityCorporationCode', 'cityCorporationCode', { ignoreUndefined: true });
 exports.loginSchema = joi_1.default.object({
     phone: joi_1.default.string().pattern(/^01[3-9]\d{8}$/).optional()
         .messages({

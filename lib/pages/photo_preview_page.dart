@@ -134,10 +134,10 @@ class PhotoPreviewPage extends StatelessWidget {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () {
-                      // Navigate to complaint page with the photo
+                      // Navigate to others page with the photo
                       Navigator.pushNamed(
                         context,
-                        '/complaint',
+                        '/others',
                         arguments: {'imagePath': imagePath},
                       );
                     },

@@ -688,7 +688,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             ElevatedButton(
               onPressed: () {
                 Navigator.of(context).pop();
-                _navigateToPage('/complaint');
+                _navigateToPage('/others'); // Direct to Others page
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Color(0xFF2E8B57),

@@ -11,6 +11,7 @@ const rawCorsOrigins = process.env.CORS_ORIGINS ?? process.env.CORS_ORIGIN ?? '*
 const CORS_ORIGINS = rawCorsOrigins.split(',').map((s) => s.trim()).filter(Boolean);
 const env = {
     PORT: Number(process.env.PORT ?? 4000),
+    APP_URL: process.env.APP_URL ?? 'http://localhost:4000',
     DATABASE_URL: process.env.DATABASE_URL ?? '',
     JWT_ACCESS_SECRET: process.env.JWT_ACCESS_SECRET ?? 'dev_access_secret',
     JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET ?? 'dev_refresh_secret',
@@ -31,6 +32,7 @@ const env = {
     // Password Reset Token TTL
     PASSWORD_RESET_TTL: process.env.PASSWORD_RESET_TTL ?? '1h',
     EMAIL_VERIFICATION_TTL: process.env.EMAIL_VERIFICATION_TTL ?? '24h',
+    EMAIL_VERIFICATION_ENABLED: process.env.EMAIL_VERIFICATION_ENABLED === 'true',
     // TTL in seconds for calculations
     ACCESS_TTL_SECONDS: 7 * 24 * 60 * 60, // 7 days (increased for mobile app)
     REFRESH_TTL_SECONDS: 30 * 24 * 60 * 60, // 30 days

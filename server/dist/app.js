@@ -4,6 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
+const path_1 = __importDefault(require("path"));
 const cookie_parser_1 = __importDefault(require("cookie-parser"));
 const cors_1 = __importDefault(require("cors"));
 const prisma_1 = __importDefault(require("./utils/prisma"));
@@ -56,8 +57,44 @@ app.use((0, cors_1.default)({
     credentials: true,
 }));
 // Health check endpoint
+app.get('/', (_req, res) => {
+    res.json({
+        message: 'Clean Care API Server is running!',
+        status: 'active',
+        timestamp: new Date().toISOString()
+    });
+});
 app.get('/health', (_req, res) => res.json({ ok: true, status: 'healthy' }));
 app.get('/api/health', (_req, res) => res.json({ ok: true, status: 'healthy' }));
+// Serve admin panel static files
+const adminPanelPath = path_1.default.join(__dirname, '../../clean-care-admin/dist');
+console.log('🔧 Admin panel path:', adminPanelPath);
+// Check if directory exists and log contents
+const fs_1 = __importDefault(require("fs"));
+try {
+    if (fs_1.default.existsSync(adminPanelPath)) {
+        console.log('✅ Admin panel directory exists');
+        const files = fs_1.default.readdirSync(adminPanelPath);
+        console.log('📂 Files in admin panel directory:', files);
+    }
+    else {
+        console.error('❌ Admin panel directory does NOT exist at:', adminPanelPath);
+    }
+}
+catch (err) {
+    console.error('❌ Error checking admin panel directory:', err);
+}
+// Serve static files from admin panel dist folder at /admin
+app.use('/admin', express_1.default.static(adminPanelPath));
+// Explicitly handle /admin route (without trailing slash)
+app.get('/admin', (_req, res) => {
+    res.sendFile(path_1.default.join(adminPanelPath, 'index.html'));
+});
+// Handle SPA routing for admin panel - serve index.html for any /admin/* requests
+app.get('/admin/*', (_req, res) => {
+    res.sendFile(path_1.default.join(adminPanelPath, 'index.html'));
+});
+console.log('✅ Admin panel served at /admin');
 // API routes with /api prefix
 app.use('/api/auth', auth_routes_1.default);
 console.log('✅ Regular auth routes registered at /api/auth');
@@ -75,6 +112,10 @@ app.use('/api/admin/complaints', admin_complaint_routes_1.default); // Admin com
 console.log('✅ Admin complaint routes registered at /api/admin/complaints');
 app.use('/api/admin/analytics', admin_analytics_routes_1.default); // Admin analytics routes
 console.log('✅ Admin analytics routes registered at /api/admin/analytics');
+// Redirect /login to /admin/login (helper for common mistake)
+app.get('/login', (_req, res) => {
+    res.redirect('/admin/login');
+});
 app.use('/api/admin/chat', admin_chat_routes_1.default); // Admin chat routes
 console.log('✅ Admin chat routes registered at /api/admin/chat');
 app.use('/api/categories', category_routes_1.default); // Category routes
