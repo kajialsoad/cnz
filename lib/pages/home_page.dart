@@ -671,7 +671,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             ],
           ),
           content: TranslatedText(
-            'Are you sure you want to add a complaint?',
+            'আপনি একটি ময়লা সংক্রান্ত অভিযোগ করতে চাচ্ছেন?',
             style: TextStyle(fontSize: 14),
           ),
           actions: [
@@ -761,7 +761,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             ],
           ),
           content: TranslatedText(
-            'Do you want to use the camera to take a picture and submit a complaint?',
+            'আপনি একটি ছবি তুলতে এবং একটি ময়লা সংক্রান্ত অভিযোগ করতে ক্যামেরা ব্যবহার করতে চান?',
             style: TextStyle(fontSize: 14),
           ),
           actions: [
@@ -803,6 +803,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   void _handleLanguageSwitch() {
+    // Get current language
+    final languageProvider = Provider.of<LanguageProvider>(
+      context,
+      listen: false,
+    );
+    final isEnglish = languageProvider.isEnglish;
+
     // Show language selection dialog
     showDialog(
       context: context,
@@ -824,50 +831,88 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // English Button
+              // English Button - Green if selected
               Container(
                 width: double.infinity,
                 margin: const EdgeInsets.only(bottom: 12),
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    _selectLanguage('en');
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: green,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: const Text(
-                    'English',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-                  ),
-                ),
+                child: isEnglish
+                    ? ElevatedButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          _selectLanguage('en');
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: green,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: const Text(
+                          'English',
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                        ),
+                      )
+                    : OutlinedButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          _selectLanguage('en');
+                        },
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: green,
+                          side: BorderSide(color: green, width: 1.5),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: const Text(
+                          'English',
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                        ),
+                      ),
               ),
-              // Bengali Button
+              // Bengali Button - Green if selected
               SizedBox(
                 width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    _selectLanguage('bn');
-                  },
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: green,
-                    side: BorderSide(color: green, width: 1.5),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: const Text(
-                    'বাংলা',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-                  ),
-                ),
+                child: !isEnglish
+                    ? ElevatedButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          _selectLanguage('bn');
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: green,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: const Text(
+                          'বাংলা',
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                        ),
+                      )
+                    : OutlinedButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          _selectLanguage('bn');
+                        },
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: green,
+                          side: BorderSide(color: green, width: 1.5),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: const Text(
+                          'বাংলা',
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                        ),
+                      ),
               ),
             ],
           ),
