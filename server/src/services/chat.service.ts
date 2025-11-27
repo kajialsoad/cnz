@@ -30,6 +30,23 @@ export interface ChatListQueryInput {
 
 export class ChatService {
     /**
+     * Transform relative image URL to absolute URL
+     */
+    private transformImageUrl(imageUrl: string | null | undefined): string | null {
+        if (!imageUrl) return null;
+
+        // If already absolute URL, return as is
+        if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+            return imageUrl;
+        }
+
+        // Convert relative URL to absolute
+        // In production, this should use the actual server URL from environment
+        const baseUrl = process.env.BASE_URL || 'http://localhost:4000';
+        return `${baseUrl}${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`;
+    }
+
+    /**
      * Get all chat conversations with complaint and citizen details
      */
     async getChatConversations(query: ChatListQueryInput = {}) {
@@ -348,7 +365,7 @@ export class ChatService {
                 })
             ]);
 
-            // Get sender information for each message
+            // Get sender information for each message and transform image URLs
             const messagesWithSenderInfo = await Promise.all(
                 messages.map(async (msg: any) => {
                     let senderName = 'Unknown';
@@ -380,7 +397,9 @@ export class ChatService {
 
                     return {
                         ...msg,
-                        senderName
+                        senderName,
+                        imageUrl: this.transformImageUrl(msg.imageUrl),
+                        voiceUrl: this.transformImageUrl(msg.voiceUrl)
                     };
                 })
             );

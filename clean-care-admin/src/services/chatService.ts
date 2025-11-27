@@ -72,6 +72,22 @@ class ChatService {
     }
 
     /**
+     * Transform relative image URL to absolute URL
+     */
+    private transformImageUrl(imageUrl: string | null | undefined): string | null {
+        if (!imageUrl) return null;
+
+        // If already absolute URL, return as is
+        if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+            return imageUrl;
+        }
+
+        // Convert relative URL to absolute
+        const baseUrl = API_CONFIG.BASE_URL;
+        return `${baseUrl}${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`;
+    }
+
+    /**
      * Get chat messages for a complaint
      */
     async getChatMessages(
@@ -99,6 +115,14 @@ class ChatService {
             );
 
             const data = response.data.data;
+
+            // Transform image URLs to absolute URLs
+            if (data.messages) {
+                data.messages = data.messages.map(msg => ({
+                    ...msg,
+                    imageUrl: this.transformImageUrl(msg.imageUrl)
+                }));
+            }
 
             // Cache the response for 30 seconds
             cache.set(cacheKey, data, 30000);

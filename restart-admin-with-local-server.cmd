@@ -1,6 +1,6 @@
 @echo off
 echo ========================================
-echo Restarting Admin Panel with Local Server
+echo Restarting Admin Panel with PRODUCTION Server
 echo ========================================
 echo.
 
