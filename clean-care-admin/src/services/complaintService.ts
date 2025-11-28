@@ -88,11 +88,23 @@ class ComplaintService {
     }
 
     /**
-     * Fix image/audio URL to use current server
-     * Replaces localhost:4000 or any other hardcoded URL with current API base URL
+     * Check if URL is a Cloudinary URL
      */
-    private fixMediaUrl(url: string): string {
+    private isCloudinaryUrl(url: string): boolean {
+        return !!url && url.includes('res.cloudinary.com') && url.includes('/upload/');
+    }
+
+    /**
+     * Fix local media URL to use current server (for backward compatibility)
+     * Only applies to non-Cloudinary URLs
+     */
+    private fixLocalMediaUrl(url: string): string {
         if (!url) return url;
+
+        // If it's a Cloudinary URL, return as is
+        if (this.isCloudinaryUrl(url)) {
+            return url;
+        }
 
         // If URL is already using current server, return as is
         if (url.startsWith(API_CONFIG.BASE_URL)) {
@@ -115,7 +127,47 @@ class ComplaintService {
     }
 
     /**
+     * Get Cloudinary thumbnail URL with transformations
+     * Inserts transformation parameters into Cloudinary URL for optimized thumbnails
+     * @param url - Original Cloudinary URL
+     * @param width - Thumbnail width (default: 200)
+     * @param height - Thumbnail height (default: 200)
+     * @returns Transformed Cloudinary URL or original URL if not a Cloudinary URL
+     */
+    private getCloudinaryThumbnail(url: string, width: number = 200, height: number = 200): string {
+        if (!url) return url;
+
+        // Check if URL is a Cloudinary URL
+        if (this.isCloudinaryUrl(url)) {
+            // Insert transformation parameters after /upload/
+            return url.replace('/upload/', `/upload/w_${width},h_${height},c_fill,q_auto,f_auto/`);
+        }
+
+        // If not a Cloudinary URL, return as is (for backward compatibility with local URLs)
+        return url;
+    }
+
+    /**
+     * Get optimized Cloudinary URL with automatic format and quality optimization
+     * @param url - Original Cloudinary URL
+     * @returns Optimized Cloudinary URL or original URL if not a Cloudinary URL
+     */
+    private getOptimizedCloudinaryUrl(url: string): string {
+        if (!url) return url;
+
+        // Check if URL is a Cloudinary URL
+        if (this.isCloudinaryUrl(url)) {
+            // Insert optimization parameters after /upload/
+            return url.replace('/upload/', '/upload/q_auto,f_auto/');
+        }
+
+        // If not a Cloudinary URL, return as is
+        return url;
+    }
+
+    /**
      * Parse image and audio URLs from JSON strings
+     * Supports hybrid storage: Cloudinary URLs (new) and local URLs (legacy)
      */
     private parseMediaUrls(complaint: any): Complaint {
         let imageUrls: string[] = [];
@@ -124,7 +176,10 @@ class ComplaintService {
         try {
             if (complaint.imageUrl) {
                 const parsed = JSON.parse(complaint.imageUrl);
-                imageUrls = parsed.map((url: string) => this.fixMediaUrl(url));
+                // Process each URL: Cloudinary URLs stay as-is, local URLs get fixed
+                imageUrls = Array.isArray(parsed)
+                    ? parsed.map((url: string) => this.fixLocalMediaUrl(url))
+                    : [];
             }
         } catch (e) {
             console.error('Error parsing imageUrl:', e);
@@ -133,7 +188,10 @@ class ComplaintService {
         try {
             if (complaint.audioUrl) {
                 const parsed = JSON.parse(complaint.audioUrl);
-                audioUrls = parsed.map((url: string) => this.fixMediaUrl(url));
+                // Process each URL: Cloudinary URLs stay as-is, local URLs get fixed
+                audioUrls = Array.isArray(parsed)
+                    ? parsed.map((url: string) => this.fixLocalMediaUrl(url))
+                    : [];
             }
         } catch (e) {
             console.error('Error parsing audioUrl:', e);
@@ -316,6 +374,28 @@ class ComplaintService {
         } catch (error) {
             throw error;
         }
+    }
+
+    /**
+     * Get thumbnail URL for a Cloudinary image
+     * Public method for components to use
+     * @param url - Original image URL
+     * @param width - Thumbnail width (default: 200)
+     * @param height - Thumbnail height (default: 200)
+     * @returns Thumbnail URL with Cloudinary transformations
+     */
+    getThumbnailUrl(url: string, width: number = 200, height: number = 200): string {
+        return this.getCloudinaryThumbnail(url, width, height);
+    }
+
+    /**
+     * Get optimized URL for a Cloudinary image
+     * Public method for components to use
+     * @param url - Original image URL
+     * @returns Optimized URL with automatic format and quality settings
+     */
+    getOptimizedUrl(url: string): string {
+        return this.getOptimizedCloudinaryUrl(url);
     }
 }
 

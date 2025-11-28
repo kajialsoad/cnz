@@ -5,7 +5,23 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.chatService = exports.ChatService = void 0;
 const prisma_1 = __importDefault(require("../utils/prisma"));
+const cloud_upload_service_1 = require("./cloud-upload.service");
 class ChatService {
+    /**
+     * Transform relative image URL to absolute URL
+     */
+    transformImageUrl(imageUrl) {
+        if (!imageUrl)
+            return null;
+        // If already absolute URL, return as is
+        if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+            return imageUrl;
+        }
+        // Convert relative URL to absolute
+        // In production, this should use the actual server URL from environment
+        const baseUrl = process.env.BASE_URL || 'http://localhost:4000';
+        return `${baseUrl}${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`;
+    }
     /**
      * Get all chat conversations with complaint and citizen details
      */
@@ -286,7 +302,7 @@ class ChatService {
                     where: { complaintId }
                 })
             ]);
-            // Get sender information for each message
+            // Get sender information for each message and transform image URLs
             const messagesWithSenderInfo = await Promise.all(messages.map(async (msg) => {
                 let senderName = 'Unknown';
                 if (msg.senderType === 'CITIZEN') {
@@ -316,7 +332,9 @@ class ChatService {
                 }
                 return {
                     ...msg,
-                    senderName
+                    senderName,
+                    imageUrl: this.transformImageUrl(msg.imageUrl),
+                    voiceUrl: this.transformImageUrl(msg.voiceUrl)
                 };
             }));
             return {
@@ -391,14 +409,27 @@ class ChatService {
             if (!sender) {
                 throw new Error('Sender not found');
             }
-            // Create chat message
+            // Upload image to Cloudinary if provided
+            let cloudinaryImageUrl = input.imageUrl;
+            if (input.imageFile) {
+                try {
+                    const uploadResult = await cloud_upload_service_1.cloudUploadService.uploadImage(input.imageFile, 'chat/images');
+                    cloudinaryImageUrl = uploadResult.secure_url;
+                    console.log(`✅ Chat image uploaded to Cloudinary: ${uploadResult.secure_url}`);
+                }
+                catch (uploadError) {
+                    console.error('❌ Failed to upload chat image to Cloudinary:', uploadError);
+                    throw new Error('Failed to upload image. Please try again.');
+                }
+            }
+            // Create chat message with Cloudinary URL
             const message = await prisma_1.default.complaintChatMessage.create({
                 data: {
                     complaintId: input.complaintId,
                     senderId: input.senderId,
                     senderType: input.senderType,
                     message: input.message,
-                    imageUrl: input.imageUrl,
+                    imageUrl: cloudinaryImageUrl,
                     voiceUrl: input.voiceUrl,
                     read: false
                 }
@@ -407,7 +438,8 @@ class ChatService {
             const senderName = `${sender.firstName} ${sender.lastName}${input.senderType === 'ADMIN' ? ' (Admin)' : ''}`;
             return {
                 ...message,
-                senderName
+                senderName,
+                imageUrl: cloudinaryImageUrl // Return Cloudinary URL
             };
         }
         catch (error) {

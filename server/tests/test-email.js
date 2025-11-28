@@ -1,74 +1,45 @@
-const axios = require('axios');
+require('dotenv').config();
+const nodemailer = require('nodemailer');
 
-const API_BASE_URL = 'http://localhost:4000/api';
+async function testEmail() {
+    console.log('Testing Email Configuration...');
+    console.log('SMTP_HOST:', process.env.SMTP_HOST);
+    console.log('SMTP_PORT:', process.env.SMTP_PORT);
+    console.log('SMTP_USER:', process.env.SMTP_USER);
 
-// Test email (Gmail)
-const TEST_EMAIL = 'alsoadmunna12@gmail.com';
-const TEST_PASSWORD = 'TestPassword123!';
-const TEST_PHONE = '01700000001';
-
-async function testVerificationFlow() {
-  try {
-    console.log('🚀 Starting Email Verification Flow Test\n');
-
-    // Step 1: Register user
-    console.log('📝 Step 1: Registering user...');
-    const registerResponse = await axios.post(`${API_BASE_URL}/auth/register`, {
-      firstName: 'Test',
-      lastName: 'User',
-      email: TEST_EMAIL,
-      phone: TEST_PHONE,
-      password: TEST_PASSWORD,
-      ward: 'Ward 1',
-      zone: 'Zone A'
+    const transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST || 'smtp.gmail.com',
+        port: Number(process.env.SMTP_PORT) || 587,
+        secure: process.env.SMTP_SECURE === 'true',
+        auth: {
+            user: process.env.SMTP_USER,
+            pass: process.env.SMTP_PASS,
+        },
     });
 
-    console.log('✅ Registration successful');
-    console.log('Response:', JSON.stringify(registerResponse.data, null, 2));
-    console.log('\n📧 Check your Gmail inbox for verification code\n');
+    try {
+        console.log('Attempting to verify connection...');
+        await transporter.verify();
+        console.log('✅ SMTP Connection Successful!');
 
-    // Step 2: Wait for user input (verification code)
-    console.log('⏳ Waiting for verification code...');
-    console.log('Please check your Gmail inbox and enter the 6-digit code below\n');
+        console.log('Attempting to send test email...');
+        const info = await transporter.sendMail({
+            from: process.env.SMTP_FROM || process.env.SMTP_USER,
+            to: process.env.SMTP_USER, // Send to self
+            subject: 'Test Email from Clean Care Server',
+            text: 'If you receive this, your email configuration is working correctly.',
+        });
 
-    // For testing, we'll use a hardcoded delay and then ask for the code
-    const verificationCode = await getUserInput('Enter the 6-digit verification code: ');
-
-    // Step 3: Verify email with code
-    console.log('\n🔐 Step 2: Verifying email with code...');
-    const verifyResponse = await axios.post(`${API_BASE_URL}/auth/verify-email-code`, {
-      email: TEST_EMAIL,
-      code: verificationCode
-    });
-
-    console.log('✅ Email verified successfully');
-    console.log('Response:', JSON.stringify(verifyResponse.data, null, 2));
-
-    // Step 4: Login with verified account
-    console.log('\n🔑 Step 3: Logging in with verified account...');
-    const loginResponse = await axios.post(`${API_BASE_URL}/auth/login`, {
-      email: TEST_EMAIL,
-      password: TEST_PASSWORD
-    });
-
-    console.log('✅ Login successful');
-    console.log('Access Token:', loginResponse.data.accessToken.substring(0, 20) + '...');
-    console.log('\n✨ Verification flow completed successfully!\n');
-
-  } catch (error) {
-    console.error('❌ Error:', error.response?.data || error.message);
-    process.exit(1);
-  }
+        console.log('✅ Test email sent successfully!');
+        console.log('Message ID:', info.messageId);
+    } catch (error) {
+        console.error('❌ Email Test Failed:', error);
+        if (error.code === 'EAUTH') {
+            console.error('Hint: Check your username and password. Use an App Password for Gmail.');
+        } else if (error.code === 'ETIMEDOUT') {
+            console.error('Hint: Connection timed out. Check SMTP_HOST and SMTP_PORT.');
+        }
+    }
 }
 
-function getUserInput(prompt) {
-  return new Promise((resolve) => {
-    process.stdout.write(prompt);
-    process.stdin.once('data', (data) => {
-      resolve(data.toString().trim());
-    });
-  });
-}
-
-// Run test
-testVerificationFlow();
+testEmail();

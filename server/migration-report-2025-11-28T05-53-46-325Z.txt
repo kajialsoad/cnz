@@ -1,0 +1,213 @@
+================================================================================
+CLOUDINARY MIGRATION REPORT
+================================================================================
+Generated: 2025-11-28T05:53:46.324Z
+
+SUMMARY
+--------------------------------------------------------------------------------
+Total files processed: 52
+Successfully migrated: 0
+Failed: 49
+Success rate: 0.00%
+
+FAILED MIGRATIONS
+--------------------------------------------------------------------------------
+1. COMPLAINT #11
+   Path: uploads/image/1763051573217_474e7cac4c44d2ee.jpg
+   Error: File not found on local storage
+
+2. COMPLAINT #13
+   Path: uploads/image/1763177560473_3910bd979aabd9ac.jpg
+   Error: File not found on local storage
+
+3. COMPLAINT #14
+   Path: uploads/image/1763185506446_f1489656229dbd98.jpg
+   Error: File not found on local storage
+
+4. COMPLAINT #121
+   Path: uploads/image/1763556015178_af1d864b473ac39d.jpg
+   Error: File not found on local storage
+
+5. COMPLAINT #122
+   Path: uploads/image/1763570559496_3c64041c23dba766.jpg
+   Error: File not found on local storage
+
+6. COMPLAINT #123
+   Path: uploads/image/1763625749986_2b588b0f888ee0cc.jpg
+   Error: File not found on local storage
+
+7. COMPLAINT #127
+   Path: uploads/image/1763827882917_ef9645899c597a3a.jpg
+   Error: File not found on local storage
+
+8. COMPLAINT #128
+   Path: uploads/image/1763909846462_5494d5b3b90b2833.jpg
+   Error: File not found on local storage
+
+9. COMPLAINT #129
+   Path: uploads/image/1763909850848_1ff2922d9d79726e.jpg
+   Error: File not found on local storage
+
+10. COMPLAINT #130
+   Path: uploads/image/1763909898075_9d8062ce2c5696cb.jpg
+   Error: File not found on local storage
+
+11. COMPLAINT #131
+   Path: uploads/image/1763910000616_92904daffd6c0e91.jpg
+   Error: File not found on local storage
+
+12. COMPLAINT #132
+   Path: uploads/image/1763922297450_7a2956dc6410eaf6.jpg
+   Error: File not found on local storage
+
+13. COMPLAINT #133
+   Path: uploads/image/1763927364231_38b7cafc73bbc459.jpg
+   Error: File not found on local storage
+
+14. COMPLAINT #133
+   Path: uploads/image/1763927364233_6e894f3778194736.jpg
+   Error: File not found on local storage
+
+15. COMPLAINT #133
+   Path: uploads/image/1763927364234_ce49b484e887869d.jpg
+   Error: File not found on local storage
+
+16. COMPLAINT #134
+   Path: uploads/image/1763977551698_571734a58bebbc3d.jpg
+   Error: File not found on local storage
+
+17. COMPLAINT #135
+   Path: uploads/image/1763980114547_2f1cd890f8ec477c.jpg
+   Error: File not found on local storage
+
+18. COMPLAINT #135
+   Path: uploads/image/1763980114557_f22648e44f9fb2b5.jpg
+   Error: File not found on local storage
+
+19. COMPLAINT #135
+   Path: uploads/image/1763980114561_ca44411828f1af75.jpg
+   Error: File not found on local storage
+
+20. COMPLAINT #136
+   Path: uploads/image/1763982148276_994fedfe6d530e3b.jpg
+   Error: File not found on local storage
+
+21. COMPLAINT #137
+   Path: uploads/image/1764008411616_f3d71fbb50fecd97.jpg
+   Error: File not found on local storage
+
+22. COMPLAINT #137
+   Path: uploads/image/1764008411618_f4ce3606a619a4fb.jpg
+   Error: File not found on local storage
+
+23. COMPLAINT #138
+   Path: uploads/image/1764008574354_28fe689476d18b8f.jpg
+   Error: File not found on local storage
+
+24. COMPLAINT #138
+   Path: uploads/image/1764008574356_f0876d4a0e768557.jpg
+   Error: File not found on local storage
+
+25. COMPLAINT #139
+   Path: uploads/image/1764009803664_996a9b8dc02176cb.jpg
+   Error: File not found on local storage
+
+26. COMPLAINT #139
+   Path: uploads/image/1764009803674_6596cb0706bbd9f0.jpg
+   Error: File not found on local storage
+
+27. COMPLAINT #140
+   Path: uploads/image/1764010246265_4eabd004836f3e0b.jpg
+   Error: File not found on local storage
+
+28. COMPLAINT #140
+   Path: uploads/image/1764010246266_c2a906ccdd05538d.jpg
+   Error: File not found on local storage
+
+29. COMPLAINT #141
+   Path: uploads/image/1764079718678_730f54198f04dab7.jpg
+   Error: File not found on local storage
+
+30. CHAT #4
+   Path: https://example.com/test-image.jpg
+   Error: Could not extract local path from URL
+
+31. CHAT #6
+   Path: data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIbGNtcwIQAABtbnRyUkdCIFhZWiAH4gADABQACQAOAB1hY3NwTVNGVAAAAABzYXdzY3RybAAAAAAAAAAAAAAAAAAA9tYAAQAAAADTLWhhbmSdkQA9
+   Error: Could not extract local path from URL
+
+32. CHAT #7
+   Path: data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIbGNtcwIQAABtbnRyUkdCIFhZWiAH4gADABQACQAOAB1hY3NwTVNGVAAAAABzYXdzY3RybAAAAAAAAAAAAAAAAAAA9tYAAQAAAADTLWhhbmSdkQA9
+   Error: Could not extract local path from URL
+
+33. CHAT #10
+   Path: data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wCEAAYGBgYHBgcICAcKCwoLCg8ODAwODxYQERAREBYiFRkVFRkVIh4kHhweJB42KiYmKjY+NDI0PkxERExfWl98fKcBBgYGBgcGBwgIBwoLCgsKDw4MDA4PFhAREBEQFiIVGRUVGRUi
+   Error: Could not extract local path from URL
+
+34. CHAT #22
+   Path: data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIbGNtcwIQAABtbnRyUkdCIFhZWiAH4gADABQACQAOAB1hY3NwTVNGVAAAAABzYXdzY3RybAAAAAAAAAAAAAAAAAAA9tYAAQAAAADTLWhhbmSdkQA9
+   Error: Could not extract local path from URL
+
+35. CHAT #23
+   Path: data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIbGNtcwIQAABtbnRyUkdCIFhZWiAH4gADABQACQAOAB1hY3NwTVNGVAAAAABzYXdzY3RybAAAAAAAAAAAAAAAAAAA9tYAAQAAAADTLWhhbmSdkQA9
+   Error: Could not extract local path from URL
+
+36. CHAT #24
+   Path: data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABAQEBAREBIUFBIZGhgaGSQhHh4hJDcnKicqJzdTND00ND00U0pZSURJWUqEaFxcaISZgHqAmbmmprnp3en/////2wBDARAQEBAREBIUFBIZGhgaGSQhHh4hJDcnKicqJzdTND00
+   Error: Could not extract local path from URL
+
+37. CHAT #25
+   Path: data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wCEAAYGBgYHBgcICAcKCwoLCg8ODAwODxYQERAREBYiFRkVFRkVIh4kHhweJB42KiYmKjY+NDI0PkxERExfWl98fKcBBgYGBgcGBwgIBwoLCgsKDw4MDA4PFhAREBEQFiIVGRUVGRUi
+   Error: Could not extract local path from URL
+
+38. VOICE #10
+   Path: uploads/voice/1762983306374_623d9a0b19ddc863.m4a
+   Error: File not found on local storage
+
+39. VOICE #11
+   Path: uploads/voice/1763051573284_f889487f6197f09a.m4a
+   Error: File not found on local storage
+
+40. VOICE #13
+   Path: uploads/voice/1763177561087_7f6e50e4d3b2e6e9.m4a
+   Error: File not found on local storage
+
+41. VOICE #13
+   Path: uploads/voice/1763177561173_8de8857b78b69116.m4a
+   Error: File not found on local storage
+
+42. VOICE #123
+   Path: uploads/voice/1763625750101_6678a96790ba4387.m4a
+   Error: File not found on local storage
+
+43. VOICE #127
+   Path: uploads/voice/1763827883206_c9c3c1a0bcbfc32a.m4a
+   Error: File not found on local storage
+
+44. VOICE #132
+   Path: uploads/voice/1763922298382_b6187400d640bb71.m4a
+   Error: File not found on local storage
+
+45. VOICE #132
+   Path: uploads/voice/1763922298531_7ceaa6498f35dabd.m4a
+   Error: File not found on local storage
+
+46. VOICE #132
+   Path: uploads/voice/1763922298962_02ecb035057d7309.m4a
+   Error: File not found on local storage
+
+47. VOICE #142
+   Path: uploads/voice/1764248723295_10a9263d729f38b2.m4a
+   Error: File not found on local storage
+
+48. VOICE #144
+   Path: uploads/voice/undefined
+   Error: File not found on local storage
+
+49. VOICE #145
+   Path: uploads/voice/undefined
+   Error: File not found on local storage
+
+================================================================================
+END OF REPORT
+================================================================================

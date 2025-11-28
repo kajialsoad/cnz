@@ -443,6 +443,9 @@ export class ComplaintController {
       // Sanitize message
       const sanitizedMessage = sanitizeMessage(message);
 
+      // Get uploaded image file if present
+      const imageFile = req.file;
+
       // Import chat service
       const { chatService } = await import('../services/chat.service');
 
@@ -452,7 +455,8 @@ export class ComplaintController {
         senderType: 'CITIZEN',
         message: sanitizedMessage,
         imageUrl,
-        voiceUrl
+        voiceUrl,
+        imageFile
       });
 
       res.status(201).json({

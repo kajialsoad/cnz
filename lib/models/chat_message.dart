@@ -1,3 +1,5 @@
+import '../utils/cloudinary_helper.dart';
+
 class ChatMessage {
   final int id;
   final int complaintId;
@@ -60,6 +62,26 @@ class ChatMessage {
 
   /// Check if message is from admin
   bool get isAdmin => senderType == 'ADMIN';
+
+  /// Get optimized thumbnail URL for the image (200x200)
+  /// Perfect for chat message previews
+  String? get thumbnailImageUrl {
+    if (imageUrl == null) return null;
+    return CloudinaryHelper.getThumbnailUrl(imageUrl!);
+  }
+
+  /// Get medium-sized URL for the image (800x600)
+  /// Perfect for full-screen image view
+  String? get mediumImageUrl {
+    if (imageUrl == null) return null;
+    return CloudinaryHelper.getMediumUrl(imageUrl!);
+  }
+
+  /// Get optimized URL for the image with automatic format and quality
+  String? get optimizedImageUrl {
+    if (imageUrl == null) return null;
+    return CloudinaryHelper.getOptimizedUrl(imageUrl!);
+  }
 
   /// Create a copy with updated fields
   ChatMessage copyWith({

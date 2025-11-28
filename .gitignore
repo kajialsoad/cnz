@@ -108,6 +108,19 @@ android/app/proguard-rules.pro
 /server/logs/
 /server/*.log
 
+# Kiro specs folder (development documentation)
+.kiro/specs/
+
+# Server documentation and test files (not needed in production)
+/server/tests/
+/server/docs/
+/server/*.md
+/server/RAILWAY*.md
+/server/TASK*.md
+/server/*_COMPLETE.md
+/server/*_GUIDE.md
+/server/*_SUMMARY.md
+
 # Database files
 *.db
 *.sqlite

@@ -3,12 +3,15 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteFile = exports.getFileUrl = exports.validateFile = exports.ALLOWED_TYPES = exports.FILE_LIMITS = exports.voiceUpload = exports.imageUpload = exports.complaintFileUpload = exports.uploadConfig = void 0;
+exports.isCloudinaryEnabled = exports.deleteFile = exports.getFileUrl = exports.validateFile = exports.ALLOWED_TYPES = exports.FILE_LIMITS = exports.voiceUpload = exports.imageUpload = exports.complaintFileUpload = exports.uploadConfig = void 0;
 const multer_1 = __importDefault(require("multer"));
 const path_1 = __importDefault(require("path"));
 const fs_1 = __importDefault(require("fs"));
 const crypto_1 = __importDefault(require("crypto"));
-// Ensure upload directories exist
+const file_security_1 = require("../utils/file-security");
+// Check if Cloudinary is enabled via environment variable
+const USE_CLOUDINARY = process.env.USE_CLOUDINARY === 'true';
+// Ensure upload directories exist (for local storage fallback)
 const createUploadDirs = () => {
     const dirs = [
         'uploads',
@@ -24,13 +27,24 @@ const createUploadDirs = () => {
 };
 // Initialize upload directories
 createUploadDirs();
-// File type validation
+// File type validation with security checks
 const fileFilter = (req, file, cb) => {
     console.log('File filter called:', {
         fieldname: file.fieldname,
         originalname: file.originalname,
         mimetype: file.mimetype
     });
+    // Security check: Reject files with dangerous extensions
+    if ((0, file_security_1.hasDangerousExtension)(file.originalname)) {
+        console.warn(`⚠️  Rejected file with dangerous extension: ${file.originalname}`);
+        return cb(new Error('File type not allowed for security reasons'), false);
+    }
+    // Sanitize filename
+    const sanitized = (0, file_security_1.sanitizeFilename)(file.originalname);
+    if (!sanitized || sanitized === 'unnamed') {
+        console.warn(`⚠️  Rejected file with invalid name: ${file.originalname}`);
+        return cb(new Error('Invalid filename'), false);
+    }
     // Image files validation
     if (file.fieldname === 'images') {
         const allowedImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
@@ -55,28 +69,33 @@ const fileFilter = (req, file, cb) => {
         cb(new Error('Invalid file field'), false);
     }
 };
-// Storage configuration
-const storage = multer_1.default.diskStorage({
-    destination: (req, file, cb) => {
-        let uploadPath = 'uploads/complaints/';
-        if (file.fieldname === 'images') {
-            uploadPath += 'images/';
+// Storage configuration - Hybrid approach
+// Use memory storage if Cloudinary is enabled, otherwise use disk storage
+const storage = USE_CLOUDINARY
+    ? multer_1.default.memoryStorage()
+    : multer_1.default.diskStorage({
+        destination: (req, file, cb) => {
+            let uploadPath = 'uploads/complaints/';
+            if (file.fieldname === 'images') {
+                uploadPath += 'images/';
+            }
+            else if (file.fieldname === 'voice' || file.fieldname === 'audioFiles') {
+                uploadPath += 'voice/';
+            }
+            cb(null, uploadPath);
+        },
+        filename: (req, file, cb) => {
+            // Sanitize original filename
+            const sanitized = (0, file_security_1.sanitizeFilename)(file.originalname);
+            // Generate secure unique filename
+            const timestamp = Date.now();
+            const randomString = crypto_1.default.randomBytes(16).toString('hex');
+            const extension = path_1.default.extname(sanitized);
+            const filename = `${timestamp}_${randomString}${extension}`;
+            console.log('Generated secure filename:', filename);
+            cb(null, filename);
         }
-        else if (file.fieldname === 'voice' || file.fieldname === 'audioFiles') {
-            uploadPath += 'voice/';
-        }
-        cb(null, uploadPath);
-    },
-    filename: (req, file, cb) => {
-        // Generate unique filename
-        const timestamp = Date.now();
-        const randomString = crypto_1.default.randomBytes(8).toString('hex');
-        const extension = path_1.default.extname(file.originalname);
-        const filename = `${timestamp}_${randomString}${extension}`;
-        console.log('Generated filename:', filename);
-        cb(null, filename);
-    }
-});
+    });
 // Multer configuration
 exports.uploadConfig = (0, multer_1.default)({
     storage: storage,
@@ -114,13 +133,13 @@ const validateFile = (file, type) => {
     }
 };
 exports.validateFile = validateFile;
-// Helper function to get file URL
+// Helper function to get file URL (for local storage)
 const getFileUrl = (filename, type) => {
     const baseUrl = process.env.BASE_URL || 'http://localhost:4000';
     return `${baseUrl}/api/uploads/${type}/${filename}`;
 };
 exports.getFileUrl = getFileUrl;
-// Helper function to delete file
+// Helper function to delete file (for local storage)
 const deleteFile = (filePath) => {
     return new Promise((resolve, reject) => {
         fs_1.default.unlink(filePath, (err) => {
@@ -135,3 +154,6 @@ const deleteFile = (filePath) => {
     });
 };
 exports.deleteFile = deleteFile;
+// Export storage mode for other services to check
+const isCloudinaryEnabled = () => USE_CLOUDINARY;
+exports.isCloudinaryEnabled = isCloudinaryEnabled;

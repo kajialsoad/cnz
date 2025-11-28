@@ -1,1 +1,5 @@
 .vercel
+
+# Test files and documentation
+tests/
+docs/

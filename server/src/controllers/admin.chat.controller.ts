@@ -121,13 +121,17 @@ export async function sendChatMessage(req: AuthRequest, res: Response) {
             });
         }
 
+        // Get uploaded image file if present
+        const imageFile = req.file;
+
         const chatMessage = await chatService.sendChatMessage({
             complaintId,
             senderId: req.user.sub,
             senderType: 'ADMIN',
             message: message.trim(),
             imageUrl,
-            voiceUrl
+            voiceUrl,
+            imageFile
         });
 
         res.status(201).json({

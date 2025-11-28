@@ -115,12 +115,12 @@ router.get('/files/:type/:filename', upload_controller_1.uploadController.serveF
 router.get('/:id/chat', complaint_controller_1.complaintController.getChatMessages.bind(complaint_controller_1.complaintController));
 /**
  * @route   POST /api/complaints/:id/chat
- * @desc    Send a chat message for a complaint
+ * @desc    Send a chat message for a complaint (with optional image upload)
  * @access  Private (Complaint owner only)
  * @param   id - Complaint ID
- * @body    { message, imageUrl? }
+ * @body    { message, imageUrl? } + optional file: image
  */
-router.post('/:id/chat', rate_limit_middleware_1.messageRateLimit, complaint_controller_1.complaintController.sendChatMessage.bind(complaint_controller_1.complaintController));
+router.post('/:id/chat', upload_controller_1.uploadController.uploadComplaintFiles, rate_limit_middleware_1.messageRateLimit, complaint_controller_1.complaintController.sendChatMessage.bind(complaint_controller_1.complaintController));
 /**
  * @route   PATCH /api/complaints/:id/chat/read
  * @desc    Mark chat messages as read for a complaint

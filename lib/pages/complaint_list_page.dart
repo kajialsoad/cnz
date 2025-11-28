@@ -3,10 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../components/custom_bottom_nav.dart';
 import '../widgets/translated_text.dart';
 import '../providers/complaint_provider.dart';
 import '../models/complaint.dart';
+import '../config/url_helper.dart';
 
 class ComplaintListPage extends StatefulWidget {
   const ComplaintListPage({super.key});
@@ -482,119 +484,165 @@ class _ComplaintListPageState extends State<ComplaintListPage> {
           child: Container(
             margin: EdgeInsets.only(bottom: 16),
             padding: EdgeInsets.all(16),
-            child: Column(
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header: ID and Status
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      '#${complaint.id}',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF4CAF50),
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                    _buildStatusBadge(complaint.status),
-                  ],
-                ),
-                SizedBox(height: 12),
-
-                // Title
-                Text(
-                  complaint.title,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey[800],
-                    height: 1.3,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                SizedBox(height: 8),
-
-                // Location
-                Row(
-                  children: [
-                    Icon(
-                      Icons.location_on_outlined,
-                      size: 16,
-                      color: Colors.grey[600],
-                    ),
-                    SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        complaint.location,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                          height: 1.2,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 8),
-
-                // Time and Image indicator
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.access_time,
-                          size: 16,
-                          color: Colors.grey[600],
-                        ),
-                        SizedBox(width: 4),
-                        Text(
-                          _getTimeAgo(complaint.createdAt),
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[600],
+                // Thumbnail image if available
+                if (complaint.imageUrls.isNotEmpty)
+                  Container(
+                    width: 80,
+                    height: 80,
+                    margin: EdgeInsets.only(right: 12),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: CachedNetworkImage(
+                        imageUrl: UrlHelper.getImageUrl(complaint.imageUrls.first),
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => Container(
+                          color: Colors.grey[200],
+                          child: Center(
+                            child: SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Color(0xFF4CAF50),
+                                ),
+                              ),
+                            ),
                           ),
                         ),
-                      ],
+                        errorWidget: (context, url, error) => Container(
+                          color: Colors.grey[200],
+                          child: Icon(
+                            Icons.broken_image,
+                            color: Colors.grey[400],
+                            size: 32,
+                          ),
+                        ),
+                      ),
                     ),
-                    if (complaint.imageUrls.isNotEmpty || complaint.audioUrls.isNotEmpty)
+                  ),
+                
+                // Complaint details
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header: ID and Status
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            '#${complaint.id}',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF4CAF50),
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          _buildStatusBadge(complaint.status),
+                        ],
+                      ),
+                      SizedBox(height: 8),
+
+                      // Title
+                      Text(
+                        complaint.title,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey[800],
+                          height: 1.3,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      SizedBox(height: 6),
+
+                      // Location
                       Row(
                         children: [
-                          if (complaint.imageUrls.isNotEmpty)
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.image_outlined,
-                                  size: 16,
+                          Icon(
+                            Icons.location_on_outlined,
+                            size: 14,
+                            color: Colors.grey[600],
+                          ),
+                          SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              complaint.location,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.grey[600],
+                                height: 1.2,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 6),
+
+                      // Time and Media indicators
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.access_time,
+                                size: 14,
+                                color: Colors.grey[600],
+                              ),
+                              SizedBox(width: 4),
+                              Text(
+                                _getTimeAgo(complaint.createdAt),
+                                style: TextStyle(
+                                  fontSize: 13,
                                   color: Colors.grey[600],
                                 ),
-                                SizedBox(width: 4),
-                                Text(
-                                  '${complaint.imageUrls.length}',
-                                  style: TextStyle(
-                                    fontSize: 14,
+                              ),
+                            ],
+                          ),
+                          if (complaint.imageUrls.isNotEmpty || complaint.audioUrls.isNotEmpty)
+                            Row(
+                              children: [
+                                if (complaint.imageUrls.isNotEmpty)
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.image_outlined,
+                                        size: 14,
+                                        color: Colors.grey[600],
+                                      ),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        '${complaint.imageUrls.length}',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                if (complaint.imageUrls.isNotEmpty && complaint.audioUrls.isNotEmpty)
+                                  SizedBox(width: 8),
+                                if (complaint.audioUrls.isNotEmpty)
+                                  Icon(
+                                    Icons.mic_outlined,
+                                    size: 14,
                                     color: Colors.grey[600],
                                   ),
-                                ),
                               ],
-                            ),
-                          if (complaint.imageUrls.isNotEmpty && complaint.audioUrls.isNotEmpty)
-                            SizedBox(width: 12),
-                          if (complaint.audioUrls.isNotEmpty)
-                            Icon(
-                              Icons.mic_outlined,
-                              size: 16,
-                              color: Colors.grey[600],
                             ),
                         ],
                       ),
-                  ],
+                    ],
+                  ),
                 ),
               ],
             ),

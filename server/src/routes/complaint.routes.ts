@@ -130,12 +130,12 @@ router.get('/:id/chat', complaintController.getChatMessages.bind(complaintContro
 
 /**
  * @route   POST /api/complaints/:id/chat
- * @desc    Send a chat message for a complaint
+ * @desc    Send a chat message for a complaint (with optional image upload)
  * @access  Private (Complaint owner only)
  * @param   id - Complaint ID
- * @body    { message, imageUrl? }
+ * @body    { message, imageUrl? } + optional file: image
  */
-router.post('/:id/chat', messageRateLimit, complaintController.sendChatMessage.bind(complaintController));
+router.post('/:id/chat', uploadController.uploadComplaintFiles, messageRateLimit, complaintController.sendChatMessage.bind(complaintController));
 
 /**
  * @route   PATCH /api/complaints/:id/chat/read

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import '../utils/cloudinary_helper.dart';
 
 class Complaint {
   final String id;
@@ -145,6 +146,29 @@ class Complaint {
 
   /// Get thumbnail image URL (first image or null)
   String? get thumbnailUrl => imageUrls.isNotEmpty ? imageUrls.first : null;
+
+  /// Get optimized thumbnail URL for the first image (200x200)
+  /// Perfect for list views
+  String? get optimizedThumbnailUrl {
+    if (imageUrls.isEmpty) return null;
+    return CloudinaryHelper.getThumbnailUrl(imageUrls.first);
+  }
+
+  /// Get all image URLs optimized for thumbnails (200x200)
+  List<String> get thumbnailImageUrls {
+    return imageUrls.map((url) => CloudinaryHelper.getThumbnailUrl(url)).toList();
+  }
+
+  /// Get all image URLs optimized for medium size (800x600)
+  /// Perfect for detail views
+  List<String> get mediumImageUrls {
+    return imageUrls.map((url) => CloudinaryHelper.getMediumUrl(url)).toList();
+  }
+
+  /// Get all image URLs with automatic format and quality optimization
+  List<String> get optimizedImageUrls {
+    return imageUrls.map((url) => CloudinaryHelper.getOptimizedUrl(url)).toList();
+  }
 
   /// Check if complaint has media attachments
   bool get hasMedia => imageUrls.isNotEmpty || audioUrls.isNotEmpty;

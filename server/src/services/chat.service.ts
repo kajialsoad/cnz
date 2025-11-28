@@ -1,4 +1,5 @@
 import prisma from '../utils/prisma';
+import { cloudUploadService } from './cloud-upload.service';
 
 export interface SendChatMessageInput {
     complaintId: number;
@@ -7,6 +8,7 @@ export interface SendChatMessageInput {
     message: string;
     imageUrl?: string;
     voiceUrl?: string;
+    imageFile?: Express.Multer.File;
 }
 
 export interface ChatMessageQueryInput {
@@ -480,14 +482,32 @@ export class ChatService {
                 throw new Error('Sender not found');
             }
 
-            // Create chat message
+            // Upload image to Cloudinary if provided
+            let cloudinaryImageUrl: string | undefined = input.imageUrl;
+
+            if (input.imageFile) {
+                try {
+                    const uploadResult = await cloudUploadService.uploadImage(
+                        input.imageFile,
+                        'chat/images'
+                    );
+                    cloudinaryImageUrl = uploadResult.secure_url;
+
+                    console.log(`✅ Chat image uploaded to Cloudinary: ${uploadResult.secure_url}`);
+                } catch (uploadError) {
+                    console.error('❌ Failed to upload chat image to Cloudinary:', uploadError);
+                    throw new Error('Failed to upload image. Please try again.');
+                }
+            }
+
+            // Create chat message with Cloudinary URL
             const message = await prisma.complaintChatMessage.create({
                 data: ({
                     complaintId: input.complaintId,
                     senderId: input.senderId,
                     senderType: input.senderType,
                     message: input.message,
-                    imageUrl: input.imageUrl,
+                    imageUrl: cloudinaryImageUrl,
                     voiceUrl: input.voiceUrl,
                     read: false
                 } as any)
@@ -498,7 +518,8 @@ export class ChatService {
 
             return {
                 ...message,
-                senderName
+                senderName,
+                imageUrl: cloudinaryImageUrl // Return Cloudinary URL
             };
         } catch (error) {
             console.error('Error sending chat message:', error);

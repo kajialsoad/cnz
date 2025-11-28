@@ -417,6 +417,8 @@ class ComplaintController {
             }
             // Sanitize message
             const sanitizedMessage = sanitizeMessage(message);
+            // Get uploaded image file if present
+            const imageFile = req.file;
             // Import chat service
             const { chatService } = await Promise.resolve().then(() => __importStar(require('../services/chat.service')));
             const chatMessage = await chatService.sendChatMessage({
@@ -425,7 +427,8 @@ class ComplaintController {
                 senderType: 'CITIZEN',
                 message: sanitizedMessage,
                 imageUrl,
-                voiceUrl
+                voiceUrl,
+                imageFile
             });
             res.status(201).json({
                 success: true,

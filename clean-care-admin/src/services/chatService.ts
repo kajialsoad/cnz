@@ -72,19 +72,76 @@ class ChatService {
     }
 
     /**
-     * Transform relative image URL to absolute URL
+     * Check if URL is a Cloudinary URL
+     */
+    private isCloudinaryUrl(url: string): boolean {
+        return !!url && url.includes('res.cloudinary.com') && url.includes('/upload/');
+    }
+
+    /**
+     * Transform image URL - supports hybrid storage (Cloudinary + local)
+     * Cloudinary URLs are used directly, local URLs are fixed to current server
      */
     private transformImageUrl(imageUrl: string | null | undefined): string | null {
         if (!imageUrl) return null;
 
-        // If already absolute URL, return as is
-        if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+        // If it's a Cloudinary URL, return as is
+        if (this.isCloudinaryUrl(imageUrl)) {
             return imageUrl;
+        }
+
+        // If already absolute URL (but not Cloudinary), check if it needs fixing
+        if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+            // If it's already using current server, return as is
+            if (imageUrl.startsWith(API_CONFIG.BASE_URL)) {
+                return imageUrl;
+            }
+            // Replace other server URLs (like localhost:4000) with current server
+            const urlPattern = /^https?:\/\/[^\/]+/;
+            return imageUrl.replace(urlPattern, API_CONFIG.BASE_URL);
         }
 
         // Convert relative URL to absolute
         const baseUrl = API_CONFIG.BASE_URL;
         return `${baseUrl}${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`;
+    }
+
+    /**
+     * Get Cloudinary thumbnail URL with transformations
+     * @param url - Original image URL
+     * @param width - Thumbnail width (default: 200)
+     * @param height - Thumbnail height (default: 200)
+     * @returns Transformed Cloudinary URL or original URL if not a Cloudinary URL
+     */
+    private getCloudinaryThumbnail(url: string, width: number = 200, height: number = 200): string {
+        if (!url) return url;
+
+        // Check if URL is a Cloudinary URL
+        if (this.isCloudinaryUrl(url)) {
+            // Insert transformation parameters after /upload/
+            return url.replace('/upload/', `/upload/w_${width},h_${height},c_fill,q_auto,f_auto/`);
+        }
+
+        // If not a Cloudinary URL, return as is
+        return url;
+    }
+
+    /**
+     * Get optimized Cloudinary URL with automatic format and quality optimization
+     * @param url - Original image URL
+     * @returns Optimized Cloudinary URL or original URL if not a Cloudinary URL
+     */
+    private getOptimizedCloudinaryUrl(url: string): string {
+        if (!url) return url;
+
+        // Check if URL is a Cloudinary URL
+        if (this.isCloudinaryUrl(url)) {
+            // Insert optimization parameters after /upload/
+            return url.replace('/upload/', '/upload/q_auto,f_auto/');
+        }
+
+        // If not a Cloudinary URL, return as is
+        return url;
     }
 
     /**
@@ -116,11 +173,11 @@ class ChatService {
 
             const data = response.data.data;
 
-            // Transform image URLs to absolute URLs
+            // Transform image URLs to absolute URLs (hybrid storage support)
             if (data.messages) {
                 data.messages = data.messages.map(msg => ({
                     ...msg,
-                    imageUrl: this.transformImageUrl(msg.imageUrl)
+                    imageUrl: this.transformImageUrl(msg.imageUrl) || undefined
                 }));
             }
 
@@ -481,6 +538,28 @@ class ChatService {
             }
             throw error;
         }
+    }
+
+    /**
+     * Get thumbnail URL for a chat image
+     * Public method for components to use
+     * @param url - Original image URL
+     * @param width - Thumbnail width (default: 200)
+     * @param height - Thumbnail height (default: 200)
+     * @returns Thumbnail URL with Cloudinary transformations
+     */
+    getThumbnailUrl(url: string, width: number = 200, height: number = 200): string {
+        return this.getCloudinaryThumbnail(url, width, height);
+    }
+
+    /**
+     * Get optimized URL for a chat image
+     * Public method for components to use
+     * @param url - Original image URL
+     * @returns Optimized URL with automatic format and quality settings
+     */
+    getOptimizedUrl(url: string): string {
+        return this.getOptimizedCloudinaryUrl(url);
     }
 }
 

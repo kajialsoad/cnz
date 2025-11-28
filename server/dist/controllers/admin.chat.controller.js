@@ -113,13 +113,16 @@ async function sendChatMessage(req, res) {
                 message: 'Unauthorized'
             });
         }
+        // Get uploaded image file if present
+        const imageFile = req.file;
         const chatMessage = await chat_service_1.chatService.sendChatMessage({
             complaintId,
             senderId: req.user.sub,
             senderType: 'ADMIN',
             message: message.trim(),
             imageUrl,
-            voiceUrl
+            voiceUrl,
+            imageFile
         });
         res.status(201).json({
             success: true,

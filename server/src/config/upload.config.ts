@@ -2,8 +2,12 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
+import { sanitizeFilename, hasDangerousExtension } from '../utils/file-security';
 
-// Ensure upload directories exist
+// Check if Cloudinary is enabled via environment variable
+const USE_CLOUDINARY = process.env.USE_CLOUDINARY === 'true';
+
+// Ensure upload directories exist (for local storage fallback)
 const createUploadDirs = () => {
   const dirs = [
     'uploads',
@@ -22,13 +26,26 @@ const createUploadDirs = () => {
 // Initialize upload directories
 createUploadDirs();
 
-// File type validation
+// File type validation with security checks
 const fileFilter = (req: any, file: any, cb: (error: any, acceptFile: boolean) => void) => {
   console.log('File filter called:', {
     fieldname: file.fieldname,
     originalname: file.originalname,
     mimetype: file.mimetype
   });
+
+  // Security check: Reject files with dangerous extensions
+  if (hasDangerousExtension(file.originalname)) {
+    console.warn(`⚠️  Rejected file with dangerous extension: ${file.originalname}`);
+    return cb(new Error('File type not allowed for security reasons'), false);
+  }
+
+  // Sanitize filename
+  const sanitized = sanitizeFilename(file.originalname);
+  if (!sanitized || sanitized === 'unnamed') {
+    console.warn(`⚠️  Rejected file with invalid name: ${file.originalname}`);
+    return cb(new Error('Invalid filename'), false);
+  }
 
   // Image files validation
   if (file.fieldname === 'images') {
@@ -52,30 +69,36 @@ const fileFilter = (req: any, file: any, cb: (error: any, acceptFile: boolean) =
   }
 };
 
-// Storage configuration
-const storage = multer.diskStorage({
-  destination: (req: any, file: any, cb: (error: any, destination: string) => void) => {
-    let uploadPath = 'uploads/complaints/';
+// Storage configuration - Hybrid approach
+// Use memory storage if Cloudinary is enabled, otherwise use disk storage
+const storage = USE_CLOUDINARY
+  ? multer.memoryStorage()
+  : multer.diskStorage({
+    destination: (req: any, file: any, cb: (error: any, destination: string) => void) => {
+      let uploadPath = 'uploads/complaints/';
 
-    if (file.fieldname === 'images') {
-      uploadPath += 'images/';
-    } else if (file.fieldname === 'voice' || file.fieldname === 'audioFiles') {
-      uploadPath += 'voice/';
+      if (file.fieldname === 'images') {
+        uploadPath += 'images/';
+      } else if (file.fieldname === 'voice' || file.fieldname === 'audioFiles') {
+        uploadPath += 'voice/';
+      }
+
+      cb(null, uploadPath);
+    },
+    filename: (req: any, file: any, cb: (error: any, filename: string) => void) => {
+      // Sanitize original filename
+      const sanitized = sanitizeFilename(file.originalname);
+
+      // Generate secure unique filename
+      const timestamp = Date.now();
+      const randomString = crypto.randomBytes(16).toString('hex');
+      const extension = path.extname(sanitized);
+      const filename = `${timestamp}_${randomString}${extension}`;
+
+      console.log('Generated secure filename:', filename);
+      cb(null, filename);
     }
-
-    cb(null, uploadPath);
-  },
-  filename: (req: any, file: any, cb: (error: any, filename: string) => void) => {
-    // Generate unique filename
-    const timestamp = Date.now();
-    const randomString = crypto.randomBytes(8).toString('hex');
-    const extension = path.extname(file.originalname);
-    const filename = `${timestamp}_${randomString}${extension}`;
-
-    console.log('Generated filename:', filename);
-    cb(null, filename);
-  }
-});
+  });
 
 // Multer configuration
 export const uploadConfig = multer({
@@ -118,13 +141,13 @@ export const validateFile = (file: any, type: 'image' | 'audio'): boolean => {
   }
 };
 
-// Helper function to get file URL
+// Helper function to get file URL (for local storage)
 export const getFileUrl = (filename: string, type: 'image' | 'voice'): string => {
   const baseUrl = process.env.BASE_URL || 'http://localhost:4000';
   return `${baseUrl}/api/uploads/${type}/${filename}`;
 };
 
-// Helper function to delete file
+// Helper function to delete file (for local storage)
 export const deleteFile = (filePath: string): Promise<void> => {
   return new Promise((resolve, reject) => {
     fs.unlink(filePath, (err) => {
@@ -137,3 +160,6 @@ export const deleteFile = (filePath: string): Promise<void> => {
     });
   });
 };
+
+// Export storage mode for other services to check
+export const isCloudinaryEnabled = (): boolean => USE_CLOUDINARY;

@@ -7,10 +7,12 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
+import 'package:cached_network_image/cached_network_image.dart';
 import '../components/custom_bottom_nav.dart';
 import '../widgets/translated_text.dart';
 import '../services/chat_service.dart';
 import '../models/chat_message.dart' as model;
+import '../config/url_helper.dart';
 
 /// Real-time chat page for complaint communication
 /// Connects to backend API for actual admin-citizen chat
@@ -650,18 +652,61 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
                   // Image if present
                   if (message.imageUrl != null) ...[
                     const SizedBox(height: 8),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.network(
-                        message.imageUrl!,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            padding: const EdgeInsets.all(8),
-                            color: Colors.grey[300],
-                            child: const Icon(Icons.broken_image),
-                          );
-                        },
+                    GestureDetector(
+                      onTap: () {
+                        // View full image
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => _FullScreenChatImage(
+                              imageUrl: UrlHelper.getImageUrl(message.imageUrl!),
+                            ),
+                          ),
+                        );
+                      },
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: CachedNetworkImage(
+                          imageUrl: UrlHelper.getImageUrl(message.imageUrl!),
+                          fit: BoxFit.cover,
+                          maxWidthDiskCache: 800,
+                          maxHeightDiskCache: 600,
+                          placeholder: (context, url) => Container(
+                            height: 200,
+                            color: isUser ? Colors.white.withOpacity(0.2) : Colors.grey[200],
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  isUser ? Colors.white : Color(0xFF2E8B57),
+                                ),
+                              ),
+                            ),
+                          ),
+                          errorWidget: (context, url, error) => Container(
+                            height: 200,
+                            padding: const EdgeInsets.all(16),
+                            color: isUser ? Colors.white.withOpacity(0.2) : Colors.grey[200],
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.broken_image,
+                                  color: isUser ? Colors.white70 : Colors.grey[600],
+                                  size: 40,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'ছবি লোড করতে ব্যর্থ',
+                                  style: TextStyle(
+                                    color: isUser ? Colors.white70 : Colors.grey[600],
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -828,5 +873,60 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
       final minute = time.minute.toString().padLeft(2, '0');
       return '${time.day}/${time.month}/${time.year} $hour:$minute';
     }
+  }
+}
+
+/// Full screen image viewer for chat images
+class _FullScreenChatImage extends StatelessWidget {
+  final String imageUrl;
+
+  const _FullScreenChatImage({required this.imageUrl});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        leading: IconButton(
+          icon: const Icon(Icons.close, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const TranslatedText(
+          'ছবি',
+          style: TextStyle(color: Colors.white),
+        ),
+      ),
+      body: Center(
+        child: InteractiveViewer(
+          child: CachedNetworkImage(
+            imageUrl: imageUrl,
+            fit: BoxFit.contain,
+            placeholder: (context, url) => const Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            ),
+            errorWidget: (context, url, error) => Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: const [
+                  Icon(
+                    Icons.broken_image,
+                    color: Colors.white,
+                    size: 60,
+                  ),
+                  SizedBox(height: 16),
+                  TranslatedText(
+                    'ছবি লোড করতে ব্যর্থ',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

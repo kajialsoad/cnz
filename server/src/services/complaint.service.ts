@@ -3,6 +3,8 @@ import { ComplaintStatus } from '@prisma/client';
 import { uploadService } from './upload.service';
 import { getFileUrl } from '../config/upload.config';
 import { categoryService } from './category.service';
+import { cloudUploadService, CloudUploadError } from './cloud-upload.service';
+import { isCloudinaryEnabled } from '../config/cloudinary.config';
 
 export interface CreateComplaintInput {
   title?: string; // Optional - will be auto-generated from description
@@ -99,28 +101,81 @@ export class ComplaintService {
       if (input.uploadedFiles) {
         const files = input.uploadedFiles as any;
 
+        // Check if Cloudinary is enabled
+        const useCloudinary = isCloudinaryEnabled();
+
         // With .any(), files come as an array, need to separate by fieldname
         if (Array.isArray(files)) {
           const imageFiles = files.filter((f: any) => f.fieldname === 'images');
           const audioFiles = files.filter((f: any) => f.fieldname === 'audioFiles');
 
           if (imageFiles.length > 0) {
-            finalImageUrls = imageFiles.map((file: any) => getFileUrl(file.filename, 'image'));
+            if (useCloudinary) {
+              // Upload to Cloudinary
+              try {
+                finalImageUrls = await this.uploadImagesToCloudinary(imageFiles);
+              } catch (error) {
+                console.error('Cloudinary upload failed, falling back to local storage:', error);
+                // Fallback to local storage
+                finalImageUrls = imageFiles.map((file: any) => getFileUrl(file.filename, 'image'));
+              }
+            } else {
+              // Use local storage
+              finalImageUrls = imageFiles.map((file: any) => getFileUrl(file.filename, 'image'));
+            }
           }
 
           if (audioFiles.length > 0) {
-            finalAudioUrls = audioFiles.map((file: any) => getFileUrl(file.filename, 'voice'));
+            if (useCloudinary) {
+              // Upload to Cloudinary
+              try {
+                const audioUrlPromises = audioFiles.map((file: any) =>
+                  this.uploadAudioToCloudinary(file)
+                );
+                finalAudioUrls = await Promise.all(audioUrlPromises);
+              } catch (error) {
+                console.error('Cloudinary audio upload failed, falling back to local storage:', error);
+                // Fallback to local storage
+                finalAudioUrls = audioFiles.map((file: any) => getFileUrl(file.filename, 'voice'));
+              }
+            } else {
+              // Use local storage
+              finalAudioUrls = audioFiles.map((file: any) => getFileUrl(file.filename, 'voice'));
+            }
           }
         } else {
           // Fallback for .fields() format (if we ever switch back)
           if (files.images) {
             const imageFiles = Array.isArray(files.images) ? files.images : [files.images];
-            finalImageUrls = imageFiles.map((file: any) => getFileUrl(file.filename, 'image'));
+
+            if (useCloudinary) {
+              try {
+                finalImageUrls = await this.uploadImagesToCloudinary(imageFiles);
+              } catch (error) {
+                console.error('Cloudinary upload failed, falling back to local storage:', error);
+                finalImageUrls = imageFiles.map((file: any) => getFileUrl(file.filename, 'image'));
+              }
+            } else {
+              finalImageUrls = imageFiles.map((file: any) => getFileUrl(file.filename, 'image'));
+            }
           }
 
           if (files.audioFiles) {
             const audioFilesArray = Array.isArray(files.audioFiles) ? files.audioFiles : [files.audioFiles];
-            finalAudioUrls = audioFilesArray.map((file: any) => getFileUrl(file.filename, 'voice'));
+
+            if (useCloudinary) {
+              try {
+                const audioUrlPromises = audioFilesArray.map((file: any) =>
+                  this.uploadAudioToCloudinary(file)
+                );
+                finalAudioUrls = await Promise.all(audioUrlPromises);
+              } catch (error) {
+                console.error('Cloudinary audio upload failed, falling back to local storage:', error);
+                finalAudioUrls = audioFilesArray.map((file: any) => getFileUrl(file.filename, 'voice'));
+              }
+            } else {
+              finalAudioUrls = audioFilesArray.map((file: any) => getFileUrl(file.filename, 'voice'));
+            }
           }
         }
       }
@@ -187,6 +242,57 @@ export class ComplaintService {
     const trimmed = description.substring(0, maxLength);
     const lastSpace = trimmed.lastIndexOf(' ');
     return lastSpace > 0 ? trimmed.substring(0, lastSpace) + '...' : trimmed + '...';
+  }
+
+  /**
+   * Upload images to Cloudinary
+   * @private
+   */
+  private async uploadImagesToCloudinary(images: Express.Multer.File[]): Promise<string[]> {
+    if (!images || images.length === 0) {
+      return [];
+    }
+
+    try {
+      // Upload all images in parallel
+      const uploadPromises = images.map(image =>
+        cloudUploadService.uploadImage(image, 'complaints/images')
+      );
+
+      const results = await Promise.all(uploadPromises);
+      return results.map(result => result.secure_url);
+    } catch (error) {
+      console.error('Error uploading images to Cloudinary:', error);
+
+      if (error instanceof CloudUploadError) {
+        throw new Error(`Failed to upload images: ${error.message}`);
+      }
+
+      throw new Error('Failed to upload images to cloud storage');
+    }
+  }
+
+  /**
+   * Upload audio file to Cloudinary
+   * @private
+   */
+  private async uploadAudioToCloudinary(audio: Express.Multer.File): Promise<string> {
+    if (!audio) {
+      throw new Error('No audio file provided');
+    }
+
+    try {
+      const result = await cloudUploadService.uploadAudio(audio, 'complaints/voice');
+      return result.secure_url;
+    } catch (error) {
+      console.error('Error uploading audio to Cloudinary:', error);
+
+      if (error instanceof CloudUploadError) {
+        throw new Error(`Failed to upload audio: ${error.message}`);
+      }
+
+      throw new Error('Failed to upload audio to cloud storage');
+    }
   }
 
   // Get complaint by ID

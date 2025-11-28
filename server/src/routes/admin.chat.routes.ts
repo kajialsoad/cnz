@@ -7,6 +7,7 @@ import {
     markMessagesAsRead
 } from '../controllers/admin.chat.controller';
 import { authGuard, rbacGuard } from '../middlewares/auth.middleware';
+import { uploadConfig } from '../config/upload.config';
 
 console.log('🔧 Loading admin.chat.routes.ts...');
 
@@ -28,9 +29,9 @@ console.log('🔧 Admin chat route registered: GET /statistics');
 router.get('/:complaintId', getChatMessages);
 console.log('🔧 Admin chat route registered: GET /:complaintId');
 
-// Send a chat message
-router.post('/:complaintId', sendChatMessage);
-console.log('🔧 Admin chat route registered: POST /:complaintId');
+// Send a chat message (with optional image upload)
+router.post('/:complaintId', uploadConfig.single('image'), sendChatMessage);
+console.log('🔧 Admin chat route registered: POST /:complaintId (with image upload)');
 
 // Mark messages as read
 router.patch('/:complaintId/read', markMessagesAsRead);
