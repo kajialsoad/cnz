@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:image_picker/image_picker.dart';
 import '../models/complaint.dart';
 import '../repositories/complaint_repository.dart';
 import '../services/file_handling_service.dart';
@@ -57,7 +58,7 @@ class ComplaintProvider extends ChangeNotifier {
   String? _district;
   String? _thana;
   String? _ward;
-  final List<File> _selectedImages = [];
+  final List<XFile> _selectedImages = []; // Changed to XFile for web compatibility
   final List<File> _selectedAudioFiles = [];
 
   // State management
@@ -79,7 +80,7 @@ class ComplaintProvider extends ChangeNotifier {
   String? get district => _district;
   String? get thana => _thana;
   String? get ward => _ward;
-  List<File> get selectedImages => List.unmodifiable(_selectedImages);
+  List<XFile> get selectedImages => List.unmodifiable(_selectedImages); // Changed to XFile
   List<File> get selectedAudioFiles => List.unmodifiable(_selectedAudioFiles);
   bool get isLoading => _isLoading;
   String? get error => _error;
@@ -179,7 +180,7 @@ class ComplaintProvider extends ChangeNotifier {
     }
   }
 
-  void addImages(List<File> images) {
+  void addImages(List<XFile> images) { // Changed to XFile
     _selectedImages.addAll(images);
     notifyListeners();
   }

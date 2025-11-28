@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -25,7 +26,7 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
 
   // Backend integration variables
   final FileHandlingService _fileHandlingService = FileHandlingService();
-  final List<File> _selectedImages = [];
+  final List<XFile> _selectedImages = []; // Changed to XFile for web compatibility
   final List<File> _selectedAudioFiles = [];
   
   // Category data from previous page
@@ -56,7 +57,7 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
         final imagePath = args['imagePath'] as String;
         // Add the captured photo to selected images if not already added
         if (imagePath != 'mock_web_image' && !kIsWeb) {
-          final imageFile = File(imagePath);
+          final imageFile = XFile(imagePath); // Changed to XFile
           if (!_selectedImages.any((img) => img.path == imagePath)) {
             setState(() {
               _selectedImages.add(imageFile);
@@ -66,7 +67,7 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
           // For web testing, add a mock file
           if (_selectedImages.isEmpty || _selectedImages.first.path != 'mock_web_image') {
             setState(() {
-              _selectedImages.add(File('mock_web_image'));
+              _selectedImages.add(XFile('mock_web_image')); // Changed to XFile
             });
           }
         }
@@ -329,34 +330,37 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
                         ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(12),
-                          child: _selectedImages[index].path == 'mock_web_image' || kIsWeb
-                              ? Container(
-                                  color: Colors.grey.shade300,
-                                  child: Center(
-                                    child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Icon(
-                                          Icons.image,
-                                          size: 40,
-                                          color: Colors.grey.shade600,
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          'Mock',
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            color: Colors.grey.shade600,
-                                          ),
-                                        ),
-                                      ],
+                          child: FutureBuilder<Uint8List>(
+                            future: _selectedImages[index].readAsBytes(),
+                            builder: (context, snapshot) {
+                              if (snapshot.hasData) {
+                                return kIsWeb
+                                    ? Image.memory(
+                                        snapshot.data!,
+                                        fit: BoxFit.cover,
+                                        width: double.infinity,
+                                        height: double.infinity,
+                                      )
+                                    : Image.file(
+                                        File(_selectedImages[index].path),
+                                        fit: BoxFit.cover,
+                                        width: double.infinity,
+                                        height: double.infinity,
+                                      );
+                              }
+                              return Container(
+                                color: Colors.grey.shade300,
+                                child: Center(
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.grey.shade600,
                                     ),
                                   ),
-                                )
-                              : Image.file(
-                                  _selectedImages[index],
-                                  fit: BoxFit.cover,
                                 ),
+                              );
+                            },
+                          ),
                         ),
                       ),
                       Positioned(

@@ -1,5 +1,7 @@
 import { Request, Response } from 'express';
 import { uploadService } from '../services/upload.service';
+import { cloudUploadService } from '../services/cloud-upload.service';
+import { isCloudinaryEnabled } from '../config/cloudinary.config';
 import { uploadConfig, complaintFileUpload, imageUpload, voiceUpload } from '../config/upload.config';
 import path from 'path';
 
@@ -7,35 +9,72 @@ export class UploadController {
   // Upload files with validation
   uploadFiles = async (req: Request, res: Response) => {
     try {
-      // Validate uploaded files
-      const validation = await uploadService.validateFiles(req.files);
-      
-      if (!validation.isValid) {
-        // Clean up any uploaded files if validation fails
-        await uploadService.cleanupFiles(req.files);
-        
-        return res.status(400).json({
-          success: false,
-          message: 'File validation failed',
-          errors: validation.errors
+      console.log('📤 Upload files called, Cloudinary enabled:', isCloudinaryEnabled());
+      console.log('📤 Files received:', req.files);
+
+      // Check if Cloudinary is enabled
+      if (isCloudinaryEnabled()) {
+        // Upload to Cloudinary
+        const files = req.files as any;
+        const fileUrls: string[] = [];
+
+        if (files && Array.isArray(files)) {
+          // Handle files as array (from multer.any())
+          for (const file of files) {
+            if (file.fieldname === 'images' || file.fieldname === 'image') {
+              try {
+                const result = await cloudUploadService.uploadImage(file, 'complaints');
+                fileUrls.push(result.secure_url);
+                console.log('✅ Uploaded to Cloudinary:', result.secure_url);
+              } catch (error) {
+                console.error('❌ Cloudinary upload failed:', error);
+                throw error;
+              }
+            }
+          }
+        }
+
+        if (fileUrls.length === 0) {
+          return res.status(400).json({
+            success: false,
+            message: 'No images found to upload'
+          });
+        }
+
+        return res.status(200).json({
+          success: true,
+          message: 'Files uploaded successfully',
+          data: {
+            fileUrls: fileUrls,
+            images: fileUrls.map(url => ({ url, filename: url.split('/').pop() }))
+          }
+        });
+      } else {
+        // Fallback to local storage
+        const validation = await uploadService.validateFiles(req.files);
+
+        if (!validation.isValid) {
+          await uploadService.cleanupFiles(req.files);
+
+          return res.status(400).json({
+            success: false,
+            message: 'File validation failed',
+            errors: validation.errors
+          });
+        }
+
+        const uploadedFiles = await uploadService.processUploadedFiles(req.files);
+
+        return res.status(200).json({
+          success: true,
+          message: 'Files uploaded successfully',
+          data: uploadedFiles
         });
       }
-      
-      // Process files and get file information
-      const uploadedFiles = await uploadService.processUploadedFiles(req.files);
-      
-      return res.status(200).json({
-        success: true,
-        message: 'Files uploaded successfully',
-        data: uploadedFiles
-      });
-      
+
     } catch (error) {
       console.error('Error uploading files:', error);
-      
-      // Clean up any uploaded files on error
-      await uploadService.cleanupFiles(req.files);
-      
+
       return res.status(500).json({
         success: false,
         message: 'Failed to upload files',
@@ -48,21 +87,21 @@ export class UploadController {
   deleteFile = async (req: Request, res: Response) => {
     try {
       const { filename, type } = req.params;
-      
+
       if (!filename || !type) {
         return res.status(400).json({
           success: false,
           message: 'Filename and type are required'
         });
       }
-      
+
       if (type !== 'image' && type !== 'voice') {
         return res.status(400).json({
           success: false,
           message: 'Type must be either "image" or "voice"'
         });
       }
-      
+
       // Check if file exists
       if (!uploadService.fileExists(filename, type as 'image' | 'voice')) {
         return res.status(404).json({
@@ -70,10 +109,10 @@ export class UploadController {
           message: 'File not found'
         });
       }
-      
+
       // Delete file
       const deleted = await uploadService.deleteFileByName(filename, type as 'image' | 'voice');
-      
+
       if (deleted) {
         return res.status(200).json({
           success: true,
@@ -85,10 +124,10 @@ export class UploadController {
           message: 'Failed to delete file'
         });
       }
-      
+
     } catch (error) {
       console.error('Error deleting file:', error);
-      
+
       return res.status(500).json({
         success: false,
         message: 'Failed to delete file',
@@ -101,38 +140,38 @@ export class UploadController {
   getFileInfo = async (req: Request, res: Response) => {
     try {
       const { filename, type } = req.params;
-      
+
       if (!filename || !type) {
         return res.status(400).json({
           success: false,
           message: 'Filename and type are required'
         });
       }
-      
+
       if (type !== 'image' && type !== 'voice') {
         return res.status(400).json({
           success: false,
           message: 'Type must be either "image" or "voice"'
         });
       }
-      
+
       const fileInfo = await uploadService.getFileInfo(filename, type as 'image' | 'voice');
-      
+
       if (!fileInfo) {
         return res.status(404).json({
           success: false,
           message: 'File not found'
         });
       }
-      
+
       return res.status(200).json({
         success: true,
         data: fileInfo
       });
-      
+
     } catch (error) {
       console.error('Error getting file info:', error);
-      
+
       return res.status(500).json({
         success: false,
         message: 'Failed to get file information',
@@ -145,21 +184,21 @@ export class UploadController {
   serveFile = async (req: Request, res: Response) => {
     try {
       const { filename, type } = req.params;
-      
+
       if (!filename || !type) {
         return res.status(400).json({
           success: false,
           message: 'Filename and type are required'
         });
       }
-      
+
       if (type !== 'image' && type !== 'voice') {
         return res.status(400).json({
           success: false,
           message: 'Type must be either "image" or "voice"'
         });
       }
-      
+
       // Check if file exists
       if (!uploadService.fileExists(filename, type as 'image' | 'voice')) {
         return res.status(404).json({
@@ -167,25 +206,25 @@ export class UploadController {
           message: 'File not found'
         });
       }
-      
+
       // Get file path
       const filePath = uploadService.getFilePath(filename, type as 'image' | 'voice');
-      
+
       // Set appropriate content type
       const fileInfo = await uploadService.getFileInfo(filename, type as 'image' | 'voice');
       if (fileInfo) {
         res.setHeader('Content-Type', fileInfo.mimeType);
       }
-      
+
       // Set cache headers for better performance
       res.setHeader('Cache-Control', 'public, max-age=31536000'); // 1 year
-      
+
       // Send file
       return res.sendFile(path.resolve(filePath));
-      
+
     } catch (error) {
       console.error('Error serving file:', error);
-      
+
       return res.status(500).json({
         success: false,
         message: 'Failed to serve file',

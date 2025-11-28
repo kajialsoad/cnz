@@ -224,7 +224,7 @@ class ApiClient {
   Future<Map<String, dynamic>> postMultipart(
     String path, {
     Map<String, dynamic>? data,
-    List<MapEntry<String, File>>? files,
+    List<MapEntry<String, dynamic>>? files, // Changed to dynamic to accept both File and XFile
   }) async {
     try {
       final token = await _getAccessToken();
@@ -311,7 +311,7 @@ class ApiClient {
   Future<Map<String, dynamic>> putMultipart(
     String path, {
     Map<String, dynamic>? data,
-    List<MapEntry<String, File>>? files,
+    List<MapEntry<String, dynamic>>? files, // Changed to dynamic to accept both File and XFile
   }) async {
     try {
       final token = await _getAccessToken();

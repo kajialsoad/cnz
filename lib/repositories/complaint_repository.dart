@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 import '../models/complaint.dart';
 import '../services/api_client.dart';
 
@@ -16,7 +17,7 @@ class ComplaintRepository {
     String? district,
     String? thana,
     String? ward,
-    List<File>? images,
+    List<XFile>? images, // Changed to XFile for web compatibility
     List<File>? audioFiles,
   }) async {
     try {
@@ -166,7 +167,7 @@ class ComplaintRepository {
     String? location,
     String? address,
     String? status,
-    List<File>? newImages,
+    List<XFile>? newImages, // Changed to XFile for web compatibility
     List<File>? newAudioFiles,
     List<String>? removeImageUrls,
     List<String>? removeAudioUrls,

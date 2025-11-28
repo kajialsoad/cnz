@@ -242,16 +242,30 @@ class ChatService {
     if (payload == null) {
       throw Exception('No image returned');
     }
-    // Complaint upload endpoint returns fileUrls array
+    
+    // Handle different response formats
+    // Format 1: { data: { fileUrls: ["url1", "url2"] } }
     if (payload is Map && payload['fileUrls'] is List && (payload['fileUrls'] as List).isNotEmpty) {
       return (payload['fileUrls'] as List).first as String;
     }
-    // Fallback to images array if provided
+    
+    // Format 2: { data: { images: [{ url: "...", filename: "..." }] } }
     if (payload is Map && payload['images'] is List && (payload['images'] as List).isNotEmpty) {
       final first = (payload['images'] as List).first;
-      return first['url'] as String;
+      if (first is Map && first['url'] != null) {
+        return first['url'] as String;
+      }
     }
-    throw Exception('No image returned');
+    
+    // Format 3: { data: { images: ["url1", "url2"] } } - simple string array
+    if (payload is Map && payload['images'] is List && (payload['images'] as List).isNotEmpty) {
+      final first = (payload['images'] as List).first;
+      if (first is String) {
+        return first;
+      }
+    }
+    
+    throw Exception('No image returned. Response format: $raw');
   }
 
   /// Upload voice and return URL

@@ -92,6 +92,14 @@ router.delete('/:id', complaintController.deleteComplaint.bind(complaintControll
 router.post('/upload', uploadController.uploadComplaintFiles, uploadController.uploadFiles.bind(uploadController));
 
 /**
+ * @route   POST /api/complaints/:id/upload
+ * @desc    Upload files for a specific complaint (for chat)
+ * @access  Private (Authenticated users)
+ * @body    form-data with files: { images?, voice? }
+ */
+router.post('/:id/upload', uploadController.uploadComplaintFiles, uploadController.uploadFiles.bind(uploadController));
+
+/**
  * @route   DELETE /api/complaints/files/:type/:filename
  * @desc    Delete uploaded file
  * @access  Private (Authenticated users)

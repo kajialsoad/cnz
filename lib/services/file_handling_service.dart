@@ -49,7 +49,7 @@ class FileHandlingService {
   }
 
   /// Pick image from gallery or camera
-  Future<File?> pickImage({ImageSource source = ImageSource.gallery}) async {
+  Future<XFile?> pickImage({ImageSource source = ImageSource.gallery}) async {
     try {
       final XFile? pickedFile = await _imagePicker.pickImage(
         source: source,
@@ -60,11 +60,9 @@ class FileHandlingService {
 
       if (pickedFile == null) return null;
 
-      // Web platform handling
+      // Web platform handling - return XFile directly
       if (kIsWeb) {
-        // For web, return a File with the XFile path
-        // The API client will handle reading bytes from XFile
-        return File(pickedFile.path);
+        return pickedFile;
       }
 
       // Mobile platform handling
@@ -86,14 +84,14 @@ class FileHandlingService {
         );
       }
 
-      return file;
+      return pickedFile;
     } catch (e) {
       throw Exception('Error picking image: ${e.toString()}');
     }
   }
 
   /// Pick multiple images
-  Future<List<File>> pickMultipleImages() async {
+  Future<List<XFile>> pickMultipleImages() async {
     try {
       final List<XFile> pickedFiles = await _imagePicker.pickMultiImage(
         maxWidth: 1920,
@@ -101,9 +99,9 @@ class FileHandlingService {
         imageQuality: 85,
       );
 
-      // Web platform handling
+      // Web platform handling - return XFiles directly
       if (kIsWeb) {
-        return pickedFiles.map((file) => File(file.path)).toList();
+        return pickedFiles;
       }
 
       // Mobile platform handling
@@ -112,13 +110,13 @@ class FileHandlingService {
         throw Exception('Permission denied for gallery access');
       }
 
-      final List<File> validFiles = [];
+      final List<XFile> validFiles = [];
       final List<String> errors = [];
 
       for (final pickedFile in pickedFiles) {
         final file = File(pickedFile.path);
         if (validateImageFile(file)) {
-          validFiles.add(file);
+          validFiles.add(pickedFile);
         } else {
           errors.add('${pickedFile.name}: Invalid or too large');
         }
