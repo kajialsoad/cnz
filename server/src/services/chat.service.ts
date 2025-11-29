@@ -1,5 +1,4 @@
 import prisma from '../utils/prisma';
-import { cloudUploadService } from './cloud-upload.service';
 
 export interface SendChatMessageInput {
     complaintId: number;
@@ -8,7 +7,6 @@ export interface SendChatMessageInput {
     message: string;
     imageUrl?: string;
     voiceUrl?: string;
-    imageFile?: Express.Multer.File;
 }
 
 export interface ChatMessageQueryInput {
@@ -31,23 +29,6 @@ export interface ChatListQueryInput {
 }
 
 export class ChatService {
-    /**
-     * Transform relative image URL to absolute URL
-     */
-    private transformImageUrl(imageUrl: string | null | undefined): string | null {
-        if (!imageUrl) return null;
-
-        // If already absolute URL, return as is
-        if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
-            return imageUrl;
-        }
-
-        // Convert relative URL to absolute
-        // In production, this should use the actual server URL from environment
-        const baseUrl = process.env.BASE_URL || 'http://localhost:4000';
-        return `${baseUrl}${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`;
-    }
-
     /**
      * Get all chat conversations with complaint and citizen details
      */
@@ -367,7 +348,7 @@ export class ChatService {
                 })
             ]);
 
-            // Get sender information for each message and transform image URLs
+            // Get sender information for each message
             const messagesWithSenderInfo = await Promise.all(
                 messages.map(async (msg: any) => {
                     let senderName = 'Unknown';
@@ -399,9 +380,7 @@ export class ChatService {
 
                     return {
                         ...msg,
-                        senderName,
-                        imageUrl: this.transformImageUrl(msg.imageUrl),
-                        voiceUrl: this.transformImageUrl(msg.voiceUrl)
+                        senderName
                     };
                 })
             );
@@ -482,32 +461,14 @@ export class ChatService {
                 throw new Error('Sender not found');
             }
 
-            // Upload image to Cloudinary if provided
-            let cloudinaryImageUrl: string | undefined = input.imageUrl;
-
-            if (input.imageFile) {
-                try {
-                    const uploadResult = await cloudUploadService.uploadImage(
-                        input.imageFile,
-                        'chat/images'
-                    );
-                    cloudinaryImageUrl = uploadResult.secure_url;
-
-                    console.log(`✅ Chat image uploaded to Cloudinary: ${uploadResult.secure_url}`);
-                } catch (uploadError) {
-                    console.error('❌ Failed to upload chat image to Cloudinary:', uploadError);
-                    throw new Error('Failed to upload image. Please try again.');
-                }
-            }
-
-            // Create chat message with Cloudinary URL
+            // Create chat message
             const message = await prisma.complaintChatMessage.create({
                 data: ({
                     complaintId: input.complaintId,
                     senderId: input.senderId,
                     senderType: input.senderType,
                     message: input.message,
-                    imageUrl: cloudinaryImageUrl,
+                    imageUrl: input.imageUrl,
                     voiceUrl: input.voiceUrl,
                     read: false
                 } as any)
@@ -518,8 +479,7 @@ export class ChatService {
 
             return {
                 ...message,
-                senderName,
-                imageUrl: cloudinaryImageUrl // Return Cloudinary URL
+                senderName
             };
         } catch (error) {
             console.error('Error sending chat message:', error);

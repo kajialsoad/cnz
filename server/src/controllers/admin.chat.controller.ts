@@ -130,8 +130,7 @@ export async function sendChatMessage(req: AuthRequest, res: Response) {
             senderType: 'ADMIN',
             message: message.trim(),
             imageUrl,
-            voiceUrl,
-            imageFile
+            voiceUrl
         });
 
         res.status(201).json({

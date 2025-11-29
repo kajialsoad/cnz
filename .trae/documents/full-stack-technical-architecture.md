@@ -3,6 +3,7 @@
 ## ১. সিস্টেম ওভারভিউ এবং স্থাপত্য
 
 ### ১.১ প্রকল্প পরিচিতি
+
 ক্লিন কেয়ার সার্ভিস একটি সম্পূর্ণ ডিজিটাল সমাধান যা পরিষ্কার পরিচ্ছন্নতা সেবা প্রদানকারী সংস্থাগুলোর জন্য কাস্টমার ম্যানেজমেন্ট, অভিযোগ ব্যবস্থাপনা, পেমেন্ট প্রসেসিং এবং রিয়েল-টাইম কমিউনিকেশন সুবিধা প্রদান করে।
 
 ### ১.২ সিস্টেম স্থাপত্য
@@ -56,35 +57,60 @@ graph TB
 ## ২. প্রযুক্তি স্ট্যাক এবং সরঞ্জাম
 
 ### ২.১ ফ্রন্টএন্ড প্রযুক্তি
-- **Framework**: Flutter 3.16+
-- **Programming Language**: Dart
-- **State Management**: Provider/Riverpod
-- **HTTP Client**: Dio
-- **Local Storage**: SharedPreferences, SQLite
-- **Image Processing**: Image Picker, Cached Network Image
-- **Maps Integration**: Google Maps Flutter
-- **Push Notifications**: Firebase Cloud Messaging
+
+* **Framework**: Flutter 3.16+
+
+* **Programming Language**: Dart
+
+* **State Management**: Provider/Riverpod
+
+* **HTTP Client**: Dio
+
+* **Local Storage**: SharedPreferences, SQLite
+
+* **Image Processing**: Image Picker, Cached Network Image
+
+* **Maps Integration**: Google Maps Flutter
+
+* **Push Notifications**: Firebase Cloud Messaging
 
 ### ২.২ ব্যাকএন্ড প্রযুক্তি
-- **Runtime**: Node.js 18+
-- **Language**: TypeScript 5+
-- **Framework**: Express.js
-- **ORM**: Prisma 5+
-- **Database**: MySQL 8+
-- **Authentication**: JWT (JSON Web Tokens)
-- **Validation**: Joi/Zod
-- **File Upload**: Multer
-- **Email Service**: Nodemailer
-- **SMS Service**: Twilio
-- **Real-time Communication**: Socket.io
+
+* **Runtime**: Node.js 18+
+
+* **Language**: TypeScript 5+
+
+* **Framework**: Express.js
+
+* **ORM**: Prisma 5+
+
+* **Database**: MySQL 8+
+
+* **Authentication**: JWT (JSON Web Tokens)
+
+* **Validation**: Joi/Zod
+
+* **File Upload**: Multer
+
+* **Email Service**: Nodemailer
+
+* **SMS Service**: Twilio
+
+* **Real-time Communication**: Socket.io
 
 ### ২.৩ ডেভেলপমেন্ট টুলস
-- **Version Control**: Git
-- **API Testing**: Postman/Insomnia
-- **Database Client**: MySQL Workbench
-- **Flutter IDE**: Android Studio/VS Code
-- **Backend IDE**: VS Code
-- **Package Manager**: npm, pub
+
+* **Version Control**: Git
+
+* **API Testing**: Postman/Insomnia
+
+* **Database Client**: MySQL Workbench
+
+* **Flutter IDE**: Android Studio/VS Code
+
+* **Backend IDE**: VS Code
+
+* **Package Manager**: npm, pub
 
 ## ৩. ডেটাবেস স্থাপত্য এবং মডেল ডিজাইন
 
@@ -336,6 +362,7 @@ model Admin {
 ### ৪.১ অথেনটিকেশন এপিআই
 
 #### ইউজার রেজিস্ট্রেশন
+
 ```http
 POST /api/auth/register
 Content-Type: application/json
@@ -350,6 +377,7 @@ Content-Type: application/json
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -363,6 +391,7 @@ Content-Type: application/json
 ```
 
 #### ইউজার লগইন
+
 ```http
 POST /api/auth/login
 Content-Type: application/json
@@ -374,6 +403,7 @@ Content-Type: application/json
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -393,6 +423,7 @@ Content-Type: application/json
 ### ৪.২ কমপ্লেইন্ট ম্যানেজমেন্ট এপিআই
 
 #### নতুন কমপ্লেইন্ট তৈরি
+
 ```http
 POST /api/complaints
 Authorization: Bearer {token}
@@ -411,12 +442,14 @@ Content-Type: application/json
 ```
 
 #### কমপ্লেইন্ট তালিকা
+
 ```http
 GET /api/complaints?page=1&limit=10&status=pending
 Authorization: Bearer {token}
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -446,6 +479,7 @@ Authorization: Bearer {token}
 ```
 
 #### কমপ্লেইন্ট আপডেট
+
 ```http
 PUT /api/complaints/{complaintId}
 Authorization: Bearer {token}
@@ -460,6 +494,7 @@ Content-Type: application/json
 ### ৪.৩ পেমেন্ট এপিআই
 
 #### পেমেন্ট ইনিশিয়েশন
+
 ```http
 POST /api/payments/initiate
 Authorization: Bearer {token}
@@ -474,6 +509,7 @@ Content-Type: application/json
 ```
 
 #### পেমেন্ট ভেরিফিকেশন
+
 ```http
 POST /api/payments/verify
 Authorization: Bearer {token}
@@ -488,6 +524,7 @@ Content-Type: application/json
 ## ৫. ফ্লাটার অ্যাপ স্ট্রাকচার এবং স্টেট ম্যানেজমেন্ট
 
 ### ৫.১ প্রজেক্ট স্ট্রাকচার
+
 ```
 lib/
 ├── main.dart
@@ -568,6 +605,7 @@ graph TD
 ```
 
 ### ৫.৩ অথ প্রোভাইডার উদাহরণ
+
 ```dart
 // auth_provider.dart
 import 'package:flutter/material.dart';
@@ -632,6 +670,7 @@ class AuthProvider with ChangeNotifier {
 ## ৬. অথেনটিকেশন এবং অথরাইজেশন ফ্লো
 
 ### ৬.১ রেজিস্ট্রেশন ফ্লো
+
 ```mermaid
 sequenceDiagram
     participant User
@@ -653,6 +692,7 @@ sequenceDiagram
 ```
 
 ### ৬.২ লগইন ফ্লো
+
 ```mermaid
 sequenceDiagram
     participant User
@@ -681,6 +721,7 @@ sequenceDiagram
 ## ৭. রিয়েল-টাইম ফিচার ইমপ্লিমেন্টেশন
 
 ### ৭.১ নোটিফিকেশন সিস্টেম
+
 ```typescript
 // notification.service.ts
 import { Server, Socket } from 'socket.io';
@@ -729,6 +770,7 @@ export class RealTimeNotificationService {
 ```
 
 ### ৭.২ ফ্লাটার সাইড সকেট ইন্টিগ্রেশন
+
 ```dart
 // socket_service.dart
 import 'package:socket_io_client/socket_io_client.dart' as IO;
@@ -774,6 +816,7 @@ class SocketService {
 ## ৮. ফাইল আপলোড/ডাউনলোড হ্যান্ডলিং
 
 ### ৮.১ ব্যাকএন্ড ফাইল সার্ভিস
+
 ```typescript
 // file.service.ts
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@@aws-sdk/client-s3';
@@ -843,6 +886,7 @@ export class FileService {
 ```
 
 ### ৮.২ ফ্লাটার ফাইল আপলোড
+
 ```dart
 // file_service.dart
 import 'package:dio/dio.dart';
@@ -903,6 +947,7 @@ class FileService {
 ## ৯. পেমেন্ট ইন্টিগ্রেশন স্থাপত্য
 
 ### ৯.১ পেমেন্ট ফ্লো ডায়াগ্রাম
+
 ```mermaid
 sequenceDiagram
     participant Customer
@@ -932,6 +977,7 @@ sequenceDiagram
 ```
 
 ### ৯.২ পেমেন্ট সার্ভিস ইমপ্লিমেন্টেশন
+
 ```typescript
 // payment.service.ts
 import { PrismaClient } from '@prisma/client';
@@ -1060,6 +1106,7 @@ export class PaymentService {
 ## ১০. এরর হ্যান্ডলিং এবং লগিং স্ট্র্যাটেজি
 
 ### ১০.১ গ্লোবাল এরর হ্যান্ডলিং
+
 ```typescript
 // error.middleware.ts
 import { Request, Response, NextFunction } from 'express';
@@ -1128,6 +1175,7 @@ export const errorHandler = (
 ```
 
 ### ১০.২ লগিং সিস্টেম
+
 ```typescript
 // logger.service.ts
 import winston from 'winston';
@@ -1188,6 +1236,7 @@ export const logLevels = {
 ## ১১. নিরাপত্তা সেরা অনুশীলন
 
 ### ১১.১ সিকিউরিটি মিডলওয়্যার
+
 ```typescript
 // security.middleware.ts
 import helmet from 'helmet';
@@ -1260,6 +1309,7 @@ export const hppMiddleware = hpp({
 ```
 
 ### ১১.২ এনক্রিপশন এবং হ্যাশিং
+
 ```typescript
 // crypto.service.ts
 import crypto from 'crypto';
@@ -1320,6 +1370,7 @@ export class CryptoService {
 ## ১২. পারফরম্যান্স অপটিমাইজেশন
 
 ### ১২.১ ক্যাশিং স্ট্র্যাটেজি
+
 ```typescript
 // cache.service.ts
 import Redis from 'ioredis';
@@ -1398,6 +1449,7 @@ export class CacheService {
 ```
 
 ### ১২.২ ডেটাবেস অপটিমাইজেশন
+
 ```sql
 -- Database indexes for performance optimization
 
@@ -1432,6 +1484,7 @@ CREATE INDEX idx_notifications_user_read ON notifications(user_id, is_read);
 ```
 
 ### ১২.৩ পেজিনেশন এবং কেরি ফ্ল্যাগ ইমপ্লিমেন্টেশন
+
 ```typescript
 // pagination.service.ts
 export interface PaginationOptions {
@@ -1529,6 +1582,7 @@ export class PaginationService {
 ## ১৩. টেস্টিং স্ট্র্যাটেজি
 
 ### ১৩.১ ইউনিট টেস্টিং
+
 ```typescript
 // user.service.test.ts
 import { UserService } from '../user.service';
@@ -1621,6 +1675,7 @@ describe('UserService', () => {
 ```
 
 ### ১৩.২ ইন্টিগ্রেশন টেস্টিং
+
 ```typescript
 // complaint.integration.test.ts
 import request from 'supertest';
@@ -1712,6 +1767,7 @@ describe('Complaint API Integration Tests', () => {
 ```
 
 ### ১৩.৩ ফ্লাটার উইজেট টেস্টিং
+
 ```dart
 // complaint_card_test.dart
 import 'package:flutter/material.dart';
@@ -1823,6 +1879,7 @@ void main() {
 ## ১৪. ডিপ্লয়মেন্ট এবং এনভায়রনমেন্ট কনফিগারেশন
 
 ### ১৪.১ এনভায়রনমেন্ট ভেরিয়েবল
+
 ```bash
 # .env.example
 # Database
@@ -1884,6 +1941,7 @@ FCM_SERVER_KEY="your-fcm-server-key"
 ```
 
 ### ১৪.২ ডকার কনফিগারেশন
+
 ```dockerfile
 # Dockerfile for Node.js Backend
 FROM node:18-alpine
@@ -1995,6 +2053,7 @@ networks:
 ```
 
 ### ১৪.৩ সিআই/সিডি পাইপলাইন
+
 ```yaml
 # .github/workflows/deploy.yml
 name: Deploy to Production
@@ -2091,6 +2150,7 @@ jobs:
 ## ১৫. মনিটরিং এবং মেইনটেনেন্স
 
 ### ১৫.১ হেলথ চেক এপিআই
+
 ```typescript
 // health.controller.ts
 import { Request, Response } from 'express';
@@ -2118,3 +2178,5 @@ export class HealthController {
       health.services.database = 'healthy';
     } catch (error) {
       health.services.database = 'unhealthy';
+```
+

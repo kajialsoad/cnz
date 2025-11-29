@@ -455,8 +455,7 @@ export class ComplaintController {
         senderType: 'CITIZEN',
         message: sanitizedMessage,
         imageUrl,
-        voiceUrl,
-        imageFile
+        voiceUrl
       });
 
       res.status(201).json({
