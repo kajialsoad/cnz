@@ -51,6 +51,35 @@ class FileHandlingService {
   /// Pick image from gallery or camera
   Future<XFile?> pickImage({ImageSource source = ImageSource.gallery}) async {
     try {
+      // Web platform handling - no permissions needed
+      if (kIsWeb) {
+        final XFile? pickedFile = await _imagePicker.pickImage(
+          source: source,
+          maxWidth: 1920,
+          maxHeight: 1920,
+          imageQuality: 85,
+        );
+        return pickedFile;
+      }
+
+      // Mobile platform handling - request permissions first
+      if (source == ImageSource.camera) {
+        final status = await Permission.camera.request();
+        if (!status.isGranted) {
+          throw Exception('Camera permission denied');
+        }
+      } else {
+        // For gallery, try new Android 13+ permissions first, fallback to old ones
+        var status = await Permission.photos.request();
+        if (!status.isGranted) {
+          // Try storage permission for older Android versions
+          status = await Permission.storage.request();
+          if (!status.isGranted) {
+            throw Exception('Gallery permission denied');
+          }
+        }
+      }
+
       final XFile? pickedFile = await _imagePicker.pickImage(
         source: source,
         maxWidth: 1920,
@@ -59,21 +88,6 @@ class FileHandlingService {
       );
 
       if (pickedFile == null) return null;
-
-      // Web platform handling - return XFile directly
-      if (kIsWeb) {
-        return pickedFile;
-      }
-
-      // Mobile platform handling
-      final permission = source == ImageSource.camera 
-          ? Permission.camera 
-          : Permission.photos;
-      
-      final status = await permission.request();
-      if (!status.isGranted) {
-        throw Exception('Permission denied for ${source == ImageSource.camera ? 'camera' : 'gallery'}');
-      }
 
       final file = File(pickedFile.path);
       
@@ -93,22 +107,31 @@ class FileHandlingService {
   /// Pick multiple images
   Future<List<XFile>> pickMultipleImages() async {
     try {
+      // Web platform handling - no permissions needed
+      if (kIsWeb) {
+        final List<XFile> pickedFiles = await _imagePicker.pickMultiImage(
+          maxWidth: 1920,
+          maxHeight: 1920,
+          imageQuality: 85,
+        );
+        return pickedFiles;
+      }
+
+      // Mobile platform handling - request permissions first
+      var status = await Permission.photos.request();
+      if (!status.isGranted) {
+        // Try storage permission for older Android versions
+        status = await Permission.storage.request();
+        if (!status.isGranted) {
+          throw Exception('Gallery permission denied');
+        }
+      }
+
       final List<XFile> pickedFiles = await _imagePicker.pickMultiImage(
         maxWidth: 1920,
         maxHeight: 1920,
         imageQuality: 85,
       );
-
-      // Web platform handling - return XFiles directly
-      if (kIsWeb) {
-        return pickedFiles;
-      }
-
-      // Mobile platform handling
-      final status = await Permission.photos.request();
-      if (!status.isGranted) {
-        throw Exception('Permission denied for gallery access');
-      }
 
       final List<XFile> validFiles = [];
       final List<String> errors = [];

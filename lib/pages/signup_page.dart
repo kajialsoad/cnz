@@ -264,7 +264,7 @@ class _SignUpPageState extends State<SignUpPage> {
     final password = _passwordController.text;
 
     try {
-      await _auth.register(
+      final response = await _auth.register(
         name: name,
         phone: phone,
         email: email.isEmpty ? null : email,
@@ -278,14 +278,18 @@ class _SignUpPageState extends State<SignUpPage> {
 
       if (!mounted) return;
 
-      // Navigate to OTP verification page if email provided
-      if (email.isNotEmpty) {
+      // Check if email verification is required from backend response
+      final requiresVerification = response['data']?['requiresVerification'] ?? false;
+
+      if (requiresVerification) {
+        // Email verification is enabled - navigate to verification page
         Navigator.pushReplacementNamed(
           context,
           '/verify-otp',
           arguments: email,
         );
       } else {
+        // Email verification is disabled - navigate to home page
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -295,7 +299,7 @@ class _SignUpPageState extends State<SignUpPage> {
             duration: const Duration(seconds: 3),
           ),
         );
-        Navigator.pushReplacementNamed(context, '/login');
+        Navigator.pushReplacementNamed(context, '/home');
       }
     } catch (e) {
       if (!mounted) return;
@@ -473,10 +477,10 @@ class _SignUpPageState extends State<SignUpPage> {
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _emailController,
-                      decoration: _dec('Email Address', hint: 'your.email@example.com'),
+                      decoration: _dec('Email Address *', hint: 'your.email@example.com'),
                       keyboardType: TextInputType.emailAddress,
                       validator: (v) {
-                        if (v == null || v.isEmpty) return 'ইমেইল দিন';
+                        if (v == null || v.isEmpty) return 'ইমেইল আবশ্যক';
                         final ok = RegExp(r'^.+@.+\..+').hasMatch(v);
                         return ok ? null : 'ভ্যালিড ইমেইল দিন';
                       },

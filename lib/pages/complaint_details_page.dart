@@ -620,7 +620,7 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
   Future<void> _addPhoto() async {
     try {
       // Show dialog to choose camera or gallery
-      final ImageSource? source = await showDialog<ImageSource>(
+      final String? choice = await showDialog<String>(
         context: context,
         builder: (BuildContext context) {
           return AlertDialog(
@@ -631,16 +631,12 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
                 ListTile(
                   leading: Icon(Icons.camera_alt),
                   title: TranslatedText('Camera'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    // Navigate to camera page instead of using image picker
-                    Navigator.pushNamed(context, '/camera');
-                  },
+                  onTap: () => Navigator.pop(context, 'camera'),
                 ),
                 ListTile(
                   leading: Icon(Icons.photo_library),
                   title: TranslatedText('Gallery'),
-                  onTap: () => Navigator.pop(context, ImageSource.gallery),
+                  onTap: () => Navigator.pop(context, 'gallery'),
                 ),
               ],
             ),
@@ -648,8 +644,12 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
         },
       );
 
-      if (source != null) {
-        final file = await _fileHandlingService.pickImage(source: source);
+      if (choice == 'camera') {
+        // Navigate to camera page
+        Navigator.pushNamed(context, '/camera');
+      } else if (choice == 'gallery') {
+        // Pick image from gallery
+        final file = await _fileHandlingService.pickImage(source: ImageSource.gallery);
         if (file != null) {
           setState(() {
             _selectedImages.add(file);

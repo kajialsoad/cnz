@@ -165,19 +165,22 @@ export class AuthService {
       }
     });
 
-    // Create email verification token with OTP code
-    await prisma.emailVerificationToken.create({
-      data: {
-        token: verificationToken,
-        code: verificationCode,
-        userId: user.id,
-        expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes expiry for OTP
-      }
-    });
+    // Only create verification token and send email if verification is enabled
+    if (emailVerificationEnabled) {
+      // Create email verification token with OTP code
+      await prisma.emailVerificationToken.create({
+        data: {
+          token: verificationToken,
+          code: verificationCode,
+          userId: user.id,
+          expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes expiry for OTP
+        }
+      });
 
-    // Send verification email with OTP code
-    if (user.email) {
-      await emailService.sendEmailVerificationEmail(user.email, verificationCode);
+      // Send verification email with OTP code
+      if (user.email) {
+        await emailService.sendEmailVerificationEmail(user.email, verificationCode);
+      }
     }
 
     return {
