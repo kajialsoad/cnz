@@ -27,6 +27,7 @@ import { chatService } from '../../services/chatService';
 import { handleApiError } from '../../utils/errorHandler';
 import { scaleIn, slideInUp, animationConfig, fadeIn } from '../../styles/animations';
 import type { ChatMessage } from '../../types/chat-service.types';
+import { API_CONFIG } from '../../config/apiConfig';
 
 interface ChatModalProps {
     complaintId: number | null;
@@ -34,6 +35,11 @@ interface ChatModalProps {
     onClose: () => void;
     citizenName?: string;
     complaintTitle?: string;
+}
+
+interface ImageFileState {
+    file: File;
+    preview: string;
 }
 
 const ChatModal: React.FC<ChatModalProps> = ({
@@ -54,7 +60,7 @@ const ChatModal: React.FC<ChatModalProps> = ({
     const [error, setError] = useState<string | null>(null);
     const [messageText, setMessageText] = useState('');
     const [sending, setSending] = useState(false);
-    const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const [imageFile, setImageFile] = useState<ImageFileState | null>(null);
     const [uploadingImage, setUploadingImage] = useState(false);
 
     /**
@@ -135,26 +141,40 @@ const ChatModal: React.FC<ChatModalProps> = ({
      * Handle sending a message
      */
     const handleSendMessage = async () => {
-        if (!complaintId || (!messageText.trim() && !imagePreview)) return;
+        if (!complaintId || (!messageText.trim() && !imageFile)) return;
 
         try {
             setSending(true);
 
-            // Send message with or without image
-            const newMessage = await chatService.sendMessage(complaintId, {
-                message: messageText.trim(),
-                imageUrl: imagePreview || undefined,
-            });
+            let newMessage: ChatMessage;
+
+            // If there's an image file, send with file upload
+            if (imageFile) {
+                newMessage = await chatService.sendMessageWithFile(
+                    complaintId,
+                    messageText.trim() || 'Image',
+                    imageFile.file
+                );
+            } else {
+                // Send text only
+                newMessage = await chatService.sendMessage(complaintId, {
+                    message: messageText.trim(),
+                });
+            }
 
             // Add message to list optimistically
             setMessages((prev) => [...prev, newMessage]);
 
             // Clear input fields
             setMessageText('');
-            setImagePreview(null);
+            setImageFile(null);
 
             // Scroll to bottom
             scrollToBottom();
+
+            toast.success('Message sent successfully', {
+                icon: '✅',
+            });
         } catch (err: any) {
             const enhancedError = handleApiError(err);
             toast.error(enhancedError.userMessage, {
@@ -192,22 +212,28 @@ const ChatModal: React.FC<ChatModalProps> = ({
         try {
             setUploadingImage(true);
 
-            // Create preview
+            // Create preview for display
             const reader = new FileReader();
             reader.onloadend = () => {
-                setImagePreview(reader.result as string);
+                // Store both file and preview
+                setImageFile({
+                    file: file,
+                    preview: reader.result as string
+                });
             };
             reader.readAsDataURL(file);
 
-            // TODO: Upload image to server and get URL
-            // For now, we'll use the data URL as preview
-            // In production, you should upload to your server/cloud storage
+            toast.success('Image ready to send', {
+                icon: '✅',
+            });
 
         } catch (err: any) {
             const enhancedError = handleApiError(err);
             toast.error(enhancedError.userMessage, {
                 icon: '❌',
             });
+            // Clear preview on error
+            setImageFile(null);
         } finally {
             setUploadingImage(false);
         }
@@ -217,7 +243,7 @@ const ChatModal: React.FC<ChatModalProps> = ({
      * Handle removing image preview
      */
     const handleRemoveImage = () => {
-        setImagePreview(null);
+        setImageFile(null);
     };
 
     /**
@@ -264,7 +290,7 @@ const ChatModal: React.FC<ChatModalProps> = ({
     const handleClose = () => {
         setMessages([]);
         setMessageText('');
-        setImagePreview(null);
+        setImageFile(null);
         setError(null);
         onClose();
     };
@@ -507,7 +533,7 @@ const ChatModal: React.FC<ChatModalProps> = ({
                 }}
             >
                 {/* Image Preview */}
-                {imagePreview && (
+                {imageFile && (
                     <Box
                         sx={{
                             mb: 1,
@@ -517,7 +543,7 @@ const ChatModal: React.FC<ChatModalProps> = ({
                     >
                         <Box
                             component="img"
-                            src={imagePreview}
+                            src={imageFile.preview}
                             alt="Preview"
                             sx={{
                                 maxWidth: 200,
@@ -587,7 +613,7 @@ const ChatModal: React.FC<ChatModalProps> = ({
                     <Button
                         variant="contained"
                         onClick={handleSendMessage}
-                        disabled={(!messageText.trim() && !imagePreview) || sending}
+                        disabled={(!messageText.trim() && !imageFile) || sending}
                         sx={{
                             minWidth: 56,
                             height: 56,

@@ -47,8 +47,8 @@ const fileFilter = (req: any, file: any, cb: (error: any, acceptFile: boolean) =
     return cb(new Error('Invalid filename'), false);
   }
 
-  // Image files validation
-  if (file.fieldname === 'images') {
+  // Image files validation (both 'image' and 'images' fieldnames)
+  if (file.fieldname === 'image' || file.fieldname === 'images') {
     const allowedImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
     if (allowedImageTypes.includes(file.mimetype)) {
       cb(null, true);
@@ -77,7 +77,7 @@ const storage = USE_CLOUDINARY
     destination: (req: any, file: any, cb: (error: any, destination: string) => void) => {
       let uploadPath = 'uploads/complaints/';
 
-      if (file.fieldname === 'images') {
+      if (file.fieldname === 'image' || file.fieldname === 'images') {
         uploadPath += 'images/';
       } else if (file.fieldname === 'voice' || file.fieldname === 'audioFiles') {
         uploadPath += 'voice/';

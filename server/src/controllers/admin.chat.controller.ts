@@ -1,6 +1,8 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { chatService } from '../services/chat.service';
+import { cloudUploadService } from '../services/cloud-upload.service';
+import { isCloudinaryEnabled } from '../config/cloudinary.config';
 
 /**
  * Get all chat conversations
@@ -123,13 +125,30 @@ export async function sendChatMessage(req: AuthRequest, res: Response) {
 
         // Get uploaded image file if present
         const imageFile = req.file;
+        let finalImageUrl = imageUrl;
+
+        // If an image file was uploaded, upload it to Cloudinary
+        if (imageFile && isCloudinaryEnabled()) {
+            try {
+                console.log('📤 Uploading chat image to Cloudinary...');
+                const uploadResult = await cloudUploadService.uploadImage(imageFile, 'chat');
+                finalImageUrl = uploadResult.secure_url;
+                console.log('✅ Chat image uploaded to Cloudinary:', finalImageUrl);
+            } catch (error) {
+                console.error('❌ Failed to upload chat image to Cloudinary:', error);
+                return res.status(500).json({
+                    success: false,
+                    message: 'Failed to upload image'
+                });
+            }
+        }
 
         const chatMessage = await chatService.sendChatMessage({
             complaintId,
             senderId: req.user.sub,
             senderType: 'ADMIN',
             message: message.trim(),
-            imageUrl,
+            imageUrl: finalImageUrl,
             voiceUrl
         });
 

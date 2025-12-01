@@ -223,6 +223,37 @@ const ChatConversationPanel: React.FC<ChatConversationPanelProps> = ({
     };
 
     /**
+     * Handle send message with file
+     */
+    const handleSendMessageWithFile = async (message: string, imageFile: File) => {
+        if (!complaintId) return;
+
+        try {
+            setSending(true);
+
+            // Send message with file via API
+            const newMessage = await chatService.sendMessageWithFile(complaintId, message, imageFile);
+
+            // Add new message to local state
+            setMessages((prev) => [...prev, newMessage]);
+
+            toast.success('Message sent successfully', {
+                icon: '✅',
+            });
+        } catch (err) {
+            console.error('Error sending message with file:', err);
+            const errorMessage =
+                err instanceof Error ? err.message : 'Failed to send message';
+            toast.error(errorMessage, {
+                icon: '❌',
+            });
+            throw err; // Re-throw to let MessageInput handle it
+        } finally {
+            setSending(false);
+        }
+    };
+
+    /**
      * Initial data fetch when complaint is selected
      */
     useEffect(() => {
@@ -405,6 +436,7 @@ const ChatConversationPanel: React.FC<ChatConversationPanelProps> = ({
             {/* Message Input Area */}
             <MessageInput
                 onSend={handleSendMessage}
+                onSendWithFile={handleSendMessageWithFile}
                 sending={sending}
                 disabled={!complaintId || loading}
             />

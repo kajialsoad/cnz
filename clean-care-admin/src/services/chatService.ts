@@ -79,11 +79,17 @@ class ChatService {
     }
 
     /**
-     * Transform image URL - supports hybrid storage (Cloudinary + local)
-     * Cloudinary URLs are used directly, local URLs are fixed to current server
+     * Transform image URL - supports hybrid storage (Cloudinary + local + base64)
+     * Cloudinary URLs are used directly, local URLs are fixed to current server, base64 data URLs are preserved
      */
     private transformImageUrl(imageUrl: string | null | undefined): string | null {
         if (!imageUrl) return null;
+
+        // If it's a base64 data URL, return as is (for backward compatibility)
+        if (imageUrl.startsWith('data:image/')) {
+            console.log('📷 Base64 image detected (legacy format)');
+            return imageUrl;
+        }
 
         // If it's a Cloudinary URL, return as is
         if (this.isCloudinaryUrl(imageUrl)) {
@@ -322,6 +328,54 @@ class ChatService {
             message,
             imageUrl,
         });
+    }
+
+    /**
+     * Send a message with image file (uploads to Cloudinary via backend)
+     */
+    async sendMessageWithFile(
+        complaintId: number,
+        message: string,
+        imageFile: File
+    ): Promise<ChatMessage> {
+        try {
+            // Create form data
+            const formData = new FormData();
+            formData.append('message', message);
+            formData.append('image', imageFile);
+
+            // Get auth token
+            const token = localStorage.getItem('accessToken');
+
+            console.log('📤 Sending message with file to backend:', imageFile.name);
+
+            // Send to backend
+            const response = await axios.post<SendMessageResponse>(
+                `${API_CONFIG.BASE_URL}/api/admin/chat/${complaintId}`,
+                formData,
+                {
+                    headers: {
+                        'Content-Type': 'multipart/form-data',
+                        Authorization: `Bearer ${token}`,
+                    },
+                }
+            );
+
+            // Invalidate cache
+            cache.invalidatePattern(`chat-messages-${complaintId}`);
+            cache.invalidatePattern('chat-list');
+
+            console.log('✅ Message sent, image URL:', response.data.data.message.imageUrl);
+
+            return response.data.data.message;
+        } catch (error) {
+            if (axios.isAxiosError(error)) {
+                throw new Error(
+                    error.response?.data?.message || 'Failed to send message with file'
+                );
+            }
+            throw error;
+        }
     }
 
     /**

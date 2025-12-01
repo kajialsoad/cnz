@@ -128,12 +128,16 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                             src={message.imageUrl}
                             alt="Message attachment"
                             loading="lazy"
+                            onLoad={() => {
+                                console.log('✅ Image loaded successfully:', message.imageUrl?.substring(0, 100));
+                            }}
                             onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-                                console.error('Image failed to load:', message.imageUrl);
+                                console.error('❌ Image failed to load:', message.imageUrl?.substring(0, 100));
+                                console.error('   Full URL:', message.imageUrl);
                                 e.currentTarget.style.display = 'none';
                                 // Show error message
                                 const errorDiv = document.createElement('div');
-                                errorDiv.textContent = `❌ Image failed to load: ${message.imageUrl}`;
+                                errorDiv.textContent = `❌ Image failed to load`;
                                 errorDiv.style.color = isAdmin ? '#ffcccc' : '#ff0000';
                                 errorDiv.style.fontSize = '0.8rem';
                                 errorDiv.style.marginTop = '8px';

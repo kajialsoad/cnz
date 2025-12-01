@@ -20,6 +20,7 @@ import { compressImage, validateImageFile, blobToFile } from '../../utils/imageO
 
 interface MessageInputProps {
     onSend: (message: string, imageUrl?: string) => Promise<void>;
+    onSendWithFile?: (message: string, imageFile: File) => Promise<void>;
     sending: boolean;
     disabled?: boolean;
 }
@@ -37,6 +38,7 @@ interface MessageInputProps {
  */
 const MessageInput: React.FC<MessageInputProps> = ({
     onSend,
+    onSendWithFile,
     sending,
     disabled = false,
 }) => {
@@ -115,42 +117,23 @@ const MessageInput: React.FC<MessageInputProps> = ({
 
     /**
      * Upload image to server
+     * Note: We don't actually upload here anymore - we'll send the file
+     * directly with the message to let the backend handle Cloudinary upload
      */
     const uploadImage = async (file: File) => {
         try {
             setUploading(true);
 
-            // Create form data
-            const formData = new FormData();
-            formData.append('images', file);
+            // Just mark as ready - we'll send the file with the message
+            setUploadedImageUrl('READY_TO_SEND'); // Placeholder to indicate file is ready
 
-            // Get auth token
-            const token = localStorage.getItem('accessToken');
-
-            // Upload to server
-            const response = await axios.post(
-                `${API_CONFIG.BASE_URL}/api/uploads`,
-                formData,
-                {
-                    headers: {
-                        'Content-Type': 'multipart/form-data',
-                        Authorization: `Bearer ${token}`,
-                    },
-                }
-            );
-
-            if (response.data.success && response.data.data.images?.[0]) {
-                const imageUrl = response.data.data.images[0].url;
-                setUploadedImageUrl(imageUrl);
-                toast.success('Image uploaded successfully', {
-                    icon: '✅',
-                });
-            } else {
-                throw new Error('Failed to upload image');
-            }
+            toast.success('Image ready to send', {
+                icon: '✅',
+                duration: 2000,
+            });
         } catch (error) {
-            console.error('Error uploading image:', error);
-            toast.error('Failed to upload image. Please try again.', {
+            console.error('Error processing image:', error);
+            toast.error('Failed to process image. Please try again.', {
                 icon: '❌',
             });
             // Clear image on error
@@ -185,9 +168,35 @@ const MessageInput: React.FC<MessageInputProps> = ({
             return;
         }
 
+        // Ensure image is uploaded before sending
+        if (imageFile && !uploadedImageUrl) {
+            toast.error('Please wait for image to finish uploading', {
+                icon: '⏳',
+            });
+            return;
+        }
+
         try {
-            // Send message
-            await onSend(trimmedText || 'Image', uploadedImageUrl || undefined);
+            console.log('📤 Sending message with image file:', imageFile?.name);
+            console.log('📤 onSendWithFile available:', !!onSendWithFile);
+
+            // If there's an image file, we need to send it differently
+            if (imageFile && onSendWithFile) {
+                console.log('✅ Using onSendWithFile for file:', imageFile.name);
+                // Send with file upload
+                await onSendWithFile(trimmedText || 'Image', imageFile);
+            } else if (imageFile && !onSendWithFile) {
+                console.error('❌ onSendWithFile not available!');
+                console.error('❌ This means ChatConversationPanel did not pass onSendWithFile prop');
+                toast.error('Cannot send image - feature not available', {
+                    icon: '❌',
+                });
+                return; // Don't send at all
+            } else {
+                console.log('✅ Sending text only (no image)');
+                // Send text only
+                await onSend(trimmedText, undefined);
+            }
 
             // Clear input after successful send
             setText('');
@@ -197,7 +206,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
             textFieldRef.current?.focus();
         } catch (error) {
             // Error is handled by parent component
-            console.error('Error sending message:', error);
+            console.error('❌ Error sending message:', error);
         }
     };
 
