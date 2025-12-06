@@ -41,15 +41,15 @@ import 'services/smart_api_client.dart';
 void main() async {
   // Ensure Flutter is initialized
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Load environment variables
   await dotenv.load(fileName: ".env");
-  
+
   // Print current configuration for debugging
   print('🔧 Environment Configuration:');
   print('   USE_PRODUCTION: ${dotenv.env['USE_PRODUCTION']}');
   print('   Server URL: ${ApiConfig.baseUrl}');
-  
+
   runApp(
     MultiProvider(
       providers: [
@@ -84,57 +84,36 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen> {
   @override
-  void initState() {
-    super.initState();
-    _checkLoginStatus();
-  }
-
-  Future<void> _checkLoginStatus() async {
-    final isLoggedIn = await AuthService.isLoggedIn();
-    if (!mounted) return;
-    if (isLoggedIn) {
-      Navigator.pushReplacementNamed(context, '/home');
-    } else {
-      Navigator.pushReplacementNamed(context, '/onboarding');
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF2E8B57),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.12),
-                    blurRadius: 18,
-                  ),
-                ],
+      backgroundColor: const Color(0xFFFFFFFF),
+      body: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          Navigator.pushReplacementNamed(context, '/onboarding');
+        },
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Image.asset(
+                'assets/logo_clean_c.png',
+                width: 130,
+                height: 128,
+                fit: BoxFit.contain,
               ),
-              child: const Icon(Icons.recycling, color: Color(0xFF2E8B57), size: 64),
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              'Clean Care',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
+              const SizedBox(height: 22),
+              const Text(
+                'ক্লিন কেয়ার',
+                style: TextStyle(
+                  color: Color(0xFF184F27),
+                  fontSize: 31,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            const CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-            ),
-          ],
+              const SizedBox(height: 8),
+            ],
+          ),
         ),
       ),
     );
@@ -152,7 +131,8 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2E8B57)),
         useMaterial3: true,
-        textTheme: GoogleFonts.notoSansTextTheme(), // Use Noto Sans which supports Bengali
+        textTheme:
+            GoogleFonts.notoSansTextTheme(), // Use Noto Sans which supports Bengali
         fontFamily: GoogleFonts.notoSans().fontFamily,
       ),
       initialRoute: '/',
@@ -165,7 +145,7 @@ class MyApp extends StatelessWidget {
             builder: (_) => EmailVerificationPage(token: token),
           );
         }
-        
+
         // Handle /verify-otp route with email parameter
         if (settings.name == '/verify-otp') {
           final email = settings.arguments as String?;
@@ -176,40 +156,48 @@ class MyApp extends StatelessWidget {
             builder: (_) => OtpVerificationPage(email: email),
           );
         }
-        
+
         return null;
       },
       routes: {
         // Splash screen - checks login status
         '/': (_) => const SplashScreen(),
-        
+
         // Public routes (no auth required)
         '/onboarding': (_) => const OnboardingScreen(),
         '/welcome': (_) => const WelcomeScreen(),
         '/login': (_) => const LoginPage(),
         '/signup': (_) => const SignUpPage(),
         '/resend-verification': (_) => const ResendVerificationPage(),
-        
+
         // Protected routes (auth required)
         '/home': (_) => const AuthGuard(child: HomePage()),
         '/customer-care': (_) => const AuthGuard(child: CustomerCarePage()),
         '/live-chat': (_) => const AuthGuard(child: LiveChatPage()),
         '/complaint': (_) => const AuthGuard(child: ComplaintPage()),
-        '/complaint-details': (_) => const AuthGuard(child: ComplaintDetailsPage()),
-        '/complaint-address': (_) => const AuthGuard(child: ComplaintAddressPage()),
-        '/complaint-success': (_) => const AuthGuard(child: ComplaintSuccessPage()),
+        '/complaint-details': (_) =>
+            const AuthGuard(child: ComplaintDetailsPage()),
+        '/complaint-address': (_) =>
+            const AuthGuard(child: ComplaintAddressPage()),
+        '/complaint-success': (_) =>
+            const AuthGuard(child: ComplaintSuccessPage()),
         '/complaint-list': (_) => const AuthGuard(child: ComplaintListPage()),
-        '/complaint-detail-view': (_) => const AuthGuard(child: ComplaintDetailViewPage()),
+        '/complaint-detail-view': (_) =>
+            const AuthGuard(child: ComplaintDetailViewPage()),
         '/others': (_) => const AuthGuard(child: OthersPage()),
-        '/category-selection': (_) => const AuthGuard(child: CategorySelectionPage()),
+        '/category-selection': (_) =>
+            const AuthGuard(child: CategorySelectionPage()),
         '/payment': (_) => const AuthGuard(child: PaymentPage()),
         '/donation': (_) => const AuthGuard(child: PaymentPage()),
         '/emergency': (_) => const AuthGuard(child: EmergencyPage()),
-        '/waste-management': (_) => const AuthGuard(child: WasteManagementPage()),
+        '/waste-management': (_) =>
+            const AuthGuard(child: WasteManagementPage()),
         '/gallery': (_) => const AuthGuard(child: GalleryPage()),
         '/camera': (_) => const AuthGuard(child: CameraPage()),
-        '/profile-settings': (_) => const AuthGuard(child: ProfileSettingsPage()),
-        '/government-calendar': (_) => const AuthGuard(child: GovernmentCalendarPage()),
+        '/profile-settings': (_) =>
+            const AuthGuard(child: ProfileSettingsPage()),
+        '/government-calendar': (_) =>
+            const AuthGuard(child: GovernmentCalendarPage()),
         '/notice-board': (_) => const AuthGuard(child: NoticeBoardPage()),
       },
     );
