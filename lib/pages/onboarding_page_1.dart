@@ -45,19 +45,6 @@ class OnboardingPage1 extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 28.0),
               child: Column(
                 children: [
-                  // top status area: Skip button right
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      TextButton(
-                        onPressed: onSkip,
-                        child: const Text(
-                          'Skip',
-                          style: TextStyle(color: primaryGreen, fontSize: 20),
-                        ),
-                      ),
-                    ],
-                  ),
                   const SizedBox(height: 60),
                   // center logo
                   Image.asset(

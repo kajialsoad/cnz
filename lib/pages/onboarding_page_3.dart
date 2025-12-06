@@ -10,134 +10,107 @@ class OnboardingPage3 extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const darkGreen = Color(0xFF065F46);
-    const lightGreen = Color(0xFFE8F5E9);
+    const bgDim = Color(0x33000000);
+    const overlayBlack = Color(0xCC000000);
+    const white = Colors.white;
+    const primaryGreen = Color(0xFF3FA564);
 
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-              const SizedBox(height: 56), // Space where skip button was
-              
-              // Top text
-              const Text(
-                'পরিবর্তন শুরু হোক আপনার হাতেই',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: darkGreen,
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: Image.asset(
+              'assets/unsplash__N0srPVrfVk3.png',
+              fit: BoxFit.cover,
+            ),
+          ),
+          Positioned.fill(child: Container(color: bgDim)),
+          Positioned.fill(
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0x00000000), overlayBlack],
                 ),
               ),
-              
-              const SizedBox(height: 32),
-              
-              // Icon
-              Container(
-                width: 110,
-                height: 110,
-                decoration: BoxDecoration(
-                  color: lightGreen,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(22.0),
-                  child: Image.asset(
-                    'assets/onboardingpage3.png',
-                    fit: BoxFit.contain,
-                  ),
-                ),
-              ),
-              
-              const SizedBox(height: 48),
-              
-              // Title
-              const Text(
-                'সহজেই সরাসরি\nকর্তৃপক্ষের কাছে আপনার\nঅভিযোগ জমা দিন।',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: darkGreen,
-                  height: 1.3,
-                ),
-              ),
-              
-              const SizedBox(height: 24),
-              
-              // Description
-              const Text(
-                'আপনার অভিযোগের বর্তমান অবস্থা\nতাৎক্ষণিক জানুন এবং সরকারি দপ্তরের\nসমাধান প্রক্রিয়া ট্র্যাক করুন।',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.black,
-                  height: 1.5,
-                ),
-              ),
-              
-              const SizedBox(height: 40),
-              
-              // Page indicators
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+            ),
+          ),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 28.0),
+              child: Column(
                 children: [
-                  _buildIndicator(false),
-                  const SizedBox(width: 8),
-                  _buildIndicator(false),
-                  const SizedBox(width: 8),
-                  _buildIndicator(true),
-                ],
-              ),
-              
-              const SizedBox(height: 24),
-              
-              // Get Started button
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: onGetStarted,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: darkGreen,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 0,
+                  const SizedBox(height: 60),
+                  Image.asset(
+                    'assets/logo_clean_c.png',
+                    width: 130,
+                    height: 128,
                   ),
-                  child: const Text(
-                    'শুরু করুন',
+                  const SizedBox(height: 18),
+                  const Text(
+                    'ক্লিন কেয়ার',
+                    textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 18,
+                      color: white,
+                      fontSize: 31,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                ),
+                  const Spacer(),
+                  const Text(
+                    'আপনার এলাকার বর্জ্য সমস্যা?\nসহজেই ছবি তুলে অভিযোগ জানান,\nএখন বর্জ্য সমস্যার সমাধান হবে সহজেই।',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w600,
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      SizedBox(
+                        width: 107,
+                        height: 44,
+                        child: OutlinedButton(
+                          onPressed: onGetStarted,
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: primaryGreen),
+                            foregroundColor: primaryGreen,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: const Text('Skip', style: TextStyle(fontSize: 20)),
+                        ),
+                      ),
+                      SizedBox(
+                        width: 107,
+                        height: 44,
+                        child: ElevatedButton(
+                          onPressed: onGetStarted,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primaryGreen,
+                            foregroundColor: white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: const Text('Next', style: TextStyle(fontSize: 20)),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                ],
               ),
-            ],
+            ),
           ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildIndicator(bool isActive) {
-    const darkGreen = Color(0xFF065F46);
-    
-    return Container(
-      width: isActive ? 24 : 8,
-      height: 8,
-      decoration: BoxDecoration(
-        color: isActive ? darkGreen : Colors.grey[300],
-        borderRadius: BorderRadius.circular(4),
+        ],
       ),
     );
   }

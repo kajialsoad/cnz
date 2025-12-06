@@ -134,6 +134,8 @@ flutter:
     - assets/congratulations.svg
     - assets/Container.svg
     - assets/unsplash__N0srPVrfVk.png
+    - assets/unsplash__N0srPVrfVk1.png
+    - assets/unsplash__N0srPVrfVk3.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
