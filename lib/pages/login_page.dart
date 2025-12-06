@@ -1,9 +1,10 @@
-import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+
+import '../config/api_config.dart';
 import '../repositories/auth_repository.dart';
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
-import '../config/api_config.dart';
 import '../services/connectivity_service.dart';
 
 class LoginPage extends StatefulWidget {
@@ -141,7 +142,8 @@ class _LoginPageState extends State<LoginPage> {
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(20),
+                      width: 80,
+                      height: 80,
                       decoration: BoxDecoration(
                         color: Colors.white,
                         shape: BoxShape.circle,
@@ -152,7 +154,14 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ],
                       ),
-                      child: const Icon(Icons.recycling, color: green, size: 48),
+                      child: ClipOval(
+                        child: Image.asset(
+                          'assets/OfficialLogo.png',
+                          width: 80,
+                          height: 80,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 24),
                     const Text(

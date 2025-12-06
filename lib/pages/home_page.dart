@@ -119,8 +119,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             return Transform.rotate(
               angle: _backgroundController.value * 2 * math.pi,
               child: Container(
-                width: 32,
-                height: 32,
+                width: 36,
+                height: 36,
+                padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   shape: BoxShape.circle,
@@ -133,10 +134,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     ),
                   ],
                 ),
-                child: const Icon(
-                  Icons.recycling,
-                  color: Color(0xFF4CAF50),
-                  size: 18,
+                child: ClipOval(
+                  child: Image.asset(
+                    'assets/OfficialLogo.png',
+                    fit: BoxFit.contain,
+                  ),
                 ),
               ),
             );
@@ -159,52 +161,38 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         ],
       ),
       actions: [
-        // Language Indicator - Shows current language
-        Consumer<LanguageProvider>(
-          builder: (context, languageProvider, child) {
-            return Padding(
-              padding: const EdgeInsets.only(right: 8.0),
-              child: GestureDetector(
-                onTap: () {
-                  _handleLanguageSwitch();
-                },
-                child: Container(
-                  height: 38,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF4CAF50),
-                    borderRadius: BorderRadius.circular(19),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.15),
-                        offset: const Offset(0, 2),
-                        blurRadius: 4,
-                        spreadRadius: 0,
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.language, color: Colors.white, size: 18),
-                      const SizedBox(width: 6),
-                      Text(
-                        languageProvider.isBangla ? 'বাং' : 'EN',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
+        // Chat Icon - Navigate to live chat
+        Padding(
+          padding: const EdgeInsets.only(right: 8.0),
+          child: Tooltip(
+            message: 'Live Chat',
+            child: GestureDetector(
+              onTap: () {
+                Navigator.pushNamed(context, '/live-chat');
+              },
+              child: Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF4CAF50),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.15),
+                      offset: const Offset(0, 2),
+                      blurRadius: 4,
+                      spreadRadius: 0,
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.chat_bubble_outline,
+                  color: Colors.white,
+                  size: 20,
                 ),
               ),
-            );
-          },
+            ),
+          ),
         ),
         Padding(
           padding: const EdgeInsets.only(right: 12.0),
@@ -267,6 +255,37 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     const SizedBox(width: 12),
                     TranslatedText(
                       'My Complaints',
+                      style: TextStyle(
+                        color: Colors.black87,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Divider
+              const PopupMenuDivider(height: 1),
+              // Emergency
+              PopupMenuItem<String>(
+                value: 'emergency',
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(Icons.emergency, color: Colors.red, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    TranslatedText(
+                      'Emergency',
                       style: TextStyle(
                         color: Colors.black87,
                         fontWeight: FontWeight.w500,
@@ -342,6 +361,66 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ],
                 ),
               ),
+              // Waste Management
+              PopupMenuItem<String>(
+                value: 'waste-management',
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: green.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(Icons.recycling, color: green, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    TranslatedText(
+                      'Waste Management',
+                      style: TextStyle(
+                        color: Colors.black87,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Photo Gallery
+              PopupMenuItem<String>(
+                value: 'gallery',
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: green.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(Icons.photo_library, color: green, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    TranslatedText(
+                      'Photo Gallery',
+                      style: TextStyle(
+                        color: Colors.black87,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Divider
+              const PopupMenuDivider(height: 1),
               // Language Switch
               PopupMenuItem<String>(
                 value: 'language',
@@ -407,90 +486,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 ),
               ),
               const PopupMenuDivider(height: 1),
-              // Language Section Header
-              PopupMenuItem<String>(
-                enabled: false,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                child: Text(
-                  'Language / ভাষা',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-              // English Button
-              PopupMenuItem<String>(
-                value: 'english',
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 4,
-                ),
-                child: Consumer<LanguageProvider>(
-                  builder: (context, languageProvider, child) {
-                    final isEnglish = languageProvider.isEnglish;
-                    return Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 8,
-                        horizontal: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isEnglish ? green : Colors.transparent,
-                        border: isEnglish ? null : Border.all(color: green, width: 1),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        'English',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: isEnglish ? Colors.white : green,
-                          fontWeight: FontWeight.w500,
-                          fontSize: 13,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              // Bengali Button
-              PopupMenuItem<String>(
-                value: 'bengali',
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 4,
-                ),
-                child: Consumer<LanguageProvider>(
-                  builder: (context, languageProvider, child) {
-                    final isBangla = languageProvider.isBangla;
-                    return Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 8,
-                        horizontal: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isBangla ? green : Colors.transparent,
-                        border: isBangla ? null : Border.all(color: green, width: 1),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        'বাংলা',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: isBangla ? Colors.white : green,
-                          fontWeight: FontWeight.w500,
-                          fontSize: 13,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
             ],
             onSelected: (String value) {
               _handleMenuSelection(value);
@@ -730,13 +725,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         // Home - already here
         break;
       case 1:
-        _navigateToPage('/emergency');
-        break;
-      case 2:
-        _navigateToPage('/waste-management');
-        break;
-      case 3:
-        _navigateToPage('/gallery');
+        // Complaint List
+        _navigateToPage('/complaint-list');
         break;
       case 4:
         // Camera
@@ -969,11 +959,20 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       case 'complaints':
         Navigator.pushNamed(context, '/complaint-list');
         return;
+      case 'emergency':
+        Navigator.pushNamed(context, '/emergency');
+        return;
       case 'calendar':
         Navigator.pushNamed(context, '/government-calendar');
         return;
       case 'notice':
         Navigator.pushNamed(context, '/notice-board');
+        return;
+      case 'waste-management':
+        Navigator.pushNamed(context, '/waste-management');
+        return;
+      case 'gallery':
+        Navigator.pushNamed(context, '/gallery');
         return;
       case 'logout':
         _handleLogout();
@@ -981,14 +980,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       case 'language':
         _handleLanguageSwitch();
         return;
-      case 'english':
-        await languageProvider.setLanguage('en');
-        _showLanguageChangeSnackbar('English Language Selected');
-        break;
-      case 'bengali':
-        await languageProvider.setLanguage('bn');
-        _showLanguageChangeSnackbar('Bangla Language Selected');
-        break;
     }
   }
 
