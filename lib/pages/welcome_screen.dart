@@ -1,5 +1,6 @@
-import 'package:flutter/material.dart';
 import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -201,7 +202,8 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(20),
+                        width: 80,
+                        height: 80,
                         decoration: BoxDecoration(
                           color: Colors.white,
                           shape: BoxShape.circle,
@@ -212,8 +214,14 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                             ),
                           ],
                         ),
-                        child:
-                            const Icon(Icons.recycling, color: Colors.green, size: 48),
+                        child: ClipOval(
+                          child: Image.asset(
+                            'assets/OfficialLogo.png',
+                            width: 80,
+                            height: 80,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 24),
                       const Text(
