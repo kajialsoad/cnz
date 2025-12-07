@@ -110,39 +110,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       foregroundColor: Colors.white,
       elevation: 0,
       toolbarHeight: 72,
-      leadingWidth: 56,
+      leadingWidth: 64,
       leading: Padding(
         padding: const EdgeInsets.only(left: 12.0),
-        child: AnimatedBuilder(
-          animation: _backgroundController,
-          builder: (context, child) {
-            return Transform.rotate(
-              angle: _backgroundController.value * 2 * math.pi,
-              child: Container(
-                width: 40,
-                height: 40,
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      offset: const Offset(0, 2),
-                      blurRadius: 4,
-                      spreadRadius: 0,
-                    ),
-                  ],
-                ),
-                child: ClipOval(
-                  child: Image.asset(
-                    'assets/logo_clean_c.png',
-                    fit: BoxFit.contain,
-                  ),
-                ),
-              ),
-            );
-          },
+        child: SizedBox(
+          width: 57,
+          height: 56,
+          child: Image.asset('assets/logo_clean_c.png', fit: BoxFit.contain),
         ),
       ),
       titleSpacing: 16,
