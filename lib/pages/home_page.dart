@@ -119,8 +119,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             return Transform.rotate(
               angle: _backgroundController.value * 2 * math.pi,
               child: Container(
-                width: 36,
-                height: 36,
+                width: 40,
+                height: 40,
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
                   color: Colors.white,

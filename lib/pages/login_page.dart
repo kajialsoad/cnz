@@ -38,23 +38,23 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    
+
     setState(() => _isLoading = true);
-    
+
     final phoneOrEmail = _phoneController.text.trim();
     final password = _passwordController.text;
-    
+
     try {
       final tokens = await _auth.login(phoneOrEmail, password);
-      
+
       // Save tokens using AuthService
       await AuthService.saveTokens(
         tokens['accessToken'] as String,
         tokens['refreshToken'] as String,
       );
-      
+
       if (!mounted) return;
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('লগইন সফল! ✓'),
@@ -62,17 +62,18 @@ class _LoginPageState extends State<LoginPage> {
           duration: Duration(seconds: 2),
         ),
       );
-      
+
       Navigator.pushReplacementNamed(context, '/home');
     } catch (e) {
       if (!mounted) return;
-      
+
       String errorMessage = 'লগইন ব্যর্থ';
       final errorStr = e.toString();
-      
+
       if (errorStr.contains('Invalid credentials')) {
         errorMessage = 'ভুল ফোন নম্বর বা পাসওয়ার্ড';
-      } else if (errorStr.contains('Network error') || errorStr.contains('timeout')) {
+      } else if (errorStr.contains('Network error') ||
+          errorStr.contains('timeout')) {
         final hasInternet = await ConnectivityService.hasInternetAccess();
         if (hasInternet) {
           errorMessage = 'সার্ভারের সাথে যোগাযোগ নেই';
@@ -81,7 +82,7 @@ class _LoginPageState extends State<LoginPage> {
         }
       } else if (errorStr.contains('verify your email')) {
         errorMessage = 'প্রথমে আপনার ইমেইল ভেরিফাই করুন';
-        
+
         // Show additional action for email verification
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -105,7 +106,7 @@ class _LoginPageState extends State<LoginPage> {
       } else {
         errorMessage = 'লগইন ব্যর্থ: ${errorStr.replaceAll('Exception: ', '')}';
       }
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(errorMessage),
@@ -137,30 +138,22 @@ class _LoginPageState extends State<LoginPage> {
             key: _formKey,
             child: Center(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24.0,
+                  vertical: 12.0,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Container(
-                      width: 80,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.12),
-                            blurRadius: 18,
-                          ),
-                        ],
-                      ),
-                      child: ClipOval(
-                        child: Image.asset(
-                          'assets/logo_clean_c.png',
-                          width: 80,
-                          height: 80,
-                          fit: BoxFit.cover,
-                        ),
+                      width: 130,
+                      height: 130,
+                      alignment: Alignment.center,
+                      child: Image.asset(
+                        'assets/logo_clean_c.png',
+                        width: 130,
+                        height: 128,
+                        fit: BoxFit.contain,
                       ),
                     ),
                     const SizedBox(height: 24),
@@ -184,9 +177,9 @@ class _LoginPageState extends State<LoginPage> {
                       child: Text(
                         'Phone Number',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                            ),
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -197,8 +190,10 @@ class _LoginPageState extends State<LoginPage> {
                         hintText: '+880 1XXX-XXXXXX',
                         filled: true,
                         fillColor: Colors.white,
-                        contentPadding:
-                            const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 14,
+                          horizontal: 16,
+                        ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
                           borderSide: BorderSide.none,
@@ -215,9 +210,9 @@ class _LoginPageState extends State<LoginPage> {
                       child: Text(
                         'Password',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                            ),
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -228,14 +223,18 @@ class _LoginPageState extends State<LoginPage> {
                         hintText: 'Enter your password',
                         filled: true,
                         fillColor: Colors.white,
-                        contentPadding:
-                            const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 14,
+                          horizontal: 16,
+                        ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
                           borderSide: BorderSide.none,
                         ),
                         suffixIcon: IconButton(
-                          icon: Icon(_obscure ? Icons.visibility : Icons.visibility_off),
+                          icon: Icon(
+                            _obscure ? Icons.visibility : Icons.visibility_off,
+                          ),
                           onPressed: () => setState(() => _obscure = !_obscure),
                         ),
                       ),
@@ -267,7 +266,9 @@ class _LoginPageState extends State<LoginPage> {
                           await AuthService.clearTokens();
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text('Tokens cleared! You can now login again.'),
+                              content: Text(
+                                'Tokens cleared! You can now login again.',
+                              ),
                               backgroundColor: Colors.green,
                             ),
                           );
@@ -295,7 +296,9 @@ class _LoginPageState extends State<LoginPage> {
                                 width: 20,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(green),
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    green,
+                                  ),
                                 ),
                               )
                             : const Text('Login'),
@@ -324,7 +327,8 @@ class _LoginPageState extends State<LoginPage> {
                     const SizedBox(height: 16),
                     // Email verification link
                     GestureDetector(
-                      onTap: () => Navigator.pushNamed(context, '/resend-verification'),
+                      onTap: () =>
+                          Navigator.pushNamed(context, '/resend-verification'),
                       child: const Text(
                         'ভেরিফিকেশন ইমেইল পাননি? নতুন ইমেইল পাঠান',
                         style: TextStyle(
