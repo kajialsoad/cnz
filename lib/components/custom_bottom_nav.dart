@@ -56,8 +56,15 @@ class CustomBottomNav extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       _buildNavItem(Icons.home, "Home", 0),
-                      SizedBox(width: screenWidth * 0.2),
+<<<<<<< HEAD
+                      _buildNavItem(Icons.phone, "Emergency", 1),
+                      SizedBox(width: screenWidth * 0.2), // Further reduced space
+                      _buildNavItem(Icons.recycling, "Waste", 2),
+                      _buildNavItem(Icons.photo_library, "Gallery", 3),
+=======
+                      SizedBox(width: screenWidth * 0.2), // Space for camera button
                       _buildNavItem(Icons.list_alt, "Complaints", 1),
+>>>>>>> a18fdae (1. Add Official Logo and Update Dependencies)
                     ],
                   ),
                 ),
