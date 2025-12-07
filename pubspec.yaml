@@ -114,6 +114,7 @@ flutter:
   assets:
     - .env
     - assets/logo.png
+    - assets/logo_clean_c.png
     - assets/OfficialLogo.png
     - assets/profile.png
     - assets/profile2.jpeg
