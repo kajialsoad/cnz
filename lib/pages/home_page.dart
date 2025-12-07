@@ -136,7 +136,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 ),
                 child: ClipOval(
                   child: Image.asset(
-                    'assets/OfficialLogo.png',
+                    'assets/logo_clean_c.png',
                     fit: BoxFit.contain,
                   ),
                 ),

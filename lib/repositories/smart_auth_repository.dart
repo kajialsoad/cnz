@@ -32,20 +32,17 @@ class SmartAuthRepository {
     });
   }
 
-  Future<Map<String, dynamic>> login({
-    required String phone,
-    required String password,
-  }) async {
+  Future<Map<String, dynamic>> login(String phoneOrEmail, String password) async {
     return await SmartApiClient.executeWithFallback((client) async {
       final repo = AuthRepository(client);
-      return await repo.login(phone: phone, password: password);
+      return await repo.login(phoneOrEmail, password);
     });
   }
 
   Future<Map<String, dynamic>> getCurrentUser() async {
     return await SmartApiClient.executeWithFallback((client) async {
       final repo = AuthRepository(client);
-      return await repo.getCurrentUser();
+      return await repo.me();
     });
   }
 
@@ -59,7 +56,7 @@ class SmartAuthRepository {
   Future<List<CityCorporation>> getCityCorporations() async {
     return await SmartApiClient.executeWithFallback((client) async {
       final repo = AuthRepository(client);
-      return await repo.getCityCorporations();
+      return await repo.getActiveCityCorporations();
     });
   }
 
