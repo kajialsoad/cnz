@@ -486,93 +486,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 ),
               ),
               const PopupMenuDivider(height: 1),
-              // Language Section Header
-<<<<<<< HEAD
-              PopupMenuItem<String>(
-                enabled: false,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                child: Text(
-                  'Language / ভাষা',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-              // English Button
-              PopupMenuItem<String>(
-                value: 'english',
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 4,
-                ),
-                child: Consumer<LanguageProvider>(
-                  builder: (context, languageProvider, child) {
-                    final isEnglish = languageProvider.isEnglish;
-                    return Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 8,
-                        horizontal: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isEnglish ? green : Colors.transparent,
-                        border: isEnglish ? null : Border.all(color: green, width: 1),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        'English',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: isEnglish ? Colors.white : green,
-                          fontWeight: FontWeight.w500,
-                          fontSize: 13,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              // Bengali Button
-              PopupMenuItem<String>(
-                value: 'bengali',
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 4,
-                ),
-                child: Consumer<LanguageProvider>(
-                  builder: (context, languageProvider, child) {
-                    final isBangla = languageProvider.isBangla;
-                    return Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 8,
-                        horizontal: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isBangla ? green : Colors.transparent,
-                        border: isBangla ? null : Border.all(color: green, width: 1),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        'বাংলা',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: isBangla ? Colors.white : green,
-                          fontWeight: FontWeight.w500,
-                          fontSize: 13,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-=======
->>>>>>> a18fdae (1. Add Official Logo and Update Dependencies)
             ],
             onSelected: (String value) {
               _handleMenuSelection(value);
@@ -756,10 +669,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               Expanded(
                 child: TranslatedText(
                   'Submit Complaint',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                 ),
               ),
             ],
@@ -771,9 +681,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              style: TextButton.styleFrom(
-                foregroundColor: Colors.grey[600],
-              ),
+              style: TextButton.styleFrom(foregroundColor: Colors.grey[600]),
               child: TranslatedText(
                 'No',
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
@@ -841,10 +749,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               Expanded(
                 child: TranslatedText(
                   'Camera',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                 ),
               ),
             ],
@@ -856,9 +761,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              style: TextButton.styleFrom(
-                foregroundColor: Colors.grey[600],
-              ),
+              style: TextButton.styleFrom(foregroundColor: Colors.grey[600]),
               child: TranslatedText(
                 'No',
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
@@ -940,7 +843,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         ),
                         child: const Text(
                           'English',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       )
                     : OutlinedButton(
@@ -958,7 +864,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         ),
                         child: const Text(
                           'English',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ),
               ),
@@ -981,7 +890,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         ),
                         child: const Text(
                           'বাংলা',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       )
                     : OutlinedButton(
@@ -999,7 +911,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         ),
                         child: const Text(
                           'বাংলা',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ),
               ),

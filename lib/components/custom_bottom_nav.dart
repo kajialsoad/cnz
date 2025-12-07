@@ -16,9 +16,10 @@ class CustomBottomNav extends StatelessWidget {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final bottomPadding = MediaQuery.of(context).padding.bottom;
-    
+
     return Container(
-      height: 90 + bottomPadding, // Reduced height to minimize space below camera
+      height:
+          90 + bottomPadding, // Reduced height to minimize space below camera
       decoration: const BoxDecoration(
         color: Colors.transparent, // Make the container background transparent
       ),
@@ -56,15 +57,8 @@ class CustomBottomNav extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       _buildNavItem(Icons.home, "Home", 0),
-<<<<<<< HEAD
-                      _buildNavItem(Icons.phone, "Emergency", 1),
-                      SizedBox(width: screenWidth * 0.2), // Further reduced space
-                      _buildNavItem(Icons.recycling, "Waste", 2),
-                      _buildNavItem(Icons.photo_library, "Gallery", 3),
-=======
-                      SizedBox(width: screenWidth * 0.2), // Space for camera button
+                      SizedBox(width: screenWidth * 0.2),
                       _buildNavItem(Icons.list_alt, "Complaints", 1),
->>>>>>> a18fdae (1. Add Official Logo and Update Dependencies)
                     ],
                   ),
                 ),
@@ -74,7 +68,9 @@ class CustomBottomNav extends StatelessWidget {
           // Perfect floating camera button positioned 50% higher
           Positioned(
             top: 2, // Adjusted so camera center aligns with bar height
-            left: (screenWidth / 2) - 28, // Perfect center alignment for 56px button
+            left:
+                (screenWidth / 2) -
+                28, // Perfect center alignment for 56px button
             child: Container(
               width: 56, // Further reduced size to prevent overflow
               height: 56,
@@ -120,12 +116,15 @@ class CustomBottomNav extends StatelessWidget {
 
   Widget _buildNavItem(IconData icon, String label, int index) {
     final isSelected = currentIndex == index;
-    
+
     return Expanded(
       child: GestureDetector(
         onTap: () => onTap(index),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2), // Further reduced padding
+          padding: const EdgeInsets.symmetric(
+            vertical: 6,
+            horizontal: 2,
+          ), // Further reduced padding
           child: Column(
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
@@ -172,38 +171,38 @@ class CircularNotchClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
     final path = Path();
-    
+
     // Optimized proportions to prevent overflow
     final notchRadius = 40.0; // Further reduced radius
     final notchCenter = size.width / 2;
     final notchStart = notchCenter - notchRadius;
     final notchEnd = notchCenter + notchRadius;
-    
+
     // Start from top-left
     path.moveTo(0, 0);
-    
+
     // Draw to the start of the notch
     path.lineTo(notchStart, 0);
-    
+
     // Create perfect smooth circular arc
     path.arcToPoint(
       Offset(notchEnd, 0),
       radius: Radius.circular(notchRadius),
       clockwise: false,
     );
-    
+
     // Continue to top-right
     path.lineTo(size.width, 0);
-    
+
     // Draw right edge
     path.lineTo(size.width, size.height);
-    
+
     // Draw bottom edge
     path.lineTo(0, size.height);
-    
+
     // Close the path
     path.close();
-    
+
     return path;
   }
 
