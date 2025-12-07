@@ -58,7 +58,7 @@ class CustomBottomNav extends StatelessWidget {
                     children: [
                       _buildNavItem(Icons.home, "Home", 0),
                       SizedBox(width: screenWidth * 0.2),
-                      _buildNavItem(Icons.list_alt, "Complaints", 1),
+                      _buildNavItem(Icons.fact_check, "অভিযোগ সমূহ", 1),
                     ],
                   ),
                 ),
@@ -132,7 +132,7 @@ class CustomBottomNav extends StatelessWidget {
               Icon(
                 icon,
                 color: isSelected ? Colors.white : Colors.white70,
-                size: isSelected ? 20 : 18, // Further reduced icon size
+                size: isSelected ? 24 : 22,
               ),
               const SizedBox(height: 1), // Minimal spacing
               Flexible(
@@ -140,7 +140,7 @@ class CustomBottomNav extends StatelessWidget {
                   label,
                   style: TextStyle(
                     color: isSelected ? Colors.white : Colors.white70,
-                    fontSize: isSelected ? 9 : 8, // Further reduced font size
+                    fontSize: 10,
                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                   ),
                   textAlign: TextAlign.center,

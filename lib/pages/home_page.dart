@@ -116,7 +116,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         child: SizedBox(
           width: 57,
           height: 56,
-          child: Image.asset('assets/logo_clean_c.png', fit: BoxFit.contain),
+          child: Image.asset(
+            'assets/logo_clean_c.png',
+            fit: BoxFit.contain,
+            filterQuality: FilterQuality.high,
+            cacheWidth: 114,
+            cacheHeight: 112,
+          ),
         ),
       ),
       titleSpacing: 16,
@@ -125,7 +131,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         children: [
           TranslatedText(
             'Clean Care',
-            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 18),
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 16,
+              letterSpacing: 0.4,
+            ),
           ),
           SizedBox(height: 2),
           TranslatedText(
