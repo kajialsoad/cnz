@@ -143,11 +143,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF2E8B57), Color(0xFF2EA66C)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+          color: Color(0xFF3FA564),
         ),
         child: Stack(
           children: [
@@ -201,26 +197,14 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Container(
-                        width: 80,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 20,
-                            ),
-                          ],
-                        ),
-                        child: ClipOval(
-                          child: Image.asset(
-                            'assets/OfficialLogo.png',
-                            width: 80,
-                            height: 80,
-                            fit: BoxFit.cover,
-                          ),
+                      SizedBox(
+                        width: 130,
+                        height: 130,
+                        child: Image.asset(
+                          'assets/logo_clean_c.png',
+                          width: 130,
+                          height: 128,
+                          fit: BoxFit.contain,
                         ),
                       ),
                       const SizedBox(height: 24),
@@ -228,13 +212,13 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                         'Clean Care',
                         style: TextStyle(
                             color: Colors.white,
-                            fontSize: 22,
+                            fontSize: 18,
                             fontWeight: FontWeight.w600),
                       ),
                       const SizedBox(height: 8),
                       const Text(
                         'Clean City, Green Life',
-                        style: TextStyle(color: Colors.white70, fontSize: 16),
+                        style: TextStyle(color: Colors.white70, fontSize: 18),
                       ),
                       const SizedBox(height: 32),
                       SizedBox(
