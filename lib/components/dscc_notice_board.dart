@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+
 import '../widgets/translated_text.dart';
 
 class DSCCNoticeBoard extends StatefulWidget {
