@@ -18,6 +18,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
+  const [collapsed, setCollapsed] = useState(false);
 
   const handleSidebarToggle = () => {
     setSidebarOpen(!sidebarOpen);
@@ -25,6 +26,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({
 
   const handleSidebarClose = () => {
     setSidebarOpen(false);
+  };
+
+  const handleCollapseToggle = () => {
+    setCollapsed(v => !v);
   };
 
   return (
@@ -40,6 +45,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         open={sidebarOpen}
         onClose={handleSidebarClose}
         variant={isMobile ? 'temporary' : 'permanent'}
+        collapsed={collapsed}
+        onToggleCollapsed={handleCollapseToggle}
       />
 
       {/* Main Content */}
@@ -48,7 +55,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         sx={{
           flexGrow: 1,
           pt: `${HEADER_HEIGHT}px`,
-          pl: isMobile ? 0 : `${DRAWER_WIDTH}px`,
+          pl: isMobile ? 0 : `${collapsed ? 72 : DRAWER_WIDTH}px`,
           bgcolor: 'background.default',
           minHeight: '100vh',
           transition: theme.transitions.create(['margin-left'], {

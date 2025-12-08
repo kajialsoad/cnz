@@ -70,8 +70,8 @@ class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
               ),
               child: Column(
                 children: [
-                  // Calendar Widget
-                  _buildCalendarWidget(),
+                  // Calendar Poster (Asset Image)
+                  _buildCalendarPoster(),
 
                   // Upcoming Events Section
                   _buildUpcomingEventsSection(),
@@ -112,87 +112,36 @@ class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
     );
   }
 
-  Widget _buildCalendarWidget() {
+  Widget _buildCalendarPoster() {
     return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: const [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Color(0x66000000),
+            blurRadius: 4,
+            offset: Offset(0, 4),
           ),
         ],
       ),
-      child: Column(
-        children: [
-          // Month Navigation
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              IconButton(
-                onPressed: () {
-                  setState(() {
-                    currentMonth = DateTime(
-                      currentMonth.year,
-                      currentMonth.month - 1,
-                    );
-                  });
-                },
-                icon: const Icon(Icons.chevron_left),
+      clipBehavior: Clip.antiAlias,
+      child: AspectRatio(
+        aspectRatio: 365 / 479,
+        child: Image.asset(
+          'assets/calenderimage_2.png',
+          filterQuality: FilterQuality.high,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stack) {
+            return Container(
+              color: Colors.white,
+              alignment: Alignment.center,
+              child: const Text(
+                'Calendar image missing: assets/calenderimage_2.png',
               ),
-              Text(
-                DateFormat('MMMM yyyy').format(currentMonth),
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              IconButton(
-                onPressed: () {
-                  setState(() {
-                    currentMonth = DateTime(
-                      currentMonth.year,
-                      currentMonth.month + 1,
-                    );
-                  });
-                },
-                icon: const Icon(Icons.chevron_right),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 16),
-
-          // Days of week header
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
-                .map(
-                  (day) => Container(
-                    width: 40,
-                    height: 40,
-                    alignment: Alignment.center,
-                    child: Text(
-                      day,
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                )
-                .toList(),
-          ),
-
-          const SizedBox(height: 8),
-
-          // Calendar Grid
-          _buildCalendarGrid(),
-        ],
+            );
+          },
+        ),
       ),
     );
   }

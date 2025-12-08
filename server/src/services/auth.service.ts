@@ -3,7 +3,8 @@ import { hash, compare } from 'bcrypt';
 import { signAccessToken, signRefreshToken, verifyRefreshToken, generateSecureToken, generateOTP } from '../utils/jwt';
 import emailService from '../utils/email';
 import env from '../config/env';
-import { UserRole, UserStatus } from '@prisma/client';
+// Prisma v6 enum exports use $Enums; এখানে আমরা অ্যাডমিন টোকেনের জন্য নিজস্ব টাইপ রাখছি
+type AdminRole = 'ADMIN' | 'SUPER_ADMIN' | 'MASTER_ADMIN';
 import cityCorporationService from './city-corporation.service';
 import thanaService from './thana.service';
 
@@ -13,7 +14,7 @@ export interface RegisterInput {
   firstName: string;
   lastName: string;
   phone: string;
-  role?: UserRole;
+  role?: AdminRole;
   ward?: string;
   zone?: string;
   address?: string;
@@ -144,8 +145,8 @@ export class AuthService {
         address: input.address,
         cityCorporationCode: input.cityCorporationCode,
         thanaId: input.thanaId,
-        role: input.role || UserRole.CUSTOMER,
-        status: emailVerificationEnabled ? UserStatus.PENDING : UserStatus.ACTIVE,
+        role: input.role || 'ADMIN',
+        status: emailVerificationEnabled ? 'PENDING' : 'ACTIVE',
         emailVerified: !emailVerificationEnabled, // Mark as verified if verification is disabled
         phoneVerified: false,
       },
@@ -219,7 +220,7 @@ export class AuthService {
       throw new Error('Invalid credentials');
     }
 
-    if (user.status === UserStatus.SUSPENDED) {
+    if (user.status === 'SUSPENDED') {
       throw new Error('Account is suspended');
     }
 
@@ -227,7 +228,7 @@ export class AuthService {
     const emailVerificationEnabled = env.EMAIL_VERIFICATION_ENABLED;
     console.log('Login - Email verification enabled:', emailVerificationEnabled);
 
-    if (emailVerificationEnabled && user.status === UserStatus.PENDING && !user.emailVerified) {
+    if (emailVerificationEnabled && user.status === 'PENDING' && !user.emailVerified) {
       throw new Error('Please verify your email first');
     }
 
@@ -236,18 +237,24 @@ export class AuthService {
       throw new Error('Invalid credentials');
     }
 
+    // Admin রোল ন্যারো করা
+    const toAdminRole = (r: any): AdminRole => {
+      if (r === 'ADMIN' || r === 'SUPER_ADMIN' || r === 'MASTER_ADMIN') return r;
+      throw new Error('Access denied. Admin privileges required.');
+    };
+
     // Generate tokens
     try {
       const accessToken = signAccessToken({
         sub: parseInt(user.id.toString()),
-        role: user.role,
+        role: toAdminRole(user.role),
         email: user.email ?? undefined,
         phone: user.phone ?? undefined
       });
 
       const refreshToken = signRefreshToken({
         sub: parseInt(user.id.toString()),
-        role: user.role,
+        role: toAdminRole(user.role),
         email: user.email ?? undefined,
         phone: user.phone ?? undefined
       });
@@ -443,7 +450,7 @@ export class AuthService {
       where: { id: verificationToken.userId },
       data: {
         emailVerified: true,
-        status: UserStatus.ACTIVE
+        status: 'ACTIVE'
       }
     });
 
@@ -481,7 +488,7 @@ export class AuthService {
       where: { id: verificationToken.userId },
       data: {
         emailVerified: true,
-        status: UserStatus.ACTIVE
+        status: 'ACTIVE'
       }
     });
 
@@ -732,7 +739,7 @@ export class AuthService {
       where: {
         createdAt: { lt: expiryTime },
         emailVerified: false,
-        status: UserStatus.PENDING
+        status: 'PENDING'
       },
       select: {
         id: true

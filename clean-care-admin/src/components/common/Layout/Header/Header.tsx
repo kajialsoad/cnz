@@ -4,7 +4,6 @@ import {
   Toolbar,
   Typography,
   IconButton,
-  Avatar,
   Box,
   Badge,
   TextField,
@@ -22,7 +21,7 @@ import {
   KeyboardArrowDown as KeyboardArrowDownIcon,
 } from '@mui/icons-material';
 import { useLanguage } from '../../../../contexts/LanguageContext';
-import { useAuth } from '../../../../contexts/AuthContext';
+import ProfileButton from '../../ProfileButton/ProfileButton';
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -34,7 +33,6 @@ const Header: React.FC<HeaderProps> = ({
   title = 'Dashboard Overview',
 }) => {
   const { language, setLanguage } = useLanguage();
-  const { user } = useAuth();
   const [searchValues, setSearchValues] = useState({
     complaint: '',
     adminName: '',
@@ -305,26 +303,11 @@ const Header: React.FC<HeaderProps> = ({
             </Badge>
           </IconButton>
 
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <Avatar
-              src={user?.avatar}
-              sx={{
-                width: 36,
-                height: 36,
-                bgcolor: 'primary.main',
-              }}
-            >
-              {user?.firstName?.[0]}{user?.lastName?.[0]}
-            </Avatar>
-            <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
-              <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.primary' }}>
-                {user?.firstName} {user?.lastName}
-              </Typography>
-              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                {user?.roles?.[0]?.name || 'Admin'}
-              </Typography>
-            </Box>
-          </Box>
+          <ProfileButton
+            variant="header"
+            showName={true}
+            showRole={true}
+          />
         </Box>
       </Toolbar>
     </AppBar>

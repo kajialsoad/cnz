@@ -25,6 +25,7 @@ export const API_CONFIG = {
       LOGOUT: '/api/admin/auth/logout',
       REFRESH: '/api/admin/auth/refresh',
       PROFILE: '/api/admin/auth/me',
+      UPDATE_PROFILE: '/api/admin/auth/profile',
     },
     USERS: {
       LIST: '/api/admin/users',

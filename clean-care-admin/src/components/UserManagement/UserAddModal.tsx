@@ -73,7 +73,7 @@ const UserAddModal: React.FC<UserAddModalProps> = ({
         thanaId: '',
         ward: '',
         zone: '',
-        role: 'CUSTOMER' as UserRole,
+        role: 'ADMIN' as UserRole,
     });
 
     const [errors, setErrors] = useState<FormErrors>({});
@@ -265,7 +265,7 @@ const UserAddModal: React.FC<UserAddModalProps> = ({
                 thanaId: '',
                 ward: '',
                 zone: '',
-                role: 'CUSTOMER' as UserRole,
+                role: 'ADMIN' as UserRole,
             });
 
             onClose();
@@ -295,7 +295,7 @@ const UserAddModal: React.FC<UserAddModalProps> = ({
                 thanaId: '',
                 ward: '',
                 zone: '',
-                role: 'CUSTOMER' as UserRole,
+                role: 'ADMIN' as UserRole,
             });
             setErrors({});
             setSubmitError(null);
@@ -570,10 +570,9 @@ const UserAddModal: React.FC<UserAddModalProps> = ({
                                 disabled={loading}
                                 helperText="Select the user's role in the system"
                             >
-                                <MenuItem value="CUSTOMER">Customer</MenuItem>
-                                <MenuItem value="SERVICE_PROVIDER">Service Provider</MenuItem>
                                 <MenuItem value="ADMIN">Admin</MenuItem>
                                 <MenuItem value="SUPER_ADMIN">Super Admin</MenuItem>
+                                <MenuItem value="MASTER_ADMIN">Master Admin</MenuItem>
                             </TextField>
                         </Box>
                     </Box>

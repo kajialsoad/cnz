@@ -137,6 +137,11 @@ flutter:
     - assets/unsplash__N0srPVrfVk.png
     - assets/unsplash__N0srPVrfVk1.png
     - assets/unsplash__N0srPVrfVk3.png
+    - assets/Rectangle 6.png
+    - assets/Rectangle 7.png
+    - assets/Rectangle 8.png
+    - assets/Rectangle 9.png
+    - assets/calenderimage_2.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

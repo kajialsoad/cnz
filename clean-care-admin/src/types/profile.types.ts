@@ -1,0 +1,55 @@
+/**
+ * Profile-related type definitions
+ */
+
+export interface UserProfile {
+    id: number;
+    email: string;
+    phone: string;
+    firstName: string;
+    lastName: string;
+    avatar?: string;
+    role: 'ADMIN' | 'SUPER_ADMIN' | 'MASTER_ADMIN';
+    status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'PENDING';
+    emailVerified: boolean;
+    phoneVerified: boolean;
+    ward?: string;
+    zone?: string;
+    address?: string;
+    cityCorporationCode?: string;
+    thanaId?: number;
+    createdAt: string;
+    updatedAt: string;
+    lastLoginAt?: string;
+}
+
+export interface ProfileUpdateData {
+    firstName?: string;
+    lastName?: string;
+    avatar?: string;
+    ward?: string;
+    zone?: string;
+    address?: string;
+}
+
+export interface ProfileContextValue {
+    profile: UserProfile | null;
+    isLoading: boolean;
+    error: string | null;
+    refreshProfile: () => Promise<void>;
+    updateProfile: (data: ProfileUpdateData) => Promise<void>;
+    uploadAvatar: (file: File) => Promise<string>;
+    clearError: () => void;
+}
+
+export interface ProfileUpdateResponse {
+    success: boolean;
+    message: string;
+    data: UserProfile;
+}
+
+export interface AvatarUploadResponse {
+    success: boolean;
+    url: string;
+    publicId: string;
+}

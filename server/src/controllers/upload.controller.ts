@@ -244,6 +244,97 @@ export class UploadController {
 
   // Upload middleware for multiple images
   uploadMultipleImages = uploadConfig.array('images', 5);
+
+  // Upload avatar image for admin profile
+  uploadAvatar = async (req: Request, res: Response) => {
+    try {
+      console.log('📤 Avatar upload called, Cloudinary enabled:', isCloudinaryEnabled());
+      console.log('📤 File received:', req.file);
+      console.log('📤 Request body:', req.body);
+
+      if (!req.file) {
+        console.log('❌ No file in request');
+        return res.status(400).json({
+          success: false,
+          message: 'No avatar file provided'
+        });
+      }
+
+      // Check if Cloudinary is enabled
+      if (isCloudinaryEnabled()) {
+        try {
+          // Upload to Cloudinary in avatars folder
+          const result = await cloudUploadService.uploadImage(req.file, 'avatars');
+          console.log('✅ Avatar uploaded to Cloudinary:', result.secure_url);
+
+          return res.status(200).json({
+            success: true,
+            message: 'Avatar uploaded successfully',
+            data: {
+              url: result.secure_url,
+              publicId: result.public_id
+            }
+          });
+        } catch (error) {
+          console.error('❌ Cloudinary avatar upload failed:', error);
+          return res.status(500).json({
+            success: false,
+            message: 'Failed to upload avatar to cloud storage',
+            error: process.env.NODE_ENV === 'development' ? (error as Error).message : 'Internal server error'
+          });
+        }
+      } else {
+        // Fallback to local storage
+        try {
+          const validation = await uploadService.validateFiles([req.file]);
+
+          if (!validation.isValid) {
+            await uploadService.cleanupFiles([req.file]);
+
+            return res.status(400).json({
+              success: false,
+              message: 'Avatar validation failed',
+              errors: validation.errors
+            });
+          }
+
+          const uploadedFiles = await uploadService.processUploadedFiles({ images: [req.file] });
+
+          if (!uploadedFiles.images || uploadedFiles.images.length === 0) {
+            return res.status(500).json({
+              success: false,
+              message: 'Failed to process avatar'
+            });
+          }
+
+          return res.status(200).json({
+            success: true,
+            message: 'Avatar uploaded successfully',
+            data: {
+              url: uploadedFiles.images[0].url,
+              filename: uploadedFiles.images[0].filename
+            }
+          });
+        } catch (error) {
+          console.error('❌ Local storage avatar upload failed:', error);
+          return res.status(500).json({
+            success: false,
+            message: 'Failed to process avatar',
+            error: process.env.NODE_ENV === 'development' ? (error as Error).message : 'Internal server error'
+          });
+        }
+      }
+
+    } catch (error) {
+      console.error('❌ Avatar upload error:', error);
+
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to upload avatar',
+        error: process.env.NODE_ENV === 'development' ? (error as Error).message : 'Internal server error'
+      });
+    }
+  };
 }
 
 export const uploadController = new UploadController();

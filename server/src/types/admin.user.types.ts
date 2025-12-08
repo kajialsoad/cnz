@@ -1,4 +1,4 @@
-import { UserRole, UserStatus, ComplaintStatus } from '@prisma/client';
+import { users_role, UserStatus, ComplaintStatus } from '@prisma/client';
 
 // Query interfaces
 export interface GetUsersQuery {
@@ -6,7 +6,7 @@ export interface GetUsersQuery {
     limit?: number;
     search?: string;
     status?: UserStatus;
-    role?: UserRole;
+    role?: users_role;
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
 }
@@ -30,7 +30,7 @@ export interface UserWithStats {
     avatar: string | null;
     ward: string | null;
     zone: string | null;
-    role: UserRole;
+    role: users_role;
     status: UserStatus;
     emailVerified: boolean;
     phoneVerified: boolean;
@@ -96,7 +96,7 @@ export interface CreateUserDto {
     password: string;
     ward?: string;
     zone?: string;
-    role?: UserRole;
+    role?: users_role;
 }
 
 // Update user DTO
@@ -107,7 +107,7 @@ export interface UpdateUserDto {
     phone?: string;
     ward?: string;
     zone?: string;
-    role?: UserRole;
+    role?: users_role;
     status?: UserStatus;
 }
 

@@ -154,10 +154,17 @@ class AuthService {
 
     async getProfile(): Promise<User> {
         try {
-            const response = await this.apiClient.get<{ user: User }>(
+            const response = await this.apiClient.get<{ success: boolean; data: User } | { user: User }>(
                 API_CONFIG.ENDPOINTS.AUTH.PROFILE
             );
-            return response.data.user;
+            // Handle both response formats: { success, data } and { user }
+            if ('data' in response.data && response.data.data) {
+                return response.data.data;
+            }
+            if ('user' in response.data) {
+                return response.data.user;
+            }
+            throw new Error('Invalid profile response format');
         } catch (error) {
             throw new Error('Failed to fetch profile');
         }

@@ -67,7 +67,7 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
         phone: '',
         ward: '',
         zone: '',
-        role: 'CUSTOMER' as UserRole,
+        role: 'ADMIN' as UserRole,
         status: 'ACTIVE' as UserStatus,
         newPassword: '',
         confirmPassword: '',
@@ -511,10 +511,9 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
                                 onChange={handleChange('role')}
                                 disabled={loading}
                             >
-                                <MenuItem value="CUSTOMER">Customer</MenuItem>
-                                <MenuItem value="SERVICE_PROVIDER">Service Provider</MenuItem>
                                 <MenuItem value="ADMIN">Admin</MenuItem>
                                 <MenuItem value="SUPER_ADMIN">Super Admin</MenuItem>
+                                <MenuItem value="MASTER_ADMIN">Master Admin</MenuItem>
                             </TextField>
                         </Box>
                     </Box>

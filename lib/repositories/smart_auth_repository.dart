@@ -32,7 +32,10 @@ class SmartAuthRepository {
     });
   }
 
-  Future<Map<String, dynamic>> login(String phoneOrEmail, String password) async {
+  Future<Map<String, dynamic>> login(
+    String phoneOrEmail,
+    String password,
+  ) async {
     return await SmartApiClient.executeWithFallback((client) async {
       final repo = AuthRepository(client);
       return await repo.login(phoneOrEmail, password);

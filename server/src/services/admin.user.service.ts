@@ -1,6 +1,6 @@
 import prisma from '../utils/prisma';
 import { hash } from 'bcrypt';
-import { UserRole, UserStatus, ComplaintStatus, Prisma } from '@prisma/client';
+import { users_role, UserStatus, ComplaintStatus, Prisma } from '@prisma/client';
 
 // Query interfaces
 export interface GetUsersQuery {
@@ -8,7 +8,7 @@ export interface GetUsersQuery {
     limit?: number;
     search?: string;
     status?: UserStatus;
-    role?: UserRole;
+    role?: users_role;
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
     cityCorporationCode?: string;
@@ -35,7 +35,7 @@ export interface UserWithStats {
     ward: string | null;
     zone: string | null;
     address: string | null;
-    role: UserRole;
+    role: users_role;
     status: UserStatus;
     emailVerified: boolean;
     phoneVerified: boolean;
@@ -99,7 +99,7 @@ export interface CreateUserDto {
     thanaId?: number;
     ward?: string;
     zone?: string;
-    role?: UserRole;
+    role?: users_role;
 }
 
 export interface UpdateUserDto {
@@ -111,7 +111,7 @@ export interface UpdateUserDto {
     thanaId?: number;
     ward?: string;
     zone?: string;
-    role?: UserRole;
+    role?: users_role;
     status?: UserStatus;
     password?: string;
 }
@@ -365,7 +365,7 @@ export class AdminUserService {
         const totalCitizens = await prisma.user.count({
             where: {
                 ...userWhere,
-                role: UserRole.CUSTOMER,
+                role: { in: [users_role.ADMIN, users_role.SUPER_ADMIN, users_role.MASTER_ADMIN] },
             },
         });
 
@@ -479,7 +479,7 @@ export class AdminUserService {
                 thanaId: data.thanaId,
                 ward: data.ward,
                 zone: data.zone,
-                role: data.role || UserRole.CUSTOMER,
+                role: data.role || users_role.ADMIN,
                 status: UserStatus.ACTIVE,
                 emailVerified: false,
                 phoneVerified: false,

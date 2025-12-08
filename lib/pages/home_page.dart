@@ -405,37 +405,121 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               ),
               // Divider
               const PopupMenuDivider(height: 1),
-              // Language Switch
+              // MenuDrawer: Inline language selector (Figma)
               PopupMenuItem<String>(
-                value: 'language',
+                enabled: false,
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
+                  horizontal: 12,
                   vertical: 8,
                 ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
+                child: Consumer<LanguageProvider>(
+                  builder: (context, languageProvider, _) {
+                    final isEnglish = languageProvider.isEnglish;
+                    return Container(
+                      width: 251,
                       decoration: BoxDecoration(
-                        color: green.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
+                        color: const Color(0xFFF2F4F5),
+                        borderRadius: BorderRadius.circular(14),
                       ),
-                      child: Icon(Icons.language, color: green, size: 20),
-                    ),
-                    const SizedBox(width: 12),
-                    TranslatedText(
-                      'Language Switch',
-                      style: TextStyle(
-                        color: Colors.black87,
-                        fontWeight: FontWeight.w500,
-                        fontSize: 14,
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Language / ভাষা',
+                            style: const TextStyle(
+                              color: Color(0xFF4A5565),
+                              fontSize: 16,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: InkWell(
+                                  onTap: () {
+                                    Navigator.pop(context);
+                                    _selectLanguage('en');
+                                  },
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: isEnglish
+                                          ? const Color(0xFF3FA564)
+                                          : Colors.white,
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: isEnglish
+                                          ? null
+                                          : Border.all(
+                                              color: const Color(0xFFD1D5DC),
+                                            ),
+                                    ),
+                                    padding: const EdgeInsets.fromLTRB(
+                                      16,
+                                      9,
+                                      16,
+                                      9,
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      'English',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        color: isEnglish
+                                            ? Colors.white
+                                            : const Color(0xFF0A0A0A),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: InkWell(
+                                  onTap: () {
+                                    Navigator.pop(context);
+                                    _selectLanguage('bn');
+                                  },
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: !isEnglish
+                                          ? const Color(0xFF3FA564)
+                                          : Colors.white,
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: !isEnglish
+                                          ? null
+                                          : Border.all(
+                                              color: const Color(0xFFD1D5DC),
+                                            ),
+                                    ),
+                                    padding: const EdgeInsets.fromLTRB(
+                                      16,
+                                      8,
+                                      16,
+                                      8,
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      'বাংলা',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        color: !isEnglish
+                                            ? Colors.white
+                                            : const Color(0xFF0A0A0A),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
+                    );
+                  },
                 ),
               ),
-              // Divider
-              const PopupMenuDivider(height: 1),
               // Logout
               PopupMenuItem<String>(
                 value: 'logout',

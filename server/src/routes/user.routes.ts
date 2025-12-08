@@ -126,7 +126,7 @@ router.post('/change-password', authGuard, async (req: AuthRequest, res) => {
 });
 
 // Admin routes - Get all users
-router.get('/admin/users', authGuard, rbacGuard('ADMIN', 'SUPER_ADMIN'), async (req, res) => {
+router.get('/admin/users', authGuard, rbacGuard('ADMIN', 'SUPER_ADMIN', 'MASTER_ADMIN'), async (req, res) => {
   try {
     const { page = 1, limit = 10, role, status } = req.query;
 
@@ -180,7 +180,7 @@ router.get('/admin/users', authGuard, rbacGuard('ADMIN', 'SUPER_ADMIN'), async (
 });
 
 // Admin routes - Get user by ID
-router.get('/admin/users/:id', authGuard, rbacGuard('ADMIN', 'SUPER_ADMIN'), async (req, res) => {
+router.get('/admin/users/:id', authGuard, rbacGuard('ADMIN', 'SUPER_ADMIN', 'MASTER_ADMIN'), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -222,7 +222,7 @@ router.get('/admin/users/:id', authGuard, rbacGuard('ADMIN', 'SUPER_ADMIN'), asy
 });
 
 // Admin routes - Update user status
-router.put('/admin/users/:id/status', authGuard, rbacGuard('ADMIN', 'SUPER_ADMIN'), async (req, res) => {
+router.put('/admin/users/:id/status', authGuard, rbacGuard('ADMIN', 'SUPER_ADMIN', 'MASTER_ADMIN'), async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
@@ -264,12 +264,12 @@ router.put('/admin/users/:id/status', authGuard, rbacGuard('ADMIN', 'SUPER_ADMIN
 });
 
 // Admin routes - Update user role
-router.put('/admin/users/:id/role', authGuard, rbacGuard('SUPER_ADMIN'), async (req, res) => {
+router.put('/admin/users/:id/role', authGuard, rbacGuard('SUPER_ADMIN', 'MASTER_ADMIN'), async (req, res) => {
   try {
     const { id } = req.params;
     const { role } = req.body;
 
-    if (!['CUSTOMER', 'SERVICE_PROVIDER', 'ADMIN', 'SUPER_ADMIN'].includes(role)) {
+    if (!['ADMIN', 'SUPER_ADMIN', 'MASTER_ADMIN'].includes(role)) {
       return res.status(400).json({
         success: false,
         message: 'Invalid role'

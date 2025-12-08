@@ -6,6 +6,7 @@ export interface User {
   lastName: string;
   phone?: string;
   avatar?: string;
+  role?: 'ADMIN' | 'SUPER_ADMIN' | 'MASTER_ADMIN' | 'CUSTOMER' | 'SERVICE_PROVIDER';
   roles: Role[];
   permissions: Permission[];
   status: 'active' | 'inactive' | 'suspended';

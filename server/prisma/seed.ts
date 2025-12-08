@@ -9,50 +9,17 @@ async function main() {
     // Hash password for demo users
     const hashedPassword = await bcrypt.hash('Demo123!@#', 10);
 
-    // Create demo customers
-    const customer1 = await prisma.user.upsert({
+    // Create demo master admin
+    const masterAdmin = await prisma.user.upsert({
         where: { phone: '01712345678' },
         update: {},
         create: {
             phone: '01712345678',
-            email: 'customer1@demo.com',
+            email: 'masteradmin@demo.com',
             passwordHash: hashedPassword,
-            firstName: 'Rahim',
-            lastName: 'Ahmed',
-            role: UserRole.CUSTOMER,
-            status: UserStatus.ACTIVE,
-            phoneVerified: true,
-            emailVerified: true,
-        },
-    });
-
-    const customer2 = await prisma.user.upsert({
-        where: { phone: '01812345678' },
-        update: {},
-        create: {
-            phone: '01812345678',
-            email: 'customer2@demo.com',
-            passwordHash: hashedPassword,
-            firstName: 'Karim',
-            lastName: 'Hossain',
-            role: UserRole.CUSTOMER,
-            status: UserStatus.ACTIVE,
-            phoneVerified: true,
-            emailVerified: true,
-        },
-    });
-
-    // Create demo service provider
-    const serviceProvider = await prisma.user.upsert({
-        where: { phone: '01912345678' },
-        update: {},
-        create: {
-            phone: '01912345678',
-            email: 'provider@demo.com',
-            passwordHash: hashedPassword,
-            firstName: 'Jamal',
-            lastName: 'Khan',
-            role: UserRole.SERVICE_PROVIDER,
+            firstName: 'Master',
+            lastName: 'Admin',
+            role: UserRole.MASTER_ADMIN,
             status: UserStatus.ACTIVE,
             phoneVerified: true,
             emailVerified: true,
@@ -98,18 +65,10 @@ async function main() {
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log('All users have the same password: Demo123!@#');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('\n👤 Customer 1:');
-    console.log(`   Phone: ${customer1.phone}`);
-    console.log(`   Email: ${customer1.email}`);
-    console.log(`   Name: ${customer1.firstName} ${customer1.lastName}`);
-    console.log('\n👤 Customer 2:');
-    console.log(`   Phone: ${customer2.phone}`);
-    console.log(`   Email: ${customer2.email}`);
-    console.log(`   Name: ${customer2.firstName} ${customer2.lastName}`);
-    console.log('\n🔧 Service Provider:');
-    console.log(`   Phone: ${serviceProvider.phone}`);
-    console.log(`   Email: ${serviceProvider.email}`);
-    console.log(`   Name: ${serviceProvider.firstName} ${serviceProvider.lastName}`);
+    console.log('\n👑 Master Admin:');
+    console.log(`   Phone: ${masterAdmin.phone}`);
+    console.log(`   Email: ${masterAdmin.email}`);
+    console.log(`   Name: ${masterAdmin.firstName} ${masterAdmin.lastName}`);
     console.log('\n👨‍💼 Admin:');
     console.log(`   Phone: ${admin.phone}`);
     console.log(`   Email: ${admin.email}`);
@@ -122,27 +81,7 @@ async function main() {
     console.log('🎯 You can login with phone or email + password: Demo123!@#');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 
-    // Create some demo complaints
-    await prisma.complaint.createMany({
-        data: [
-            {
-                title: 'Garbage not collected',
-                description: 'Garbage has not been collected for 3 days in our area.',
-                location: 'Dhanmondi, Dhaka',
-                userId: customer1.id,
-                priority: 2,
-            },
-            {
-                title: 'Street cleaning needed',
-                description: 'The street is very dirty and needs immediate cleaning.',
-                location: 'Gulshan, Dhaka',
-                userId: customer2.id,
-                priority: 1,
-            },
-        ],
-    });
-
-    console.log('✅ Demo complaints created!');
+    console.log('✅ Admin users created!');
 }
 
 main()

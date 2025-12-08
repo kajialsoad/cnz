@@ -2,7 +2,7 @@ import { Response } from 'express';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { adminUserService } from '../services/admin.user.service';
 import { z } from 'zod';
-import { UserRole, UserStatus } from '@prisma/client';
+import { users_role, UserStatus } from '@prisma/client';
 
 console.log('🔧 Loading admin.user.controller.ts...');
 
@@ -12,7 +12,7 @@ const getUsersQuerySchema = z.object({
     limit: z.string().optional().transform(val => val ? parseInt(val) : 20),
     search: z.string().optional(),
     status: z.nativeEnum(UserStatus).optional(),
-    role: z.nativeEnum(UserRole).optional(),
+    role: z.nativeEnum(users_role).optional(),
     sortBy: z.string().optional().default('createdAt'),
     sortOrder: z.enum(['asc', 'desc']).optional().default('desc'),
     cityCorporationCode: z.string().optional(),
@@ -28,7 +28,7 @@ const createUserSchema = z.object({
     password: z.string().min(8, 'Password must be at least 8 characters'),
     ward: z.string().optional(),
     zone: z.string().optional(),
-    role: z.nativeEnum(UserRole).optional(),
+    role: z.nativeEnum(users_role).optional(),
 });
 
 const updateUserSchema = z.object({
@@ -38,7 +38,7 @@ const updateUserSchema = z.object({
     phone: z.string().min(10).optional(),
     ward: z.string().optional(),
     zone: z.string().optional(),
-    role: z.nativeEnum(UserRole).optional(),
+    role: z.nativeEnum(users_role).optional(),
     status: z.nativeEnum(UserStatus).optional(),
 });
 

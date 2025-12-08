@@ -127,7 +127,7 @@ class _WasteManagementPageState extends State<WasteManagementPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: const Color(0xFFF2F4F5),
       body: SafeArea(
         child: Column(
           children: [
@@ -138,16 +138,21 @@ class _WasteManagementPageState extends State<WasteManagementPage>
                   left: 16,
                   right: 16,
                   top: 16,
-                  bottom: 100, // Extra padding for bottom navigation
+                  bottom: 100,
                 ),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildInteractiveMap(),
-                    const SizedBox(height: 20),
-                    _buildNextPickupCard(),
+                    _buildTopSelector(),
                     const SizedBox(height: 24),
-                    _buildCollectionSchedule(),
-                    const SizedBox(height: 24),
+                    _buildRectangleImage('assets/Rectangle 6.png'),
+                    const SizedBox(height: 16),
+                    _buildRectangleImage('assets/Rectangle 7.png'),
+                    const SizedBox(height: 16),
+                    _buildRectangleImage('assets/Rectangle 8.png'),
+                    const SizedBox(height: 16),
+                    _buildRectangleImage('assets/Rectangle 9.png'),
+                    const SizedBox(height: 16),
                     _buildWasteSeparationTips(),
                     const SizedBox(height: 20),
                   ],
@@ -158,23 +163,16 @@ class _WasteManagementPageState extends State<WasteManagementPage>
         ),
       ),
       bottomNavigationBar: CustomBottomNav(
-        currentIndex: 2, // Borjo/Waste index
+        currentIndex: 2,
         onTap: (index) {
           switch (index) {
             case 0:
               Navigator.pushReplacementNamed(context, '/home');
               break;
             case 1:
-              Navigator.pushReplacementNamed(context, '/emergency');
-              break;
-            case 2:
-              // Already on Waste management page
-              break;
-            case 3:
-              Navigator.pushReplacementNamed(context, '/gallery');
+              Navigator.pushReplacementNamed(context, '/complaint-list');
               break;
             case 4:
-              // Camera
               Navigator.pushNamed(context, '/camera');
               break;
           }
@@ -221,99 +219,84 @@ class _WasteManagementPageState extends State<WasteManagementPage>
     );
   }
 
-  Widget _buildInteractiveMap() {
+  Widget _buildTopSelector() {
     return Container(
       width: double.infinity,
-      height: 280,
-      padding: const EdgeInsets.all(20),
+      height: 69,
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            offset: const Offset(0, 8),
-            blurRadius: 20,
-            spreadRadius: 0,
-          ),
-        ],
+        color: const Color(0xFFF5F0F0),
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: const [BoxShadow(color: Color(0x40000000), blurRadius: 4)],
       ),
-      child: Stack(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Map background with gradient
+          // Rectangle 5 (active)
           Container(
-            width: double.infinity,
-            height: double.infinity,
+            width: 176,
+            height: 53,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  lightGreen.withOpacity(0.3),
-                  lightGreen.withOpacity(0.2),
-                  primaryGreen.withOpacity(0.1),
-                ],
+              color: const Color(0xFF3FA564),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            padding: const EdgeInsets.fromLTRB(20, 16, 5, 14),
+            child: const SizedBox(
+              width: 151,
+              child: Text(
+                'বর্তমান বর্জ্য ব্যবস্থাপনা',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Color(0xFFF2F4F5),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  height: 24 / 14,
+                ),
               ),
             ),
           ),
-          // Map content - Centered properly
-          Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // Location icon with animation
-                AnimatedBuilder(
-                  animation: _centerIconController,
-                  builder: (context, child) {
-                    return Transform.scale(
-                      scale: 1.0 + (_centerIconController.value * 0.1),
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: primaryGreen,
-                          borderRadius: BorderRadius.circular(50),
-                          boxShadow: [
-                            BoxShadow(
-                              color: primaryGreen.withOpacity(0.3),
-                              offset: const Offset(0, 4),
-                              blurRadius: 12,
-                              spreadRadius: 2,
-                            ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.location_on,
-                          color: Colors.white,
-                          size: 32,
-                        ),
-                      ),
-                    );
-                  },
+          const SizedBox(width: 16),
+          // ভবিষ্যৎ বাটন লেবেল
+          Padding(
+            padding: const EdgeInsets.only(top: 16),
+            child: const SizedBox(
+              width: 151,
+              child: Text(
+                'ভবিষ্যৎ বর্জ্য ব্যবস্থাপনা',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Color(0xFF8E8C8C),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  height: 24 / 14,
                 ),
-                const SizedBox(height: 16),
-                TranslatedText(
-                  'Interactive Waste Pickup Map',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF2D3748),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TranslatedText(
-                  'Tap to view collection zones',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 14, color: Color(0xFF718096)),
-                ),
-              ],
+              ),
             ),
           ),
-          // Animated truck icons
-          ..._buildAnimatedTrucks(),
         ],
+      ),
+    );
+  }
+
+  Widget _buildRectangleImage(String assetPath) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: Image.asset(
+        assetPath,
+        width: double.infinity,
+        height: 195,
+        fit: BoxFit.cover,
+        errorBuilder: (c, e, s) => Container(
+          height: 195,
+          color: Colors.black12,
+          alignment: Alignment.center,
+          child: Text(
+            'Missing asset: ' + assetPath,
+            style: const TextStyle(color: Colors.red),
+          ),
+        ),
       ),
     );
   }
@@ -609,9 +592,8 @@ class _WasteManagementPageState extends State<WasteManagementPage>
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: lightGreen.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: primaryGreen.withOpacity(0.3), width: 1),
+        color: const Color(0xFFFFD85B).withOpacity(0.2),
+        borderRadius: BorderRadius.circular(15),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -621,7 +603,7 @@ class _WasteManagementPageState extends State<WasteManagementPage>
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF0F9FF),
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Text('♻️', style: TextStyle(fontSize: 20)),
@@ -632,7 +614,7 @@ class _WasteManagementPageState extends State<WasteManagementPage>
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Color.fromARGB(255, 24, 180, 76),
+                  color: Color(0xFF1E2939),
                 ),
               ),
             ],

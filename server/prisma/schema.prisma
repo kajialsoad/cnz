@@ -48,7 +48,7 @@ model User {
   firstName               String
   lastName                String
   avatar                  String?
-  role                    UserRole                 @default(CUSTOMER)
+  role                    users_role               @default(CUSTOMER)
   status                  UserStatus               @default(PENDING)
   emailVerified           Boolean                  @default(false)
   phoneVerified           Boolean                  @default(false)
@@ -166,6 +166,8 @@ model Complaint {
   @@index([category])
   @@index([subcategory])
   @@index([category, subcategory])
+  @@index([status], map: "idx_complaint_status")
+  @@index([userId, status], map: "idx_complaint_user_status")
 }
 
 model ChatMessage {
@@ -244,13 +246,6 @@ model Notification {
   @@index([userId, isRead])
 }
 
-enum UserRole {
-  CUSTOMER
-  SERVICE_PROVIDER
-  ADMIN
-  SUPER_ADMIN
-}
-
 enum UserStatus {
   ACTIVE
   INACTIVE
@@ -291,4 +286,12 @@ enum CityCorporationStatus {
 enum ThanaStatus {
   ACTIVE
   INACTIVE
+}
+
+enum users_role {
+  CUSTOMER
+  SERVICE_PROVIDER
+  ADMIN
+  SUPER_ADMIN
+  MASTER_ADMIN
 }

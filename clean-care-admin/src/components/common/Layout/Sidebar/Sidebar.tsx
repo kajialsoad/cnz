@@ -6,12 +6,14 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  Avatar,
   Box,
   Typography,
   Chip,
   Divider,
+  IconButton,
 } from '@mui/material';
+import { ChevronLeft, ChevronRight } from '@mui/icons-material';
+import LogoutOutlined from '@mui/icons-material/LogoutOutlined';
 import { useLocation, useNavigate } from 'react-router-dom';
 import dashboardIcon from '../../../../assets/icons/dashboard.svg';
 import complaintIcon from '../../../../assets/icons/complaint.svg';
@@ -21,8 +23,11 @@ import chatIcon from '../../../../assets/icons/chat.svg';
 import reportIcon from '../../../../assets/icons/report.svg';
 import notificationIcon from '../../../../assets/icons/notification.svg';
 import settingsIcon from '../../../../assets/icons/Settings.svg';
-import profileImage from '../../../../assets/images/profile.jpg';
 import { chatService } from '../../../../services/chatService';
+import { useAuth } from '../../../../contexts/AuthContext';
+import { useProfile } from '../../../../contexts/ProfileContext';
+import ProfileButton from '../../ProfileButton/ProfileButton';
+import { fadeIn, animationConfig } from '../../../../styles/animations';
 
 const DRAWER_WIDTH = 320; // Increased from 240
 
@@ -52,6 +57,12 @@ const baseMenuItems = [
     label: 'Admin Management',
     icon: adminIcon,
     path: '/admins',
+  },
+  {
+    id: 'super-admins',
+    label: 'Super Admin Management',
+    icon: adminIcon,
+    path: '/super-admins',
   },
   {
     id: 'users',
@@ -90,15 +101,21 @@ interface SidebarProps {
   open: boolean;
   onClose: () => void;
   variant?: 'temporary' | 'permanent';
+  collapsed?: boolean;
+  onToggleCollapsed?: () => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
   open,
   onClose,
   variant = 'permanent',
+  collapsed = false,
+  onToggleCollapsed,
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { logout } = useAuth();
+  const { profile } = useProfile();
   const [unreadCount, setUnreadCount] = useState<number>(0);
 
   // Fetch unread message count
@@ -139,133 +156,50 @@ const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const drawerContent = (
-    <Box sx={{ width: DRAWER_WIDTH, height: '100%' }}>
+    <Box sx={{ width: collapsed ? 72 : DRAWER_WIDTH, height: '100%' }}>
       {/* User Profile Section */}
       <Box
         sx={{
-          p: 3,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 2,
-          borderBottom: '1px solid',
-          borderColor: 'grey.200',
-          textAlign: 'center',
+          position: 'relative',
+          transition: `all ${animationConfig.normal.duration} ${animationConfig.smooth.timing}`,
+          animation: profile ? `${fadeIn} ${animationConfig.normal.duration} ${animationConfig.smooth.timing}` : 'none',
         }}
       >
-        <Box sx={{ position: 'relative' }}>
-          <Avatar
-            src={profileImage}
-            sx={{
-              width: 64,
-              height: 64,
-              border: '3px solid #ffffff',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-              bgcolor: '#3FA564',
-            }}
-          >
-            MR
-          </Avatar>
-          <Box
-            sx={{
-              position: 'absolute',
-              bottom: 2,
-              right: 2,
-              width: 14,
-              height: 14,
-              bgcolor: '#4CAF50',
-              borderRadius: '50%',
-              border: '2px solid #ffffff',
-            }}
-          />
-        </Box>
-
-        <Box>
-          <Typography
-            variant="h6"
-            sx={{
-              fontWeight: 600,
-              fontSize: '1.1rem',
-              color: '#2D3748',
-              mb: 0.5,
-            }}
-          >
-            Mr. Mohammad Rahman
-          </Typography>
-
-          <Chip
-            label="SUPER ADMIN"
-            size="small"
-            sx={{
-              background: 'linear-gradient(135deg, #3FA564 0%, #2D7A4A 100%)',
-              color: 'white',
-              fontSize: '0.625rem',
-              height: 24,
-              fontWeight: 600,
-              letterSpacing: '0.5px',
-              boxShadow: '0 2px 8px rgba(63, 165, 100, 0.3)',
-              mb: 0.5,
-            }}
-          />
-
-          <Typography
-            variant="caption"
-            sx={{
-              color: '#718096',
-              fontSize: '0.75rem',
-              fontWeight: 500,
-              display: 'block',
-              mb: 0.5,
-            }}
-          >
-            Chief Controller
-          </Typography>
-
-          <Box sx={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 0.5,
-          }}>
-            <Box
-              sx={{
-                width: 6,
-                height: 6,
-                bgcolor: '#4CAF50',
-                borderRadius: '50%',
-              }}
-            />
-            <Typography
-              variant="caption"
-              sx={{
-                color: '#4CAF50',
-                fontSize: '0.7rem',
-                fontWeight: 500,
-              }}
-            >
-              Active Now
-            </Typography>
-          </Box>
-        </Box>
+        <ProfileButton
+          variant="sidebar"
+          showName={true}
+          showRole={true}
+          collapsed={collapsed}
+        />
+        <IconButton
+          onClick={onToggleCollapsed}
+          sx={{
+            position: 'absolute',
+            top: 24,
+            right: 12,
+            width: 28,
+            height: 28,
+            bgcolor: '#ffffff',
+            borderRadius: '53687100px',
+            boxShadow: '0px 10px 15px -3px rgba(0,0,0,0.1), 0px 4px 6px -4px rgba(0,0,0,0.1)',
+            transition: `all ${animationConfig.fast.duration} ${animationConfig.fast.timing}`,
+            '&:hover': {
+              bgcolor: '#ffffff',
+              transform: 'scale(1.05)',
+            },
+            zIndex: 1,
+          }}
+        >
+          {collapsed ? (
+            <ChevronRight sx={{ color: '#3FA564' }} />
+          ) : (
+            <ChevronLeft sx={{ color: '#3FA564' }} />
+          )}
+        </IconButton>
       </Box>
 
       {/* Navigation Menu */}
       <Box sx={{ px: 2, py: 2 }}>
-        <Typography
-          variant="overline"
-          sx={{
-            px: 2,
-            py: 1,
-            display: 'block',
-            color: '#A0AEC0',
-            fontSize: '0.7rem',
-            fontWeight: 600,
-            letterSpacing: '1px',
-          }}
-        >
-          MAIN MENU
-        </Typography>
-
         <List sx={{ pt: 1 }}>
           {menuItems.map((item) => {
             const isActive = location.pathname === item.path;
@@ -278,33 +212,28 @@ const Sidebar: React.FC<SidebarProps> = ({
                     borderRadius: 2,
                     mx: 1,
                     mb: 1,
-                    px: 2,
+                    px: collapsed ? 0 : 2,
                     py: 1.5,
-                    background: isActive
-                      ? 'linear-gradient(135deg, #3FA564 0%, #2D7A4A 100%)'
-                      : 'transparent',
-                    color: isActive ? 'white' : '#4A5568',
+                    background: isActive ? '#ffffff' : 'transparent',
+                    color: isActive ? '#3FA564' : '#ffffff',
                     boxShadow: isActive
-                      ? '0 4px 16px rgba(63, 165, 100, 0.4)'
+                      ? '0px 4px 6px -1px rgba(0,0,0,0.1), 0px 2px 4px -2px rgba(0,0,0,0.1)'
                       : 'none',
                     transform: isActive ? 'translateY(-1px)' : 'none',
                     transition: 'all 0.2s ease-in-out',
+                    justifyContent: collapsed ? 'center' : 'flex-start',
                     '&:hover': {
-                      backgroundColor: isActive
-                        ? 'linear-gradient(135deg, #369654 0%, #25663C 100%)'
-                        : 'rgba(63, 165, 100, 0.08)',
+                      backgroundColor: isActive ? '#ffffff' : 'rgba(255,255,255,0.08)',
                       transform: 'translateY(-1px)',
-                      boxShadow: isActive
-                        ? '0 6px 20px rgba(63, 165, 100, 0.4)'
-                        : '0 2px 8px rgba(63, 165, 100, 0.15)',
+                      boxShadow: isActive ? '0 6px 20px rgba(0,0,0,0.15)' : '0 2px 8px rgba(0,0,0,0.15)',
                     },
                   }}
                 >
                   <ListItemIcon
                     sx={{
-                      color: isActive ? 'white' : '#718096',
-                      minWidth: 36,
-                      mr: 1.5,
+                      color: isActive ? '#3FA564' : '#ffffff',
+                      minWidth: collapsed ? 0 : 36,
+                      mr: collapsed ? 0 : 1.5,
                     }}
                   >
                     <Box
@@ -314,8 +243,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                         width: 20,
                         height: 20,
                         filter: isActive
-                          ? 'brightness(0) invert(1)'
-                          : 'brightness(0) saturate(100%) invert(47%) sepia(8%) saturate(1077%) hue-rotate(168deg) brightness(94%) contrast(86%)',
+                          ? 'invert(46%) sepia(31%) saturate(827%) hue-rotate(86deg) brightness(95%) contrast(92%)'
+                          : 'invert(1)',
                       }}
                     />
                   </ListItemIcon>
@@ -325,6 +254,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                       fontSize: '0.9rem',
                       fontWeight: isActive ? 600 : 500,
                     }}
+                    sx={{ display: collapsed ? 'none' : 'block' }}
                   />
                   {item.badge && (
                     <Chip
@@ -337,6 +267,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                         bgcolor: isActive ? 'rgba(255,255,255,0.9)' : '#FF6B6B',
                         color: isActive ? '#3FA564' : 'white',
                         minWidth: 20,
+                        display: collapsed ? 'none' : 'inline-flex',
                       }}
                     />
                   )}
@@ -347,31 +278,23 @@ const Sidebar: React.FC<SidebarProps> = ({
         </List>
       </Box>
 
-      <Divider sx={{ my: 3, mx: 2 }} />
+      <Divider sx={{ my: 0, mx: 2, opacity: 0.2, borderColor: '#ffffff33' }} />
 
-      {/* Bottom Section */}
-      <Box sx={{ px: 3, py: 2, textAlign: 'center' }}>
-        <Typography
-          variant="caption"
-          sx={{
-            display: 'block',
-            color: '#A0AEC0',
-            fontSize: '0.75rem',
-            fontWeight: 500,
-            mb: 0.5,
-          }}
-        >
-          Smart Complaint System
-        </Typography>
-        <Typography
-          variant="caption"
-          sx={{
-            color: '#CBD5E0',
-            fontSize: '0.7rem',
-          }}
-        >
-          © 2025 Clean Care
-        </Typography>
+      {/* Logout Row */}
+      <Box
+        onClick={async () => { await logout(); navigate('/login'); }}
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1.5,
+          px: 3,
+          py: 1.5,
+          cursor: 'pointer',
+          color: '#ffffff',
+        }}
+      >
+        <LogoutOutlined sx={{ color: '#ffffff' }} />
+        <Typography sx={{ display: collapsed ? 'none' : 'block' }}>লগ আউট</Typography>
       </Box>
     </Box>
   );
@@ -386,10 +309,13 @@ const Sidebar: React.FC<SidebarProps> = ({
       }}
       sx={{
         '& .MuiDrawer-paper': {
-          width: DRAWER_WIDTH,
+          width: collapsed ? 72 : DRAWER_WIDTH,
           boxSizing: 'border-box',
           border: 'none',
-          boxShadow: '2px 0 8px rgba(0,0,0,0.1)',
+          boxShadow: '0px 20px 25px -5px rgba(0,0,0,0.1), 0px 8px 10px -6px rgba(0,0,0,0.1)',
+          backgroundImage: 'linear-gradient(180deg, #3FA564 0%, #2D7A4A 100%)',
+          color: '#ffffff',
+          transition: `width ${animationConfig.normal.duration} ${animationConfig.smooth.timing}`,
         },
       }}
     >

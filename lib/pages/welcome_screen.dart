@@ -30,15 +30,20 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       vsync: this,
       duration: const Duration(seconds: 16),
     )..repeat();
-    _spin = Tween<double>(begin: 0, end: 2 * math.pi)
-        .animate(CurvedAnimation(parent: _spinController, curve: Curves.linear));
+    _spin = Tween<double>(
+      begin: 0,
+      end: 2 * math.pi,
+    ).animate(CurvedAnimation(parent: _spinController, curve: Curves.linear));
 
     // Faster pulse for twinkling small icons (e.g., star)
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2),
     )..repeat(reverse: true);
-    _pulseCurved = CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut);
+    _pulseCurved = CurvedAnimation(
+      parent: _pulseController,
+      curve: Curves.easeInOut,
+    );
   }
 
   @override
@@ -63,12 +68,18 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     bool rotate = true,
     double rotationSpeed = 1.0,
   }) {
-    final alignAnim = AlignmentTween(begin: begin, end: end)
-        .animate(CurvedAnimation(parent: _controller, curve: curve));
-    final opacityAnim = Tween<double>(begin: minOpacity, end: maxOpacity)
-        .animate(CurvedAnimation(parent: _controller, curve: curve));
-    final scaleAnim = Tween<double>(begin: minScale, end: maxScale)
-        .animate(CurvedAnimation(parent: _controller, curve: curve));
+    final alignAnim = AlignmentTween(
+      begin: begin,
+      end: end,
+    ).animate(CurvedAnimation(parent: _controller, curve: curve));
+    final opacityAnim = Tween<double>(
+      begin: minOpacity,
+      end: maxOpacity,
+    ).animate(CurvedAnimation(parent: _controller, curve: curve));
+    final scaleAnim = Tween<double>(
+      begin: minScale,
+      end: maxScale,
+    ).animate(CurvedAnimation(parent: _controller, curve: curve));
 
     return AnimatedBuilder(
       animation: Listenable.merge([_controller, _spinController]),
@@ -78,7 +89,11 @@ class _WelcomeScreenState extends State<WelcomeScreen>
           scale: scaleAnim.value,
           child: Transform.rotate(
             angle: rotate ? _spin.value * rotationSpeed : 0,
-            child: Icon(icon, size: size, color: color.withOpacity(opacityAnim.value)),
+            child: Icon(
+              icon,
+              size: size,
+              color: color.withOpacity(opacityAnim.value),
+            ),
           ),
         ),
       ),
@@ -100,15 +115,25 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     bool rotate = true,
     double rotationSpeed = 0.8,
   }) {
-    final alignAnim = AlignmentTween(begin: begin, end: end)
-        .animate(CurvedAnimation(parent: _controller, curve: curve));
-    final opacityAnim = Tween<double>(begin: minOpacity, end: maxOpacity)
-        .animate(_pulseCurved);
-    final scaleAnim = Tween<double>(begin: minScale, end: maxScale)
-        .animate(_pulseCurved);
+    final alignAnim = AlignmentTween(
+      begin: begin,
+      end: end,
+    ).animate(CurvedAnimation(parent: _controller, curve: curve));
+    final opacityAnim = Tween<double>(
+      begin: minOpacity,
+      end: maxOpacity,
+    ).animate(_pulseCurved);
+    final scaleAnim = Tween<double>(
+      begin: minScale,
+      end: maxScale,
+    ).animate(_pulseCurved);
 
     return AnimatedBuilder(
-      animation: Listenable.merge([_controller, _pulseController, _spinController]),
+      animation: Listenable.merge([
+        _controller,
+        _pulseController,
+        _spinController,
+      ]),
       builder: (_, __) => Align(
         alignment: alignAnim.value,
         child: Transform.scale(
@@ -142,9 +167,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFF3FA564),
-        ),
+        decoration: const BoxDecoration(color: Color(0xFF3FA564)),
         child: Stack(
           children: [
             // Animated background icons: Leaf, Star, Dustbin
@@ -211,9 +234,10 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                       const Text(
                         'Clean Care',
                         style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600),
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       const Text(
@@ -228,10 +252,12 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                             backgroundColor: Colors.white,
                             foregroundColor: const Color(0xFF2E8B57),
                             shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(24)),
+                              borderRadius: BorderRadius.circular(24),
+                            ),
                             padding: const EdgeInsets.symmetric(vertical: 16),
                           ),
-                          onPressed: () => Navigator.pushNamed(context, '/signup'),
+                          onPressed: () =>
+                              Navigator.pushNamed(context, '/signup'),
                           child: const Text('Sign Up'),
                         ),
                       ),
@@ -241,12 +267,17 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                         child: OutlinedButton(
                           style: OutlinedButton.styleFrom(
                             foregroundColor: Colors.white,
-                            side: const BorderSide(color: Colors.white70, width: 2),
+                            side: const BorderSide(
+                              color: Colors.white70,
+                              width: 2,
+                            ),
                             shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(24)),
+                              borderRadius: BorderRadius.circular(24),
+                            ),
                             padding: const EdgeInsets.symmetric(vertical: 16),
                           ),
-                          onPressed: () => Navigator.pushNamed(context, '/login'),
+                          onPressed: () =>
+                              Navigator.pushNamed(context, '/login'),
                           child: const Text('Login'),
                         ),
                       ),
@@ -254,13 +285,27 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                       const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.eco_outlined, color: Colors.white70, size: 18),
+                          Icon(
+                            Icons.eco_outlined,
+                            color: Colors.white70,
+                            size: 18,
+                          ),
                           SizedBox(width: 6),
-                          Text('Eco-Friendly', style: TextStyle(color: Colors.white70)),
+                          Text(
+                            'Eco-Friendly',
+                            style: TextStyle(color: Colors.white70),
+                          ),
                           SizedBox(width: 22),
-                          Icon(Icons.autorenew, color: Colors.white70, size: 18),
+                          Icon(
+                            Icons.autorenew,
+                            color: Colors.white70,
+                            size: 18,
+                          ),
                           SizedBox(width: 6),
-                          Text('Smart City', style: TextStyle(color: Colors.white70)),
+                          Text(
+                            'Smart City',
+                            style: TextStyle(color: Colors.white70),
+                          ),
                         ],
                       ),
                     ],

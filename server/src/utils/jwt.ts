@@ -3,7 +3,7 @@ import env from '../config/env';
 
 export interface JwtPayload {
   sub: number;
-  role: 'CUSTOMER' | 'SERVICE_PROVIDER' | 'ADMIN' | 'SUPER_ADMIN';
+  role: 'ADMIN' | 'SUPER_ADMIN' | 'MASTER_ADMIN';
   email?: string;
   phone?: string;
 }
