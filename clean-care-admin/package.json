@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "start": "npx serve -s dist -l 3000"
+    "start": "npx serve -s dist -l 3000",
+    "seed:admins": "node ../scripts/seed-admins.mjs"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

@@ -37,6 +37,7 @@ const baseMenuItems = [
     label: 'Dashboard',
     icon: dashboardIcon,
     path: '/',
+    roles: ['MASTER_ADMIN', 'SUPER_ADMIN', 'ADMIN'], // All roles can see dashboard
   },
   {
     id: 'complaints',
@@ -44,6 +45,7 @@ const baseMenuItems = [
     icon: complaintIcon,
     path: '/complaints',
     badge: 12,
+    roles: ['MASTER_ADMIN', 'SUPER_ADMIN', 'ADMIN'],
   },
   {
     id: 'chats',
@@ -51,36 +53,42 @@ const baseMenuItems = [
     icon: chatIcon,
     path: '/chats',
     dynamicBadge: true, // Will be populated from API
-  },
-  {
-    id: 'admins',
-    label: 'Admin Management',
-    icon: adminIcon,
-    path: '/admins',
+    roles: ['MASTER_ADMIN', 'SUPER_ADMIN', 'ADMIN'],
   },
   {
     id: 'super-admins',
     label: 'Super Admin Management',
     icon: adminIcon,
     path: '/super-admins',
+    roles: ['MASTER_ADMIN'], // Only Master Admin can manage Super Admins
+  },
+  {
+    id: 'admins',
+    label: 'Admin Management',
+    icon: adminIcon,
+    path: '/admins',
+    roles: ['MASTER_ADMIN', 'SUPER_ADMIN'], // Master Admin and Super Admin can manage Admins
   },
   {
     id: 'users',
     label: 'User Management',
     icon: userIcon,
     path: '/users',
+    roles: ['MASTER_ADMIN', 'SUPER_ADMIN', 'ADMIN'], // All admin roles can manage users
   },
   {
     id: 'city-corporations',
     label: 'City Corporations',
     icon: adminIcon,
     path: '/city-corporations',
+    roles: ['MASTER_ADMIN', 'SUPER_ADMIN'],
   },
   {
     id: 'reports',
     label: 'Reports',
     icon: reportIcon,
     path: '/reports',
+    roles: ['MASTER_ADMIN', 'SUPER_ADMIN', 'ADMIN'],
   },
   {
     id: 'notifications',
@@ -88,12 +96,14 @@ const baseMenuItems = [
     icon: notificationIcon,
     path: '/notifications',
     badge: 3,
+    roles: ['MASTER_ADMIN', 'SUPER_ADMIN', 'ADMIN'],
   },
   {
     id: 'settings',
     label: 'Settings',
     icon: settingsIcon,
     path: '/settings',
+    roles: ['MASTER_ADMIN', 'SUPER_ADMIN', 'ADMIN'],
   },
 ];
 
@@ -137,16 +147,23 @@ const Sidebar: React.FC<SidebarProps> = ({
     return () => clearInterval(interval);
   }, []);
 
-  // Create menu items with dynamic badge
-  const menuItems = baseMenuItems.map(item => {
-    if (item.dynamicBadge) {
-      return {
-        ...item,
-        badge: unreadCount > 0 ? unreadCount : undefined,
-      };
-    }
-    return item;
-  });
+  // Filter menu items based on user role and add dynamic badge
+  const menuItems = baseMenuItems
+    .filter(item => {
+      // If no roles specified, show to everyone
+      if (!item.roles) return true;
+      // Check if user's role is in the allowed roles
+      return profile?.role && item.roles.includes(profile.role);
+    })
+    .map(item => {
+      if (item.dynamicBadge) {
+        return {
+          ...item,
+          badge: unreadCount > 0 ? unreadCount : undefined,
+        };
+      }
+      return item;
+    });
 
   const handleNavigation = (path: string) => {
     navigate(path);
