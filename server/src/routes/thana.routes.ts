@@ -4,8 +4,8 @@ import { authGuard, rbacGuard } from '../middlewares/auth.middleware';
 
 const router = Router();
 
-// All routes require SUPER_ADMIN role
-router.use(authGuard, rbacGuard('SUPER_ADMIN'));
+// All routes require SUPER_ADMIN or MASTER_ADMIN role
+router.use(authGuard, rbacGuard('SUPER_ADMIN', 'MASTER_ADMIN'));
 
 // GET /api/admin/thanas - Get thanas by city corporation
 router.get('/', thanaController.getThanas);

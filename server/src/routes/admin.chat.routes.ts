@@ -15,7 +15,7 @@ const router = Router();
 
 // All routes require authentication and admin role
 router.use(authGuard);
-router.use(rbacGuard('ADMIN', 'SUPER_ADMIN'));
+router.use(rbacGuard('ADMIN', 'SUPER_ADMIN', 'MASTER_ADMIN'));
 
 // Get all chat conversations (must be before /:complaintId to avoid route conflict)
 router.get('/', getChatConversations);

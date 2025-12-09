@@ -15,7 +15,7 @@ const router = Router();
 
 // All routes require authentication and admin role
 router.use(authGuard);
-router.use(rbacGuard('ADMIN', 'SUPER_ADMIN'));
+router.use(rbacGuard('ADMIN', 'SUPER_ADMIN', 'MASTER_ADMIN'));
 
 // Get user statistics (must be before /:id to avoid conflict)
 router.get('/statistics', getUserStatistics);

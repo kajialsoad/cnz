@@ -144,13 +144,13 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
         try {
             await logout();
             onClose();
-            navigate('/login');
+            // Force page reload to reset all state
+            window.location.href = '/admin/login';
         } catch (error) {
             console.error('Logout failed:', error);
-        } finally {
             setIsLoggingOut(false);
         }
-    }, [logout, onClose, navigate]);
+    }, [logout, onClose]);
 
     /**
      * Handle close

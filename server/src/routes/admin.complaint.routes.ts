@@ -13,7 +13,7 @@ const router = Router();
 
 // All routes require authentication and admin role
 router.use(authGuard);
-router.use(rbacGuard('ADMIN', 'SUPER_ADMIN'));
+router.use(rbacGuard('ADMIN', 'SUPER_ADMIN', 'MASTER_ADMIN'));
 
 // Get all complaints with filtering and pagination
 router.get('/', getAdminComplaints);

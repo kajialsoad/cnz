@@ -20,7 +20,7 @@ const router = Router();
 router.get(
     '/statistics',
     authGuard,
-    rbacGuard('ADMIN', 'SUPER_ADMIN'),
+    rbacGuard('ADMIN', 'SUPER_ADMIN', 'MASTER_ADMIN'),
     monitoringController.getStatistics.bind(monitoringController)
 );
 
@@ -33,7 +33,7 @@ router.get(
 router.get(
     '/daily-summary',
     authGuard,
-    rbacGuard('ADMIN', 'SUPER_ADMIN'),
+    rbacGuard('ADMIN', 'SUPER_ADMIN', 'MASTER_ADMIN'),
     monitoringController.getDailySummary.bind(monitoringController)
 );
 
@@ -46,7 +46,7 @@ router.get(
 router.get(
     '/cloudinary-usage',
     authGuard,
-    rbacGuard('ADMIN', 'SUPER_ADMIN'),
+    rbacGuard('ADMIN', 'SUPER_ADMIN', 'MASTER_ADMIN'),
     monitoringController.getCloudinaryUsage.bind(monitoringController)
 );
 
@@ -59,7 +59,7 @@ router.get(
 router.get(
     '/recent-errors',
     authGuard,
-    rbacGuard('ADMIN', 'SUPER_ADMIN'),
+    rbacGuard('ADMIN', 'SUPER_ADMIN', 'MASTER_ADMIN'),
     monitoringController.getRecentErrors.bind(monitoringController)
 );
 
@@ -72,7 +72,7 @@ router.get(
 router.get(
     '/export',
     authGuard,
-    rbacGuard('ADMIN', 'SUPER_ADMIN'),
+    rbacGuard('ADMIN', 'SUPER_ADMIN', 'MASTER_ADMIN'),
     monitoringController.exportStatistics.bind(monitoringController)
 );
 

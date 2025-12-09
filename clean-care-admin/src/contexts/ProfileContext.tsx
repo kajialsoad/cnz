@@ -192,6 +192,13 @@ export const ProfileProvider: React.FC<ProfileProviderProps> = ({ children }) =>
         if (isInitialized.current) return;
         isInitialized.current = true;
 
+        // Check if user has a token before fetching profile
+        const hasToken = localStorage.getItem('accessToken');
+        if (!hasToken) {
+            setIsLoading(false);
+            return;
+        }
+
         // Try to load from cache first
         const cachedProfile = loadFromCache();
         if (cachedProfile) {

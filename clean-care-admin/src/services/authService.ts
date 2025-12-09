@@ -131,9 +131,11 @@ class AuthService {
         } catch (error) {
             console.error('Logout error:', error);
         }
-        // Always clear client-side tokens
+        // Always clear client-side tokens and cache
         try {
             localStorage.removeItem(this.accessTokenKey);
+            // Clear profile cache
+            localStorage.removeItem('cc_profile_cache');
             delete this.apiClient.defaults.headers.common['Authorization'];
         } catch { }
     }
