@@ -142,3 +142,13 @@ problems-report.html
 
 # Figma exports (usually regenerated)
 .figma/
+
+# Test files (root level)
+/test*.js
+/test-*.js
+/test*.cmd
+/test-*.cmd
+
+# Documentation files (root level)
+/*.md
+!README.md

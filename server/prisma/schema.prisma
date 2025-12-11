@@ -17,7 +17,7 @@ model CityCorporation {
   status    CityCorporationStatus @default(ACTIVE)
   createdAt DateTime              @default(now())
   updatedAt DateTime              @updatedAt
-  thanas    Thana[]
+  zones     Zone[]
   users     User[]
 
   @@index([status])
@@ -25,19 +25,41 @@ model CityCorporation {
   @@map("city_corporations")
 }
 
-model Thana {
-  id                Int             @id @default(autoincrement())
-  name              String
-  cityCorporationId Int
-  status            ThanaStatus     @default(ACTIVE)
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
-  cityCorporation   CityCorporation @relation(fields: [cityCorporationId], references: [id])
-  users             User[]
+model Zone {
+  id                  Int             @id @default(autoincrement())
+  zoneNumber          Int
+  name                String?
+  cityCorporationId   Int
+  officerName         String?
+  officerDesignation  String?
+  officerSerialNumber String?
+  status              ZoneStatus      @default(ACTIVE)
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  cityCorporation     CityCorporation @relation(fields: [cityCorporationId], references: [id])
+  wards               Ward[]
+  users               User[]
 
-  @@unique([name, cityCorporationId])
+  @@unique([zoneNumber, cityCorporationId])
   @@index([cityCorporationId, status])
-  @@map("thanas")
+  @@map("zones")
+}
+
+model Ward {
+  id                    Int        @id @default(autoincrement())
+  wardNumber            Int
+  zoneId                Int
+  inspectorName         String?
+  inspectorSerialNumber String?
+  status                WardStatus @default(ACTIVE)
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+  zone                  Zone       @relation(fields: [zoneId], references: [id])
+  users                 User[]
+
+  @@unique([wardNumber, zoneId])
+  @@index([zoneId, status])
+  @@map("wards")
 }
 
 model User {
@@ -57,13 +79,13 @@ model User {
   lastLoginAt             DateTime?
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
-  ward                    String?
-  zone                    String?
   address                 String?
   verificationCode        String?
   verificationCodeExpiry  DateTime?
   cityCorporationCode     String?
-  thanaId                 Int?
+  zoneId                  Int?
+  wardId                  Int?
+  wardImageCount          Int                      @default(0)
   receivedMessages        ChatMessage[]            @relation("ReceivedMessages")
   sentMessages            ChatMessage[]            @relation("SentMessages")
   complaints              Complaint[]
@@ -74,7 +96,8 @@ model User {
   refreshTokens           RefreshToken[]
   sessions                Session[]
   cityCorporation         CityCorporation?         @relation(fields: [cityCorporationCode], references: [code])
-  thana                   Thana?                   @relation(fields: [thanaId], references: [id])
+  zone                    Zone?                    @relation(fields: [zoneId], references: [id])
+  ward                    Ward?                    @relation(fields: [wardId], references: [id])
 
   @@index([phone])
   @@index([email])
@@ -82,9 +105,9 @@ model User {
   @@index([role])
   @@index([createdAt])
   @@index([cityCorporationCode])
-  @@index([ward])
-  @@index([thanaId])
-  @@index([cityCorporationCode, ward])
+  @@index([zoneId])
+  @@index([wardId])
+  @@index([cityCorporationCode, zoneId, wardId])
   @@map("users")
 }
 
@@ -283,7 +306,12 @@ enum CityCorporationStatus {
   INACTIVE
 }
 
-enum ThanaStatus {
+enum ZoneStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum WardStatus {
   ACTIVE
   INACTIVE
 }
