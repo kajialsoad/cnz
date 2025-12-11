@@ -120,6 +120,19 @@ android/app/proguard-rules.pro
 /server/*_COMPLETE.md
 /server/*_GUIDE.md
 /server/*_SUMMARY.md
+/server/test-*.js
+/server/test*.js
+/server/*-test*.js
+/server/check-*.js
+/server/verify-*.js
+/server/migrate-*.js
+/server/rollback-*.js
+/server/seed-*.js
+/server/create-*.js
+/server/activate-*.js
+/server/reset-*.js
+/server/backup-*.js
+/server/apply-*.js
 
 # Database files
 *.db
@@ -152,3 +165,20 @@ problems-report.html
 # Documentation files (root level)
 /*.md
 !README.md
+
+# Trae documents folder
+.trae/documents/
+
+# All markdown files in subdirectories (except specific ones)
+**/*.md
+!README.md
+!**/README.md
+
+# Documentation folders
+/docs/
+
+# Test files in subdirectories
+**/tests/**/*.cjs
+**/tests/**/*.js
+clean-care-admin/test-*.cjs
+clean-care-admin/test-*.js
