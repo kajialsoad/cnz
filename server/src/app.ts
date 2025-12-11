@@ -16,7 +16,11 @@ import adminChatRoutes from './routes/admin.chat.routes';
 import categoryRoutes from './routes/category.routes';
 import cityCorporationRoutes from './routes/city-corporation.routes';
 import publicCityCorporationRoutes from './routes/public-city-corporation.routes';
-import thanaRoutes from './routes/thana.routes';
+// import thanaRoutes from './routes/thana.routes'; // Thana routes disabled - using Zone/Ward now
+import zoneRoutes from './routes/zone.routes';
+import publicZoneRoutes from './routes/public-zone.routes';
+import wardRoutes from './routes/ward.routes';
+import publicWardRoutes from './routes/public-ward.routes';
 import { AuthRequest } from './middlewares/auth.middleware';
 
 console.log('🚀 Starting Clean Care API Server...');
@@ -146,8 +150,20 @@ console.log('✅ City Corporation routes registered at /api/admin/city-corporati
 app.use('/api/city-corporations', publicCityCorporationRoutes); // Public City Corporation routes
 console.log('✅ Public City Corporation routes registered at /api/city-corporations');
 
-app.use('/api/admin/thanas', thanaRoutes); // Thana routes
-console.log('✅ Thana routes registered at /api/admin/thanas');
+// app.use('/api/admin/thanas', thanaRoutes); // Thana routes disabled - using Zone/Ward now
+// console.log('✅ Thana routes registered at /api/admin/thanas');
+
+app.use('/api/admin/zones', zoneRoutes); // Zone routes
+console.log('✅ Zone routes registered at /api/admin/zones');
+
+app.use('/api/zones', publicZoneRoutes); // Public Zone routes
+console.log('✅ Public Zone routes registered at /api/zones');
+
+app.use('/api/admin/wards', wardRoutes); // Ward routes
+console.log('✅ Ward routes registered at /api/admin/wards');
+
+app.use('/api/wards', publicWardRoutes); // Public Ward routes
+console.log('✅ Public Ward routes registered at /api/wards');
 
 // Add test route to verify admin path works
 app.get('/api/admin/test', (req, res) => {
@@ -163,3 +179,5 @@ app.use('/auth', authRoutes);
 app.use('/users', userRoutes);
 
 export default app;
+
+

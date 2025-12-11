@@ -73,15 +73,15 @@ router.get('/:code/thanas', async (req: Request, res: Response) => {
 
         const cityCorporation = await cityCorporationService.getCityCorporationByCode(code);
 
-        // Return only active thanas
-        const activeThanas = cityCorporation.thanas.map((thana) => ({
-            id: thana.id,
-            name: thana.name,
+        // Return zones instead of thanas (backward compatibility endpoint)
+        const activeZones = cityCorporation.zones.map((zone: any) => ({
+            id: zone.id,
+            name: zone.name || `Zone ${zone.zoneNumber}`,
         }));
 
         res.json({
             success: true,
-            thanas: activeThanas,
+            thanas: activeZones, // Keep 'thanas' key for backward compatibility
         });
     } catch (error: any) {
         console.error('Error fetching thanas:', error);

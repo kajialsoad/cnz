@@ -42,10 +42,17 @@ export interface CityCorporationInfo {
     name: string;
 }
 
-// Thana info
-export interface ThanaInfo {
+// Zone info
+export interface ZoneInfo {
     id: number;
-    name: string;
+    zoneNumber: number;
+    name?: string;
+}
+
+// Ward info
+export interface WardInfo {
+    id: number;
+    wardNumber: number;
 }
 
 // User with statistics
@@ -56,8 +63,6 @@ export interface UserWithStats {
     firstName: string;
     lastName: string;
     avatar: string | null;
-    ward: string | null;
-    zone: string | null;
     address: string | null;
     role: UserRole;
     status: UserStatus;
@@ -68,9 +73,11 @@ export interface UserWithStats {
     lastLoginAt: string | null;
     statistics: UserStatistics;
     cityCorporation?: CityCorporationInfo;
-    thana?: ThanaInfo;
+    zone?: ZoneInfo;
+    ward?: WardInfo;
     cityCorporationCode?: string | null;
-    thanaId?: number | null;
+    zoneId?: number | null;
+    wardId?: number | null;
 }
 
 // Pagination
@@ -91,8 +98,8 @@ export interface GetUsersQuery {
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
     cityCorporationCode?: string;
-    ward?: string;
-    thanaId?: number;
+    zoneId?: number;
+    wardId?: number;
 }
 
 // Get users response

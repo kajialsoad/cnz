@@ -74,8 +74,16 @@ class ComplaintRepository {
         throw Exception(errorMessage);
       }
     } catch (e) {
-      // NEW: Check if it's a category validation error
+      // Check error type and provide user-friendly messages
       final errorString = e.toString();
+      
+      // Ward image limit error
+      if (errorString.contains('WARD_IMAGE_LIMIT_EXCEEDED') || 
+          errorString.contains('Image upload limit reached')) {
+        throw Exception('আপনার ওয়ার্ডের জন্য ছবি আপলোডের সীমা পৌঁছে গেছে। প্রতি ওয়ার্ডে শুধুমাত্র ১টি ছবি আপলোড করা যায়।\n\nImage upload limit reached for your ward. Only 1 image allowed per ward.');
+      }
+      
+      // Category validation errors
       if (errorString.contains('Invalid category') || 
           errorString.contains('category') && errorString.contains('invalid')) {
         throw Exception('Invalid category selected. Please select a valid category.');
@@ -85,7 +93,8 @@ class ComplaintRepository {
       } else if (errorString.contains('category') && errorString.contains('required')) {
         throw Exception('Please select a category before submitting your complaint.');
       }
-      // Re-throw the original exception if not category-related
+      
+      // Re-throw the original exception if not handled above
       rethrow;
     }
   }

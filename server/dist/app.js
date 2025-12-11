@@ -21,7 +21,11 @@ const admin_chat_routes_1 = __importDefault(require("./routes/admin.chat.routes"
 const category_routes_1 = __importDefault(require("./routes/category.routes"));
 const city_corporation_routes_1 = __importDefault(require("./routes/city-corporation.routes"));
 const public_city_corporation_routes_1 = __importDefault(require("./routes/public-city-corporation.routes"));
-const thana_routes_1 = __importDefault(require("./routes/thana.routes"));
+// import thanaRoutes from './routes/thana.routes'; // Thana routes disabled - using Zone/Ward now
+const zone_routes_1 = __importDefault(require("./routes/zone.routes"));
+const public_zone_routes_1 = __importDefault(require("./routes/public-zone.routes"));
+const ward_routes_1 = __importDefault(require("./routes/ward.routes"));
+const public_ward_routes_1 = __importDefault(require("./routes/public-ward.routes"));
 console.log('🚀 Starting Clean Care API Server...');
 console.log('🔧 Importing admin auth routes...');
 console.log('🔧 Importing admin user routes...');
@@ -124,8 +128,16 @@ app.use('/api/admin/city-corporations', city_corporation_routes_1.default); // C
 console.log('✅ City Corporation routes registered at /api/admin/city-corporations');
 app.use('/api/city-corporations', public_city_corporation_routes_1.default); // Public City Corporation routes
 console.log('✅ Public City Corporation routes registered at /api/city-corporations');
-app.use('/api/admin/thanas', thana_routes_1.default); // Thana routes
-console.log('✅ Thana routes registered at /api/admin/thanas');
+// app.use('/api/admin/thanas', thanaRoutes); // Thana routes disabled - using Zone/Ward now
+// console.log('✅ Thana routes registered at /api/admin/thanas');
+app.use('/api/admin/zones', zone_routes_1.default); // Zone routes
+console.log('✅ Zone routes registered at /api/admin/zones');
+app.use('/api/zones', public_zone_routes_1.default); // Public Zone routes
+console.log('✅ Public Zone routes registered at /api/zones');
+app.use('/api/admin/wards', ward_routes_1.default); // Ward routes
+console.log('✅ Ward routes registered at /api/admin/wards');
+app.use('/api/wards', public_ward_routes_1.default); // Public Ward routes
+console.log('✅ Public Ward routes registered at /api/wards');
 // Add test route to verify admin path works
 app.get('/api/admin/test', (req, res) => {
     res.json({

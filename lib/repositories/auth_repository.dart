@@ -2,6 +2,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_client.dart';
 import '../models/city_corporation_model.dart';
 import '../models/thana_model.dart';
+import '../models/zone_model.dart';
+import '../models/ward_model.dart';
 
 class AuthRepository {
   final ApiClient api;
@@ -12,11 +14,13 @@ class AuthRepository {
     required String phone,
     String? email,
     required String password,
-    String? ward,
+    String? ward, // Deprecated - kept for backward compatibility
     String? zone,
     String? address,
     String? CityCorporationCode,
-    int? thanaId,
+    int? thanaId, // Deprecated - kept for backward compatibility
+    int? zoneId,
+    int? wardId,
   }) async {
     // Split name into firstName and lastName
     final nameParts = name.trim().split(' ');
@@ -36,6 +40,8 @@ class AuthRepository {
         if (address != null) 'address': address,
         if (CityCorporationCode != null) 'CityCorporationCode': CityCorporationCode,
         if (thanaId != null) 'thanaId': thanaId,
+        if (zoneId != null) 'zoneId': zoneId,
+        if (wardId != null) 'wardId': wardId,
       });
 
       // Backend returns: { success: true, message: "...", user: {...} }
@@ -204,6 +210,40 @@ class AuthRepository {
       throw Exception(e.message);
     } catch (e) {
       throw Exception('Failed to load thanas: ${e.toString()}');
+    }
+  }
+
+  Future<List<Zone>> getZonesByCityCorporation(String cityCorporationCode) async {
+    try {
+      final data = await api.get('/api/zones?cityCorporationCode=$cityCorporationCode');
+      
+      if (data['zones'] != null) {
+        final zones = data['zones'] as List;
+        return zones.map((z) => Zone.fromJson(z as Map<String, dynamic>)).toList();
+      } else {
+        throw Exception('Failed to load zones');
+      }
+    } on ApiException catch (e) {
+      throw Exception(e.message);
+    } catch (e) {
+      throw Exception('Failed to load zones: ${e.toString()}');
+    }
+  }
+
+  Future<List<Ward>> getWardsByZone(int zoneId) async {
+    try {
+      final data = await api.get('/api/wards?zoneId=$zoneId');
+      
+      if (data['wards'] != null) {
+        final wards = data['wards'] as List;
+        return wards.map((w) => Ward.fromJson(w as Map<String, dynamic>)).toList();
+      } else {
+        throw Exception('Failed to load wards');
+      }
+    } on ApiException catch (e) {
+      throw Exception(e.message);
+    } catch (e) {
+      throw Exception('Failed to load wards: ${e.toString()}');
     }
   }
 }

@@ -141,16 +141,11 @@ class AdminComplaintService {
                                 zone: true,
                                 address: true,
                                 cityCorporationCode: true,
-                                thanaId: true,
+                                zoneId: true,
+                                wardId: true,
                                 cityCorporation: {
                                     select: {
                                         code: true,
-                                        name: true
-                                    }
-                                },
-                                thana: {
-                                    select: {
-                                        id: true,
                                         name: true
                                     }
                                 }
@@ -202,16 +197,11 @@ class AdminComplaintService {
                             address: true,
                             createdAt: true,
                             cityCorporationCode: true,
-                            thanaId: true,
+                            zoneId: true,
+                            wardId: true,
                             cityCorporation: {
                                 select: {
                                     code: true,
-                                    name: true
-                                }
-                            },
-                            thana: {
-                                select: {
-                                    id: true,
                                     name: true
                                 }
                             }

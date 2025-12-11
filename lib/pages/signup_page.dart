@@ -8,7 +8,8 @@ import '../config/api_config.dart';
 import '../repositories/auth_repository.dart';
 import '../services/api_client.dart';
 import '../models/city_corporation_model.dart';
-import '../models/thana_model.dart';
+import '../models/zone_model.dart';
+import '../models/ward_model.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -30,16 +31,18 @@ class _SignUpPageState extends State<SignUpPage> {
   bool _agree = false;
   bool _nidAttached = false;
   String? _city;
-  int? _ward;
   late final AuthRepository _auth;
   
-  // City Corporation and Thana state
+  // City Corporation, Zone and Ward state
   List<CityCorporation> _CityCorporations = [];
   CityCorporation? _selectedCityCorporation;
-  List<Thana> _thanas = [];
-  Thana? _selectedThana;
+  List<Zone> _zones = [];
+  Zone? _selectedZone;
+  List<Ward> _wards = [];
+  Ward? _selectedWard;
   bool _isLoadingCityCorps = false;
-  bool _isLoadingThanas = false;
+  bool _isLoadingZones = false;
+  bool _isLoadingWards = false;
   
   // Email verification state
   bool _showVerificationSection = false;
@@ -85,28 +88,61 @@ class _SignUpPageState extends State<SignUpPage> {
     setState(() {
       _selectedCityCorporation = CityCorporation;
       _city = CityCorporation?.code;
-      _ward = null;
-      _selectedThana = null;
-      _thanas = [];
+      _selectedZone = null;
+      _selectedWard = null;
+      _zones = [];
+      _wards = [];
     });
 
     if (CityCorporation != null) {
-      setState(() => _isLoadingThanas = true);
+      setState(() => _isLoadingZones = true);
       
       try {
-        final thanas = await _auth.getThanasByCityCorporation(CityCorporation.code);
+        final zones = await _auth.getZonesByCityCorporation(CityCorporation.code);
         if (mounted) {
           setState(() {
-            _thanas = thanas;
-            _isLoadingThanas = false;
+            _zones = zones;
+            _isLoadingZones = false;
           });
         }
       } catch (e) {
         if (mounted) {
-          setState(() => _isLoadingThanas = false);
+          setState(() => _isLoadingZones = false);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('থানা লোড করতে ব্যর্থ: ${e.toString().replaceAll('Exception: ', '')}'),
+              content: Text('জোন লোড করতে ব্যর্থ: ${e.toString().replaceAll('Exception: ', '')}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _onZoneChanged(Zone? zone) async {
+    setState(() {
+      _selectedZone = zone;
+      _selectedWard = null;
+      _wards = [];
+    });
+
+    if (zone != null) {
+      setState(() => _isLoadingWards = true);
+      
+      try {
+        final wards = await _auth.getWardsByZone(zone.id);
+        if (mounted) {
+          setState(() {
+            _wards = wards;
+            _isLoadingWards = false;
+          });
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() => _isLoadingWards = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('ওয়ার্ড লোড করতে ব্যর্থ: ${e.toString().replaceAll('Exception: ', '')}'),
               backgroundColor: Colors.red,
             ),
           );
@@ -269,11 +305,12 @@ class _SignUpPageState extends State<SignUpPage> {
         phone: phone,
         email: email.isEmpty ? null : email,
         password: password,
-        ward: _ward?.toString(),
+        ward: null, // No longer used - using wardId instead
         zone: _city,
         address: _roadController.text.trim().isEmpty ? null : _roadController.text.trim(),
         CityCorporationCode: _selectedCityCorporation?.code,
-        thanaId: _selectedThana?.id,
+        zoneId: _selectedZone?.id,
+        wardId: _selectedWard?.id,
       );
 
       if (!mounted) return;
@@ -524,47 +561,50 @@ class _SignUpPageState extends State<SignUpPage> {
                     if (_selectedCityCorporation != null) ...[
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Text(
-                          'Ward Number (${_selectedCityCorporation!.minWard} to ${_selectedCityCorporation!.maxWard})',
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
+                        child: Text('Zone', style: Theme.of(context).textTheme.bodyMedium),
                       ),
-                      DropdownButtonFormField<int>(
-                        value: _ward,
-                        decoration: _dec('Select Ward'),
-                        items: _selectedCityCorporation!.wardRange
-                            .map((w) => DropdownMenuItem<int>(value: w, child: Text('Ward $w')))
-                            .toList(),
-                        onChanged: (v) => setState(() => _ward = v),
-                        validator: (v) => v == null ? 'ওয়ার্ড নির্বাচন করুন' : null,
-                      ),
-                      const SizedBox(height: 12),
-                    ],
-                    if (_selectedCityCorporation != null && _thanas.isNotEmpty) ...[
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Text('Thana/Area (Optional)', style: Theme.of(context).textTheme.bodyMedium),
-                      ),
-                      _isLoadingThanas
+                      _isLoadingZones
                           ? const Center(child: CircularProgressIndicator())
-                          : DropdownButtonFormField<Thana>(
-                              value: _selectedThana,
-                              decoration: _dec('Select Thana/Area'),
-                              items: _thanas.map((thana) {
-                                return DropdownMenuItem<Thana>(
-                                  value: thana,
-                                  child: Text(thana.name),
+                          : DropdownButtonFormField<Zone>(
+                              value: _selectedZone,
+                              decoration: _dec('Select Zone'),
+                              items: _zones.map((zone) {
+                                return DropdownMenuItem<Zone>(
+                                  value: zone,
+                                  child: Text(zone.displayName),
                                 );
                               }).toList(),
-                              onChanged: (v) => setState(() => _selectedThana = v),
+                              onChanged: _onZoneChanged,
+                              validator: (v) => v == null ? 'জোন নির্বাচন করুন' : null,
                             ),
                       const SizedBox(height: 12),
                     ],
-                    if (_selectedCityCorporation != null && _thanas.isEmpty && !_isLoadingThanas) ...[
+                    if (_selectedZone != null) ...[
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text('Ward', style: Theme.of(context).textTheme.bodyMedium),
+                      ),
+                      _isLoadingWards
+                          ? const Center(child: CircularProgressIndicator())
+                          : DropdownButtonFormField<Ward>(
+                              value: _selectedWard,
+                              decoration: _dec('Select Ward'),
+                              items: _wards.map((ward) {
+                                return DropdownMenuItem<Ward>(
+                                  value: ward,
+                                  child: Text(ward.displayName),
+                                );
+                              }).toList(),
+                              onChanged: (v) => setState(() => _selectedWard = v),
+                              validator: (v) => v == null ? 'ওয়ার্ড নির্বাচন করুন' : null,
+                            ),
+                      const SizedBox(height: 12),
+                    ],
+                    if (_selectedCityCorporation != null && _zones.isEmpty && !_isLoadingZones) ...[
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         child: Text(
-                          'এই সিটি কর্পোরেশনের জন্য কোন থানা উপলব্ধ নেই',
+                          'এই সিটি কর্পোরেশনের জন্য কোন জোন উপলব্ধ নেই',
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: Colors.grey[600],
                             fontStyle: FontStyle.italic,

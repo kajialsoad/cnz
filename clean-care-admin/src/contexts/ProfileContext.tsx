@@ -97,6 +97,13 @@ export const ProfileProvider: React.FC<ProfileProviderProps> = ({ children }) =>
      * Refresh profile from API with retry logic
      */
     const refreshProfile = useCallback(async () => {
+        // Check if user is authenticated before fetching
+        const hasToken = localStorage.getItem('accessToken') || localStorage.getItem('token');
+        if (!hasToken) {
+            setIsLoading(false);
+            return;
+        }
+
         setIsLoading(true);
         setError(null);
 
@@ -105,9 +112,26 @@ export const ProfileProvider: React.FC<ProfileProviderProps> = ({ children }) =>
             setProfile(profileData);
             saveToCache(profileData);
             broadcastUpdate(profileData);
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : 'Failed to load profile';
-            setError(errorMessage);
+        } catch (err: any) {
+            // Silently fail for expected errors when user is not logged in
+            // Don't log or set error state for these cases
+            const errorMessage = err instanceof Error ? err.message : '';
+            const isExpectedError =
+                errorMessage.includes('Network error') ||
+                errorMessage.includes('timed out') ||
+                errorMessage.includes('expired') ||
+                errorMessage.toLowerCase().includes('unauthorized') ||
+                errorMessage.includes('404') ||
+                errorMessage.includes('401');
+
+            if (isExpectedError) {
+                // Silently ignore - user is not logged in yet
+                setIsLoading(false);
+                return;
+            }
+
+            // Only log and set error for unexpected errors
+            setError(errorMessage || 'Failed to load profile');
             console.error('Profile refresh error:', err);
 
             // Don't throw error, just set it in state

@@ -36,6 +36,9 @@ import {
 } from '../../services/cityCorporationService';
 import CityCorporationForm from '../../components/CityCorporation/CityCorporationForm';
 import ThanaManagement from '../../components/CityCorporation/ThanaManagement';
+import ZoneManagement from '../../components/Zone/ZoneManagement';
+import WardManagement from '../../components/Ward/WardManagement';
+import { type Zone } from '../../services/zoneService';
 
 interface ToastState {
     open: boolean;
@@ -48,6 +51,7 @@ const CityCorporationManagement: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [selectedCityCorporation, setSelectedCityCorporation] = useState<CityCorporation | null>(null);
+    const [selectedZone, setSelectedZone] = useState<Zone | null>(null);
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [formMode, setFormMode] = useState<'create' | 'edit'>('create');
     const [toast, setToast] = useState<ToastState>({
@@ -136,7 +140,9 @@ const CityCorporationManagement: React.FC = () => {
 
     // Handle select city corporation
     const handleSelectCityCorporation = (cityCorporation: CityCorporation) => {
+        console.log('🏢 Selected City Corporation:', cityCorporation);
         setSelectedCityCorporation(cityCorporation);
+        setSelectedZone(null); // Reset zone selection
     };
 
     // Show toast notification
@@ -226,7 +232,8 @@ const CityCorporationManagement: React.FC = () => {
                                             <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
                                             <TableCell sx={{ fontWeight: 600 }}>Total Users</TableCell>
                                             <TableCell sx={{ fontWeight: 600 }}>Total Complaints</TableCell>
-                                            <TableCell sx={{ fontWeight: 600 }}>Active Thanas</TableCell>
+                                            <TableCell sx={{ fontWeight: 600 }}>Total Zones</TableCell>
+                                            <TableCell sx={{ fontWeight: 600 }}>Total Wards</TableCell>
                                             <TableCell sx={{ fontWeight: 600 }}>Created</TableCell>
                                             <TableCell sx={{ fontWeight: 600 }}>Actions</TableCell>
                                         </TableRow>
@@ -338,11 +345,22 @@ const CityCorporationManagement: React.FC = () => {
                                                     </TableCell>
                                                     <TableCell>
                                                         <Chip
-                                                            label={cityCorporation.activeThanas || 0}
+                                                            label={cityCorporation.totalZones || 0}
                                                             size="small"
                                                             sx={{
                                                                 backgroundColor: '#f3e5f5',
                                                                 color: '#7b1fa2',
+                                                                fontWeight: 500,
+                                                            }}
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Chip
+                                                            label={cityCorporation.totalWards || 0}
+                                                            size="small"
+                                                            sx={{
+                                                                backgroundColor: '#e1f5fe',
+                                                                color: '#0277bd',
                                                                 fontWeight: 500,
                                                             }}
                                                         />
@@ -410,8 +428,44 @@ const CityCorporationManagement: React.FC = () => {
                         </CardContent>
                     </Card>
 
-                    {/* Thana Management Section */}
-                    {selectedCityCorporation && (
+                    {/* Zone Management Section */}
+                    {selectedCityCorporation ? (
+                        <Box sx={{ mt: 3 }}>
+                            <ZoneManagement
+                                cityCorporationId={selectedCityCorporation.id}
+                                cityCorporationName={selectedCityCorporation.name}
+                                cityCorporationCode={selectedCityCorporation.code}
+                                onZoneSelect={setSelectedZone}
+                            />
+                        </Box>
+                    ) : (
+                        <Card sx={{
+                            borderRadius: 2,
+                            border: '2px dashed #9e9e9e',
+                            mt: 3,
+                            backgroundColor: '#fafafa'
+                        }}>
+                            <CardContent sx={{ p: 4, textAlign: 'center' }}>
+                                <BusinessIcon sx={{ fontSize: 64, color: '#9e9e9e', mb: 2 }} />
+                                <Typography variant="h6" sx={{ fontWeight: 600, mb: 1, color: '#616161' }}>
+                                    Select a City Corporation
+                                </Typography>
+                                <Typography variant="body1" color="text.secondary">
+                                    Click on any City Corporation from the table above to manage its zones and wards
+                                </Typography>
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {/* Ward Management Section */}
+                    {selectedZone && (
+                        <Box sx={{ mt: 3 }}>
+                            <WardManagement zone={selectedZone} />
+                        </Box>
+                    )}
+
+                    {/* Thana Management Section (Legacy - can be removed later) */}
+                    {selectedCityCorporation && false && (
                         <ThanaManagement
                             cityCorporation={selectedCityCorporation}
                             onThanaUpdate={fetchCityCorporations}

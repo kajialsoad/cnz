@@ -15,6 +15,8 @@ export async function getAdminComplaints(req: AuthRequest, res: Response) {
             status,
             category,
             ward,
+            zoneId,
+            wardId,
             cityCorporationCode,
             thanaId,
             search,
@@ -30,6 +32,8 @@ export async function getAdminComplaints(req: AuthRequest, res: Response) {
             status: status as ComplaintStatus | 'ALL',
             category: category as string,
             ward: ward as string,
+            zoneId: zoneId ? parseInt(zoneId as string) : undefined,
+            wardId: wardId ? parseInt(wardId as string) : undefined,
             cityCorporationCode: cityCorporationCode as string,
             thanaId: thanaId ? parseInt(thanaId as string) : undefined,
             search: search as string,
@@ -165,6 +169,55 @@ export async function getComplaintsByUser(req: AuthRequest, res: Response) {
         res.status(statusCode).json({
             success: false,
             message: error instanceof Error ? error.message : 'Failed to fetch user complaints'
+        });
+    }
+}
+
+/**
+ * Get complaint statistics grouped by zone
+ */
+export async function getComplaintStatsByZone(req: AuthRequest, res: Response) {
+    try {
+        const { cityCorporationCode } = req.query;
+
+        const stats = await adminComplaintService.getComplaintStatsByZone(
+            cityCorporationCode as string | undefined
+        );
+
+        res.status(200).json({
+            success: true,
+            data: { stats }
+        });
+    } catch (error) {
+        console.error('Error in getComplaintStatsByZone:', error);
+        res.status(500).json({
+            success: false,
+            message: error instanceof Error ? error.message : 'Failed to fetch zone statistics'
+        });
+    }
+}
+
+/**
+ * Get complaint statistics grouped by ward
+ */
+export async function getComplaintStatsByWard(req: AuthRequest, res: Response) {
+    try {
+        const { zoneId, cityCorporationCode } = req.query;
+
+        const stats = await adminComplaintService.getComplaintStatsByWard(
+            zoneId ? parseInt(zoneId as string) : undefined,
+            cityCorporationCode as string | undefined
+        );
+
+        res.status(200).json({
+            success: true,
+            data: { stats }
+        });
+    } catch (error) {
+        console.error('Error in getComplaintStatsByWard:', error);
+        res.status(500).json({
+            success: false,
+            message: error instanceof Error ? error.message : 'Failed to fetch ward statistics'
         });
     }
 }

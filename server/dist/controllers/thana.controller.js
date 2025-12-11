@@ -1,9 +1,7 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-const thana_service_1 = __importDefault(require("../services/thana.service"));
+// import thanaService from '../services/thana.service'; // Thana service disabled - using Zone/Ward now
+// import { ThanaStatus } from '@prisma/client'; // Thana model removed, using Zone/Ward now
 class ThanaController {
     /**
      * GET /api/admin/thanas
@@ -20,7 +18,7 @@ class ThanaController {
                 });
             }
             const validStatus = status;
-            const thanas = await thana_service_1.default.getThanasByCityCorporation(cityCorporationCode, validStatus || 'ALL');
+            const thanas = await thanaService.getThanasByCityCorporation(cityCorporationCode, validStatus || 'ALL');
             res.json({
                 success: true,
                 data: thanas,
@@ -57,7 +55,7 @@ class ThanaController {
                     message: 'Invalid thana ID',
                 });
             }
-            const thana = await thana_service_1.default.getThanaById(thanaId);
+            const thana = await thanaService.getThanaById(thanaId);
             res.json({
                 success: true,
                 data: thana,
@@ -94,7 +92,7 @@ class ThanaController {
                     message: 'Missing required fields: name, cityCorporationCode',
                 });
             }
-            const thana = await thana_service_1.default.createThana({
+            const thana = await thanaService.createThana({
                 name,
                 cityCorporationCode,
             });
@@ -153,7 +151,7 @@ class ThanaController {
                     message: 'No update data provided',
                 });
             }
-            const thana = await thana_service_1.default.updateThana(thanaId, updateData);
+            const thana = await thanaService.updateThana(thanaId, updateData);
             res.json({
                 success: true,
                 message: 'Thana updated successfully',
@@ -197,7 +195,7 @@ class ThanaController {
                     message: 'Invalid thana ID',
                 });
             }
-            const stats = await thana_service_1.default.getThanaStats(thanaId);
+            const stats = await thanaService.getThanaStats(thanaId);
             res.json({
                 success: true,
                 data: stats,

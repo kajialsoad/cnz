@@ -30,6 +30,17 @@ export interface ProfileError {
  * Parse error from API response
  */
 export function parseApiError(error: unknown): ProfileError {
+    // Check if it's already a ProfileError
+    if (
+        typeof error === 'object' &&
+        error !== null &&
+        'type' in error &&
+        'message' in error &&
+        Object.values(ProfileErrorType).includes((error as any).type)
+    ) {
+        return error as ProfileError;
+    }
+
     // Handle Axios errors
     if (axios.isAxiosError(error)) {
         const axiosError = error as AxiosError<any>;
@@ -213,13 +224,25 @@ export async function retryWithBackoff<T>(
 export function handleProfileFetchError(error: unknown): ProfileError {
     const parsedError = parseApiError(error);
 
-    // Log error for debugging
-    console.error('Profile fetch error:', {
-        type: parsedError.type,
-        message: parsedError.message,
-        statusCode: parsedError.statusCode,
-        details: parsedError.details,
-    });
+    // Silently ignore expected errors when not logged in:
+    // - 404 (endpoint not found)
+    // - 401 (unauthorized)
+    // - Network errors (no response from server)
+    const isExpectedError =
+        parsedError.statusCode === 404 ||
+        parsedError.statusCode === 401 ||
+        parsedError.type === ProfileErrorType.NETWORK_ERROR ||
+        parsedError.type === ProfileErrorType.TIMEOUT_ERROR;
+
+    if (!isExpectedError) {
+        // Log error for debugging
+        console.error('Profile fetch error:', {
+            type: parsedError.type,
+            message: parsedError.message,
+            statusCode: parsedError.statusCode,
+            details: parsedError.details,
+        });
+    }
 
     return parsedError;
 }

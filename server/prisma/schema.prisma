@@ -17,8 +17,8 @@ model CityCorporation {
   status    CityCorporationStatus @default(ACTIVE)
   createdAt DateTime              @default(now())
   updatedAt DateTime              @updatedAt
-  zones     Zone[]
   users     User[]
+  zones     Zone[]
 
   @@index([status])
   @@index([code])
@@ -26,19 +26,23 @@ model CityCorporation {
 }
 
 model Zone {
-  id                  Int             @id @default(autoincrement())
-  zoneNumber          Int
-  name                String?
+  id                  Int               @id @default(autoincrement())
+  zoneNumber          Int?
+  number              Int
+  name                String
   cityCorporationId   Int
   officerName         String?
   officerDesignation  String?
   officerSerialNumber String?
-  status              ZoneStatus      @default(ACTIVE)
-  createdAt           DateTime        @default(now())
-  updatedAt           DateTime        @updatedAt
-  cityCorporation     CityCorporation @relation(fields: [cityCorporationId], references: [id])
-  wards               Ward[]
+  supervisorName      String?
+  supervisorTitle     String?
+  status              ZoneStatus        @default(ACTIVE)
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
   users               User[]
+  ward_inspectors     ward_inspectors[]
+  wards               Ward[]
+  cityCorporation     CityCorporation   @relation(fields: [cityCorporationId], references: [id], onDelete: Cascade)
 
   @@unique([zoneNumber, cityCorporationId])
   @@index([cityCorporationId, status])
@@ -46,19 +50,26 @@ model Zone {
 }
 
 model Ward {
-  id                    Int        @id @default(autoincrement())
-  wardNumber            Int
+  id                    Int               @id @default(autoincrement())
+  wardNumber            Int?
+  number                Int
   zoneId                Int
   inspectorName         String?
   inspectorSerialNumber String?
-  status                WardStatus @default(ACTIVE)
-  createdAt             DateTime   @default(now())
-  updatedAt             DateTime   @updatedAt
-  zone                  Zone       @relation(fields: [zoneId], references: [id])
+  cityCorporationId     Int
+  inspectorCount        Int?
+  status                WardStatus        @default(ACTIVE)
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+  Complaint             Complaint[]
   users                 User[]
+  ward_inspectors       ward_inspectors[]
+  zone                  Zone              @relation(fields: [zoneId], references: [id], onDelete: Cascade)
 
   @@unique([wardNumber, zoneId])
   @@index([zoneId, status])
+  @@index([cityCorporationId])
+  @@index([number, cityCorporationId])
   @@map("wards")
 }
 
@@ -83,9 +94,9 @@ model User {
   verificationCode        String?
   verificationCodeExpiry  DateTime?
   cityCorporationCode     String?
-  zoneId                  Int?
   wardId                  Int?
   wardImageCount          Int                      @default(0)
+  zoneId                  Int?
   receivedMessages        ChatMessage[]            @relation("ReceivedMessages")
   sentMessages            ChatMessage[]            @relation("SentMessages")
   complaints              Complaint[]
@@ -96,8 +107,8 @@ model User {
   refreshTokens           RefreshToken[]
   sessions                Session[]
   cityCorporation         CityCorporation?         @relation(fields: [cityCorporationCode], references: [code])
-  zone                    Zone?                    @relation(fields: [zoneId], references: [id])
   ward                    Ward?                    @relation(fields: [wardId], references: [id])
+  zone                    Zone?                    @relation(fields: [zoneId], references: [id])
 
   @@index([phone])
   @@index([email])
@@ -107,7 +118,8 @@ model User {
   @@index([cityCorporationCode])
   @@index([zoneId])
   @@index([wardId])
-  @@index([cityCorporationCode, zoneId, wardId])
+  @@index([cityCorporationCode, wardId])
+  @@index([cityCorporationCode], map: "users_cityCorporationCode_ward_idx")
   @@map("users")
 }
 
@@ -128,7 +140,7 @@ model Session {
 model RefreshToken {
   id        String   @id @default(uuid())
   userId    Int
-  token     String   @unique
+  token     String   @unique @db.VarChar(500)
   expiresAt DateTime
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -179,7 +191,9 @@ model Complaint {
   updatedAt     DateTime               @updatedAt
   category      String?
   subcategory   String?
+  wardId        Int?
   user          User?                  @relation(fields: [userId], references: [id])
+  wards         Ward?                  @relation(fields: [wardId], references: [id])
   chatMessages  ComplaintChatMessage[]
   statusHistory StatusHistory[]
 
@@ -191,6 +205,7 @@ model Complaint {
   @@index([category, subcategory])
   @@index([status], map: "idx_complaint_status")
   @@index([userId, status], map: "idx_complaint_user_status")
+  @@index([wardId])
 }
 
 model ChatMessage {
@@ -269,6 +284,23 @@ model Notification {
   @@index([userId, isRead])
 }
 
+model ward_inspectors {
+  id                Int                    @id @default(autoincrement())
+  name              String
+  wardId            Int
+  zoneId            Int
+  cityCorporationId Int
+  status            ward_inspectors_status @default(ACTIVE)
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime
+  wards             Ward                   @relation(fields: [wardId], references: [id], onDelete: Cascade)
+  zones             Zone                   @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+
+  @@index([cityCorporationId])
+  @@index([wardId, status])
+  @@index([zoneId])
+}
+
 enum UserStatus {
   ACTIVE
   INACTIVE
@@ -322,4 +354,9 @@ enum users_role {
   ADMIN
   SUPER_ADMIN
   MASTER_ADMIN
+}
+
+enum ward_inspectors_status {
+  ACTIVE
+  INACTIVE
 }

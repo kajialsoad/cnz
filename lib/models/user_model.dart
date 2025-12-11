@@ -9,8 +9,11 @@ class UserModel {
   final String status;
   final bool emailVerified;
   final bool phoneVerified;
-  final String? zone;
-  final String? ward;
+  final String? zone; // Deprecated - kept for backward compatibility
+  final String? ward; // Deprecated - kept for backward compatibility
+  final int? zoneId;
+  final int? wardId;
+  final int wardImageCount; // Track images uploaded per ward
   final String? address;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -29,6 +32,9 @@ class UserModel {
     required this.phoneVerified,
     this.zone,
     this.ward,
+    this.zoneId,
+    this.wardId,
+    this.wardImageCount = 0,
     this.address,
     required this.createdAt,
     required this.updatedAt,
@@ -49,6 +55,9 @@ class UserModel {
       phoneVerified: (json['phoneVerified'] as bool?) ?? false,
       zone: json['zone'] as String?,
       ward: json['ward'] as String?,
+      zoneId: json['zoneId'] as int?,
+      wardId: json['wardId'] as int?,
+      wardImageCount: (json['wardImageCount'] as int?) ?? 0,
       address: json['address'] as String?,
       createdAt: json['createdAt'] != null 
           ? DateTime.parse(json['createdAt'] as String)
@@ -76,6 +85,9 @@ class UserModel {
       'phoneVerified': phoneVerified,
       'zone': zone,
       'ward': ward,
+      'zoneId': zoneId,
+      'wardId': wardId,
+      'wardImageCount': wardImageCount,
       'address': address,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),

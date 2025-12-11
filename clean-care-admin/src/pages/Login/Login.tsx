@@ -172,6 +172,7 @@ const Login: React.FC = () => {
               type="email"
               value={formData.email}
               onChange={handleInputChange('email')}
+              placeholder="admin@example.com"
               required
               disabled={loading}
               InputProps={{

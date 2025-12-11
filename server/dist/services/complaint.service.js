@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.complaintService = exports.ComplaintService = void 0;
+exports.complaintService = exports.ComplaintService = exports.WardImageLimitError = void 0;
 const prisma_1 = __importDefault(require("../utils/prisma"));
 const client_1 = require("@prisma/client");
 const upload_service_1 = require("./upload.service");
@@ -11,6 +11,21 @@ const upload_config_1 = require("../config/upload.config");
 const category_service_1 = require("./category.service");
 const cloud_upload_service_1 = require("./cloud-upload.service");
 const cloudinary_config_1 = require("../config/cloudinary.config");
+// Custom error for ward image limit
+class WardImageLimitError extends Error {
+    constructor(wardId, currentCount, maxAllowed = 1) {
+        super(`Image upload limit reached for this ward. Only ${maxAllowed} image(s) allowed per ward.`);
+        this.code = 'WARD_IMAGE_LIMIT_EXCEEDED';
+        this.statusCode = 400;
+        this.name = 'WardImageLimitError';
+        this.details = {
+            wardId,
+            currentCount,
+            maxAllowed
+        };
+    }
+}
+exports.WardImageLimitError = WardImageLimitError;
 class ComplaintService {
     // Create a new complaint
     async createComplaint(input) {
@@ -20,20 +35,40 @@ class ComplaintService {
                 const validSubcategories = category_service_1.categoryService.getAllSubcategoryIds(input.category);
                 throw new Error(`Invalid category and subcategory combination. Category '${input.category}' does not have subcategory '${input.subcategory}'. Valid subcategories: ${validSubcategories.join(', ')}`);
             }
-            // Auto-fetch user's city corporation and thana when creating complaint
+            // Auto-fetch user's city corporation, zone, and ward when creating complaint
             let userCityCorporation = null;
-            let userThana = null;
+            let user = null;
             if (input.userId && !input.forSomeoneElse) {
-                const user = await prisma_1.default.user.findUnique({
+                user = await prisma_1.default.user.findUnique({
                     where: { id: input.userId },
                     include: {
                         cityCorporation: true,
-                        thana: true
+                        zone: true,
+                        ward: true
                     }
                 });
                 if (user) {
                     userCityCorporation = user.cityCorporation;
-                    userThana = user.thana;
+                }
+            }
+            // Check ward image upload limit before processing files
+            if (input.uploadedFiles && user && user.wardId) {
+                const files = input.uploadedFiles;
+                let imageCount = 0;
+                // Count image files
+                if (Array.isArray(files)) {
+                    imageCount = files.filter((f) => f.fieldname === 'images').length;
+                }
+                else if (files.images) {
+                    imageCount = Array.isArray(files.images) ? files.images.length : 1;
+                }
+                // Check if user has reached ward image limit
+                if (imageCount > 0 && user.wardImageCount >= 1) {
+                    throw new WardImageLimitError(user.wardId, user.wardImageCount, 1);
+                }
+                // Check if this upload would exceed the limit
+                if (imageCount > 0 && user.wardImageCount + imageCount > 1) {
+                    throw new WardImageLimitError(user.wardId, user.wardImageCount, 1);
                 }
             }
             // Generate tracking number
@@ -155,11 +190,23 @@ class ComplaintService {
                     user: {
                         include: {
                             cityCorporation: true,
-                            thana: true
+                            zone: true,
+                            ward: true
                         }
                     }
                 }
             });
+            // Increment ward image count if images were uploaded
+            if (finalImageUrls.length > 0 && user && user.wardId) {
+                await prisma_1.default.user.update({
+                    where: { id: user.id },
+                    data: {
+                        wardImageCount: {
+                            increment: finalImageUrls.length
+                        }
+                    }
+                });
+            }
             return this.formatComplaintResponse(complaint);
         }
         catch (error) {
@@ -230,7 +277,8 @@ class ComplaintService {
                     user: {
                         include: {
                             cityCorporation: true,
-                            thana: true
+                            zone: true,
+                            ward: true
                         }
                     }
                 }
@@ -327,7 +375,8 @@ class ComplaintService {
                     user: {
                         include: {
                             cityCorporation: true,
-                            thana: true
+                            zone: true,
+                            ward: true
                         }
                     }
                 }
@@ -447,7 +496,8 @@ class ComplaintService {
                     user: {
                         include: {
                             cityCorporation: true,
-                            thana: true
+                            zone: true,
+                            ward: true
                         }
                     }
                 },
@@ -510,9 +560,10 @@ class ComplaintService {
     formatComplaintResponse(complaint) {
         const parsedImages = this.parseFileUrls(complaint.imageUrl || '');
         const parsedAudio = this.parseFileUrls(complaint.audioUrl || '');
-        // Extract city corporation and thana from user if available
+        // Extract city corporation, zone, and ward from user if available
         const cityCorporation = complaint.user?.cityCorporation || null;
-        const thana = complaint.user?.thana || null;
+        const zone = complaint.user?.zone || null;
+        const ward = complaint.user?.ward || null;
         return {
             ...complaint,
             imageUrls: parsedImages.imageUrls,
@@ -521,9 +572,10 @@ class ComplaintService {
             // Keep original fields for backward compatibility
             imageUrl: complaint.imageUrl,
             audioUrl: complaint.audioUrl,
-            // Include city corporation and thana information
+            // Include city corporation, zone, and ward information
             cityCorporation: cityCorporation,
-            thana: thana
+            zone: zone,
+            ward: ward
         };
     }
     // Update getComplaints to return formatted responses
@@ -568,7 +620,8 @@ class ComplaintService {
                     user: {
                         include: {
                             cityCorporation: true,
-                            thana: true
+                            zone: true,
+                            ward: true
                         }
                     }
                 }
@@ -586,6 +639,117 @@ class ComplaintService {
                 hasPrevPage: page > 1,
             }
         };
+    }
+    // Add images to existing complaint with ward limit check
+    async addImagesToComplaint(complaintId, uploadedFiles, userId) {
+        try {
+            // Get the complaint and verify ownership
+            const complaint = await prisma_1.default.complaint.findUnique({
+                where: { id: complaintId },
+                include: {
+                    user: {
+                        include: {
+                            cityCorporation: true,
+                            zone: true,
+                            ward: true
+                        }
+                    }
+                }
+            });
+            if (!complaint) {
+                throw new Error('Complaint not found');
+            }
+            // Check if user owns this complaint
+            if (complaint.userId !== userId) {
+                throw new Error('Unauthorized to add images to this complaint');
+            }
+            const user = complaint.user;
+            if (!user) {
+                throw new Error('User not found for this complaint');
+            }
+            // Count image files being uploaded
+            const files = uploadedFiles;
+            let imageCount = 0;
+            let imageFiles = [];
+            if (Array.isArray(files)) {
+                imageFiles = files.filter((f) => f.fieldname === 'images' || f.fieldname === 'image');
+                imageCount = imageFiles.length;
+            }
+            else if (files.images) {
+                imageFiles = Array.isArray(files.images) ? files.images : [files.images];
+                imageCount = imageFiles.length;
+            }
+            else if (files.image) {
+                imageFiles = [files.image];
+                imageCount = 1;
+            }
+            if (imageCount === 0) {
+                throw new Error('No images provided');
+            }
+            // Check ward image upload limit if user has a ward assigned
+            if (user.wardId) {
+                // Check if user has already reached the limit
+                if (user.wardImageCount >= 1) {
+                    throw new WardImageLimitError(user.wardId, user.wardImageCount, 1);
+                }
+                // Check if this upload would exceed the limit
+                if (user.wardImageCount + imageCount > 1) {
+                    throw new WardImageLimitError(user.wardId, user.wardImageCount, 1);
+                }
+            }
+            // Upload images
+            let newImageUrls = [];
+            const useCloudinary = (0, cloudinary_config_1.isCloudinaryEnabled)();
+            if (useCloudinary) {
+                try {
+                    newImageUrls = await this.uploadImagesToCloudinary(imageFiles);
+                }
+                catch (error) {
+                    console.error('Cloudinary upload failed, falling back to local storage:', error);
+                    // Fallback to local storage
+                    newImageUrls = imageFiles.map((file) => (0, upload_config_1.getFileUrl)(file.filename, 'image'));
+                }
+            }
+            else {
+                // Use local storage
+                newImageUrls = imageFiles.map((file) => (0, upload_config_1.getFileUrl)(file.filename, 'image'));
+            }
+            // Get existing image URLs
+            const existingImages = this.parseFileUrls(complaint.imageUrl || '');
+            const allImageUrls = [...existingImages.imageUrls, ...newImageUrls];
+            // Update complaint with new images
+            const updatedComplaint = await prisma_1.default.complaint.update({
+                where: { id: complaintId },
+                data: {
+                    imageUrl: JSON.stringify(allImageUrls)
+                },
+                include: {
+                    user: {
+                        include: {
+                            cityCorporation: true,
+                            zone: true,
+                            ward: true
+                        }
+                    }
+                }
+            });
+            // Increment ward image count if user has a ward
+            if (user.wardId) {
+                await prisma_1.default.user.update({
+                    where: { id: user.id },
+                    data: {
+                        wardImageCount: {
+                            increment: imageCount
+                        }
+                    }
+                });
+            }
+            return this.formatComplaintResponse(updatedComplaint);
+        }
+        catch (error) {
+            console.error('Error adding images to complaint:', error);
+            throw error;
+        }
     }
 }
 exports.ComplaintService = ComplaintService;

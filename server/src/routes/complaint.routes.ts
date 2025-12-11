@@ -82,6 +82,15 @@ router.put('/:id', uploadController.uploadComplaintFiles, complaintController.up
  */
 router.delete('/:id', complaintController.deleteComplaint.bind(complaintController));
 
+/**
+ * @route   POST /api/complaints/:id/images
+ * @desc    Add images to existing complaint with ward limit check
+ * @access  Private (Complaint owner only)
+ * @param   id - Complaint ID
+ * @body    form-data with files: { images }
+ */
+router.post('/:id/images', uploadController.uploadComplaintFiles, complaintController.addImagesToComplaint.bind(complaintController));
+
 // File upload and management routes
 /**
  * @route   POST /api/complaints/upload

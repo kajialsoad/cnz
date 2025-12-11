@@ -113,7 +113,7 @@ router.post('/change-password', auth_middleware_1.authGuard, async (req, res) =>
     }
 });
 // Admin routes - Get all users
-router.get('/admin/users', auth_middleware_1.authGuard, (0, auth_middleware_1.rbacGuard)('ADMIN', 'SUPER_ADMIN'), async (req, res) => {
+router.get('/admin/users', auth_middleware_1.authGuard, (0, auth_middleware_1.rbacGuard)('ADMIN', 'SUPER_ADMIN', 'MASTER_ADMIN'), async (req, res) => {
     try {
         const { page = 1, limit = 10, role, status } = req.query;
         const where = {};
@@ -165,7 +165,7 @@ router.get('/admin/users', auth_middleware_1.authGuard, (0, auth_middleware_1.rb
     }
 });
 // Admin routes - Get user by ID
-router.get('/admin/users/:id', auth_middleware_1.authGuard, (0, auth_middleware_1.rbacGuard)('ADMIN', 'SUPER_ADMIN'), async (req, res) => {
+router.get('/admin/users/:id', auth_middleware_1.authGuard, (0, auth_middleware_1.rbacGuard)('ADMIN', 'SUPER_ADMIN', 'MASTER_ADMIN'), async (req, res) => {
     try {
         const { id } = req.params;
         const user = await req.prisma.user.findUnique({
@@ -204,7 +204,7 @@ router.get('/admin/users/:id', auth_middleware_1.authGuard, (0, auth_middleware_
     }
 });
 // Admin routes - Update user status
-router.put('/admin/users/:id/status', auth_middleware_1.authGuard, (0, auth_middleware_1.rbacGuard)('ADMIN', 'SUPER_ADMIN'), async (req, res) => {
+router.put('/admin/users/:id/status', auth_middleware_1.authGuard, (0, auth_middleware_1.rbacGuard)('ADMIN', 'SUPER_ADMIN', 'MASTER_ADMIN'), async (req, res) => {
     try {
         const { id } = req.params;
         const { status } = req.body;
@@ -243,11 +243,11 @@ router.put('/admin/users/:id/status', auth_middleware_1.authGuard, (0, auth_midd
     }
 });
 // Admin routes - Update user role
-router.put('/admin/users/:id/role', auth_middleware_1.authGuard, (0, auth_middleware_1.rbacGuard)('SUPER_ADMIN'), async (req, res) => {
+router.put('/admin/users/:id/role', auth_middleware_1.authGuard, (0, auth_middleware_1.rbacGuard)('SUPER_ADMIN', 'MASTER_ADMIN'), async (req, res) => {
     try {
         const { id } = req.params;
         const { role } = req.body;
-        if (!['CUSTOMER', 'SERVICE_PROVIDER', 'ADMIN', 'SUPER_ADMIN'].includes(role)) {
+        if (!['ADMIN', 'SUPER_ADMIN', 'MASTER_ADMIN'].includes(role)) {
             return res.status(400).json({
                 success: false,
                 message: 'Invalid role'

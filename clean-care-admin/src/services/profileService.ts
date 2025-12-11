@@ -50,13 +50,17 @@ class ProfileService {
         this.apiClient.interceptors.response.use(
             (response) => response,
             (error) => {
-                // Log error for debugging
-                console.error('API Error:', {
-                    url: error.config?.url,
-                    method: error.config?.method,
-                    status: error.response?.status,
-                    message: error.message,
-                });
+                // Silently ignore 404 and 401 errors (expected when not logged in)
+                const status = error.response?.status;
+                if (status !== 404 && status !== 401) {
+                    // Log error for debugging
+                    console.error('API Error:', {
+                        url: error.config?.url,
+                        method: error.config?.method,
+                        status: error.response?.status,
+                        message: error.message,
+                    });
+                }
                 return Promise.reject(error);
             }
         );

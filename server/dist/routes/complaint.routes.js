@@ -72,6 +72,14 @@ router.put('/:id', upload_controller_1.uploadController.uploadComplaintFiles, co
  * @param   id - Complaint ID
  */
 router.delete('/:id', complaint_controller_1.complaintController.deleteComplaint.bind(complaint_controller_1.complaintController));
+/**
+ * @route   POST /api/complaints/:id/images
+ * @desc    Add images to existing complaint with ward limit check
+ * @access  Private (Complaint owner only)
+ * @param   id - Complaint ID
+ * @body    form-data with files: { images }
+ */
+router.post('/:id/images', upload_controller_1.uploadController.uploadComplaintFiles, complaint_controller_1.complaintController.addImagesToComplaint.bind(complaint_controller_1.complaintController));
 // File upload and management routes
 /**
  * @route   POST /api/complaints/upload
@@ -80,6 +88,13 @@ router.delete('/:id', complaint_controller_1.complaintController.deleteComplaint
  * @body    form-data with files: { images?, voice? }
  */
 router.post('/upload', upload_controller_1.uploadController.uploadComplaintFiles, upload_controller_1.uploadController.uploadFiles.bind(upload_controller_1.uploadController));
+/**
+ * @route   POST /api/complaints/:id/upload
+ * @desc    Upload files for a specific complaint (for chat)
+ * @access  Private (Authenticated users)
+ * @body    form-data with files: { images?, voice? }
+ */
+router.post('/:id/upload', upload_controller_1.uploadController.uploadComplaintFiles, upload_controller_1.uploadController.uploadFiles.bind(upload_controller_1.uploadController));
 /**
  * @route   DELETE /api/complaints/files/:type/:filename
  * @desc    Delete uploaded file

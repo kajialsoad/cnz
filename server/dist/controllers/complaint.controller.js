@@ -76,6 +76,17 @@ class ComplaintController {
         }
         catch (error) {
             console.error('Error in createComplaint:', error);
+            // Handle ward image limit error specifically
+            if (error instanceof complaint_service_1.WardImageLimitError) {
+                return res.status(error.statusCode).json({
+                    success: false,
+                    message: error.message,
+                    error: {
+                        code: error.code,
+                        details: error.details
+                    }
+                });
+            }
             res.status(400).json({
                 success: false,
                 message: error instanceof Error ? error.message : 'Failed to create complaint',
@@ -427,8 +438,7 @@ class ComplaintController {
                 senderType: 'CITIZEN',
                 message: sanitizedMessage,
                 imageUrl,
-                voiceUrl,
-                imageFile
+                voiceUrl
             });
             res.status(201).json({
                 success: true,
@@ -466,6 +476,62 @@ class ComplaintController {
             res.status(500).json({
                 success: false,
                 message: error instanceof Error ? error.message : 'Failed to mark messages as read'
+            });
+        }
+    }
+    // Add images to existing complaint
+    async addImagesToComplaint(req, res) {
+        try {
+            const complaintId = parseInt(req.params.id);
+            if (isNaN(complaintId)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid complaint ID'
+                });
+            }
+            if (!req.user) {
+                return res.status(401).json({
+                    success: false,
+                    message: 'Authentication required'
+                });
+            }
+            // Check if files were uploaded
+            if (!req.files || (Array.isArray(req.files) && req.files.length === 0)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'No images provided'
+                });
+            }
+            const userId = req.user.sub;
+            // Add images to complaint with ward limit check
+            const complaint = await complaint_service_1.complaintService.addImagesToComplaint(complaintId, req.files, userId);
+            res.status(200).json({
+                success: true,
+                message: 'Images added successfully',
+                data: {
+                    complaint
+                }
+            });
+        }
+        catch (error) {
+            console.error('Error in addImagesToComplaint:', error);
+            // Handle ward image limit error specifically
+            if (error instanceof complaint_service_1.WardImageLimitError) {
+                return res.status(error.statusCode).json({
+                    success: false,
+                    message: error.message,
+                    error: {
+                        code: error.code,
+                        details: error.details
+                    }
+                });
+            }
+            const statusCode = error instanceof Error && error.message.includes('not found') ? 404 :
+                error instanceof Error && error.message.includes('Unauthorized') ? 403 : 500;
+            res.status(statusCode).json({
+                success: false,
+                message: error instanceof Error ? error.message : 'Failed to add images to complaint',
+                error: process.env.NODE_ENV === 'development' ? error : undefined
             });
         }
     }

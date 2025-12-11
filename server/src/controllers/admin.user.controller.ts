@@ -18,6 +18,8 @@ const getUsersQuerySchema = z.object({
     cityCorporationCode: z.string().optional(),
     ward: z.string().optional(),
     thanaId: z.string().optional().transform(val => val ? parseInt(val) : undefined),
+    zoneId: z.string().optional().transform(val => val ? parseInt(val) : undefined),
+    wardId: z.string().optional().transform(val => val ? parseInt(val) : undefined),
 });
 
 const createUserSchema = z.object({
@@ -28,6 +30,8 @@ const createUserSchema = z.object({
     password: z.string().min(8, 'Password must be at least 8 characters'),
     ward: z.string().optional(),
     zone: z.string().optional(),
+    zoneId: z.number().int().positive().optional(),
+    wardId: z.number().int().positive().optional(),
     role: z.nativeEnum(users_role).optional(),
 });
 
@@ -38,6 +42,8 @@ const updateUserSchema = z.object({
     phone: z.string().min(10).optional(),
     ward: z.string().optional(),
     zone: z.string().optional(),
+    zoneId: z.number().int().positive().optional(),
+    wardId: z.number().int().positive().optional(),
     role: z.nativeEnum(users_role).optional(),
     status: z.nativeEnum(UserStatus).optional(),
 });
@@ -55,8 +61,16 @@ export async function getUsers(req: AuthRequest, res: Response) {
         // Validate query parameters
         const query = getUsersQuerySchema.parse(req.query);
 
-        // Fetch users from service
-        const result = await adminUserService.getUsers(query);
+        // Get requesting user info for role-based filtering
+        const requestingUser = req.user ? {
+            id: req.user.id,
+            role: req.user.role,
+            zoneId: req.user.zoneId,
+            wardId: req.user.wardId,
+        } : undefined;
+
+        // Fetch users from service with role-based filtering
+        const result = await adminUserService.getUsers(query, requestingUser);
 
         return res.status(200).json({
             success: true,
@@ -121,10 +135,30 @@ export async function getUserById(req: AuthRequest, res: Response) {
 export async function getUserStatistics(req: AuthRequest, res: Response) {
     try {
         const cityCorporationCode = req.query.cityCorporationCode as string | undefined;
+        const zoneId = req.query.zoneId ? parseInt(req.query.zoneId as string) : undefined;
+        const wardId = req.query.wardId ? parseInt(req.query.wardId as string) : undefined;
 
-        console.log('📊 Fetching user statistics', cityCorporationCode ? `for ${cityCorporationCode}` : '');
+        // Get requesting user info for role-based filtering
+        const requestingUser = req.user ? {
+            id: req.user.id,
+            role: req.user.role,
+            zoneId: req.user.zoneId,
+            wardId: req.user.wardId,
+        } : undefined;
 
-        const statistics = await adminUserService.getUserStatistics(cityCorporationCode);
+        console.log('📊 Fetching user statistics', {
+            cityCorporationCode,
+            zoneId,
+            wardId,
+            requestingUser: requestingUser ? `${requestingUser.role} (ID: ${requestingUser.id})` : 'none',
+        });
+
+        const statistics = await adminUserService.getUserStatistics(
+            cityCorporationCode,
+            zoneId,
+            wardId,
+            requestingUser
+        );
 
         return res.status(200).json({
             success: true,

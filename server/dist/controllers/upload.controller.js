@@ -5,6 +5,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.uploadController = exports.UploadController = void 0;
 const upload_service_1 = require("../services/upload.service");
+const cloud_upload_service_1 = require("../services/cloud-upload.service");
+const cloudinary_config_1 = require("../config/cloudinary.config");
 const upload_config_1 = require("../config/upload.config");
 const path_1 = __importDefault(require("path"));
 class UploadController {
@@ -12,29 +14,65 @@ class UploadController {
         // Upload files with validation
         this.uploadFiles = async (req, res) => {
             try {
-                // Validate uploaded files
-                const validation = await upload_service_1.uploadService.validateFiles(req.files);
-                if (!validation.isValid) {
-                    // Clean up any uploaded files if validation fails
-                    await upload_service_1.uploadService.cleanupFiles(req.files);
-                    return res.status(400).json({
-                        success: false,
-                        message: 'File validation failed',
-                        errors: validation.errors
+                console.log('📤 Upload files called, Cloudinary enabled:', (0, cloudinary_config_1.isCloudinaryEnabled)());
+                console.log('📤 Files received:', req.files);
+                // Check if Cloudinary is enabled
+                if ((0, cloudinary_config_1.isCloudinaryEnabled)()) {
+                    // Upload to Cloudinary
+                    const files = req.files;
+                    const fileUrls = [];
+                    if (files && Array.isArray(files)) {
+                        // Handle files as array (from multer.any())
+                        for (const file of files) {
+                            if (file.fieldname === 'images' || file.fieldname === 'image') {
+                                try {
+                                    const result = await cloud_upload_service_1.cloudUploadService.uploadImage(file, 'complaints');
+                                    fileUrls.push(result.secure_url);
+                                    console.log('✅ Uploaded to Cloudinary:', result.secure_url);
+                                }
+                                catch (error) {
+                                    console.error('❌ Cloudinary upload failed:', error);
+                                    throw error;
+                                }
+                            }
+                        }
+                    }
+                    if (fileUrls.length === 0) {
+                        return res.status(400).json({
+                            success: false,
+                            message: 'No images found to upload'
+                        });
+                    }
+                    return res.status(200).json({
+                        success: true,
+                        message: 'Files uploaded successfully',
+                        data: {
+                            fileUrls: fileUrls,
+                            images: fileUrls.map(url => ({ url, filename: url.split('/').pop() }))
+                        }
                     });
                 }
-                // Process files and get file information
-                const uploadedFiles = await upload_service_1.uploadService.processUploadedFiles(req.files);
-                return res.status(200).json({
-                    success: true,
-                    message: 'Files uploaded successfully',
-                    data: uploadedFiles
-                });
+                else {
+                    // Fallback to local storage
+                    const validation = await upload_service_1.uploadService.validateFiles(req.files);
+                    if (!validation.isValid) {
+                        await upload_service_1.uploadService.cleanupFiles(req.files);
+                        return res.status(400).json({
+                            success: false,
+                            message: 'File validation failed',
+                            errors: validation.errors
+                        });
+                    }
+                    const uploadedFiles = await upload_service_1.uploadService.processUploadedFiles(req.files);
+                    return res.status(200).json({
+                        success: true,
+                        message: 'Files uploaded successfully',
+                        data: uploadedFiles
+                    });
+                }
             }
             catch (error) {
                 console.error('Error uploading files:', error);
-                // Clean up any uploaded files on error
-                await upload_service_1.uploadService.cleanupFiles(req.files);
                 return res.status(500).json({
                     success: false,
                     message: 'Failed to upload files',
@@ -178,6 +216,90 @@ class UploadController {
         this.uploadSingleVoice = upload_config_1.uploadConfig.single('voice');
         // Upload middleware for multiple images
         this.uploadMultipleImages = upload_config_1.uploadConfig.array('images', 5);
+        // Upload avatar image for admin profile
+        this.uploadAvatar = async (req, res) => {
+            try {
+                console.log('📤 Avatar upload called, Cloudinary enabled:', (0, cloudinary_config_1.isCloudinaryEnabled)());
+                console.log('📤 File received:', req.file);
+                console.log('📤 Request body:', req.body);
+                if (!req.file) {
+                    console.log('❌ No file in request');
+                    return res.status(400).json({
+                        success: false,
+                        message: 'No avatar file provided'
+                    });
+                }
+                // Check if Cloudinary is enabled
+                if ((0, cloudinary_config_1.isCloudinaryEnabled)()) {
+                    try {
+                        // Upload to Cloudinary in avatars folder
+                        const result = await cloud_upload_service_1.cloudUploadService.uploadImage(req.file, 'avatars');
+                        console.log('✅ Avatar uploaded to Cloudinary:', result.secure_url);
+                        return res.status(200).json({
+                            success: true,
+                            message: 'Avatar uploaded successfully',
+                            data: {
+                                url: result.secure_url,
+                                publicId: result.public_id
+                            }
+                        });
+                    }
+                    catch (error) {
+                        console.error('❌ Cloudinary avatar upload failed:', error);
+                        return res.status(500).json({
+                            success: false,
+                            message: 'Failed to upload avatar to cloud storage',
+                            error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+                        });
+                    }
+                }
+                else {
+                    // Fallback to local storage
+                    try {
+                        const validation = await upload_service_1.uploadService.validateFiles([req.file]);
+                        if (!validation.isValid) {
+                            await upload_service_1.uploadService.cleanupFiles([req.file]);
+                            return res.status(400).json({
+                                success: false,
+                                message: 'Avatar validation failed',
+                                errors: validation.errors
+                            });
+                        }
+                        const uploadedFiles = await upload_service_1.uploadService.processUploadedFiles({ images: [req.file] });
+                        if (!uploadedFiles.images || uploadedFiles.images.length === 0) {
+                            return res.status(500).json({
+                                success: false,
+                                message: 'Failed to process avatar'
+                            });
+                        }
+                        return res.status(200).json({
+                            success: true,
+                            message: 'Avatar uploaded successfully',
+                            data: {
+                                url: uploadedFiles.images[0].url,
+                                filename: uploadedFiles.images[0].filename
+                            }
+                        });
+                    }
+                    catch (error) {
+                        console.error('❌ Local storage avatar upload failed:', error);
+                        return res.status(500).json({
+                            success: false,
+                            message: 'Failed to process avatar',
+                            error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+                        });
+                    }
+                }
+            }
+            catch (error) {
+                console.error('❌ Avatar upload error:', error);
+                return res.status(500).json({
+                    success: false,
+                    message: 'Failed to upload avatar',
+                    error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+                });
+            }
+        };
     }
 }
 exports.UploadController = UploadController;

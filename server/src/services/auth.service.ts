@@ -6,7 +6,9 @@ import env from '../config/env';
 // Prisma v6 enum exports use $Enums; এখানে আমরা অ্যাডমিন টোকেনের জন্য নিজস্ব টাইপ রাখছি
 type AdminRole = 'ADMIN' | 'SUPER_ADMIN' | 'MASTER_ADMIN';
 import cityCorporationService from './city-corporation.service';
-import thanaService from './thana.service';
+// import thanaService from './thana.service'; // Thana service disabled - using Zone/Ward now
+import zoneService from './zone.service';
+import wardService from './ward.service';
 
 export interface RegisterInput {
   email?: string;
@@ -20,6 +22,8 @@ export interface RegisterInput {
   address?: string;
   cityCorporationCode?: string;
   thanaId?: number;
+  zoneId?: number;
+  wardId?: number;
 }
 
 export interface LoginInput {
@@ -73,7 +77,53 @@ export class AuthService {
           );
         }
 
-        // Validate ward if provided
+        // Validate zone-ward hierarchy if provided
+        if (input.zoneId && input.wardId) {
+          // Validate zone exists and belongs to city corporation
+          const zone = await zoneService.getZoneById(input.zoneId);
+
+          const zoneBelongsToCityCorporation = await zoneService.validateZoneBelongsToCityCorporation(
+            input.zoneId,
+            cityCorporation.id
+          );
+
+          if (!zoneBelongsToCityCorporation) {
+            throw new Error(
+              `Selected zone does not belong to ${cityCorporation.name}`
+            );
+          }
+
+          // Check if zone is active
+          const isZoneActive = await zoneService.isActive(input.zoneId);
+          if (!isZoneActive) {
+            throw new Error('Selected zone is not currently available');
+          }
+
+          // Validate ward exists and belongs to zone
+          const ward = await wardService.getWardById(input.wardId);
+
+          const wardBelongsToZone = await wardService.validateWardBelongsToZone(
+            input.wardId,
+            input.zoneId
+          );
+
+          if (!wardBelongsToZone) {
+            throw new Error(
+              `Selected ward does not belong to Zone ${zone.zoneNumber}`
+            );
+          }
+
+          // Check if ward is active
+          const isWardActive = await wardService.isActive(input.wardId);
+          if (!isWardActive) {
+            throw new Error('Selected ward is not currently available');
+          }
+        } else if (input.zoneId || input.wardId) {
+          // If only one is provided, throw error
+          throw new Error('Both zone and ward must be provided together');
+        }
+
+        // Legacy: Validate ward if provided (old string-based ward)
         if (input.ward) {
           const wardNum = parseInt(input.ward);
           if (isNaN(wardNum)) {
@@ -92,34 +142,7 @@ export class AuthService {
           }
         }
 
-        // Validate thana if provided
-        if (input.thanaId) {
-          try {
-            const thana = await thanaService.getThanaById(input.thanaId);
-
-            // Check if thana belongs to selected city corporation
-            const belongsToCityCorporation = await thanaService.validateThanaBelongsToCityCorporation(
-              input.thanaId,
-              input.cityCorporationCode
-            );
-
-            if (!belongsToCityCorporation) {
-              throw new Error(
-                `Selected thana does not belong to ${cityCorporation.name}`
-              );
-            }
-
-            // Check if thana is active
-            if (thana.status !== 'ACTIVE') {
-              throw new Error('Selected thana is not currently available');
-            }
-          } catch (error) {
-            if (error instanceof Error) {
-              throw error;
-            }
-            throw new Error('Invalid thana selected');
-          }
-        }
+        // Legacy thana validation removed - using Zone/Ward now
       } catch (error) {
         if (error instanceof Error) {
           throw error;
@@ -140,11 +163,11 @@ export class AuthService {
         firstName: input.firstName,
         lastName: input.lastName,
         phone: input.phone || '',
-        ward: input.ward,
-        zone: input.zone,
         address: input.address,
         cityCorporationCode: input.cityCorporationCode,
-        thanaId: input.thanaId,
+        zoneId: input.zoneId,
+        wardId: input.wardId,
+        wardImageCount: 0, // Initialize to 0 for new users
         role: input.role || 'ADMIN',
         status: emailVerificationEnabled ? 'PENDING' : 'ACTIVE',
         emailVerified: !emailVerificationEnabled, // Mark as verified if verification is disabled
@@ -155,11 +178,11 @@ export class AuthService {
         email: true,
         firstName: true,
         lastName: true,
-        ward: true,
-        zone: true,
         address: true,
         cityCorporationCode: true,
-        thanaId: true,
+        zoneId: true,
+        wardId: true,
+        wardImageCount: true,
         role: true,
         status: true,
         createdAt: true
@@ -246,27 +269,38 @@ export class AuthService {
     // Generate tokens
     try {
       const accessToken = signAccessToken({
+        id: parseInt(user.id.toString()),
         sub: parseInt(user.id.toString()),
         role: toAdminRole(user.role),
         email: user.email ?? undefined,
-        phone: user.phone ?? undefined
+        phone: user.phone ?? undefined,
+        zoneId: user.zoneId,
+        wardId: user.wardId
       });
 
       const refreshToken = signRefreshToken({
+        id: parseInt(user.id.toString()),
         sub: parseInt(user.id.toString()),
         role: toAdminRole(user.role),
         email: user.email ?? undefined,
-        phone: user.phone ?? undefined
+        phone: user.phone ?? undefined,
+        zoneId: user.zoneId,
+        wardId: user.wardId
       });
 
       // Store refresh token
-      await prisma.refreshToken.create({
-        data: {
-          token: refreshToken,
-          userId: user.id,
-          expiresAt: new Date(Date.now() + env.REFRESH_TTL_SECONDS * 1000)
-        }
-      });
+      try {
+        await prisma.refreshToken.create({
+          data: {
+            token: refreshToken,
+            userId: user.id,
+            expiresAt: new Date(Date.now() + env.REFRESH_TTL_SECONDS * 1000)
+          }
+        });
+      } catch (dbError) {
+        console.error('Database error storing refresh token:', dbError);
+        throw new Error('Failed to store refresh token');
+      }
 
       // Update last login
       await prisma.user.update({
@@ -303,17 +337,23 @@ export class AuthService {
 
     // Generate new tokens
     const newAccessToken = signAccessToken({
+      id: parseInt(payload.sub.toString()),
       sub: parseInt(payload.sub.toString()),
       role: payload.role,
       email: payload.email,
-      phone: payload.phone
+      phone: payload.phone,
+      zoneId: payload.zoneId,
+      wardId: payload.wardId
     });
 
     const newRefreshToken = signRefreshToken({
+      id: parseInt(payload.sub.toString()),
       sub: parseInt(payload.sub.toString()),
       role: payload.role,
       email: payload.email,
-      phone: payload.phone
+      phone: payload.phone,
+      zoneId: payload.zoneId,
+      wardId: payload.wardId
     });
 
     // Update refresh token
@@ -569,11 +609,11 @@ export class AuthService {
         emailVerified: true,
         phoneVerified: true,
         avatar: true,
-        zone: true,
-        ward: true,
         address: true,
         cityCorporationCode: true,
-        thanaId: true,
+        zoneId: true,
+        wardId: true,
+        wardImageCount: true,
         createdAt: true,
         updatedAt: true,
         lastLoginAt: true
@@ -593,11 +633,11 @@ export class AuthService {
     lastName?: string;
     phone?: string;
     avatar?: string;
-    zone?: string;
-    ward?: string;
     address?: string;
     cityCorporationCode?: string;
     thanaId?: number;
+    zoneId?: number;
+    wardId?: number;
   }) {
     // Validate city corporation if being updated
     if (data.cityCorporationCode) {
@@ -613,52 +653,50 @@ export class AuthService {
           );
         }
 
-        // Validate ward if provided
-        if (data.ward) {
-          const wardNum = parseInt(data.ward);
-          if (isNaN(wardNum)) {
-            throw new Error('Ward must be a valid number');
-          }
+        // Validate zone-ward hierarchy if provided
+        if (data.zoneId && data.wardId) {
+          // Validate zone exists and belongs to city corporation
+          const zone = await zoneService.getZoneById(data.zoneId);
 
-          const isValidWard = await cityCorporationService.validateWard(
-            data.cityCorporationCode,
-            wardNum
+          const zoneBelongsToCityCorporation = await zoneService.validateZoneBelongsToCityCorporation(
+            data.zoneId,
+            cityCorporation.id
           );
 
-          if (!isValidWard) {
+          if (!zoneBelongsToCityCorporation) {
             throw new Error(
-              `Ward must be between ${cityCorporation.minWard} and ${cityCorporation.maxWard} for ${cityCorporation.name}`
+              `Selected zone does not belong to ${cityCorporation.name}`
             );
           }
-        }
 
-        // Validate thana if provided
-        if (data.thanaId) {
-          try {
-            const thana = await thanaService.getThanaById(data.thanaId);
-
-            // Check if thana belongs to selected city corporation
-            const belongsToCityCorporation = await thanaService.validateThanaBelongsToCityCorporation(
-              data.thanaId,
-              data.cityCorporationCode
-            );
-
-            if (!belongsToCityCorporation) {
-              throw new Error(
-                `Selected thana does not belong to ${cityCorporation.name}`
-              );
-            }
-
-            // Check if thana is active
-            if (thana.status !== 'ACTIVE') {
-              throw new Error('Selected thana is not currently available');
-            }
-          } catch (error) {
-            if (error instanceof Error) {
-              throw error;
-            }
-            throw new Error('Invalid thana selected');
+          // Check if zone is active
+          const isZoneActive = await zoneService.isActive(data.zoneId);
+          if (!isZoneActive) {
+            throw new Error('Selected zone is not currently available');
           }
+
+          // Validate ward exists and belongs to zone
+          const ward = await wardService.getWardById(data.wardId);
+
+          const wardBelongsToZone = await wardService.validateWardBelongsToZone(
+            data.wardId,
+            data.zoneId
+          );
+
+          if (!wardBelongsToZone) {
+            throw new Error(
+              `Selected ward does not belong to Zone ${zone.zoneNumber}`
+            );
+          }
+
+          // Check if ward is active
+          const isWardActive = await wardService.isActive(data.wardId);
+          if (!isWardActive) {
+            throw new Error('Selected ward is not currently available');
+          }
+        } else if (data.zoneId || data.wardId) {
+          // If only one is provided, throw error
+          throw new Error('Both zone and ward must be provided together');
         }
       } catch (error) {
         if (error instanceof Error) {
@@ -682,11 +720,11 @@ export class AuthService {
         emailVerified: true,
         phoneVerified: true,
         avatar: true,
-        zone: true,
-        ward: true,
         address: true,
         cityCorporationCode: true,
-        thanaId: true,
+        zoneId: true,
+        wardId: true,
+        wardImageCount: true,
         createdAt: true,
         updatedAt: true,
         lastLoginAt: true

@@ -7,7 +7,7 @@ console.log('🔧 Loading admin.analytics.routes.ts...');
 const router = (0, express_1.Router)();
 // All routes require authentication and admin role
 router.use(auth_middleware_1.authGuard);
-router.use((0, auth_middleware_1.rbacGuard)('ADMIN', 'SUPER_ADMIN'));
+router.use((0, auth_middleware_1.rbacGuard)('ADMIN', 'SUPER_ADMIN', 'MASTER_ADMIN'));
 // Get complaint analytics
 router.get('/', admin_analytics_controller_1.getComplaintAnalytics);
 console.log('🔧 Admin analytics route registered: GET /');

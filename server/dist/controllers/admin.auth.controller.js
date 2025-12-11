@@ -40,6 +40,7 @@ exports.adminLogin = adminLogin;
 exports.adminMe = adminMe;
 exports.adminLogout = adminLogout;
 exports.adminRefresh = adminRefresh;
+exports.adminUpdateProfile = adminUpdateProfile;
 const auth_service_1 = require("../services/auth.service");
 const zod_1 = require("zod");
 const env_1 = __importDefault(require("../config/env"));
@@ -48,6 +49,46 @@ const adminLoginSchema = zod_1.z.object({
     email: zod_1.z.string().email(),
     password: zod_1.z.string(),
     rememberMe: zod_1.z.boolean().optional().default(false),
+});
+const adminProfileUpdateSchema = zod_1.z.object({
+    firstName: zod_1.z.string()
+        .transform(val => val?.trim())
+        .refine(val => !val || val.length >= 2, 'First name must be at least 2 characters')
+        .refine(val => !val || val.length <= 50, 'First name must not exceed 50 characters')
+        .refine(val => !val || /^[a-zA-Z\s'-]+$/.test(val), 'First name can only contain letters, spaces, hyphens, and apostrophes')
+        .optional(),
+    lastName: zod_1.z.string()
+        .transform(val => val?.trim())
+        .refine(val => !val || val.length >= 2, 'Last name must be at least 2 characters')
+        .refine(val => !val || val.length <= 50, 'Last name must not exceed 50 characters')
+        .refine(val => !val || /^[a-zA-Z\s'-]+$/.test(val), 'Last name can only contain letters, spaces, hyphens, and apostrophes')
+        .optional(),
+    avatar: zod_1.z.string()
+        .transform(val => val?.trim())
+        .refine(val => !val || /^https?:\/\/.+/.test(val), 'Avatar must be a valid URL')
+        .refine(val => !val || val.length <= 500, 'Avatar URL is too long')
+        .optional(),
+    ward: zod_1.z.string()
+        .transform(val => val?.trim())
+        .refine(val => !val || val.length <= 20, 'Ward must not exceed 20 characters')
+        .optional(),
+    zone: zod_1.z.string()
+        .transform(val => val?.trim())
+        .refine(val => !val || val.length <= 20, 'Zone must not exceed 20 characters')
+        .optional(),
+    address: zod_1.z.string()
+        .transform(val => val?.trim())
+        .refine(val => !val || val.length >= 10, 'Address must be at least 10 characters')
+        .refine(val => !val || val.length <= 200, 'Address must not exceed 200 characters')
+        .optional(),
+}).refine((data) => {
+    // Filter out empty strings and check if we have any real data
+    const hasData = Object.entries(data).some(([_, value]) => {
+        return value !== undefined && value !== '' && value !== null;
+    });
+    return hasData;
+}, {
+    message: 'At least one field must be provided for update',
 });
 // Admin login - only allows ADMIN and SUPER_ADMIN roles
 async function adminLogin(req, res) {
@@ -71,7 +112,7 @@ async function adminLogin(req, res) {
             return res.status(401).json({ message: 'Invalid credentials' });
         }
         // Check if user has admin role
-        if (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
+        if (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN' && user.role !== 'MASTER_ADMIN') {
             return res.status(403).json({
                 message: 'Access denied. Admin privileges required.'
             });
@@ -99,22 +140,32 @@ async function adminLogin(req, res) {
         return res.status(401).json({ message: err?.message ?? 'Admin login failed' });
     }
 }
-// Admin profile - returns admin user info
+// Admin profile - returns admin user info with complete profile data
 async function adminMe(req, res) {
     try {
         if (!req.user)
-            return res.status(401).json({ message: 'Unauthorized' });
+            return res.status(401).json({
+                success: false,
+                message: 'Unauthorized'
+            });
         // Check if user has admin role
-        if (req.user.role !== 'ADMIN' && req.user.role !== 'SUPER_ADMIN') {
+        if (req.user.role !== 'ADMIN' && req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'MASTER_ADMIN') {
             return res.status(403).json({
+                success: false,
                 message: 'Access denied. Admin privileges required.'
             });
         }
         const user = await auth_service_1.authService.getProfile(String(req.user.sub));
-        return res.status(200).json({ user });
+        return res.status(200).json({
+            success: true,
+            data: user
+        });
     }
     catch (err) {
-        return res.status(400).json({ message: err?.message ?? 'Failed to load admin profile' });
+        return res.status(400).json({
+            success: false,
+            message: err?.message ?? 'Failed to load admin profile'
+        });
     }
 }
 // Admin logout
@@ -154,5 +205,85 @@ async function adminRefresh(req, res) {
     }
     catch (err) {
         return res.status(401).json({ message: err?.message ?? 'Token refresh failed' });
+    }
+}
+// Admin profile update - allows admins to update their profile
+async function adminUpdateProfile(req, res) {
+    try {
+        if (!req.user) {
+            return res.status(401).json({
+                success: false,
+                message: 'Unauthorized: Authentication required'
+            });
+        }
+        // Check if user has admin role
+        if (req.user.role !== 'ADMIN' && req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'MASTER_ADMIN') {
+            return res.status(403).json({
+                success: false,
+                message: 'Access denied. Admin privileges required.'
+            });
+        }
+        // Check if request body is empty
+        if (!req.body || Object.keys(req.body).length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'No data provided for update'
+            });
+        }
+        // Validate request body
+        const body = adminProfileUpdateSchema.parse(req.body);
+        // Sanitize string inputs
+        const sanitizedBody = {};
+        if (body.firstName)
+            sanitizedBody.firstName = body.firstName.trim();
+        if (body.lastName)
+            sanitizedBody.lastName = body.lastName.trim();
+        if (body.avatar)
+            sanitizedBody.avatar = body.avatar.trim();
+        if (body.ward)
+            sanitizedBody.ward = body.ward.trim();
+        if (body.zone)
+            sanitizedBody.zone = body.zone.trim();
+        if (body.address)
+            sanitizedBody.address = body.address.trim();
+        // Update profile
+        const updatedUser = await auth_service_1.authService.updateProfile(String(req.user.sub), sanitizedBody);
+        return res.status(200).json({
+            success: true,
+            message: 'Profile updated successfully',
+            data: updatedUser
+        });
+    }
+    catch (err) {
+        console.error('Profile update error:', err);
+        if (err?.name === 'ZodError') {
+            // Format Zod validation errors
+            const formattedErrors = err.issues.map((issue) => ({
+                field: issue.path.join('.'),
+                message: issue.message
+            }));
+            return res.status(400).json({
+                success: false,
+                message: 'Validation error: ' + formattedErrors[0].message,
+                errors: formattedErrors
+            });
+        }
+        // Handle specific error types
+        if (err?.message?.includes('email') && err?.message?.includes('already')) {
+            return res.status(409).json({
+                success: false,
+                message: 'Email address is already in use'
+            });
+        }
+        if (err?.message?.includes('phone') && err?.message?.includes('already')) {
+            return res.status(409).json({
+                success: false,
+                message: 'Phone number is already in use'
+            });
+        }
+        return res.status(400).json({
+            success: false,
+            message: err?.message ?? 'Failed to update profile'
+        });
     }
 }

@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import thanaService from '../services/thana.service';
-import { ThanaStatus } from '@prisma/client';
+// import thanaService from '../services/thana.service'; // Thana service disabled - using Zone/Ward now
+// import { ThanaStatus } from '@prisma/client'; // Thana model removed, using Zone/Ward now
 
 class ThanaController {
     /**
@@ -19,7 +19,7 @@ class ThanaController {
                 });
             }
 
-            const validStatus = status as ThanaStatus | 'ALL' | undefined;
+            const validStatus = status as 'ACTIVE' | 'INACTIVE' | 'ALL' | undefined;
 
             const thanas = await thanaService.getThanasByCityCorporation(
                 cityCorporationCode,

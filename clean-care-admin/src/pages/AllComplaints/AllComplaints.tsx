@@ -40,9 +40,11 @@ import LoadingButton from '../../components/common/LoadingButton';
 import PageLoadingBar from '../../components/common/PageLoadingBar';
 import { complaintService } from '../../services/complaintService';
 import { cityCorporationService } from '../../services/cityCorporationService';
-import { thanaService } from '../../services/thanaService';
+import { zoneService } from '../../services/zoneService';
+import { wardService } from '../../services/wardService';
 import type { CityCorporation } from '../../services/cityCorporationService';
-import type { Thana } from '../../services/thanaService';
+import type { Zone } from '../../services/zoneService';
+import type { Ward } from '../../services/wardService';
 import { useDebounce } from '../../hooks/useDebounce';
 import { formatTimeAgo } from '../../utils/dateUtils';
 import { handleApiError, logError, ErrorType } from '../../utils/errorHandler';
@@ -77,16 +79,18 @@ const AllComplaints: React.FC = () => {
   const [selectedCityCorporation, setSelectedCityCorporation] = useState<string>(
     searchParams.get('cityCorporation') || 'ALL'
   );
-  const [selectedWard, setSelectedWard] = useState<string>(
-    searchParams.get('ward') || 'ALL'
+  const [selectedCityCorporationId, setSelectedCityCorporationId] = useState<number | null>(null);
+  const [selectedZone, setSelectedZone] = useState<number | null>(
+    searchParams.get('zone') ? Number(searchParams.get('zone')) : null
   );
-  const [selectedThana, setSelectedThana] = useState<number | null>(
-    searchParams.get('thana') ? Number(searchParams.get('thana')) : null
+  const [selectedWard, setSelectedWard] = useState<number | null>(
+    searchParams.get('ward') ? Number(searchParams.get('ward')) : null
   );
-  const [wardRange, setWardRange] = useState<{ min: number; max: number }>({ min: 1, max: 100 });
-  const [thanas, setThanas] = useState<Thana[]>([]);
+  const [zones, setZones] = useState<Zone[]>([]);
+  const [wards, setWards] = useState<Ward[]>([]);
   const [cityCorporationsLoading, setCityCorporationsLoading] = useState<boolean>(false);
-  const [thanasLoading, setThanasLoading] = useState<boolean>(false);
+  const [zonesLoading, setZonesLoading] = useState<boolean>(false);
+  const [wardsLoading, setWardsLoading] = useState<boolean>(false);
 
   const [statusCounts, setStatusCounts] = useState<ComplaintStats>({
     total: 0,
@@ -124,22 +128,35 @@ const AllComplaints: React.FC = () => {
   }, []);
 
   /**
-   * Update ward range and thanas when city corporation changes
+   * Update zones when city corporation changes
    */
   useEffect(() => {
     if (selectedCityCorporation !== 'ALL') {
       const cityCorporation = cityCorporations.find(cc => cc.code === selectedCityCorporation);
       if (cityCorporation) {
-        setWardRange({ min: cityCorporation.minWard, max: cityCorporation.maxWard });
-        fetchThanas(cityCorporation.code);
+        setSelectedCityCorporationId(cityCorporation.id);
+        fetchZones(cityCorporation.id);
       }
     } else {
-      setWardRange({ min: 1, max: 100 });
-      setThanas([]);
+      setSelectedCityCorporationId(null);
+      setZones([]);
+      setWards([]);
     }
-    setSelectedWard('ALL');
-    setSelectedThana(null);
+    setSelectedZone(null);
+    setSelectedWard(null);
   }, [selectedCityCorporation, cityCorporations]);
+
+  /**
+   * Update wards when zone changes
+   */
+  useEffect(() => {
+    if (selectedZone) {
+      fetchWards(selectedZone);
+    } else {
+      setWards([]);
+    }
+    setSelectedWard(null);
+  }, [selectedZone]);
 
   /**
    * Update URL query parameters when filters change
@@ -152,13 +169,13 @@ const AllComplaints: React.FC = () => {
     if (categoryFilter) params.set('category', categoryFilter);
     if (subcategoryFilter) params.set('subcategory', subcategoryFilter);
     if (selectedCityCorporation !== 'ALL') params.set('cityCorporation', selectedCityCorporation);
-    if (selectedWard !== 'ALL') params.set('ward', selectedWard);
-    if (selectedThana) params.set('thana', selectedThana.toString());
+    if (selectedZone) params.set('zone', selectedZone.toString());
+    if (selectedWard) params.set('ward', selectedWard.toString());
     if (pagination.page !== 1) params.set('page', pagination.page.toString());
     if (pagination.limit !== 20) params.set('limit', pagination.limit.toString());
 
     setSearchParams(params, { replace: true });
-  }, [searchTerm, statusFilter, categoryFilter, subcategoryFilter, selectedCityCorporation, selectedWard, selectedThana, pagination.page, pagination.limit]);
+  }, [searchTerm, statusFilter, categoryFilter, subcategoryFilter, selectedCityCorporation, selectedZone, selectedWard, pagination.page, pagination.limit]);
 
   /**
    * Fetch city corporations
@@ -177,18 +194,34 @@ const AllComplaints: React.FC = () => {
   };
 
   /**
-   * Fetch thanas for selected city corporation
+   * Fetch zones for selected city corporation
    */
-  const fetchThanas = async (cityCorporationCode: string) => {
+  const fetchZones = async (cityCorporationId: number) => {
     try {
-      setThanasLoading(true);
-      const thanasData = await thanaService.getThanasByCityCorporation(cityCorporationCode, 'ACTIVE');
-      setThanas(thanasData);
+      setZonesLoading(true);
+      const zonesData = await zoneService.getZonesByCityCorporation(cityCorporationId, 'ACTIVE');
+      setZones(zonesData);
     } catch (err: any) {
-      console.error('Error fetching thanas:', err);
-      showErrorToast('Failed to load thanas');
+      console.error('Error fetching zones:', err);
+      showErrorToast('Failed to load zones');
     } finally {
-      setThanasLoading(false);
+      setZonesLoading(false);
+    }
+  };
+
+  /**
+   * Fetch wards for selected zone
+   */
+  const fetchWards = async (zoneId: number) => {
+    try {
+      setWardsLoading(true);
+      const wardsData = await wardService.getWardsByZone(zoneId, 'ACTIVE');
+      setWards(wardsData);
+    } catch (err: any) {
+      console.error('Error fetching wards:', err);
+      showErrorToast('Failed to load wards');
+    } finally {
+      setWardsLoading(false);
     }
   };
 
@@ -229,14 +262,14 @@ const AllComplaints: React.FC = () => {
         filters.cityCorporationCode = selectedCityCorporation;
       }
 
-      // Add ward filter if present
-      if (selectedWard !== 'ALL') {
-        filters.ward = selectedWard;
+      // Add zone filter if present
+      if (selectedZone) {
+        filters.zoneId = selectedZone;
       }
 
-      // Add thana filter if present
-      if (selectedThana) {
-        filters.thanaId = selectedThana;
+      // Add ward filter if present
+      if (selectedWard) {
+        filters.wardId = selectedWard;
       }
 
       console.log('Fetching complaints with params:', {
@@ -283,7 +316,7 @@ const AllComplaints: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [pagination.page, pagination.limit, statusFilter, categoryFilter, subcategoryFilter, selectedCityCorporation, selectedWard, selectedThana, debouncedSearchTerm]);
+  }, [pagination.page, pagination.limit, statusFilter, categoryFilter, subcategoryFilter, selectedCityCorporation, selectedZone, selectedWard, debouncedSearchTerm]);
 
   /**
    * Fetch complaints on component mount and when filters change
@@ -349,19 +382,19 @@ const AllComplaints: React.FC = () => {
   };
 
   /**
-   * Handle ward filter change
+   * Handle zone filter change
    */
-  const handleWardFilterChange = (value: string) => {
-    setSelectedWard(value);
+  const handleZoneFilterChange = (value: number | null) => {
+    setSelectedZone(value);
     // Reset to page 1 when filter changes
     setPagination((prev) => ({ ...prev, page: 1 }));
   };
 
   /**
-   * Handle thana filter change
+   * Handle ward filter change
    */
-  const handleThanaFilterChange = (value: number | null) => {
-    setSelectedThana(value);
+  const handleWardFilterChange = (value: number | null) => {
+    setSelectedWard(value);
     // Reset to page 1 when filter changes
     setPagination((prev) => ({ ...prev, page: 1 }));
   };
@@ -375,8 +408,8 @@ const AllComplaints: React.FC = () => {
     setCategoryFilter('');
     setSubcategoryFilter('');
     setSelectedCityCorporation('ALL');
-    setSelectedWard('ALL');
-    setSelectedThana(null);
+    setSelectedZone(null);
+    setSelectedWard(null);
     setPagination((prev) => ({ ...prev, page: 1 }));
   };
 
@@ -890,13 +923,13 @@ const AllComplaints: React.FC = () => {
                 </Select>
               </FormControl>
 
-              {/* Ward Filter */}
-              <FormControl sx={{ minWidth: { xs: '100%', sm: 150 } }}>
+              {/* Zone Filter */}
+              <FormControl sx={{ minWidth: { xs: '100%', sm: 200 } }}>
                 <Select
-                  value={selectedWard}
-                  onChange={(e) => handleWardFilterChange(e.target.value)}
+                  value={selectedZone || ''}
+                  onChange={(e) => handleZoneFilterChange(e.target.value ? Number(e.target.value) : null)}
                   displayEmpty
-                  disabled={selectedCityCorporation === 'ALL'}
+                  disabled={selectedCityCorporation === 'ALL' || zonesLoading || !zones || zones.length === 0}
                   sx={{
                     backgroundColor: 'white',
                     height: { xs: 40, sm: 44 },
@@ -918,25 +951,22 @@ const AllComplaints: React.FC = () => {
                     },
                   }}
                 >
-                  <MenuItem value="ALL">All Wards</MenuItem>
-                  {Array.from(
-                    { length: wardRange.max - wardRange.min + 1 },
-                    (_, i) => wardRange.min + i
-                  ).map((ward) => (
-                    <MenuItem key={ward} value={ward.toString()}>
-                      Ward {ward}
+                  <MenuItem value="">All Zones</MenuItem>
+                  {zones && zones.map((zone) => (
+                    <MenuItem key={zone.id} value={zone.id}>
+                      Zone {zone.zoneNumber}{zone.name ? ` - ${zone.name}` : ''}
                     </MenuItem>
                   ))}
                 </Select>
               </FormControl>
 
-              {/* Thana Filter */}
+              {/* Ward Filter */}
               <FormControl sx={{ minWidth: { xs: '100%', sm: 200 } }}>
                 <Select
-                  value={selectedThana || ''}
-                  onChange={(e) => handleThanaFilterChange(e.target.value ? Number(e.target.value) : null)}
+                  value={selectedWard || ''}
+                  onChange={(e) => handleWardFilterChange(e.target.value ? Number(e.target.value) : null)}
                   displayEmpty
-                  disabled={selectedCityCorporation === 'ALL' || thanasLoading || !thanas || thanas.length === 0}
+                  disabled={!selectedZone || wardsLoading || !wards || wards.length === 0}
                   sx={{
                     backgroundColor: 'white',
                     height: { xs: 40, sm: 44 },
@@ -958,17 +988,17 @@ const AllComplaints: React.FC = () => {
                     },
                   }}
                 >
-                  <MenuItem value="">All Thanas</MenuItem>
-                  {thanas && thanas.map((thana) => (
-                    <MenuItem key={thana.id} value={thana.id}>
-                      {thana.name}
+                  <MenuItem value="">All Wards</MenuItem>
+                  {wards && wards.map((ward) => (
+                    <MenuItem key={ward.id} value={ward.id}>
+                      Ward {ward.wardNumber}
                     </MenuItem>
                   ))}
                 </Select>
               </FormControl>
 
               {/* Clear Filters Button */}
-              {(searchTerm || statusFilter !== 'ALL' || categoryFilter || subcategoryFilter || selectedCityCorporation !== 'ALL' || selectedWard !== 'ALL' || selectedThana) && (
+              {(searchTerm || statusFilter !== 'ALL' || categoryFilter || subcategoryFilter || selectedCityCorporation !== 'ALL' || selectedZone || selectedWard) && (
                 <Button
                   variant="outlined"
                   onClick={handleClearFilters}
@@ -1015,7 +1045,7 @@ const AllComplaints: React.FC = () => {
             )}
 
             {/* Active Filters Display */}
-            {(searchTerm || statusFilter !== 'ALL' || selectedCityCorporation !== 'ALL' || selectedWard !== 'ALL' || selectedThana) && (
+            {(searchTerm || statusFilter !== 'ALL' || selectedCityCorporation !== 'ALL' || selectedZone || selectedWard) && (
               <Box sx={{
                 display: 'flex',
                 alignItems: 'center',
@@ -1064,11 +1094,11 @@ const AllComplaints: React.FC = () => {
                     }}
                   />
                 )}
-                {selectedWard !== 'ALL' && (
+                {selectedZone && (
                   <Chip
-                    label={`Ward: ${selectedWard}`}
+                    label={`Zone: ${zones.find(z => z.id === selectedZone)?.zoneNumber || selectedZone}`}
                     size="small"
-                    onDelete={() => handleWardFilterChange('ALL')}
+                    onDelete={() => handleZoneFilterChange(null)}
                     sx={{
                       backgroundColor: 'white',
                       fontSize: '0.75rem',
@@ -1076,11 +1106,11 @@ const AllComplaints: React.FC = () => {
                     }}
                   />
                 )}
-                {selectedThana && (
+                {selectedWard && (
                   <Chip
-                    label={`Thana: ${thanas.find(t => t.id === selectedThana)?.name || selectedThana}`}
+                    label={`Ward: ${wards.find(w => w.id === selectedWard)?.wardNumber || selectedWard}`}
                     size="small"
-                    onDelete={() => handleThanaFilterChange(null)}
+                    onDelete={() => handleWardFilterChange(null)}
                     sx={{
                       backgroundColor: 'white',
                       fontSize: '0.75rem',

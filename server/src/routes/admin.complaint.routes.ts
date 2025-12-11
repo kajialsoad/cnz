@@ -3,7 +3,9 @@ import {
     getAdminComplaints,
     getAdminComplaintById,
     updateComplaintStatus,
-    getComplaintsByUser
+    getComplaintsByUser,
+    getComplaintStatsByZone,
+    getComplaintStatsByWard
 } from '../controllers/admin.complaint.controller';
 import { authGuard, rbacGuard } from '../middlewares/auth.middleware';
 
@@ -14,6 +16,14 @@ const router = Router();
 // All routes require authentication and admin role
 router.use(authGuard);
 router.use(rbacGuard('ADMIN', 'SUPER_ADMIN', 'MASTER_ADMIN'));
+
+// Get complaint statistics by zone
+router.get('/stats/by-zone', getComplaintStatsByZone);
+console.log('🔧 Admin complaint route registered: GET /stats/by-zone');
+
+// Get complaint statistics by ward
+router.get('/stats/by-ward', getComplaintStatsByWard);
+console.log('🔧 Admin complaint route registered: GET /stats/by-ward');
 
 // Get all complaints with filtering and pagination
 router.get('/', getAdminComplaints);

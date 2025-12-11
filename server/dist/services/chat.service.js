@@ -5,23 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.chatService = exports.ChatService = void 0;
 const prisma_1 = __importDefault(require("../utils/prisma"));
-const cloud_upload_service_1 = require("./cloud-upload.service");
 class ChatService {
-    /**
-     * Transform relative image URL to absolute URL
-     */
-    transformImageUrl(imageUrl) {
-        if (!imageUrl)
-            return null;
-        // If already absolute URL, return as is
-        if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
-            return imageUrl;
-        }
-        // Convert relative URL to absolute
-        // In production, this should use the actual server URL from environment
-        const baseUrl = process.env.BASE_URL || 'http://localhost:4000';
-        return `${baseUrl}${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`;
-    }
     /**
      * Get all chat conversations with complaint and citizen details
      */
@@ -112,19 +96,23 @@ class ChatService {
                             phone: true,
                             email: true,
                             avatar: true,
-                            ward: true,
-                            zone: true,
                             cityCorporationCode: true,
-                            thanaId: true,
+                            zoneId: true,
+                            wardId: true,
+                            zone: {
+                                select: {
+                                    name: true,
+                                    zoneNumber: true
+                                }
+                            },
+                            ward: {
+                                select: {
+                                    wardNumber: true
+                                }
+                            },
                             cityCorporation: {
                                 select: {
                                     code: true,
-                                    name: true
-                                }
-                            },
-                            thana: {
-                                select: {
-                                    id: true,
                                     name: true
                                 }
                             }
@@ -154,6 +142,7 @@ class ChatService {
                 const ward = wardMatch ? wardMatch[1] : null;
                 const district = locationParts[1]?.trim() || '';
                 const upazila = locationParts[2]?.trim() || '';
+                const zone = complaint.user?.zone?.name || complaint.user?.zone?.zoneNumber?.toString() || '';
                 return {
                     complaintId: complaint.id,
                     trackingNumber: `C${String(complaint.id).padStart(6, '0')}`,
@@ -169,17 +158,12 @@ class ChatService {
                         email: complaint.user?.email || '',
                         district,
                         upazila,
-                        ward: ward || complaint.user?.ward || '',
-                        zone: complaint.user?.zone || '',
+                        ward: ward || "",
+                        zone: zone || '',
                         cityCorporationCode: complaint.user?.cityCorporationCode || null,
                         cityCorporation: complaint.user?.cityCorporation ? {
                             code: complaint.user.cityCorporation.code,
                             name: complaint.user.cityCorporation.name
-                        } : null,
-                        thanaId: complaint.user?.thanaId || null,
-                        thana: complaint.user?.thana ? {
-                            id: complaint.user.thana.id,
-                            name: complaint.user.thana.name
                         } : null,
                         address: locationParts[0]?.trim() || complaint.location,
                         profilePicture: complaint.user?.avatar
@@ -261,19 +245,19 @@ class ChatService {
                             ward: true,
                             zone: true,
                             cityCorporationCode: true,
-                            thanaId: true,
+                            // thanaId: true, // Removed - using zoneId/wardId
                             cityCorporation: {
                                 select: {
                                     code: true,
                                     name: true
                                 }
                             },
-                            thana: {
+                            /* thana: {
                                 select: {
                                     id: true,
                                     name: true
                                 }
-                            },
+                            }, */
                             createdAt: true
                         }
                     }
@@ -302,7 +286,7 @@ class ChatService {
                     where: { complaintId }
                 })
             ]);
-            // Get sender information for each message and transform image URLs
+            // Get sender information for each message
             const messagesWithSenderInfo = await Promise.all(messages.map(async (msg) => {
                 let senderName = 'Unknown';
                 if (msg.senderType === 'CITIZEN') {
@@ -332,9 +316,7 @@ class ChatService {
                 }
                 return {
                     ...msg,
-                    senderName,
-                    imageUrl: this.transformImageUrl(msg.imageUrl),
-                    voiceUrl: this.transformImageUrl(msg.voiceUrl)
+                    senderName
                 };
             }));
             return {
@@ -364,11 +346,6 @@ class ChatService {
                     cityCorporation: complaint.user.cityCorporation ? {
                         code: complaint.user.cityCorporation.code,
                         name: complaint.user.cityCorporation.name
-                    } : null,
-                    thanaId: complaint.user.thanaId || null,
-                    thana: complaint.user.thana ? {
-                        id: complaint.user.thana.id,
-                        name: complaint.user.thana.name
                     } : null,
                     address: locationParts[0]?.trim() || complaint.location,
                     profilePicture: complaint.user.avatar,
@@ -409,27 +386,14 @@ class ChatService {
             if (!sender) {
                 throw new Error('Sender not found');
             }
-            // Upload image to Cloudinary if provided
-            let cloudinaryImageUrl = input.imageUrl;
-            if (input.imageFile) {
-                try {
-                    const uploadResult = await cloud_upload_service_1.cloudUploadService.uploadImage(input.imageFile, 'chat/images');
-                    cloudinaryImageUrl = uploadResult.secure_url;
-                    console.log(`✅ Chat image uploaded to Cloudinary: ${uploadResult.secure_url}`);
-                }
-                catch (uploadError) {
-                    console.error('❌ Failed to upload chat image to Cloudinary:', uploadError);
-                    throw new Error('Failed to upload image. Please try again.');
-                }
-            }
-            // Create chat message with Cloudinary URL
+            // Create chat message
             const message = await prisma_1.default.complaintChatMessage.create({
                 data: {
                     complaintId: input.complaintId,
                     senderId: input.senderId,
                     senderType: input.senderType,
                     message: input.message,
-                    imageUrl: cloudinaryImageUrl,
+                    imageUrl: input.imageUrl,
                     voiceUrl: input.voiceUrl,
                     read: false
                 }
@@ -438,8 +402,7 @@ class ChatService {
             const senderName = `${sender.firstName} ${sender.lastName}${input.senderType === 'ADMIN' ? ' (Admin)' : ''}`;
             return {
                 ...message,
-                senderName,
-                imageUrl: cloudinaryImageUrl // Return Cloudinary URL
+                senderName
             };
         }
         catch (error) {
@@ -614,12 +577,12 @@ class ChatService {
                                 select: {
                                     name: true
                                 }
-                            },
-                            thana: {
+                            }
+                            /* thana: {
                                 select: {
                                     name: true
                                 }
-                            }
+                            } */
                         }
                     },
                     chatMessages: {
@@ -646,8 +609,8 @@ class ChatService {
                 const locationParts = complaint.location?.split(',') || [];
                 const district = locationParts[1]?.trim() || 'Unknown';
                 const upazila = locationParts[2]?.trim() || 'Unknown';
-                const ward = complaint.user?.ward || 'Unknown';
-                const zone = complaint.user?.zone || 'Unknown';
+                const ward = complaint.user?.ward?.wardNumber?.toString() || 'Unknown';
+                const zone = complaint.user?.zone?.name || complaint.user?.zone?.zoneNumber?.toString() || 'Unknown';
                 // Count by district
                 byDistrict[district] = (byDistrict[district] || 0) + 1;
                 // Count by upazila

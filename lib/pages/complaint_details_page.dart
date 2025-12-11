@@ -7,7 +7,10 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../components/custom_bottom_nav.dart';
+import '../models/user_model.dart';
 import '../providers/complaint_provider.dart';
+import '../repositories/user_repository.dart';
+import '../services/api_client.dart';
 import '../services/file_handling_service.dart';
 import '../widgets/translated_text.dart';
 
@@ -33,9 +36,56 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
   Map<String, dynamic>? selectedCategoryData;
   Map<String, dynamic>? selectedSectionData;
 
+  // Ward image limit tracking
+  UserModel? _currentUser;
+  bool _isLoadingUser = true;
+  int _wardImageLimit = 1; // Maximum 1 image per ward
+
   @override
   void initState() {
     super.initState();
+    _loadUserProfile();
+  }
+
+  /// Load current user profile to check ward image count
+  Future<void> _loadUserProfile() async {
+    try {
+      final apiClient = Provider.of<ApiClient>(context, listen: false);
+      final userRepository = UserRepository(apiClient);
+      final user = await userRepository.getProfile();
+      
+      setState(() {
+        _currentUser = user;
+        _isLoadingUser = false;
+      });
+    } catch (e) {
+      print('Error loading user profile: $e');
+      setState(() {
+        _isLoadingUser = false;
+      });
+      
+      // Show error but don't block the user
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: TranslatedText('Unable to load user profile. Image upload may be limited.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Check if user can upload more images
+  bool get _canUploadMoreImages {
+    if (_currentUser == null) return true; // Allow if user data not loaded yet
+    return _currentUser!.wardImageCount < _wardImageLimit;
+  }
+
+  /// Get remaining image uploads
+  int get _remainingUploads {
+    if (_currentUser == null) return _wardImageLimit;
+    return _wardImageLimit - _currentUser!.wardImageCount;
   }
 
   @override
@@ -236,28 +286,59 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
   }
 
   Widget _buildUploadPhotosSection() {
+    final bool limitReached = !_canUploadMoreImages;
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        RichText(
-          text: TextSpan(
-            text: 'ছবি আপলোড করুন ',
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w500,
-              color: Colors.black87,
-            ),
-            children: [
-              TextSpan(
-                text: '(Upload Photos)',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w400,
-                  color: Colors.grey.shade600,
+        Row(
+          children: [
+            Expanded(
+              child: RichText(
+                text: TextSpan(
+                  text: 'ছবি আপলোড করুন ',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.black87,
+                  ),
+                  children: [
+                    TextSpan(
+                      text: '(Upload Photos)',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w400,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
+            ),
+            // Show remaining uploads badge
+            if (!_isLoadingUser && _currentUser != null)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: limitReached ? Colors.red.shade50 : Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: limitReached ? Colors.red.shade200 : Colors.green.shade200,
+                    width: 1,
+                  ),
+                ),
+                child: Text(
+                  limitReached 
+                    ? 'সীমা পৌঁছেছে (Limit Reached)'
+                    : '$_remainingUploads টি বাকি ($_remainingUploads left)',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: limitReached ? Colors.red.shade700 : Colors.green.shade700,
+                  ),
+                ),
+              ),
+          ],
         ),
         const SizedBox(height: 12),
 
@@ -270,18 +351,19 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
               itemCount: _selectedImages.length + 1, // +1 for the add button
               itemBuilder: (context, index) {
                 if (index == _selectedImages.length) {
-                  // Add photo button - same design as original
+                  // Add photo button - disabled when limit reached
+                  final bool canAdd = _canUploadMoreImages;
                   return GestureDetector(
-                    onTap: _addPhoto,
+                    onTap: canAdd ? _addPhoto : _showLimitReachedMessage,
                     child: Container(
                       margin: const EdgeInsets.only(left: 8),
                       height: 120,
                       width: 120,
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: canAdd ? Colors.white : Colors.grey.shade100,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: Colors.grey.shade300,
+                          color: canAdd ? Colors.grey.shade300 : Colors.grey.shade200,
                           width: 1.5,
                           style: BorderStyle.solid,
                         ),
@@ -292,21 +374,21 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: Colors.grey.shade100,
+                              color: canAdd ? Colors.grey.shade100 : Colors.grey.shade200,
                               shape: BoxShape.circle,
                             ),
                             child: Icon(
-                              Icons.camera_alt_outlined,
+                              canAdd ? Icons.camera_alt_outlined : Icons.block,
                               size: 24,
-                              color: Colors.grey.shade500,
+                              color: canAdd ? Colors.grey.shade500 : Colors.grey.shade400,
                             ),
                           ),
                           const SizedBox(height: 8),
                           TranslatedText(
-                            'Add Photo',
+                            canAdd ? 'Add Photo' : 'Limit Reached',
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.grey.shade600,
+                              color: canAdd ? Colors.grey.shade600 : Colors.grey.shade400,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -391,15 +473,15 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
         ] else ...[
           // Original add photo button when no images selected
           GestureDetector(
-            onTap: _addPhoto,
+            onTap: _canUploadMoreImages ? _addPhoto : _showLimitReachedMessage,
             child: Container(
               height: 120,
               width: 120,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: _canUploadMoreImages ? Colors.white : Colors.grey.shade100,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: Colors.grey.shade300,
+                  color: _canUploadMoreImages ? Colors.grey.shade300 : Colors.grey.shade200,
                   width: 1.5,
                   style: BorderStyle.solid,
                 ),
@@ -410,21 +492,21 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
+                      color: _canUploadMoreImages ? Colors.grey.shade100 : Colors.grey.shade200,
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      Icons.camera_alt_outlined,
+                      _canUploadMoreImages ? Icons.camera_alt_outlined : Icons.block,
                       size: 24,
-                      color: Colors.grey.shade500,
+                      color: _canUploadMoreImages ? Colors.grey.shade500 : Colors.grey.shade400,
                     ),
                   ),
                   const SizedBox(height: 8),
                   TranslatedText(
-                    'Add Photo',
+                    _canUploadMoreImages ? 'Add Photo' : 'Limit Reached',
                     style: TextStyle(
                       fontSize: 12,
-                      color: Colors.grey.shade600,
+                      color: _canUploadMoreImages ? Colors.grey.shade600 : Colors.grey.shade400,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -434,13 +516,26 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
           ),
         ],
         const SizedBox(height: 8),
-        Text(
-          'You can add up to 6 photos',
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey.shade500,
+        // Show ward image limit info
+        if (!_isLoadingUser && _currentUser != null)
+          Text(
+            limitReached 
+              ? 'আপনার ওয়ার্ডের জন্য ছবি আপলোডের সীমা পৌঁছে গেছে (Image upload limit reached for your ward)'
+              : 'আপনার ওয়ার্ডের জন্য $_remainingUploads টি ছবি আপলোড করতে পারবেন (You can upload $_remainingUploads image for your ward)',
+            style: TextStyle(
+              fontSize: 12,
+              color: limitReached ? Colors.red.shade600 : Colors.grey.shade600,
+              fontWeight: limitReached ? FontWeight.w500 : FontWeight.normal,
+            ),
+          )
+        else
+          Text(
+            'You can add up to 6 photos',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey.shade500,
+            ),
           ),
-        ),
       ],
     );
   }
@@ -617,7 +712,88 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
     );
   }
 
+  /// Show message when image upload limit is reached
+  void _showLimitReachedMessage() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TranslatedText(
+                  'Upload Limit Reached',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TranslatedText(
+                'আপনি ইতিমধ্যে আপনার ওয়ার্ডের জন্য সর্বোচ্চ সংখ্যক ছবি আপলোড করেছেন।',
+                style: TextStyle(fontSize: 14, height: 1.5),
+              ),
+              const SizedBox(height: 8),
+              TranslatedText(
+                'You have already uploaded the maximum number of images allowed for your ward.',
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade600, height: 1.5),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.orange.shade700, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'সীমা: প্রতি ওয়ার্ডে ১টি ছবি\nLimit: 1 image per ward',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.orange.shade900,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: TranslatedText(
+                'বুঝেছি (Understood)',
+                style: TextStyle(
+                  color: Color(0xFF4CAF50),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Future<void> _addPhoto() async {
+    // Check if user can upload more images
+    if (!_canUploadMoreImages) {
+      _showLimitReachedMessage();
+      return;
+    }
+
     try {
       // Show dialog to choose camera or gallery
       final String? choice = await showDialog<String>(

@@ -36,6 +36,15 @@ class AuthService {
             async (error: AxiosError) => {
                 const originalRequest = error.config as any;
 
+                // Don't retry for login, logout, or refresh requests
+                if (
+                    originalRequest.url?.includes(API_CONFIG.ENDPOINTS.AUTH.LOGIN) ||
+                    originalRequest.url?.includes(API_CONFIG.ENDPOINTS.AUTH.LOGOUT) ||
+                    originalRequest.url?.includes(API_CONFIG.ENDPOINTS.AUTH.REFRESH)
+                ) {
+                    return Promise.reject(error);
+                }
+
                 if (error.response?.status === 401 && !originalRequest._retry) {
                     if (this.isRefreshing) {
                         return new Promise((resolve) => {
@@ -102,7 +111,7 @@ class AuthService {
             this.setAccessToken(loginResponse.data.accessToken);
 
             // Fetch profile with fresh token
-            const profileResponse = await this.apiClient.get<{ user: User }>(
+            const profileResponse = await this.apiClient.get<any>(
                 API_CONFIG.ENDPOINTS.AUTH.PROFILE,
                 {
                     headers: {
@@ -111,13 +120,23 @@ class AuthService {
                 }
             );
 
+            console.log('Login profile response:', profileResponse.data);
+
+            const userData = profileResponse.data.data || profileResponse.data.user;
+            
+            if (!userData) {
+                console.error('No user data in profile response');
+                // Don't throw here if we have tokens, but user will be undefined
+            }
+
             return {
-                user: profileResponse.data.user,
+                user: userData,
                 accessToken: loginResponse.data.accessToken,
                 refreshToken: loginResponse.data.refreshToken ?? '',
                 expiresIn: loginResponse.data.accessExpiresIn,
             };
         } catch (error) {
+            console.error('Login error:', error);
             if (axios.isAxiosError(error)) {
                 throw new Error(error.response?.data?.message || 'Login failed');
             }

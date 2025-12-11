@@ -121,6 +121,32 @@ export async function adminMe(req: AuthRequest, res: Response) {
             message: 'Unauthorized'
         });
 
+        // TEMPORARY: Return mock profile for bypass user
+        if (req.user.email === 'bypass@admin.com') {
+            console.log('⚠️ Returning mock profile for bypass user');
+            return res.status(200).json({
+                success: true,
+                data: {
+                    id: 1,
+                    firstName: "Master",
+                    lastName: "Admin",
+                    email: "bypass@admin.com",
+                    phone: "01700000000",
+                    role: "MASTER_ADMIN",
+                    status: "active",
+                    avatar: "https://ui-avatars.com/api/?name=Master+Admin&background=random",
+                    ward: "1",
+                    zone: "1",
+                    address: "Dhaka, Bangladesh",
+                    cityCorporationCode: "DNCC",
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                    emailVerified: true,
+                    phoneVerified: true
+                }
+            });
+        }
+
         // Check if user has admin role
         if (req.user.role !== 'ADMIN' && req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'MASTER_ADMIN') {
             return res.status(403).json({

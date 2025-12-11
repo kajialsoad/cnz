@@ -46,9 +46,11 @@ import EmptyState from '../../components/common/EmptyState';
 import ErrorBoundary from '../../components/common/ErrorBoundary';
 import { userManagementService } from '../../services/userManagementService';
 import { cityCorporationService } from '../../services/cityCorporationService';
-import { thanaService } from '../../services/thanaService';
+import { zoneService } from '../../services/zoneService';
+import { wardService } from '../../services/wardService';
 import type { CityCorporation } from '../../services/cityCorporationService';
-import type { Thana } from '../../services/thanaService';
+import type { Zone } from '../../services/zoneService';
+import type { Ward } from '../../services/wardService';
 import type {
   UserWithStats,
   UserStatisticsResponse,
@@ -77,12 +79,14 @@ const UserManagement: React.FC = () => {
   // State for city corporation filters
   const [cityCorporations, setCityCorporations] = useState<CityCorporation[]>([]);
   const [selectedCityCorporation, setSelectedCityCorporation] = useState<string>('ALL');
-  const [selectedWard, setSelectedWard] = useState<string>('ALL');
-  const [selectedThana, setSelectedThana] = useState<number | null>(null);
-  const [wardRange, setWardRange] = useState<{ min: number; max: number }>({ min: 1, max: 100 });
-  const [thanas, setThanas] = useState<Thana[]>([]);
+  const [selectedCityCorporationId, setSelectedCityCorporationId] = useState<number | null>(null);
+  const [selectedZone, setSelectedZone] = useState<number | null>(null);
+  const [selectedWard, setSelectedWard] = useState<number | null>(null);
+  const [zones, setZones] = useState<Zone[]>([]);
+  const [wards, setWards] = useState<Ward[]>([]);
   const [cityCorporationsLoading, setCityCorporationsLoading] = useState<boolean>(false);
-  const [thanasLoading, setThanasLoading] = useState<boolean>(false);
+  const [zonesLoading, setZonesLoading] = useState<boolean>(false);
+  const [wardsLoading, setWardsLoading] = useState<boolean>(false);
 
   // State for statistics
   const [statistics, setStatistics] = useState<UserStatisticsResponse | null>(null);
@@ -134,26 +138,37 @@ const UserManagement: React.FC = () => {
     fetchCityCorporations();
   }, []);
 
-  // Update ward range and thanas when city corporation changes
+  // Update zones when city corporation changes
   useEffect(() => {
     if (selectedCityCorporation !== 'ALL') {
       const cityCorporation = cityCorporations.find(cc => cc.code === selectedCityCorporation);
       if (cityCorporation) {
-        setWardRange({ min: cityCorporation.minWard, max: cityCorporation.maxWard });
-        fetchThanas(cityCorporation.code);
+        setSelectedCityCorporationId(cityCorporation.id);
+        fetchZones(cityCorporation.id);
       }
     } else {
-      setWardRange({ min: 1, max: 100 });
-      setThanas([]);
+      setSelectedCityCorporationId(null);
+      setZones([]);
+      setWards([]);
     }
-    setSelectedWard('ALL');
-    setSelectedThana(null);
+    setSelectedZone(null);
+    setSelectedWard(null);
   }, [selectedCityCorporation, cityCorporations]);
+
+  // Update wards when zone changes
+  useEffect(() => {
+    if (selectedZone) {
+      fetchWards(selectedZone);
+    } else {
+      setWards([]);
+    }
+    setSelectedWard(null);
+  }, [selectedZone]);
 
   // Fetch users when filters change
   useEffect(() => {
     fetchUsers();
-  }, [debouncedSearchTerm, statusFilter, selectedCityCorporation, selectedWard, selectedThana, pagination.page]);
+  }, [debouncedSearchTerm, statusFilter, selectedCityCorporation, selectedZone, selectedWard, pagination.page]);
 
   // Fetch statistics when city corporation filter changes
   useEffect(() => {
@@ -174,17 +189,31 @@ const UserManagement: React.FC = () => {
     }
   };
 
-  // Fetch thanas function
-  const fetchThanas = async (cityCorporationCode: string) => {
+  // Fetch zones function
+  const fetchZones = async (cityCorporationId: number) => {
     try {
-      setThanasLoading(true);
-      const thanasData = await thanaService.getThanasByCityCorporation(cityCorporationCode, 'ACTIVE');
-      setThanas(thanasData);
+      setZonesLoading(true);
+      const zonesData = await zoneService.getZonesByCityCorporation(cityCorporationId, 'ACTIVE');
+      setZones(zonesData);
     } catch (err: any) {
-      console.error('Error fetching thanas:', err);
-      showToast('Failed to load thanas', 'error');
+      console.error('Error fetching zones:', err);
+      showToast('Failed to load zones', 'error');
     } finally {
-      setThanasLoading(false);
+      setZonesLoading(false);
+    }
+  };
+
+  // Fetch wards function
+  const fetchWards = async (zoneId: number) => {
+    try {
+      setWardsLoading(true);
+      const wardsData = await wardService.getWardsByZone(zoneId, 'ACTIVE');
+      setWards(wardsData);
+    } catch (err: any) {
+      console.error('Error fetching wards:', err);
+      showToast('Failed to load wards', 'error');
+    } finally {
+      setWardsLoading(false);
     }
   };
 
@@ -200,8 +229,8 @@ const UserManagement: React.FC = () => {
         search: debouncedSearchTerm || undefined,
         status: statusFilter !== 'ALL' ? statusFilter : undefined,
         cityCorporationCode: selectedCityCorporation !== 'ALL' ? selectedCityCorporation : undefined,
-        ward: selectedWard !== 'ALL' ? selectedWard : undefined,
-        thanaId: selectedThana || undefined,
+        zoneId: selectedZone || undefined,
+        wardId: selectedWard || undefined,
       });
 
       setUsers(response.users);
@@ -216,7 +245,7 @@ const UserManagement: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearchTerm, statusFilter, selectedCityCorporation, selectedWard, selectedThana, pagination.page, pagination.limit]);
+  }, [debouncedSearchTerm, statusFilter, selectedCityCorporation, selectedZone, selectedWard, pagination.page, pagination.limit]);
 
   // Fetch statistics function
   const fetchStatistics = async () => {
@@ -251,8 +280,8 @@ const UserManagement: React.FC = () => {
     setSearchTerm('');
     setStatusFilter('ALL');
     setSelectedCityCorporation('ALL');
-    setSelectedWard('ALL');
-    setSelectedThana(null);
+    setSelectedZone(null);
+    setSelectedWard(null);
     setPagination(prev => ({ ...prev, page: 1 }));
   };
 
@@ -565,52 +594,49 @@ const UserManagement: React.FC = () => {
                   </Select>
                 </FormControl>
 
-                {/* Ward Filter */}
-                <FormControl sx={{ minWidth: 150 }}>
-                  <InputLabel id="ward-filter-label" sx={{ top: -8 }}>Ward</InputLabel>
+                {/* Zone Filter */}
+                <FormControl sx={{ minWidth: 200 }}>
+                  <InputLabel id="zone-filter-label" sx={{ top: -8 }}>
+                    Zone
+                  </InputLabel>
                   <Select
-                    labelId="ward-filter-label"
-                    value={selectedWard}
-                    onChange={(e) => setSelectedWard(e.target.value)}
-                    label="Ward"
-                    disabled={selectedCityCorporation === 'ALL'}
+                    labelId="zone-filter-label"
+                    value={selectedZone || ''}
+                    onChange={(e) => setSelectedZone(e.target.value ? Number(e.target.value) : null)}
+                    label="Zone"
+                    disabled={selectedCityCorporation === 'ALL' || zonesLoading || !zones || zones.length === 0}
                     sx={{
                       height: 40,
                       backgroundColor: '#f8f9fa',
                     }}
                   >
-                    <MenuItem value="ALL">All Wards</MenuItem>
-                    {Array.from(
-                      { length: wardRange.max - wardRange.min + 1 },
-                      (_, i) => wardRange.min + i
-                    ).map((ward) => (
-                      <MenuItem key={ward} value={ward.toString()}>
-                        Ward {ward}
+                    <MenuItem value="">All Zones</MenuItem>
+                    {zones && zones.map((zone) => (
+                      <MenuItem key={zone.id} value={zone.id}>
+                        Zone {zone.zoneNumber}{zone.name ? ` - ${zone.name}` : ''}
                       </MenuItem>
                     ))}
                   </Select>
                 </FormControl>
 
-                {/* Thana Filter */}
+                {/* Ward Filter */}
                 <FormControl sx={{ minWidth: 200 }}>
-                  <InputLabel id="thana-filter-label" sx={{ top: -8 }}>
-                    Thana/Area
-                  </InputLabel>
+                  <InputLabel id="ward-filter-label" sx={{ top: -8 }}>Ward</InputLabel>
                   <Select
-                    labelId="thana-filter-label"
-                    value={selectedThana || ''}
-                    onChange={(e) => setSelectedThana(e.target.value ? Number(e.target.value) : null)}
-                    label="Thana/Area"
-                    disabled={selectedCityCorporation === 'ALL' || thanasLoading || !thanas || thanas.length === 0}
+                    labelId="ward-filter-label"
+                    value={selectedWard || ''}
+                    onChange={(e) => setSelectedWard(e.target.value ? Number(e.target.value) : null)}
+                    label="Ward"
+                    disabled={!selectedZone || wardsLoading || !wards || wards.length === 0}
                     sx={{
                       height: 40,
                       backgroundColor: '#f8f9fa',
                     }}
                   >
-                    <MenuItem value="">All Thanas</MenuItem>
-                    {thanas && thanas.map((thana) => (
-                      <MenuItem key={thana.id} value={thana.id}>
-                        {thana.name}
+                    <MenuItem value="">All Wards</MenuItem>
+                    {wards && wards.map((ward) => (
+                      <MenuItem key={ward.id} value={ward.id}>
+                        Ward {ward.wardNumber}
                       </MenuItem>
                     ))}
                   </Select>
@@ -643,7 +669,7 @@ const UserManagement: React.FC = () => {
                 </FormControl>
 
                 {/* Clear Filters Button */}
-                {(searchTerm || statusFilter !== 'ALL' || selectedCityCorporation !== 'ALL' || selectedWard !== 'ALL' || selectedThana) && (
+                {(searchTerm || statusFilter !== 'ALL' || selectedCityCorporation !== 'ALL' || selectedZone || selectedWard) && (
                   <Button
                     variant="outlined"
                     onClick={handleClearFilters}
@@ -793,15 +819,22 @@ const UserManagement: React.FC = () => {
                           </TableCell>
                           <TableCell>
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <LocationIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                                <Typography variant="body2">
-                                  Ward {user.ward || 'N/A'}
+                              {user.zone && (
+                                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                  Zone {user.zone.zoneNumber}{user.zone.name ? ` - ${user.zone.name}` : ''}
                                 </Typography>
-                              </Box>
-                              {user.thana && (
+                              )}
+                              {user.ward && (
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <LocationIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                                  <Typography variant="body2" color="text.secondary">
+                                    Ward {user.ward.wardNumber}
+                                  </Typography>
+                                </Box>
+                              )}
+                              {!user.zone && !user.ward && (
                                 <Typography variant="body2" color="text.secondary">
-                                  {user.thana.name}
+                                  N/A
                                 </Typography>
                               )}
                             </Box>

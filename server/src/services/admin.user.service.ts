@@ -12,8 +12,8 @@ export interface GetUsersQuery {
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
     cityCorporationCode?: string;
-    ward?: string;
-    thanaId?: number;
+    zoneId?: number;
+    wardId?: number;
 }
 
 // Response interfaces
@@ -32,8 +32,6 @@ export interface UserWithStats {
     firstName: string;
     lastName: string;
     avatar: string | null;
-    ward: string | null;
-    zone: string | null;
     address: string | null;
     role: users_role;
     status: UserStatus;
@@ -44,8 +42,25 @@ export interface UserWithStats {
     lastLoginAt: Date | null;
     cityCorporationCode: string | null;
     cityCorporation: any | null;
-    thanaId: number | null;
-    thana: any | null;
+    zoneId: number | null;
+    zone?: {
+        id: number;
+        zoneNumber: number | null;
+        name: string;
+        officerName: string | null;
+        officerDesignation: string | null;
+        officerSerialNumber: string | null;
+        status: string;
+    } | null;
+    wardId: number | null;
+    ward?: {
+        id: number;
+        wardNumber: number | null;
+        inspectorName: string | null;
+        inspectorSerialNumber: string | null;
+        status: string;
+    } | null;
+    wardImageCount: number;
     statistics: UserStatistics;
 }
 
@@ -96,9 +111,8 @@ export interface CreateUserDto {
     email?: string;
     password: string;
     cityCorporationCode?: string;
-    thanaId?: number;
-    ward?: string;
-    zone?: string;
+    zoneId?: number;
+    wardId?: number;
     role?: users_role;
 }
 
@@ -108,9 +122,8 @@ export interface UpdateUserDto {
     email?: string;
     phone?: string;
     cityCorporationCode?: string;
-    thanaId?: number;
-    ward?: string;
-    zone?: string;
+    zoneId?: number;
+    wardId?: number;
     role?: users_role;
     status?: UserStatus;
     password?: string;
@@ -123,7 +136,7 @@ export interface UpdateStatusDto {
 
 export class AdminUserService {
     // Get users with filters and pagination
-    async getUsers(query: GetUsersQuery): Promise<GetUsersResponse> {
+    async getUsers(query: GetUsersQuery, requestingUser?: { id: number; role: users_role; zoneId?: number | null; wardId?: number | null }): Promise<GetUsersResponse> {
         const page = query.page || 1;
         const limit = query.limit || 20;
         const skip = (page - 1) * limit;
@@ -153,14 +166,19 @@ export class AdminUserService {
             where.cityCorporationCode = query.cityCorporationCode;
         }
 
-        // Apply ward filter
-        if (query.ward) {
-            where.ward = query.ward;
+        // Apply zone filter
+        if (query.zoneId) {
+            where.zoneId = query.zoneId;
         }
 
-        // Apply thana filter
-        if (query.thanaId) {
-            where.thanaId = query.thanaId;
+        // Apply ward filter
+        if (query.wardId) {
+            where.wardId = query.wardId;
+        }
+
+        // Apply role-based automatic filtering
+        if (requestingUser) {
+            this.applyRoleBasedFiltering(where, requestingUser);
         }
 
         // Get total count
@@ -181,8 +199,6 @@ export class AdminUserService {
                 firstName: true,
                 lastName: true,
                 avatar: true,
-                ward: true,
-                zone: true,
                 address: true,
                 role: true,
                 status: true,
@@ -200,13 +216,29 @@ export class AdminUserService {
                         maxWard: true,
                     },
                 },
-                thanaId: true,
-                thana: {
+                zoneId: true,
+                zone: {
                     select: {
                         id: true,
+                        zoneNumber: true,
                         name: true,
+                        officerName: true,
+                        officerDesignation: true,
+                        officerSerialNumber: true,
+                        status: true,
                     },
                 },
+                wardId: true,
+                ward: {
+                    select: {
+                        id: true,
+                        wardNumber: true,
+                        inspectorName: true,
+                        inspectorSerialNumber: true,
+                        status: true,
+                    },
+                },
+                wardImageCount: true,
                 _count: {
                     select: {
                         complaints: true,
@@ -294,8 +326,6 @@ export class AdminUserService {
                 firstName: true,
                 lastName: true,
                 avatar: true,
-                ward: true,
-                zone: true,
                 address: true,
                 role: true,
                 status: true,
@@ -313,13 +343,29 @@ export class AdminUserService {
                         maxWard: true,
                     },
                 },
-                thanaId: true,
-                thana: {
+                zoneId: true,
+                zone: {
                     select: {
                         id: true,
+                        zoneNumber: true,
                         name: true,
+                        officerName: true,
+                        officerDesignation: true,
+                        officerSerialNumber: true,
+                        status: true,
                     },
                 },
+                wardId: true,
+                ward: {
+                    select: {
+                        id: true,
+                        wardNumber: true,
+                        inspectorName: true,
+                        inspectorSerialNumber: true,
+                        status: true,
+                    },
+                },
+                wardImageCount: true,
             },
         });
 
@@ -355,11 +401,35 @@ export class AdminUserService {
     }
 
     // Get aggregate statistics
-    async getUserStatistics(cityCorporationCode?: string): Promise<UserStatisticsResponse> {
-        // Build base where clause for city corporation filter
-        const userWhere: Prisma.UserWhereInput = cityCorporationCode
-            ? { cityCorporationCode }
-            : {};
+    async getUserStatistics(
+        cityCorporationCode?: string,
+        zoneId?: number,
+        wardId?: number,
+        requestingUser?: { id: number; role: users_role; zoneId?: number | null; wardId?: number | null }
+    ): Promise<UserStatisticsResponse> {
+        // Build base where clause with cascading filters
+        const userWhere: Prisma.UserWhereInput = {};
+
+        // Apply city corporation filter
+        if (cityCorporationCode) {
+            userWhere.cityCorporationCode = cityCorporationCode;
+        }
+
+        // Apply zone filter
+        // Note: If both zoneId and wardId are provided, wardId takes precedence
+        if (zoneId && !wardId) {
+            userWhere.zoneId = zoneId;
+        }
+
+        // Apply ward filter directly
+        if (wardId) {
+            userWhere.wardId = wardId;
+        }
+
+        // Apply role-based automatic filtering
+        if (requestingUser) {
+            this.applyRoleBasedFiltering(userWhere, requestingUser);
+        }
 
         // Total citizens
         const totalCitizens = await prisma.user.count({
@@ -369,10 +439,23 @@ export class AdminUserService {
             },
         });
 
-        // For complaints, we need to filter by user's city corporation
-        const complaintWhere: Prisma.ComplaintWhereInput = cityCorporationCode
-            ? { user: { cityCorporationCode } }
-            : {};
+        // For complaints, we need to filter by user's location
+        const complaintWhere: Prisma.ComplaintWhereInput = {};
+
+        if (cityCorporationCode || zoneId || wardId) {
+            complaintWhere.user = {};
+            if (cityCorporationCode) {
+                complaintWhere.user.cityCorporationCode = cityCorporationCode;
+            }
+            // Filter by zone
+            // Note: If both zoneId and wardId are provided, wardId takes precedence
+            if (zoneId && !wardId) {
+                complaintWhere.user.zoneId = zoneId;
+            }
+            if (wardId) {
+                complaintWhere.user.wardId = wardId;
+            }
+        }
 
         // Total complaints
         const totalComplaints = await prisma.complaint.count({
@@ -476,9 +559,9 @@ export class AdminUserService {
                 firstName: data.firstName,
                 lastName: data.lastName,
                 cityCorporationCode: data.cityCorporationCode,
-                thanaId: data.thanaId,
-                ward: data.ward,
-                zone: data.zone,
+                zoneId: data.zoneId,
+                wardId: data.wardId,
+                wardImageCount: 0, // Initialize to 0 for new users
                 role: data.role || users_role.ADMIN,
                 status: UserStatus.ACTIVE,
                 emailVerified: false,
@@ -491,8 +574,6 @@ export class AdminUserService {
                 firstName: true,
                 lastName: true,
                 avatar: true,
-                ward: true,
-                zone: true,
                 address: true,
                 role: true,
                 status: true,
@@ -510,13 +591,29 @@ export class AdminUserService {
                         maxWard: true,
                     },
                 },
-                thanaId: true,
-                thana: {
+                zoneId: true,
+                zone: {
                     select: {
                         id: true,
+                        zoneNumber: true,
                         name: true,
+                        officerName: true,
+                        officerDesignation: true,
+                        officerSerialNumber: true,
+                        status: true,
                     },
                 },
+                wardId: true,
+                ward: {
+                    select: {
+                        id: true,
+                        wardNumber: true,
+                        inspectorName: true,
+                        inspectorSerialNumber: true,
+                        status: true,
+                    },
+                },
+                wardImageCount: true,
             },
         });
 
@@ -577,9 +674,8 @@ export class AdminUserService {
                 email: data.email,
                 phone: data.phone,
                 cityCorporationCode: data.cityCorporationCode,
-                thanaId: data.thanaId,
-                ward: data.ward,
-                zone: data.zone,
+                zoneId: data.zoneId,
+                wardId: data.wardId,
                 role: data.role,
                 status: data.status,
                 ...(hashedPassword && { passwordHash: hashedPassword }),
@@ -591,8 +687,6 @@ export class AdminUserService {
                 firstName: true,
                 lastName: true,
                 avatar: true,
-                ward: true,
-                zone: true,
                 address: true,
                 role: true,
                 status: true,
@@ -610,13 +704,29 @@ export class AdminUserService {
                         maxWard: true,
                     },
                 },
-                thanaId: true,
-                thana: {
+                zoneId: true,
+                zone: {
                     select: {
                         id: true,
+                        zoneNumber: true,
                         name: true,
+                        officerName: true,
+                        officerDesignation: true,
+                        officerSerialNumber: true,
+                        status: true,
                     },
                 },
+                wardId: true,
+                ward: {
+                    select: {
+                        id: true,
+                        wardNumber: true,
+                        inspectorName: true,
+                        inspectorSerialNumber: true,
+                        status: true,
+                    },
+                },
+                wardImageCount: true,
             },
         });
 
@@ -651,8 +761,6 @@ export class AdminUserService {
                 firstName: true,
                 lastName: true,
                 avatar: true,
-                ward: true,
-                zone: true,
                 address: true,
                 role: true,
                 status: true,
@@ -670,13 +778,29 @@ export class AdminUserService {
                         maxWard: true,
                     },
                 },
-                thanaId: true,
-                thana: {
+                zoneId: true,
+                zone: {
                     select: {
                         id: true,
+                        zoneNumber: true,
                         name: true,
+                        officerName: true,
+                        officerDesignation: true,
+                        officerSerialNumber: true,
+                        status: true,
                     },
                 },
+                wardId: true,
+                ward: {
+                    select: {
+                        id: true,
+                        wardNumber: true,
+                        inspectorName: true,
+                        inspectorSerialNumber: true,
+                        status: true,
+                    },
+                },
+                wardImageCount: true,
             },
         });
 
@@ -689,6 +813,33 @@ export class AdminUserService {
         };
     }
 
+    // Apply role-based automatic filtering
+    private applyRoleBasedFiltering(
+        where: Prisma.UserWhereInput,
+        requestingUser: { id: number; role: users_role; zoneId?: number | null; wardId?: number | null }
+    ): void {
+        // MASTER_ADMIN: No filtering - can see all users
+        if (requestingUser.role === users_role.MASTER_ADMIN) {
+            return;
+        }
+
+        // SUPER_ADMIN: Filter by their assigned zone
+        if (requestingUser.role === users_role.SUPER_ADMIN) {
+            if (requestingUser.zoneId) {
+                where.zoneId = requestingUser.zoneId;
+            }
+            return;
+        }
+
+        // ADMIN: Filter by their assigned ward
+        if (requestingUser.role === users_role.ADMIN) {
+            if (requestingUser.wardId) {
+                where.wardId = requestingUser.wardId;
+            }
+            return;
+        }
+    }
+
     // Build search query
     private buildSearchQuery(search: string): Prisma.UserWhereInput[] {
         const searchTerm = search.toLowerCase();
@@ -698,8 +849,6 @@ export class AdminUserService {
             { lastName: { contains: searchTerm } },
             { email: { contains: searchTerm } },
             { phone: { contains: searchTerm } },
-            { ward: { contains: searchTerm } },
-            { zone: { contains: searchTerm } },
         ];
     }
 

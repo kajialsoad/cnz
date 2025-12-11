@@ -31,8 +31,8 @@ class CityCorporationService {
                     },
                 },
             });
-            // Get active thanas count
-            const activeThanas = await prisma.thana.count({
+            // Get active zones count
+            const activeZones = await prisma.zone.count({
                 where: {
                     cityCorporationId: cc.id,
                     status: 'ACTIVE',
@@ -42,7 +42,7 @@ class CityCorporationService {
                 ...cc,
                 totalUsers,
                 totalComplaints,
-                activeThanas,
+                activeZones,
             };
         }));
         return cityCorporationsWithStats;
@@ -54,12 +54,12 @@ class CityCorporationService {
         const cityCorporation = await prisma.cityCorporation.findUnique({
             where: { code },
             include: {
-                thanas: {
+                zones: {
                     where: {
                         status: 'ACTIVE',
                     },
                     orderBy: {
-                        name: 'asc',
+                        zoneNumber: 'asc',
                     },
                 },
                 _count: {
@@ -155,8 +155,8 @@ class CityCorporationService {
                 status: 'RESOLVED',
             },
         });
-        // Get active thanas count
-        const activeThanas = await prisma.thana.count({
+        // Get active zones count
+        const activeZones = await prisma.zone.count({
             where: {
                 cityCorporation: {
                     code: code,
@@ -168,7 +168,7 @@ class CityCorporationService {
             totalUsers,
             totalComplaints,
             resolvedComplaints,
-            activeThanas,
+            activeZones,
         };
     }
     /**
@@ -190,6 +190,23 @@ class CityCorporationService {
             select: { status: true },
         });
         return cityCorporation?.status === 'ACTIVE';
+    }
+    /**
+     * Delete city corporation (only if no zones assigned)
+     */
+    async deleteCityCorporation(code) {
+        // Check if city corporation exists
+        const cityCorporation = await this.getCityCorporationByCode(code);
+        // Check if city corporation has zones
+        const zoneCount = await prisma.zone.count({
+            where: { cityCorporationId: cityCorporation.id },
+        });
+        if (zoneCount > 0) {
+            throw new Error(`Cannot delete city corporation. It has ${zoneCount} zone(s) assigned. Please remove all zones first.`);
+        }
+        await prisma.cityCorporation.delete({
+            where: { code },
+        });
     }
 }
 exports.default = new CityCorporationService();

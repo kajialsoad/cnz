@@ -1,4 +1,6 @@
-import { PrismaClient, ThanaStatus } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
+// ThanaStatus removed - using Zone/Ward system now
+type ThanaStatus = 'ACTIVE' | 'INACTIVE';
 
 const prisma = new PrismaClient();
 

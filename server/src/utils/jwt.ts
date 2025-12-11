@@ -2,15 +2,18 @@ import jwt, { Secret, SignOptions } from 'jsonwebtoken';
 import env from '../config/env';
 
 export interface JwtPayload {
+  id: number;
   sub: number;
   role: 'ADMIN' | 'SUPER_ADMIN' | 'MASTER_ADMIN';
   email?: string;
   phone?: string;
+  zoneId?: number | null;
+  wardId?: number | null;
 }
 
 export function signAccessToken(payload: JwtPayload) {
   const secret: Secret = env.JWT_ACCESS_SECRET as Secret;
-  const options: SignOptions = { 
+  const options: SignOptions = {
     expiresIn: env.ACCESS_TTL as unknown as SignOptions['expiresIn'],
     issuer: 'clean-care-app',
     audience: 'clean-care-users'
@@ -20,10 +23,11 @@ export function signAccessToken(payload: JwtPayload) {
 
 export function signRefreshToken(payload: JwtPayload) {
   const secret: Secret = env.JWT_REFRESH_SECRET as Secret;
-  const options: SignOptions = { 
+  const options: SignOptions = {
     expiresIn: env.REFRESH_TTL as unknown as SignOptions['expiresIn'],
     issuer: 'clean-care-app',
-    audience: 'clean-care-users'
+    audience: 'clean-care-users',
+    jwtid: generateSecureToken(16) // Add unique ID to ensure token uniqueness
   };
   return jwt.sign(payload, secret, options);
 }

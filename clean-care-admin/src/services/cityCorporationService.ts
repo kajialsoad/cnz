@@ -15,6 +15,8 @@ export interface CityCorporation {
     totalUsers?: number;
     totalComplaints?: number;
     activeThanas?: number;
+    totalZones?: number;
+    totalWards?: number;
 }
 
 export interface CreateCityCorporationDto {

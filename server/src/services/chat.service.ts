@@ -142,19 +142,23 @@ export class ChatService {
                             phone: true,
                             email: true,
                             avatar: true,
-                            ward: true,
-                            zone: true,
                             cityCorporationCode: true,
-                            thanaId: true,
+                            zoneId: true,
+                            wardId: true,
+                            zone: {
+                                select: {
+                                    name: true,
+                                    zoneNumber: true
+                                }
+                            },
+                            ward: {
+                                select: {
+                                    wardNumber: true
+                                }
+                            },
                             cityCorporation: {
                                 select: {
                                     code: true,
-                                    name: true
-                                }
-                            },
-                            thana: {
-                                select: {
-                                    id: true,
                                     name: true
                                 }
                             }
@@ -187,6 +191,7 @@ export class ChatService {
                 const ward = wardMatch ? wardMatch[1] : null;
                 const district = locationParts[1]?.trim() || '';
                 const upazila = locationParts[2]?.trim() || '';
+                const zone = complaint.user?.zone?.name || complaint.user?.zone?.zoneNumber?.toString() || '';
 
                 return {
                     complaintId: complaint.id,
@@ -203,17 +208,12 @@ export class ChatService {
                         email: complaint.user?.email || '',
                         district,
                         upazila,
-                        ward: ward || complaint.user?.ward || '',
-                        zone: complaint.user?.zone || '',
+                        ward: ward || "",
+                        zone: zone || '',
                         cityCorporationCode: complaint.user?.cityCorporationCode || null,
                         cityCorporation: complaint.user?.cityCorporation ? {
                             code: complaint.user.cityCorporation.code,
                             name: complaint.user.cityCorporation.name
-                        } : null,
-                        thanaId: complaint.user?.thanaId || null,
-                        thana: complaint.user?.thana ? {
-                            id: complaint.user.thana.id,
-                            name: complaint.user.thana.name
                         } : null,
                         address: locationParts[0]?.trim() || complaint.location,
                         profilePicture: complaint.user?.avatar
@@ -303,19 +303,19 @@ export class ChatService {
                             ward: true,
                             zone: true,
                             cityCorporationCode: true,
-                            thanaId: true,
+                            // thanaId: true, // Removed - using zoneId/wardId
                             cityCorporation: {
                                 select: {
                                     code: true,
                                     name: true
                                 }
                             },
-                            thana: {
+                            /* thana: {
                                 select: {
                                     id: true,
                                     name: true
                                 }
-                            },
+                            }, */
                             createdAt: true
                         }
                     }
@@ -412,11 +412,6 @@ export class ChatService {
                     cityCorporation: complaint.user.cityCorporation ? {
                         code: complaint.user.cityCorporation.code,
                         name: complaint.user.cityCorporation.name
-                    } : null,
-                    thanaId: complaint.user.thanaId || null,
-                    thana: complaint.user.thana ? {
-                        id: complaint.user.thana.id,
-                        name: complaint.user.thana.name
                     } : null,
                     address: locationParts[0]?.trim() || complaint.location,
                     profilePicture: complaint.user.avatar,
@@ -670,12 +665,12 @@ export class ChatService {
                                 select: {
                                     name: true
                                 }
-                            },
-                            thana: {
+                            }
+                            /* thana: {
                                 select: {
                                     name: true
                                 }
-                            }
+                            } */
                         }
                     },
                     chatMessages: {
@@ -706,8 +701,8 @@ export class ChatService {
                 const locationParts = complaint.location?.split(',') || [];
                 const district = locationParts[1]?.trim() || 'Unknown';
                 const upazila = locationParts[2]?.trim() || 'Unknown';
-                const ward = complaint.user?.ward || 'Unknown';
-                const zone = complaint.user?.zone || 'Unknown';
+                const ward = complaint.user?.ward?.wardNumber?.toString() || 'Unknown';
+                const zone = complaint.user?.zone?.name || complaint.user?.zone?.zoneNumber?.toString() || 'Unknown';
 
                 // Count by district
                 byDistrict[district] = (byDistrict[district] || 0) + 1;
@@ -761,3 +756,5 @@ export class ChatService {
 }
 
 export const chatService = new ChatService();
+
+

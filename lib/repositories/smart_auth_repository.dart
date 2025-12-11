@@ -1,6 +1,8 @@
 import '../services/smart_api_client.dart';
 import '../models/city_corporation_model.dart';
 import '../models/thana_model.dart';
+import '../models/zone_model.dart';
+import '../models/ward_model.dart';
 import 'auth_repository.dart';
 
 /// Smart Auth Repository with automatic server fallback
@@ -15,6 +17,8 @@ class SmartAuthRepository {
     String? address,
     String? CityCorporationCode,
     int? thanaId,
+    int? zoneId,
+    int? wardId,
   }) async {
     return await SmartApiClient.executeWithFallback((client) async {
       final repo = AuthRepository(client);
@@ -28,6 +32,8 @@ class SmartAuthRepository {
         address: address,
         CityCorporationCode: CityCorporationCode,
         thanaId: thanaId,
+        zoneId: zoneId,
+        wardId: wardId,
       );
     });
   }
@@ -67,6 +73,20 @@ class SmartAuthRepository {
     return await SmartApiClient.executeWithFallback((client) async {
       final repo = AuthRepository(client);
       return await repo.getThanasByCityCorporation(ccCode);
+    });
+  }
+
+  Future<List<Zone>> getZonesByCityCorporation(String ccCode) async {
+    return await SmartApiClient.executeWithFallback((client) async {
+      final repo = AuthRepository(client);
+      return await repo.getZonesByCityCorporation(ccCode);
+    });
+  }
+
+  Future<List<Ward>> getWardsByZone(int zoneId) async {
+    return await SmartApiClient.executeWithFallback((client) async {
+      final repo = AuthRepository(client);
+      return await repo.getWardsByZone(zoneId);
     });
   }
 

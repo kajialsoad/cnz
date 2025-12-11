@@ -29,7 +29,8 @@ import ChatListItem from './ChatListItem';
 import ChatListSkeleton from './ChatListSkeleton';
 import EmptyState from './EmptyState';
 import { cityCorporationService, type CityCorporation } from '../../services/cityCorporationService';
-import { thanaService, type Thana } from '../../services/thanaService';
+import { zoneService, type Zone } from '../../services/zoneService';
+import { wardService, type Ward } from '../../services/wardService';
 
 interface ChatListPanelProps {
     chats: ChatConversation[];
@@ -73,10 +74,14 @@ const ChatListPanel: React.FC<ChatListPanelProps> = ({
     // Local state for search input (before debounce)
     const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm);
 
-    // State for city corporations and thanas
+    // State for city corporations, zones, and wards
     const [cityCorporations, setCityCorporations] = useState<CityCorporation[]>([]);
-    const [thanas, setThanas] = useState<Thana[]>([]);
+    const [zones, setZones] = useState<Zone[]>([]);
+    const [wards, setWards] = useState<Ward[]>([]);
+    const [thanas, setThanas] = useState<any[]>([]);
     const [loadingCityCorporations, setLoadingCityCorporations] = useState(false);
+    const [loadingZones, setLoadingZones] = useState(false);
+    const [loadingWards, setLoadingWards] = useState(false);
     const [loadingThanas, setLoadingThanas] = useState(false);
 
     // Debounce search to avoid excessive filtering
@@ -104,7 +109,34 @@ const ChatListPanel: React.FC<ChatListPanelProps> = ({
         fetchCityCorporations();
     }, []);
 
-    // Fetch thanas when city corporation changes
+    // Fetch zones when city corporation changes
+    useEffect(() => {
+        const fetchZones = async () => {
+            if (!filters.cityCorporationCode) {
+                setZones([]);
+                setWards([]);
+                return;
+            }
+
+            try {
+                setLoadingZones(true);
+                const cityCorp = cityCorporations.find(cc => cc.code === filters.cityCorporationCode);
+                if (cityCorp) {
+                    const zonesData = await zoneService.getZonesByCityCorporation(cityCorp.id, 'ACTIVE');
+                    setZones(zonesData);
+                }
+            } catch (error) {
+                console.error('Error fetching zones:', error);
+                setZones([]);
+            } finally {
+                setLoadingZones(false);
+            }
+        };
+
+        fetchZones();
+    }, [filters.cityCorporationCode, cityCorporations]);
+
+    // Fetch thanas when city corporation changes (for backward compatibility)
     useEffect(() => {
         const fetchThanas = async () => {
             if (!filters.cityCorporationCode) {
@@ -114,11 +146,17 @@ const ChatListPanel: React.FC<ChatListPanelProps> = ({
 
             try {
                 setLoadingThanas(true);
-                const thanasData = await thanaService.getThanasByCityCorporation(
-                    filters.cityCorporationCode,
-                    'ACTIVE'
-                );
-                setThanas(thanasData);
+                // Thanas are now replaced by zones, so we'll use zones as thanas
+                const cityCorp = cityCorporations.find(cc => cc.code === filters.cityCorporationCode);
+                if (cityCorp) {
+                    const zonesData = await zoneService.getZonesByCityCorporation(cityCorp.id, 'ACTIVE');
+                    // Map zones to thana format for backward compatibility
+                    const thanasData = zonesData.map(zone => ({
+                        id: zone.id,
+                        name: zone.name,
+                    }));
+                    setThanas(thanasData);
+                }
             } catch (error) {
                 console.error('Error fetching thanas:', error);
                 setThanas([]);
@@ -128,7 +166,30 @@ const ChatListPanel: React.FC<ChatListPanelProps> = ({
         };
 
         fetchThanas();
-    }, [filters.cityCorporationCode]);
+    }, [filters.cityCorporationCode, cityCorporations]);
+
+    // Fetch wards when zone changes
+    useEffect(() => {
+        const fetchWards = async () => {
+            if (!filters.zoneId) {
+                setWards([]);
+                return;
+            }
+
+            try {
+                setLoadingWards(true);
+                const wardsData = await wardService.getWardsByZone(filters.zoneId, 'ACTIVE');
+                setWards(wardsData);
+            } catch (error) {
+                console.error('Error fetching wards:', error);
+                setWards([]);
+            } finally {
+                setLoadingWards(false);
+            }
+        };
+
+        fetchWards();
+    }, [filters.zoneId]);
 
     /**
      * Handle local search input change

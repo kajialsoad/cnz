@@ -70,14 +70,14 @@ router.get('/:code/thanas', async (req, res) => {
     try {
         const { code } = req.params;
         const cityCorporation = await city_corporation_service_1.default.getCityCorporationByCode(code);
-        // Return only active thanas
-        const activeThanas = cityCorporation.thanas.map((thana) => ({
-            id: thana.id,
-            name: thana.name,
+        // Return zones instead of thanas (backward compatibility endpoint)
+        const activeZones = cityCorporation.zones.map((zone) => ({
+            id: zone.id,
+            name: zone.name || `Zone ${zone.zoneNumber}`,
         }));
         res.json({
             success: true,
-            thanas: activeThanas,
+            thanas: activeZones, // Keep 'thanas' key for backward compatibility
         });
     }
     catch (error) {

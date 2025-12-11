@@ -139,7 +139,8 @@ class ZoneService {
         const zone = await prisma.zone.create({
             data: {
                 zoneNumber: data.zoneNumber,
-                name: data.name,
+                number: data.zoneNumber, // Required field
+                name: data.name || `Zone ${data.zoneNumber}`, // Required field with default
                 cityCorporationId: data.cityCorporationId,
                 officerName: data.officerName,
                 officerDesignation: data.officerDesignation,

@@ -6,6 +6,27 @@ import { categoryService } from './category.service';
 import { cloudUploadService, CloudUploadError } from './cloud-upload.service';
 import { isCloudinaryEnabled } from '../config/cloudinary.config';
 
+// Custom error for ward image limit
+export class WardImageLimitError extends Error {
+  public readonly code = 'WARD_IMAGE_LIMIT_EXCEEDED';
+  public readonly statusCode = 400;
+  public readonly details: {
+    wardId: number;
+    currentCount: number;
+    maxAllowed: number;
+  };
+
+  constructor(wardId: number, currentCount: number, maxAllowed: number = 1) {
+    super(`Image upload limit reached for this ward. Only ${maxAllowed} image(s) allowed per ward.`);
+    this.name = 'WardImageLimitError';
+    this.details = {
+      wardId,
+      currentCount,
+      maxAllowed
+    };
+  }
+}
+
 export interface CreateComplaintInput {
   title?: string; // Optional - will be auto-generated from description
   description: string;
@@ -73,21 +94,44 @@ export class ComplaintService {
         );
       }
 
-      // Auto-fetch user's city corporation and thana when creating complaint
+      // Auto-fetch user's city corporation, zone, and ward when creating complaint
       let userCityCorporation = null;
-      let userThana = null;
+      let user = null;
       if (input.userId && !input.forSomeoneElse) {
-        const user = await prisma.user.findUnique({
+        user = await prisma.user.findUnique({
           where: { id: input.userId },
           include: {
             cityCorporation: true,
-            thana: true
+            zone: true,
+            ward: true
           }
         });
 
         if (user) {
           userCityCorporation = user.cityCorporation;
-          userThana = user.thana;
+        }
+      }
+
+      // Check ward image upload limit before processing files
+      if (input.uploadedFiles && user && user.wardId) {
+        const files = input.uploadedFiles as any;
+        let imageCount = 0;
+
+        // Count image files
+        if (Array.isArray(files)) {
+          imageCount = files.filter((f: any) => f.fieldname === 'images').length;
+        } else if (files.images) {
+          imageCount = Array.isArray(files.images) ? files.images.length : 1;
+        }
+
+        // Check if user has reached ward image limit
+        if (imageCount > 0 && user.wardImageCount >= 1) {
+          throw new WardImageLimitError(user.wardId, user.wardImageCount, 1);
+        }
+
+        // Check if this upload would exceed the limit
+        if (imageCount > 0 && user.wardImageCount + imageCount > 1) {
+          throw new WardImageLimitError(user.wardId, user.wardImageCount, 1);
         }
       }
 
@@ -218,11 +262,24 @@ export class ComplaintService {
           user: {
             include: {
               cityCorporation: true,
-              thana: true
+              zone: true,
+              ward: true
             }
           }
         }
       });
+
+      // Increment ward image count if images were uploaded
+      if (finalImageUrls.length > 0 && user && user.wardId) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            wardImageCount: {
+              increment: finalImageUrls.length
+            }
+          }
+        });
+      }
 
       return this.formatComplaintResponse(complaint);
     } catch (error) {
@@ -304,7 +361,8 @@ export class ComplaintService {
           user: {
             include: {
               cityCorporation: true,
-              thana: true
+              zone: true,
+              ward: true
             }
           }
         }
@@ -414,7 +472,8 @@ export class ComplaintService {
           user: {
             include: {
               cityCorporation: true,
-              thana: true
+              zone: true,
+              ward: true
             }
           }
         }
@@ -553,7 +612,8 @@ export class ComplaintService {
           user: {
             include: {
               cityCorporation: true,
-              thana: true
+              zone: true,
+              ward: true
             }
           }
         },
@@ -626,9 +686,10 @@ export class ComplaintService {
     const parsedImages = this.parseFileUrls(complaint.imageUrl || '');
     const parsedAudio = this.parseFileUrls(complaint.audioUrl || '');
 
-    // Extract city corporation and thana from user if available
+    // Extract city corporation, zone, and ward from user if available
     const cityCorporation = complaint.user?.cityCorporation || null;
-    const thana = complaint.user?.thana || null;
+    const zone = complaint.user?.zone || null;
+    const ward = complaint.user?.ward || null;
 
     return {
       ...complaint,
@@ -638,9 +699,10 @@ export class ComplaintService {
       // Keep original fields for backward compatibility
       imageUrl: complaint.imageUrl,
       audioUrl: complaint.audioUrl,
-      // Include city corporation and thana information
+      // Include city corporation, zone, and ward information
       cityCorporation: cityCorporation,
-      thana: thana
+      zone: zone,
+      ward: ward
     };
   }
 
@@ -697,7 +759,8 @@ export class ComplaintService {
           user: {
             include: {
               cityCorporation: true,
-              thana: true
+              zone: true,
+              ward: true
             }
           }
         }
@@ -716,6 +779,128 @@ export class ComplaintService {
         hasPrevPage: page > 1,
       }
     };
+  }
+
+  // Add images to existing complaint with ward limit check
+  async addImagesToComplaint(complaintId: number, uploadedFiles: any, userId: number) {
+    try {
+      // Get the complaint and verify ownership
+      const complaint = await prisma.complaint.findUnique({
+        where: { id: complaintId },
+        include: {
+          user: {
+            include: {
+              cityCorporation: true,
+              zone: true,
+              ward: true
+            }
+          }
+        }
+      });
+
+      if (!complaint) {
+        throw new Error('Complaint not found');
+      }
+
+      // Check if user owns this complaint
+      if (complaint.userId !== userId) {
+        throw new Error('Unauthorized to add images to this complaint');
+      }
+
+      const user = complaint.user;
+
+      if (!user) {
+        throw new Error('User not found for this complaint');
+      }
+
+      // Count image files being uploaded
+      const files = uploadedFiles as any;
+      let imageCount = 0;
+      let imageFiles: any[] = [];
+
+      if (Array.isArray(files)) {
+        imageFiles = files.filter((f: any) => f.fieldname === 'images' || f.fieldname === 'image');
+        imageCount = imageFiles.length;
+      } else if (files.images) {
+        imageFiles = Array.isArray(files.images) ? files.images : [files.images];
+        imageCount = imageFiles.length;
+      } else if (files.image) {
+        imageFiles = [files.image];
+        imageCount = 1;
+      }
+
+      if (imageCount === 0) {
+        throw new Error('No images provided');
+      }
+
+      // Check ward image upload limit if user has a ward assigned
+      if (user.wardId) {
+        // Check if user has already reached the limit
+        if (user.wardImageCount >= 1) {
+          throw new WardImageLimitError(user.wardId, user.wardImageCount, 1);
+        }
+
+        // Check if this upload would exceed the limit
+        if (user.wardImageCount + imageCount > 1) {
+          throw new WardImageLimitError(user.wardId, user.wardImageCount, 1);
+        }
+      }
+
+      // Upload images
+      let newImageUrls: string[] = [];
+      const useCloudinary = isCloudinaryEnabled();
+
+      if (useCloudinary) {
+        try {
+          newImageUrls = await this.uploadImagesToCloudinary(imageFiles);
+        } catch (error) {
+          console.error('Cloudinary upload failed, falling back to local storage:', error);
+          // Fallback to local storage
+          newImageUrls = imageFiles.map((file: any) => getFileUrl(file.filename, 'image'));
+        }
+      } else {
+        // Use local storage
+        newImageUrls = imageFiles.map((file: any) => getFileUrl(file.filename, 'image'));
+      }
+
+      // Get existing image URLs
+      const existingImages = this.parseFileUrls(complaint.imageUrl || '');
+      const allImageUrls = [...existingImages.imageUrls, ...newImageUrls];
+
+      // Update complaint with new images
+      const updatedComplaint = await prisma.complaint.update({
+        where: { id: complaintId },
+        data: {
+          imageUrl: JSON.stringify(allImageUrls)
+        },
+        include: {
+          user: {
+            include: {
+              cityCorporation: true,
+              zone: true,
+              ward: true
+            }
+          }
+        }
+      });
+
+      // Increment ward image count if user has a ward
+      if (user.wardId) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            wardImageCount: {
+              increment: imageCount
+            }
+          }
+        });
+      }
+
+      return this.formatComplaintResponse(updatedComplaint);
+    } catch (error) {
+      console.error('Error adding images to complaint:', error);
+      throw error;
+    }
   }
 }
 

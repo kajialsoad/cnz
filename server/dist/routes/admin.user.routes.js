@@ -7,7 +7,7 @@ console.log('🔧 Loading admin.user.routes.ts...');
 const router = (0, express_1.Router)();
 // All routes require authentication and admin role
 router.use(auth_middleware_1.authGuard);
-router.use((0, auth_middleware_1.rbacGuard)('ADMIN', 'SUPER_ADMIN'));
+router.use((0, auth_middleware_1.rbacGuard)('ADMIN', 'SUPER_ADMIN', 'MASTER_ADMIN'));
 // Get user statistics (must be before /:id to avoid conflict)
 router.get('/statistics', admin_user_controller_1.getUserStatistics);
 console.log('🔧 Admin user route registered: GET /statistics');

@@ -9,9 +9,10 @@ const bcrypt_1 = require("bcrypt");
 const jwt_1 = require("../utils/jwt");
 const email_1 = __importDefault(require("../utils/email"));
 const env_1 = __importDefault(require("../config/env"));
-const client_1 = require("@prisma/client");
 const city_corporation_service_1 = __importDefault(require("./city-corporation.service"));
-const thana_service_1 = __importDefault(require("./thana.service"));
+// import thanaService from './thana.service'; // Thana service disabled - using Zone/Ward now
+const zone_service_1 = __importDefault(require("./zone.service"));
+const ward_service_1 = __importDefault(require("./ward.service"));
 class AuthService {
     // User registration
     async register(input) {
@@ -39,7 +40,36 @@ class AuthService {
                 if (cityCorporation.status !== 'ACTIVE') {
                     throw new Error(`City Corporation ${input.cityCorporationCode} is not currently accepting registrations`);
                 }
-                // Validate ward if provided
+                // Validate zone-ward hierarchy if provided
+                if (input.zoneId && input.wardId) {
+                    // Validate zone exists and belongs to city corporation
+                    const zone = await zone_service_1.default.getZoneById(input.zoneId);
+                    const zoneBelongsToCityCorporation = await zone_service_1.default.validateZoneBelongsToCityCorporation(input.zoneId, cityCorporation.id);
+                    if (!zoneBelongsToCityCorporation) {
+                        throw new Error(`Selected zone does not belong to ${cityCorporation.name}`);
+                    }
+                    // Check if zone is active
+                    const isZoneActive = await zone_service_1.default.isActive(input.zoneId);
+                    if (!isZoneActive) {
+                        throw new Error('Selected zone is not currently available');
+                    }
+                    // Validate ward exists and belongs to zone
+                    const ward = await ward_service_1.default.getWardById(input.wardId);
+                    const wardBelongsToZone = await ward_service_1.default.validateWardBelongsToZone(input.wardId, input.zoneId);
+                    if (!wardBelongsToZone) {
+                        throw new Error(`Selected ward does not belong to Zone ${zone.zoneNumber}`);
+                    }
+                    // Check if ward is active
+                    const isWardActive = await ward_service_1.default.isActive(input.wardId);
+                    if (!isWardActive) {
+                        throw new Error('Selected ward is not currently available');
+                    }
+                }
+                else if (input.zoneId || input.wardId) {
+                    // If only one is provided, throw error
+                    throw new Error('Both zone and ward must be provided together');
+                }
+                // Legacy: Validate ward if provided (old string-based ward)
                 if (input.ward) {
                     const wardNum = parseInt(input.ward);
                     if (isNaN(wardNum)) {
@@ -50,27 +80,7 @@ class AuthService {
                         throw new Error(`Ward must be between ${cityCorporation.minWard} and ${cityCorporation.maxWard} for ${cityCorporation.name}`);
                     }
                 }
-                // Validate thana if provided
-                if (input.thanaId) {
-                    try {
-                        const thana = await thana_service_1.default.getThanaById(input.thanaId);
-                        // Check if thana belongs to selected city corporation
-                        const belongsToCityCorporation = await thana_service_1.default.validateThanaBelongsToCityCorporation(input.thanaId, input.cityCorporationCode);
-                        if (!belongsToCityCorporation) {
-                            throw new Error(`Selected thana does not belong to ${cityCorporation.name}`);
-                        }
-                        // Check if thana is active
-                        if (thana.status !== 'ACTIVE') {
-                            throw new Error('Selected thana is not currently available');
-                        }
-                    }
-                    catch (error) {
-                        if (error instanceof Error) {
-                            throw error;
-                        }
-                        throw new Error('Invalid thana selected');
-                    }
-                }
+                // Legacy thana validation removed - using Zone/Ward now
             }
             catch (error) {
                 if (error instanceof Error) {
@@ -90,13 +100,13 @@ class AuthService {
                 firstName: input.firstName,
                 lastName: input.lastName,
                 phone: input.phone || '',
-                ward: input.ward,
-                zone: input.zone,
                 address: input.address,
                 cityCorporationCode: input.cityCorporationCode,
-                thanaId: input.thanaId,
-                role: input.role || client_1.UserRole.CUSTOMER,
-                status: emailVerificationEnabled ? client_1.UserStatus.PENDING : client_1.UserStatus.ACTIVE,
+                zoneId: input.zoneId,
+                wardId: input.wardId,
+                wardImageCount: 0, // Initialize to 0 for new users
+                role: input.role || 'ADMIN',
+                status: emailVerificationEnabled ? 'PENDING' : 'ACTIVE',
                 emailVerified: !emailVerificationEnabled, // Mark as verified if verification is disabled
                 phoneVerified: false,
             },
@@ -105,28 +115,31 @@ class AuthService {
                 email: true,
                 firstName: true,
                 lastName: true,
-                ward: true,
-                zone: true,
                 address: true,
                 cityCorporationCode: true,
-                thanaId: true,
+                zoneId: true,
+                wardId: true,
+                wardImageCount: true,
                 role: true,
                 status: true,
                 createdAt: true
             }
         });
-        // Create email verification token with OTP code
-        await prisma_1.default.emailVerificationToken.create({
-            data: {
-                token: verificationToken,
-                code: verificationCode,
-                userId: user.id,
-                expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes expiry for OTP
+        // Only create verification token and send email if verification is enabled
+        if (emailVerificationEnabled) {
+            // Create email verification token with OTP code
+            await prisma_1.default.emailVerificationToken.create({
+                data: {
+                    token: verificationToken,
+                    code: verificationCode,
+                    userId: user.id,
+                    expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes expiry for OTP
+                }
+            });
+            // Send verification email with OTP code
+            if (user.email) {
+                await email_1.default.sendEmailVerificationEmail(user.email, verificationCode);
             }
-        });
-        // Send verification email with OTP code
-        if (user.email) {
-            await email_1.default.sendEmailVerificationEmail(user.email, verificationCode);
         }
         return {
             success: true,
@@ -160,32 +173,44 @@ class AuthService {
         if (!user) {
             throw new Error('Invalid credentials');
         }
-        if (user.status === client_1.UserStatus.SUSPENDED) {
+        if (user.status === 'SUSPENDED') {
             throw new Error('Account is suspended');
         }
         // Check if email verification is enabled and if email is verified for pending accounts
         const emailVerificationEnabled = env_1.default.EMAIL_VERIFICATION_ENABLED;
         console.log('Login - Email verification enabled:', emailVerificationEnabled);
-        if (emailVerificationEnabled && user.status === client_1.UserStatus.PENDING && !user.emailVerified) {
+        if (emailVerificationEnabled && user.status === 'PENDING' && !user.emailVerified) {
             throw new Error('Please verify your email first');
         }
         const isPasswordValid = await (0, bcrypt_1.compare)(input.password, user.passwordHash);
         if (!isPasswordValid) {
             throw new Error('Invalid credentials');
         }
+        // Admin রোল ন্যারো করা
+        const toAdminRole = (r) => {
+            if (r === 'ADMIN' || r === 'SUPER_ADMIN' || r === 'MASTER_ADMIN')
+                return r;
+            throw new Error('Access denied. Admin privileges required.');
+        };
         // Generate tokens
         try {
             const accessToken = (0, jwt_1.signAccessToken)({
+                id: parseInt(user.id.toString()),
                 sub: parseInt(user.id.toString()),
-                role: user.role,
+                role: toAdminRole(user.role),
                 email: user.email ?? undefined,
-                phone: user.phone ?? undefined
+                phone: user.phone ?? undefined,
+                zoneId: user.zoneId,
+                wardId: user.wardId
             });
             const refreshToken = (0, jwt_1.signRefreshToken)({
+                id: parseInt(user.id.toString()),
                 sub: parseInt(user.id.toString()),
-                role: user.role,
+                role: toAdminRole(user.role),
                 email: user.email ?? undefined,
-                phone: user.phone ?? undefined
+                phone: user.phone ?? undefined,
+                zoneId: user.zoneId,
+                wardId: user.wardId
             });
             // Store refresh token
             await prisma_1.default.refreshToken.create({
@@ -226,16 +251,22 @@ class AuthService {
         }
         // Generate new tokens
         const newAccessToken = (0, jwt_1.signAccessToken)({
+            id: parseInt(payload.sub.toString()),
             sub: parseInt(payload.sub.toString()),
             role: payload.role,
             email: payload.email,
-            phone: payload.phone
+            phone: payload.phone,
+            zoneId: payload.zoneId,
+            wardId: payload.wardId
         });
         const newRefreshToken = (0, jwt_1.signRefreshToken)({
+            id: parseInt(payload.sub.toString()),
             sub: parseInt(payload.sub.toString()),
             role: payload.role,
             email: payload.email,
-            phone: payload.phone
+            phone: payload.phone,
+            zoneId: payload.zoneId,
+            wardId: payload.wardId
         });
         // Update refresh token
         await prisma_1.default.refreshToken.update({
@@ -349,7 +380,7 @@ class AuthService {
             where: { id: verificationToken.userId },
             data: {
                 emailVerified: true,
-                status: client_1.UserStatus.ACTIVE
+                status: 'ACTIVE'
             }
         });
         await prisma_1.default.emailVerificationToken.update({
@@ -381,7 +412,7 @@ class AuthService {
             where: { id: verificationToken.userId },
             data: {
                 emailVerified: true,
-                status: client_1.UserStatus.ACTIVE
+                status: 'ACTIVE'
             }
         });
         await prisma_1.default.emailVerificationToken.update({
@@ -451,11 +482,11 @@ class AuthService {
                 emailVerified: true,
                 phoneVerified: true,
                 avatar: true,
-                zone: true,
-                ward: true,
                 address: true,
                 cityCorporationCode: true,
-                thanaId: true,
+                zoneId: true,
+                wardId: true,
+                wardImageCount: true,
                 createdAt: true,
                 updatedAt: true,
                 lastLoginAt: true
@@ -476,37 +507,34 @@ class AuthService {
                 if (cityCorporation.status !== 'ACTIVE') {
                     throw new Error(`City Corporation ${data.cityCorporationCode} is not currently available`);
                 }
-                // Validate ward if provided
-                if (data.ward) {
-                    const wardNum = parseInt(data.ward);
-                    if (isNaN(wardNum)) {
-                        throw new Error('Ward must be a valid number');
+                // Validate zone-ward hierarchy if provided
+                if (data.zoneId && data.wardId) {
+                    // Validate zone exists and belongs to city corporation
+                    const zone = await zone_service_1.default.getZoneById(data.zoneId);
+                    const zoneBelongsToCityCorporation = await zone_service_1.default.validateZoneBelongsToCityCorporation(data.zoneId, cityCorporation.id);
+                    if (!zoneBelongsToCityCorporation) {
+                        throw new Error(`Selected zone does not belong to ${cityCorporation.name}`);
                     }
-                    const isValidWard = await city_corporation_service_1.default.validateWard(data.cityCorporationCode, wardNum);
-                    if (!isValidWard) {
-                        throw new Error(`Ward must be between ${cityCorporation.minWard} and ${cityCorporation.maxWard} for ${cityCorporation.name}`);
+                    // Check if zone is active
+                    const isZoneActive = await zone_service_1.default.isActive(data.zoneId);
+                    if (!isZoneActive) {
+                        throw new Error('Selected zone is not currently available');
+                    }
+                    // Validate ward exists and belongs to zone
+                    const ward = await ward_service_1.default.getWardById(data.wardId);
+                    const wardBelongsToZone = await ward_service_1.default.validateWardBelongsToZone(data.wardId, data.zoneId);
+                    if (!wardBelongsToZone) {
+                        throw new Error(`Selected ward does not belong to Zone ${zone.zoneNumber}`);
+                    }
+                    // Check if ward is active
+                    const isWardActive = await ward_service_1.default.isActive(data.wardId);
+                    if (!isWardActive) {
+                        throw new Error('Selected ward is not currently available');
                     }
                 }
-                // Validate thana if provided
-                if (data.thanaId) {
-                    try {
-                        const thana = await thana_service_1.default.getThanaById(data.thanaId);
-                        // Check if thana belongs to selected city corporation
-                        const belongsToCityCorporation = await thana_service_1.default.validateThanaBelongsToCityCorporation(data.thanaId, data.cityCorporationCode);
-                        if (!belongsToCityCorporation) {
-                            throw new Error(`Selected thana does not belong to ${cityCorporation.name}`);
-                        }
-                        // Check if thana is active
-                        if (thana.status !== 'ACTIVE') {
-                            throw new Error('Selected thana is not currently available');
-                        }
-                    }
-                    catch (error) {
-                        if (error instanceof Error) {
-                            throw error;
-                        }
-                        throw new Error('Invalid thana selected');
-                    }
+                else if (data.zoneId || data.wardId) {
+                    // If only one is provided, throw error
+                    throw new Error('Both zone and ward must be provided together');
                 }
             }
             catch (error) {
@@ -530,11 +558,11 @@ class AuthService {
                 emailVerified: true,
                 phoneVerified: true,
                 avatar: true,
-                zone: true,
-                ward: true,
                 address: true,
                 cityCorporationCode: true,
-                thanaId: true,
+                zoneId: true,
+                wardId: true,
+                wardImageCount: true,
                 createdAt: true,
                 updatedAt: true,
                 lastLoginAt: true
@@ -577,7 +605,7 @@ class AuthService {
             where: {
                 createdAt: { lt: expiryTime },
                 emailVerified: false,
-                status: client_1.UserStatus.PENDING
+                status: 'PENDING'
             },
             select: {
                 id: true

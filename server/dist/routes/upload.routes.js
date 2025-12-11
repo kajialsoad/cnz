@@ -36,4 +36,11 @@ router.get('/:type/:filename/info', auth_middleware_1.authGuard, upload_controll
  * @param   filename - filename to serve
  */
 router.get('/:type/:filename', upload_controller_1.uploadController.serveFile.bind(upload_controller_1.uploadController));
+/**
+ * @route   POST /api/uploads/avatar
+ * @desc    Upload avatar image for admin profile
+ * @access  Private (Authenticated users)
+ * @body    form-data with file: { avatar }
+ */
+router.post('/avatar', auth_middleware_1.authGuard, upload_controller_1.uploadController.uploadSingleImage, upload_controller_1.uploadController.uploadAvatar.bind(upload_controller_1.uploadController));
 exports.default = router;

@@ -7,7 +7,7 @@ console.log('🔧 Loading admin.complaint.routes.ts...');
 const router = (0, express_1.Router)();
 // All routes require authentication and admin role
 router.use(auth_middleware_1.authGuard);
-router.use((0, auth_middleware_1.rbacGuard)('ADMIN', 'SUPER_ADMIN'));
+router.use((0, auth_middleware_1.rbacGuard)('ADMIN', 'SUPER_ADMIN', 'MASTER_ADMIN'));
 // Get all complaints with filtering and pagination
 router.get('/', admin_complaint_controller_1.getAdminComplaints);
 console.log('🔧 Admin complaint route registered: GET /');

@@ -478,9 +478,20 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
         Navigator.pop(context); // Close loading dialog
 
         if (complaintProvider.error != null) {
-          // NEW: Enhanced error message handling for category validation
+          // Enhanced error message handling
           final errorMessage = complaintProvider.error!;
-          if (errorMessage.contains('category') || errorMessage.contains('subcategory')) {
+          
+          // Ward image limit error
+          if (errorMessage.contains('WARD_IMAGE_LIMIT_EXCEEDED') || 
+              errorMessage.contains('Image upload limit reached')) {
+            _showErrorDialog(
+              'আপলোড সীমা পৌঁছেছে (Upload Limit Reached)',
+              errorMessage,
+              showReturnButton: true,
+            );
+          }
+          // Category validation errors
+          else if (errorMessage.contains('category') || errorMessage.contains('subcategory')) {
             _showErrorDialog(
               'Category Error',
               errorMessage,
@@ -496,9 +507,20 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
       } catch (e) {
         Navigator.pop(context); // Close loading dialog
         
-        // NEW: Enhanced error handling for category validation
+        // Enhanced error handling
         final errorString = e.toString();
-        if (errorString.contains('category') || errorString.contains('subcategory')) {
+        
+        // Ward image limit error
+        if (errorString.contains('WARD_IMAGE_LIMIT_EXCEEDED') || 
+            errorString.contains('Image upload limit reached')) {
+          _showErrorDialog(
+            'আপলোড সীমা পৌঁছেছে (Upload Limit Reached)',
+            errorString.replaceFirst('Exception: ', ''),
+            showReturnButton: true,
+          );
+        }
+        // Category validation errors
+        else if (errorString.contains('category') || errorString.contains('subcategory')) {
           _showErrorDialog(
             'Category Error',
             errorString.replaceFirst('Exception: ', ''),

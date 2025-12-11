@@ -17,12 +17,14 @@ const getUsersQuerySchema = zod_1.z.object({
     limit: zod_1.z.string().optional().transform(val => val ? parseInt(val) : 20),
     search: zod_1.z.string().optional(),
     status: zod_1.z.nativeEnum(client_1.UserStatus).optional(),
-    role: zod_1.z.nativeEnum(client_1.UserRole).optional(),
+    role: zod_1.z.nativeEnum(client_1.users_role).optional(),
     sortBy: zod_1.z.string().optional().default('createdAt'),
     sortOrder: zod_1.z.enum(['asc', 'desc']).optional().default('desc'),
     cityCorporationCode: zod_1.z.string().optional(),
     ward: zod_1.z.string().optional(),
     thanaId: zod_1.z.string().optional().transform(val => val ? parseInt(val) : undefined),
+    zoneId: zod_1.z.string().optional().transform(val => val ? parseInt(val) : undefined),
+    wardId: zod_1.z.string().optional().transform(val => val ? parseInt(val) : undefined),
 });
 const createUserSchema = zod_1.z.object({
     firstName: zod_1.z.string().min(1, 'First name is required'),
@@ -32,7 +34,9 @@ const createUserSchema = zod_1.z.object({
     password: zod_1.z.string().min(8, 'Password must be at least 8 characters'),
     ward: zod_1.z.string().optional(),
     zone: zod_1.z.string().optional(),
-    role: zod_1.z.nativeEnum(client_1.UserRole).optional(),
+    zoneId: zod_1.z.number().int().positive().optional(),
+    wardId: zod_1.z.number().int().positive().optional(),
+    role: zod_1.z.nativeEnum(client_1.users_role).optional(),
 });
 const updateUserSchema = zod_1.z.object({
     firstName: zod_1.z.string().min(1).optional(),
@@ -41,7 +45,9 @@ const updateUserSchema = zod_1.z.object({
     phone: zod_1.z.string().min(10).optional(),
     ward: zod_1.z.string().optional(),
     zone: zod_1.z.string().optional(),
-    role: zod_1.z.nativeEnum(client_1.UserRole).optional(),
+    zoneId: zod_1.z.number().int().positive().optional(),
+    wardId: zod_1.z.number().int().positive().optional(),
+    role: zod_1.z.nativeEnum(client_1.users_role).optional(),
     status: zod_1.z.nativeEnum(client_1.UserStatus).optional(),
 });
 const updateStatusSchema = zod_1.z.object({
@@ -54,8 +60,15 @@ async function getUsers(req, res) {
         console.log('📋 Fetching users with query:', req.query);
         // Validate query parameters
         const query = getUsersQuerySchema.parse(req.query);
-        // Fetch users from service
-        const result = await admin_user_service_1.adminUserService.getUsers(query);
+        // Get requesting user info for role-based filtering
+        const requestingUser = req.user ? {
+            id: req.user.id,
+            role: req.user.role,
+            zoneId: req.user.zoneId,
+            wardId: req.user.wardId,
+        } : undefined;
+        // Fetch users from service with role-based filtering
+        const result = await admin_user_service_1.adminUserService.getUsers(query, requestingUser);
         return res.status(200).json({
             success: true,
             data: result,
@@ -111,8 +124,22 @@ async function getUserById(req, res) {
 async function getUserStatistics(req, res) {
     try {
         const cityCorporationCode = req.query.cityCorporationCode;
-        console.log('📊 Fetching user statistics', cityCorporationCode ? `for ${cityCorporationCode}` : '');
-        const statistics = await admin_user_service_1.adminUserService.getUserStatistics(cityCorporationCode);
+        const zoneId = req.query.zoneId ? parseInt(req.query.zoneId) : undefined;
+        const wardId = req.query.wardId ? parseInt(req.query.wardId) : undefined;
+        // Get requesting user info for role-based filtering
+        const requestingUser = req.user ? {
+            id: req.user.id,
+            role: req.user.role,
+            zoneId: req.user.zoneId,
+            wardId: req.user.wardId,
+        } : undefined;
+        console.log('📊 Fetching user statistics', {
+            cityCorporationCode,
+            zoneId,
+            wardId,
+            requestingUser: requestingUser ? `${requestingUser.role} (ID: ${requestingUser.id})` : 'none',
+        });
+        const statistics = await admin_user_service_1.adminUserService.getUserStatistics(cityCorporationCode, zoneId, wardId, requestingUser);
         return res.status(200).json({
             success: true,
             data: statistics,
