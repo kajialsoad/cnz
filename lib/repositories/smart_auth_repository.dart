@@ -76,10 +76,10 @@ class SmartAuthRepository {
     });
   }
 
-  Future<List<Zone>> getZonesByCityCorporation(String ccCode) async {
+  Future<List<Zone>> getZonesByCityCorporation(int cityCorporationId) async {
     return await SmartApiClient.executeWithFallback((client) async {
       final repo = AuthRepository(client);
-      return await repo.getZonesByCityCorporation(ccCode);
+      return await repo.getZonesByCityCorporation(cityCorporationId);
     });
   }
 

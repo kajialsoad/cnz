@@ -26,7 +26,9 @@ class AuthRepository {
     final nameParts = name.trim().split(' ');
     final firstName = nameParts.first;
     // If no last name provided, use a placeholder or same as first name
-    final lastName = nameParts.length > 1 ? nameParts.sublist(1).join(' ') : nameParts.first;
+    final lastName = nameParts.length > 1
+        ? nameParts.sublist(1).join(' ')
+        : nameParts.first;
 
     try {
       final data = await api.post('/api/auth/register', {
@@ -38,7 +40,8 @@ class AuthRepository {
         if (ward != null) 'ward': ward,
         if (zone != null) 'zone': zone,
         if (address != null) 'address': address,
-        if (CityCorporationCode != null) 'CityCorporationCode': CityCorporationCode,
+        if (CityCorporationCode != null)
+          'cityCorporationCode': CityCorporationCode,
         if (thanaId != null) 'thanaId': thanaId,
         if (zoneId != null) 'zoneId': zoneId,
         if (wardId != null) 'wardId': wardId,
@@ -54,11 +57,14 @@ class AuthRepository {
     }
   }
 
-  Future<Map<String, dynamic>> login(String phoneOrEmail, String password) async {
+  Future<Map<String, dynamic>> login(
+    String phoneOrEmail,
+    String password,
+  ) async {
     try {
       // Detect if input is email or phone
       final isEmail = RegExp(r'^.+@.+\..+$').hasMatch(phoneOrEmail);
-      
+
       final data = await api.post('/api/auth/login', {
         if (isEmail) 'email': phoneOrEmail else 'phone': phoneOrEmail,
         'password': password,
@@ -84,7 +90,7 @@ class AuthRepository {
   Future<Map<String, dynamic>> me() async {
     try {
       final data = await api.get('/api/auth/me');
-      
+
       if (data['user'] != null) {
         return data['user'] as Map<String, dynamic>;
       } else {
@@ -102,9 +108,9 @@ class AuthRepository {
       final sp = await SharedPreferences.getInstance();
       final rt = sp.getString('refreshToken');
       if (rt == null) throw Exception('No refresh token');
-      
+
       final data = await api.post('/api/auth/refresh', {'refreshToken': rt});
-      
+
       if (data['success'] == true && data['data'] != null) {
         final tokens = data['data'] as Map<String, dynamic>;
         await sp.setString('accessToken', tokens['accessToken']);
@@ -124,11 +130,11 @@ class AuthRepository {
     try {
       final sp = await SharedPreferences.getInstance();
       final rt = sp.getString('refreshToken');
-      
+
       if (rt != null) {
         await api.post('/api/auth/logout', {'refreshToken': rt});
       }
-      
+
       await sp.remove('accessToken');
       await sp.remove('refreshToken');
     } on ApiException catch (e) {
@@ -182,10 +188,12 @@ class AuthRepository {
   Future<List<CityCorporation>> getActiveCityCorporations() async {
     try {
       final data = await api.get('/api/city-corporations/active');
-      
+
       if (data['cityCorporations'] != null) {
         final cityCorps = data['cityCorporations'] as List;
-        return cityCorps.map((cc) => CityCorporation.fromJson(cc as Map<String, dynamic>)).toList();
+        return cityCorps
+            .map((cc) => CityCorporation.fromJson(cc as Map<String, dynamic>))
+            .toList();
       } else {
         throw Exception('Failed to load city corporations');
       }
@@ -196,13 +204,19 @@ class AuthRepository {
     }
   }
 
-  Future<List<Thana>> getThanasByCityCorporation(String CityCorporationCode) async {
+  Future<List<Thana>> getThanasByCityCorporation(
+    String CityCorporationCode,
+  ) async {
     try {
-      final data = await api.get('/api/city-corporations/$CityCorporationCode/thanas');
-      
+      final data = await api.get(
+        '/api/city-corporations/$CityCorporationCode/thanas',
+      );
+
       if (data['thanas'] != null) {
         final thanas = data['thanas'] as List;
-        return thanas.map((t) => Thana.fromJson(t as Map<String, dynamic>)).toList();
+        return thanas
+            .map((t) => Thana.fromJson(t as Map<String, dynamic>))
+            .toList();
       } else {
         throw Exception('Failed to load thanas');
       }
@@ -213,13 +227,23 @@ class AuthRepository {
     }
   }
 
-  Future<List<Zone>> getZonesByCityCorporation(String cityCorporationCode) async {
+  Future<List<Zone>> getZonesByCityCorporation(int cityCorporationId) async {
     try {
-      final data = await api.get('/api/zones?cityCorporationCode=$cityCorporationCode');
-      
-      if (data['zones'] != null) {
+      final data = await api.get(
+        '/api/zones?cityCorporationId=$cityCorporationId',
+      );
+
+      if (data['data'] != null) {
+        final zones = data['data'] as List;
+        return zones
+            .map((z) => Zone.fromJson(z as Map<String, dynamic>))
+            .toList();
+      } else if (data['zones'] != null) {
+        // Fallback for older API response structure
         final zones = data['zones'] as List;
-        return zones.map((z) => Zone.fromJson(z as Map<String, dynamic>)).toList();
+        return zones
+            .map((z) => Zone.fromJson(z as Map<String, dynamic>))
+            .toList();
       } else {
         throw Exception('Failed to load zones');
       }
@@ -233,10 +257,18 @@ class AuthRepository {
   Future<List<Ward>> getWardsByZone(int zoneId) async {
     try {
       final data = await api.get('/api/wards?zoneId=$zoneId');
-      
-      if (data['wards'] != null) {
+
+      if (data['data'] != null) {
+        final wards = data['data'] as List;
+        return wards
+            .map((w) => Ward.fromJson(w as Map<String, dynamic>))
+            .toList();
+      } else if (data['wards'] != null) {
+        // Fallback for older API response structure
         final wards = data['wards'] as List;
-        return wards.map((w) => Ward.fromJson(w as Map<String, dynamic>)).toList();
+        return wards
+            .map((w) => Ward.fromJson(w as Map<String, dynamic>))
+            .toList();
       } else {
         throw Exception('Failed to load wards');
       }
