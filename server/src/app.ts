@@ -13,6 +13,8 @@ import adminUserRoutes from './routes/admin.user.routes';
 import adminComplaintRoutes from './routes/admin.complaint.routes';
 import adminAnalyticsRoutes from './routes/admin.analytics.routes';
 import adminChatRoutes from './routes/admin.chat.routes';
+import adminActivityLogRoutes from './routes/admin.activity-log.routes';
+import dashboardRoutes from './routes/dashboard.routes';
 import categoryRoutes from './routes/category.routes';
 import cityCorporationRoutes from './routes/city-corporation.routes';
 import publicCityCorporationRoutes from './routes/public-city-corporation.routes';
@@ -22,6 +24,14 @@ import publicZoneRoutes from './routes/public-zone.routes';
 import wardRoutes from './routes/ward.routes';
 import publicWardRoutes from './routes/public-ward.routes';
 import { AuthRequest } from './middlewares/auth.middleware';
+import {
+  helmetConfig,
+  noSqlInjectionPrevention,
+  parameterPollutionPrevention,
+  xssPrevention,
+  securityHeaders,
+} from './middlewares/security.middleware';
+import { ipRateLimit, apiRateLimit } from './middlewares/rate-limit.middleware';
 
 console.log('🚀 Starting Clean Care API Server...');
 console.log('🔧 Importing admin auth routes...');
@@ -41,6 +51,16 @@ declare global {
   }
 }
 
+// Security middleware - Apply first for maximum protection
+app.use(helmetConfig); // Security headers
+app.use(securityHeaders); // Additional security headers
+app.use(noSqlInjectionPrevention); // NoSQL injection prevention
+app.use(parameterPollutionPrevention); // HTTP parameter pollution prevention
+
+// Global IP-based rate limiting - 1000 requests per minute per IP
+// Requirements: 12.18
+app.use('/api', ipRateLimit(1000, 60 * 1000));
+
 // Middleware to add prisma to request
 app.use((req: Request, res: Response, next) => {
   req.prisma = prisma;
@@ -48,6 +68,9 @@ app.use((req: Request, res: Response, next) => {
 });
 app.use(express.json({ limit: '2mb' }));
 app.use(cookieParser());
+
+// XSS prevention - Apply after body parsing
+app.use(xssPrevention);
 // Allow multiple origins and any localhost:* during development
 const allowedOrigins = env.CORS_ORIGINS;
 app.use(cors({
@@ -140,6 +163,12 @@ app.get('/login', (_req: Request, res: Response) => {
 
 app.use('/api/admin/chat', adminChatRoutes); // Admin chat routes
 console.log('✅ Admin chat routes registered at /api/admin/chat');
+
+app.use('/api/admin/activity-logs', adminActivityLogRoutes); // Admin activity log routes
+console.log('✅ Admin activity log routes registered at /api/admin/activity-logs');
+
+app.use('/api/dashboard', dashboardRoutes); // Dashboard statistics routes
+console.log('✅ Dashboard routes registered at /api/dashboard');
 
 app.use('/api/categories', categoryRoutes); // Category routes
 console.log('✅ Category routes registered at /api/categories');

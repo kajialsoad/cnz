@@ -75,6 +75,14 @@ const unitTests = [
     {
         name: 'ProfileButton Component',
         path: path.join(__dirname, '../test-profile-button.cjs')
+    },
+    {
+        name: 'UserManagement Page',
+        path: path.join(__dirname, 'unit/test-user-management.cjs')
+    },
+    {
+        name: 'UserManagement Modals',
+        path: path.join(__dirname, 'unit/test-user-management-modals.cjs')
     }
 ];
 

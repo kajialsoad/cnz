@@ -22,9 +22,11 @@ import {
 } from '@mui/icons-material';
 import type { CreateUserDto, UserRole } from '../../types/userManagement.types';
 import { cityCorporationService } from '../../services/cityCorporationService';
-import { thanaService } from '../../services/thanaService';
+import { zoneService } from '../../services/zoneService';
+import { wardService } from '../../services/wardService';
 import type { CityCorporation } from '../../services/cityCorporationService';
-import type { Thana } from '../../services/thanaService';
+import type { Zone } from '../../services/zoneService';
+import type { Ward } from '../../services/wardService';
 
 interface UserAddModalProps {
     open: boolean;
@@ -40,9 +42,8 @@ interface FormData {
     password: string;
     confirmPassword: string;
     cityCorporationCode: string;
-    thanaId: string;
-    ward: string;
-    zone: string;
+    zoneId: string;
+    wardId: string;
     role: UserRole;
 }
 
@@ -53,8 +54,9 @@ interface FormErrors {
     phone?: string;
     password?: string;
     confirmPassword?: string;
-    ward?: string;
-    zone?: string;
+    cityCorporationCode?: string;
+    wardId?: string;
+    zoneId?: string;
 }
 
 const UserAddModal: React.FC<UserAddModalProps> = ({
@@ -70,10 +72,9 @@ const UserAddModal: React.FC<UserAddModalProps> = ({
         password: '',
         confirmPassword: '',
         cityCorporationCode: '',
-        thanaId: '',
-        ward: '',
-        zone: '',
-        role: 'ADMIN' as UserRole,
+        zoneId: '',
+        wardId: '',
+        role: 'CUSTOMER' as UserRole,
     });
 
     const [errors, setErrors] = useState<FormErrors>({});
@@ -82,38 +83,45 @@ const UserAddModal: React.FC<UserAddModalProps> = ({
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-    // City Corporation and Thana state
+    // City Corporation, Zone, and Ward state
     const [cityCorporations, setCityCorporations] = useState<CityCorporation[]>([]);
-    const [thanas, setThanas] = useState<Thana[]>([]);
+    const [zones, setZones] = useState<Zone[]>([]);
+    const [wards, setWards] = useState<Ward[]>([]);
     const [cityCorporationsLoading, setCityCorporationsLoading] = useState(false);
-    const [thanasLoading, setThanasLoading] = useState(false);
-    const [wardRange, setWardRange] = useState<{ min: number; max: number }>({ min: 1, max: 100 });
+    const [zonesLoading, setZonesLoading] = useState(false);
+    const [wardsLoading, setWardsLoading] = useState(false);
 
     // Fetch city corporations on mount
     useEffect(() => {
         fetchCityCorporations();
     }, []);
 
-    // Fetch thanas when city corporation changes
+    // Fetch zones when city corporation changes
     useEffect(() => {
         if (formData.cityCorporationCode) {
-            const cityCorporation = cityCorporations.find(cc => cc.code === formData.cityCorporationCode);
-            if (cityCorporation) {
-                setWardRange({ min: cityCorporation.minWard, max: cityCorporation.maxWard });
-                fetchThanas(cityCorporation.code);
-            }
+            fetchZones(formData.cityCorporationCode);
         } else {
-            setWardRange({ min: 1, max: 100 });
-            setThanas([]);
-            setFormData(prev => ({ ...prev, thanaId: '', ward: '' }));
+            setZones([]);
+            setWards([]);
+            setFormData(prev => ({ ...prev, zoneId: '', wardId: '' }));
         }
-    }, [formData.cityCorporationCode, cityCorporations]);
+    }, [formData.cityCorporationCode]);
+
+    // Fetch wards when zone changes
+    useEffect(() => {
+        if (formData.zoneId) {
+            fetchWards(parseInt(formData.zoneId));
+        } else {
+            setWards([]);
+            setFormData(prev => ({ ...prev, wardId: '' }));
+        }
+    }, [formData.zoneId]);
 
     const fetchCityCorporations = async () => {
         try {
             setCityCorporationsLoading(true);
-            const cityCorps = await cityCorporationService.getCityCorporations('ACTIVE');
-            setCityCorporations(Array.isArray(cityCorps) ? cityCorps : []);
+            const response = await cityCorporationService.getCityCorporations('ACTIVE');
+            setCityCorporations(response.cityCorporations || []);
         } catch (err: any) {
             console.error('Error fetching city corporations:', err);
             setCityCorporations([]);
@@ -123,17 +131,29 @@ const UserAddModal: React.FC<UserAddModalProps> = ({
         }
     };
 
-    const fetchThanas = async (cityCorporationCode: string) => {
+    const fetchZones = async (cityCorporationCode: string) => {
         try {
-            setThanasLoading(true);
-            const thanasData = await thanaService.getThanasByCityCorporation(cityCorporationCode, 'ACTIVE');
-            setThanas(Array.isArray(thanasData) ? thanasData : []);
+            setZonesLoading(true);
+            const response = await zoneService.getZones({ cityCorporationCode, status: 'ACTIVE' });
+            setZones(response.zones || []);
         } catch (err: any) {
-            console.error('Error fetching thanas:', err);
-            setThanas([]);
-            // Don't show error for thanas as it's optional
+            console.error('Error fetching zones:', err);
+            setZones([]);
         } finally {
-            setThanasLoading(false);
+            setZonesLoading(false);
+        }
+    };
+
+    const fetchWards = async (zoneId: number) => {
+        try {
+            setWardsLoading(true);
+            const response = await wardService.getWards({ zoneId, status: 'ACTIVE' });
+            setWards(response.wards || []);
+        } catch (err: any) {
+            console.error('Error fetching wards:', err);
+            setWards([]);
+        } finally {
+            setWardsLoading(false);
         }
     };
 
@@ -182,6 +202,21 @@ const UserAddModal: React.FC<UserAddModalProps> = ({
             newErrors.confirmPassword = 'Please confirm your password';
         } else if (formData.password !== formData.confirmPassword) {
             newErrors.confirmPassword = 'Passwords do not match';
+        }
+
+        // City Corporation is required
+        if (!formData.cityCorporationCode) {
+            newErrors.cityCorporationCode = 'City Corporation is required';
+        }
+
+        // Zone is required
+        if (!formData.zoneId) {
+            newErrors.zoneId = 'Zone is required';
+        }
+
+        // Ward is required
+        if (!formData.wardId) {
+            newErrors.wardId = 'Ward is required';
         }
 
         // Optional email validation
@@ -241,14 +276,11 @@ const UserAddModal: React.FC<UserAddModalProps> = ({
             if (formData.cityCorporationCode) {
                 createData.cityCorporationCode = formData.cityCorporationCode;
             }
-            if (formData.thanaId) {
-                createData.thanaId = parseInt(formData.thanaId);
+            if (formData.zoneId) {
+                createData.zoneId = parseInt(formData.zoneId);
             }
-            if (formData.ward) {
-                createData.ward = formData.ward;
-            }
-            if (formData.zone) {
-                createData.zone = formData.zone;
+            if (formData.wardId) {
+                createData.wardId = parseInt(formData.wardId);
             }
 
             await onSave(createData);
@@ -262,10 +294,9 @@ const UserAddModal: React.FC<UserAddModalProps> = ({
                 password: '',
                 confirmPassword: '',
                 cityCorporationCode: '',
-                thanaId: '',
-                ward: '',
-                zone: '',
-                role: 'ADMIN' as UserRole,
+                zoneId: '',
+                wardId: '',
+                role: 'CUSTOMER' as UserRole,
             });
 
             onClose();
@@ -292,10 +323,9 @@ const UserAddModal: React.FC<UserAddModalProps> = ({
                 password: '',
                 confirmPassword: '',
                 cityCorporationCode: '',
-                thanaId: '',
-                ward: '',
-                zone: '',
-                role: 'ADMIN' as UserRole,
+                zoneId: '',
+                wardId: '',
+                role: 'CUSTOMER' as UserRole,
             });
             setErrors({});
             setSubmitError(null);
@@ -479,9 +509,13 @@ const UserAddModal: React.FC<UserAddModalProps> = ({
                                 value={formData.cityCorporationCode}
                                 onChange={handleChange('cityCorporationCode')}
                                 disabled={loading || cityCorporationsLoading}
-                                helperText="Optional"
+                                error={!!errors.cityCorporationCode}
+                                helperText={errors.cityCorporationCode || 'Required'}
+                                required
                             >
-                                <MenuItem value="">None</MenuItem>
+                                <MenuItem value="">
+                                    <em>Select City Corporation</em>
+                                </MenuItem>
                                 {cityCorporations.map((cc) => (
                                     <MenuItem key={cc.code} value={cc.code}>
                                         {cc.name}
@@ -494,24 +528,29 @@ const UserAddModal: React.FC<UserAddModalProps> = ({
                             <TextField
                                 fullWidth
                                 select
-                                label="Thana/Area"
-                                value={formData.thanaId}
-                                onChange={handleChange('thanaId')}
-                                disabled={loading || thanasLoading || !formData.cityCorporationCode || !thanas || thanas.length === 0}
+                                label="Zone"
+                                value={formData.zoneId}
+                                onChange={handleChange('zoneId')}
+                                disabled={loading || zonesLoading || !formData.cityCorporationCode}
+                                error={!!errors.zoneId}
                                 helperText={
-                                    !formData.cityCorporationCode
+                                    errors.zoneId ||
+                                    (!formData.cityCorporationCode
                                         ? "Select City Corporation first"
-                                        : thanasLoading
-                                            ? "Loading thanas..."
-                                            : thanas && thanas.length === 0
-                                                ? "No thanas available"
-                                                : "Optional"
+                                        : zonesLoading
+                                            ? "Loading zones..."
+                                            : zones.length === 0
+                                                ? "No zones available"
+                                                : "Required")
                                 }
+                                required
                             >
-                                <MenuItem value="">None</MenuItem>
-                                {thanas && Array.isArray(thanas) && thanas.map((thana) => (
-                                    <MenuItem key={thana.id} value={thana.id.toString()}>
-                                        {thana.name}
+                                <MenuItem value="">
+                                    <em>Select Zone</em>
+                                </MenuItem>
+                                {zones.map((zone) => (
+                                    <MenuItem key={zone.id} value={zone.id.toString()}>
+                                        {zone.name || `Zone ${zone.zoneNumber}`}
                                     </MenuItem>
                                 ))}
                             </TextField>
@@ -524,33 +563,31 @@ const UserAddModal: React.FC<UserAddModalProps> = ({
                                 fullWidth
                                 select
                                 label="Ward"
-                                value={formData.ward}
-                                onChange={handleChange('ward')}
-                                disabled={loading || !formData.cityCorporationCode}
-                                helperText="Optional - Select City Corporation first"
+                                value={formData.wardId}
+                                onChange={handleChange('wardId')}
+                                disabled={loading || wardsLoading || !formData.zoneId}
+                                error={!!errors.wardId}
+                                helperText={
+                                    errors.wardId ||
+                                    (!formData.zoneId
+                                        ? "Select Zone first"
+                                        : wardsLoading
+                                            ? "Loading wards..."
+                                            : wards.length === 0
+                                                ? "No wards available"
+                                                : "Required")
+                                }
+                                required
                             >
-                                <MenuItem value="">None</MenuItem>
-                                {Array.from(
-                                    { length: wardRange.max - wardRange.min + 1 },
-                                    (_, i) => wardRange.min + i
-                                ).map((ward) => (
-                                    <MenuItem key={ward} value={ward.toString()}>
-                                        Ward {ward}
+                                <MenuItem value="">
+                                    <em>Select Ward</em>
+                                </MenuItem>
+                                {wards.map((ward) => (
+                                    <MenuItem key={ward.id} value={ward.id.toString()}>
+                                        Ward {ward.wardNumber}
                                     </MenuItem>
                                 ))}
                             </TextField>
-                        </Box>
-
-                        <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
-                            <TextField
-                                fullWidth
-                                label="Zone"
-                                value={formData.zone}
-                                onChange={handleChange('zone')}
-                                error={!!errors.zone}
-                                helperText={errors.zone || 'Optional'}
-                                disabled={loading}
-                            />
                         </Box>
                     </Box>
 
@@ -570,6 +607,7 @@ const UserAddModal: React.FC<UserAddModalProps> = ({
                                 disabled={loading}
                                 helperText="Select the user's role in the system"
                             >
+                                <MenuItem value="CUSTOMER">Customer (App User)</MenuItem>
                                 <MenuItem value="ADMIN">Admin</MenuItem>
                                 <MenuItem value="SUPER_ADMIN">Super Admin</MenuItem>
                                 <MenuItem value="MASTER_ADMIN">Master Admin</MenuItem>

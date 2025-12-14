@@ -32,6 +32,8 @@ const CityCorporationForm: React.FC<CityCorporationFormProps> = ({
         name: '',
         minWard: '',
         maxWard: '',
+        minZone: '',
+        maxZone: '',
     });
 
     const [errors, setErrors] = useState<Record<string, string>>({});
@@ -44,15 +46,19 @@ const CityCorporationForm: React.FC<CityCorporationFormProps> = ({
             setFormData({
                 code: cityCorporation.code,
                 name: cityCorporation.name,
-                minWard: cityCorporation.minWard.toString(),
-                maxWard: cityCorporation.maxWard.toString(),
+                minWard: cityCorporation.minWard?.toString() || '1',
+                maxWard: cityCorporation.maxWard?.toString() || '100',
+                minZone: cityCorporation.minZone?.toString() || '1',
+                maxZone: cityCorporation.maxZone?.toString() || '20',
             });
         } else {
             setFormData({
                 code: '',
                 name: '',
-                minWard: '',
-                maxWard: '',
+                minWard: '1',
+                maxWard: '100',
+                minZone: '1',
+                maxZone: '20',
             });
         }
         setErrors({});
@@ -108,6 +114,35 @@ const CityCorporationForm: React.FC<CityCorporationFormProps> = ({
             }
         }
 
+        // Min zone validation
+        if (!formData.minZone.trim()) {
+            newErrors.minZone = 'Minimum zone is required';
+        } else {
+            const minZone = parseInt(formData.minZone);
+            if (isNaN(minZone) || minZone < 1) {
+                newErrors.minZone = 'Minimum zone must be a positive number';
+            }
+        }
+
+        // Max zone validation
+        if (!formData.maxZone.trim()) {
+            newErrors.maxZone = 'Maximum zone is required';
+        } else {
+            const maxZone = parseInt(formData.maxZone);
+            if (isNaN(maxZone) || maxZone < 1) {
+                newErrors.maxZone = 'Maximum zone must be a positive number';
+            }
+        }
+
+        // Zone range validation
+        if (formData.minZone && formData.maxZone) {
+            const minZone = parseInt(formData.minZone);
+            const maxZone = parseInt(formData.maxZone);
+            if (!isNaN(minZone) && !isNaN(maxZone) && minZone >= maxZone) {
+                newErrors.maxZone = 'Maximum zone must be greater than minimum zone';
+            }
+        }
+
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
@@ -139,6 +174,8 @@ const CityCorporationForm: React.FC<CityCorporationFormProps> = ({
                 name: formData.name.trim(),
                 minWard: parseInt(formData.minWard),
                 maxWard: parseInt(formData.maxWard),
+                minZone: parseInt(formData.minZone),
+                maxZone: parseInt(formData.maxZone),
             };
 
             if (mode === 'create') {
@@ -161,8 +198,10 @@ const CityCorporationForm: React.FC<CityCorporationFormProps> = ({
             setFormData({
                 code: '',
                 name: '',
-                minWard: '',
-                maxWard: '',
+                minWard: '1',
+                maxWard: '100',
+                minZone: '1',
+                maxZone: '20',
             });
             setErrors({});
             setError(null);
@@ -225,32 +264,85 @@ const CityCorporationForm: React.FC<CityCorporationFormProps> = ({
                     />
 
                     {/* Ward range fields */}
-                    <Box sx={{ display: 'flex', gap: 2 }}>
-                        <TextField
-                            label="Minimum Ward"
-                            type="number"
-                            value={formData.minWard}
-                            onChange={(e) => handleChange('minWard', e.target.value)}
-                            error={!!errors.minWard}
-                            helperText={errors.minWard}
-                            fullWidth
-                            required
-                            disabled={loading}
-                            inputProps={{ min: 1 }}
-                        />
+                    <Box>
+                        <Box sx={{ fontWeight: 600, color: 'text.secondary', mb: 1.5 }}>
+                            Ward Range
+                        </Box>
+                        <Box sx={{ display: 'flex', gap: 2 }}>
+                            <TextField
+                                label="Minimum Ward *"
+                                type="number"
+                                value={formData.minWard}
+                                onChange={(e) => handleChange('minWard', e.target.value)}
+                                error={!!errors.minWard}
+                                helperText={errors.minWard || 'Starting ward number'}
+                                fullWidth
+                                required
+                                disabled={loading}
+                                inputProps={{ min: 1 }}
+                            />
 
-                        <TextField
-                            label="Maximum Ward"
-                            type="number"
-                            value={formData.maxWard}
-                            onChange={(e) => handleChange('maxWard', e.target.value)}
-                            error={!!errors.maxWard}
-                            helperText={errors.maxWard}
-                            fullWidth
-                            required
-                            disabled={loading}
-                            inputProps={{ min: 1 }}
-                        />
+                            <TextField
+                                label="Maximum Ward *"
+                                type="number"
+                                value={formData.maxWard}
+                                onChange={(e) => handleChange('maxWard', e.target.value)}
+                                error={!!errors.maxWard}
+                                helperText={
+                                    errors.maxWard ||
+                                    (cityCorporation?.actualMaxWard && cityCorporation.actualMaxWard > parseInt(formData.maxWard || '0')
+                                        ? `⚠️ Ward ${cityCorporation.actualMaxWard} exists! Set at least ${cityCorporation.actualMaxWard}`
+                                        : cityCorporation?.actualMaxWard
+                                            ? `Current highest: Ward ${cityCorporation.actualMaxWard}`
+                                            : 'Use 9999 for unlimited')
+                                }
+                                fullWidth
+                                required
+                                disabled={loading}
+                                inputProps={{ min: 1, max: 9999 }}
+                            />
+                        </Box>
+                    </Box>
+
+                    {/* Zone range fields */}
+                    <Box>
+                        <Box sx={{ fontWeight: 600, color: 'text.secondary', mb: 1.5 }}>
+                            Zone Range
+                        </Box>
+                        <Box sx={{ display: 'flex', gap: 2 }}>
+                            <TextField
+                                label="Minimum Zone *"
+                                type="number"
+                                value={formData.minZone}
+                                onChange={(e) => handleChange('minZone', e.target.value)}
+                                error={!!errors.minZone}
+                                helperText={errors.minZone || 'Starting zone number'}
+                                fullWidth
+                                required
+                                disabled={loading}
+                                inputProps={{ min: 1 }}
+                            />
+
+                            <TextField
+                                label="Maximum Zone *"
+                                type="number"
+                                value={formData.maxZone}
+                                onChange={(e) => handleChange('maxZone', e.target.value)}
+                                error={!!errors.maxZone}
+                                helperText={
+                                    errors.maxZone ||
+                                    (cityCorporation?.actualMaxZone && cityCorporation.actualMaxZone > parseInt(formData.maxZone || '0')
+                                        ? `⚠️ Zone ${cityCorporation.actualMaxZone} exists! Set at least ${cityCorporation.actualMaxZone}`
+                                        : cityCorporation?.actualMaxZone
+                                            ? `Current highest: Zone ${cityCorporation.actualMaxZone}`
+                                            : 'Use 9999 for unlimited')
+                                }
+                                fullWidth
+                                required
+                                disabled={loading}
+                                inputProps={{ min: 1, max: 9999 }}
+                            />
+                        </Box>
                     </Box>
                 </Box>
             </DialogContent>

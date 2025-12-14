@@ -26,6 +26,7 @@ import settingsIcon from '../../../../assets/icons/Settings.svg';
 import { chatService } from '../../../../services/chatService';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { useProfile } from '../../../../contexts/ProfileContext';
+import { usePermissions } from '../../../../hooks/usePermissions';
 import ProfileButton from '../../ProfileButton/ProfileButton';
 import { fadeIn, animationConfig } from '../../../../styles/animations';
 
@@ -84,6 +85,13 @@ const baseMenuItems = [
     roles: ['MASTER_ADMIN', 'SUPER_ADMIN'],
   },
   {
+    id: 'activity-logs',
+    label: 'Activity Logs',
+    icon: reportIcon,
+    path: '/activity-logs',
+    roles: ['MASTER_ADMIN', 'SUPER_ADMIN'],
+  },
+  {
     id: 'reports',
     label: 'Reports',
     icon: reportIcon,
@@ -126,6 +134,13 @@ const Sidebar: React.FC<SidebarProps> = ({
   const navigate = useNavigate();
   const { logout } = useAuth();
   const { profile } = useProfile();
+  const {
+    canViewMessages,
+    canViewAnalytics,
+    canManageAdmins,
+    canManageSuperAdmins,
+    canManageCityCorporations,
+  } = usePermissions();
   const [unreadCount, setUnreadCount] = useState<number>(0);
 
   // Fetch unread message count
@@ -147,13 +162,30 @@ const Sidebar: React.FC<SidebarProps> = ({
     return () => clearInterval(interval);
   }, []);
 
-  // Filter menu items based on user role and add dynamic badge
+  // Filter menu items based on user role, permissions, and add dynamic badge
   const menuItems = baseMenuItems
     .filter(item => {
       // If no roles specified, show to everyone
       if (!item.roles) return true;
+
       // Check if user's role is in the allowed roles
-      return profile?.role && item.roles.includes(profile.role);
+      if (!profile?.role || !item.roles.includes(profile.role)) return false;
+
+      // Additional permission checks for specific menu items
+      switch (item.id) {
+        case 'chats':
+          return canViewMessages();
+        case 'reports':
+          return canViewAnalytics();
+        case 'super-admins':
+          return canManageSuperAdmins();
+        case 'admins':
+          return canManageAdmins();
+        case 'city-corporations':
+          return canManageCityCorporations();
+        default:
+          return true;
+      }
     })
     .map(item => {
       if (item.dynamicBadge) {

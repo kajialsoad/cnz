@@ -97,10 +97,11 @@ const ChatListPanel: React.FC<ChatListPanelProps> = ({
         const fetchCityCorporations = async () => {
             try {
                 setLoadingCityCorporations(true);
-                const corps = await cityCorporationService.getCityCorporations('ACTIVE');
-                setCityCorporations(corps);
+                const response = await cityCorporationService.getCityCorporations('ACTIVE');
+                setCityCorporations(response.cityCorporations || []);
             } catch (error) {
                 console.error('Error fetching city corporations:', error);
+                setCityCorporations([]);
             } finally {
                 setLoadingCityCorporations(false);
             }

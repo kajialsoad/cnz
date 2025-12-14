@@ -1,5 +1,6 @@
 // User roles
 export const UserRole = {
+    CUSTOMER: 'CUSTOMER',
     ADMIN: 'ADMIN',
     SUPER_ADMIN: 'SUPER_ADMIN',
     MASTER_ADMIN: 'MASTER_ADMIN',
@@ -150,10 +151,13 @@ export interface CreateUserDto {
     password: string;
     cityCorporationCode?: string;
     thanaId?: number;
+    zoneId?: number;
+    wardId?: number;
     ward?: string;
     zone?: string;
     address?: string;
     role?: UserRole;
+    permissions?: any;
 }
 
 // Update user DTO

@@ -72,21 +72,56 @@ class WardService {
     }
 
     /**
+     * Get wards with flexible query parameters
+     */
+    async getWards(params?: {
+        zoneId?: number;
+        cityCorporationCode?: string;
+        status?: 'ACTIVE' | 'INACTIVE' | 'ALL';
+    }): Promise<{ wards: Ward[] }> {
+        try {
+            if (!params?.zoneId) {
+                console.warn('⚠️ No zoneId provided');
+                return { wards: [] };
+            }
+
+            const queryParams = new URLSearchParams();
+            queryParams.append('zoneId', params.zoneId.toString());
+
+            if (params?.status && params.status !== 'ALL') {
+                queryParams.append('status', params.status);
+            }
+
+            const response = await this.apiClient.get(
+                `/api/wards?${queryParams.toString()}`
+            );
+
+            console.log('🔍 Wards API Response:', response.data);
+
+            // Backend returns { success: true, data: [...] }
+            const wards = response.data.data || response.data.wards || [];
+
+            if (!Array.isArray(wards)) {
+                console.error('❌ wards is not an array:', wards);
+                return { wards: [] };
+            }
+
+            return { wards };
+        } catch (error) {
+            console.error('❌ Error fetching wards:', error);
+            return { wards: [] };
+        }
+    }
+
+    /**
      * Get wards by zone
      */
     async getWardsByZone(
         zoneId: number,
         status?: 'ACTIVE' | 'INACTIVE' | 'ALL'
     ): Promise<Ward[]> {
-        const params = new URLSearchParams();
-        if (status && status !== 'ALL') {
-            params.append('status', status);
-        }
-
-        const response = await this.apiClient.get(
-            `/api/admin/wards?zoneId=${zoneId}&${params.toString()}`
-        );
-        return response.data.wards || response.data;
+        const result = await this.getWards({ zoneId, status });
+        return result.wards;
     }
 
     /**
@@ -140,25 +175,31 @@ class WardService {
     }
 
     /**
-     * Get available ward numbers for a zone
+     * Get available ward numbers for a zone (city corporation level)
+     * Backend now gets ward limits from city corporation automatically
      */
-    async getAvailableWardNumbers(zoneId: number, maxWardNumber: number = 100): Promise<number[]> {
+    async getAvailableWardNumbers(zoneId: number): Promise<number[]> {
         try {
+            // Backend gets ward range from city corporation automatically
             const response = await this.apiClient.get(
-                `/api/admin/wards/available?zoneId=${zoneId}&maxWardNumber=${maxWardNumber}`
+                `/api/admin/wards/available/${zoneId}`
             );
-            return response.data.availableNumbers || response.data;
-        } catch (error) {
-            // Fallback: calculate client-side
-            const wards = await this.getWardsByZone(zoneId, 'ALL');
-            const existingNumbers = wards.map(w => w.wardNumber);
-            const available: number[] = [];
-            for (let i = 1; i <= maxWardNumber; i++) {
-                if (!existingNumbers.includes(i)) {
-                    available.push(i);
-                }
+
+            console.log('🔍 Available wards API response:', response.data);
+
+            // Backend returns { success: true, data: [...] }
+            const availableNumbers = response.data.data || response.data.availableNumbers || response.data;
+
+            if (!Array.isArray(availableNumbers)) {
+                console.error('❌ Available numbers is not an array:', availableNumbers);
+                return [];
             }
-            return available;
+
+            return availableNumbers;
+        } catch (error: any) {
+            console.error('❌ Error fetching available ward numbers:', error);
+            console.error('Error response:', error.response?.data);
+            throw error;
         }
     }
 }

@@ -7,6 +7,9 @@ const router = Router();
 // All routes require SUPER_ADMIN or MASTER_ADMIN role
 router.use(authGuard, rbacGuard('SUPER_ADMIN', 'MASTER_ADMIN'));
 
+// GET /api/admin/zones/available/:cityCorporationId - Get available zone numbers
+router.get('/available/:cityCorporationId', zoneController.getAvailableZoneNumbers);
+
 // GET /api/admin/zones - Get zones by city corporation
 router.get('/', zoneController.getZones);
 

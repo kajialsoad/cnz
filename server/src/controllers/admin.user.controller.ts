@@ -137,6 +137,7 @@ export async function getUserStatistics(req: AuthRequest, res: Response) {
         const cityCorporationCode = req.query.cityCorporationCode as string | undefined;
         const zoneId = req.query.zoneId ? parseInt(req.query.zoneId as string) : undefined;
         const wardId = req.query.wardId ? parseInt(req.query.wardId as string) : undefined;
+        const role = req.query.role as users_role | undefined;
 
         // Get requesting user info for role-based filtering
         const requestingUser = req.user ? {
@@ -150,6 +151,7 @@ export async function getUserStatistics(req: AuthRequest, res: Response) {
             cityCorporationCode,
             zoneId,
             wardId,
+            role,
             requestingUser: requestingUser ? `${requestingUser.role} (ID: ${requestingUser.id})` : 'none',
         });
 
@@ -157,6 +159,7 @@ export async function getUserStatistics(req: AuthRequest, res: Response) {
             cityCorporationCode,
             zoneId,
             wardId,
+            role,
             requestingUser
         );
 
@@ -182,8 +185,17 @@ export async function createUser(req: AuthRequest, res: Response) {
         // Validate request body
         const data = createUserSchema.parse(req.body);
 
+        // Get IP address and user agent for activity logging
+        const ipAddress = req.ip || req.socket.remoteAddress;
+        const userAgent = req.get('user-agent');
+
         // Create user
-        const user = await adminUserService.createUser(data);
+        const user = await adminUserService.createUser(
+            data,
+            req.user?.id,
+            ipAddress,
+            userAgent
+        );
 
         return res.status(201).json({
             success: true,
@@ -232,8 +244,18 @@ export async function updateUser(req: AuthRequest, res: Response) {
         // Validate request body
         const data = updateUserSchema.parse(req.body);
 
+        // Get IP address and user agent for activity logging
+        const ipAddress = req.ip || req.socket.remoteAddress;
+        const userAgent = req.get('user-agent');
+
         // Update user
-        const user = await adminUserService.updateUser(userId, data);
+        const user = await adminUserService.updateUser(
+            userId,
+            data,
+            req.user?.id,
+            ipAddress,
+            userAgent
+        );
 
         return res.status(200).json({
             success: true,
@@ -289,8 +311,18 @@ export async function updateUserStatus(req: AuthRequest, res: Response) {
         // Validate request body
         const { status, reason } = updateStatusSchema.parse(req.body);
 
+        // Get IP address and user agent for activity logging
+        const ipAddress = req.ip || req.socket.remoteAddress;
+        const userAgent = req.get('user-agent');
+
         // Update status
-        const user = await adminUserService.updateUserStatus(userId, status);
+        const user = await adminUserService.updateUserStatus(
+            userId,
+            status,
+            req.user?.id,
+            ipAddress,
+            userAgent
+        );
 
         return res.status(200).json({
             success: true,
@@ -318,6 +350,102 @@ export async function updateUserStatus(req: AuthRequest, res: Response) {
         return res.status(500).json({
             success: false,
             message: err?.message ?? 'Failed to update user status',
+        });
+    }
+}
+
+// Update user permissions
+export async function updateUserPermissions(req: AuthRequest, res: Response) {
+    try {
+        const userId = parseInt(req.params.id);
+
+        if (isNaN(userId)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid user ID',
+            });
+        }
+
+        console.log('🔐 Updating user permissions:', userId, req.body);
+
+        // Validate permissions structure
+        const permissions = req.body;
+
+        // Get IP address and user agent for activity logging
+        const ipAddress = req.ip || req.socket.remoteAddress;
+        const userAgent = req.get('user-agent');
+
+        // Update permissions
+        const user = await adminUserService.updateUserPermissions(
+            userId,
+            permissions,
+            req.user?.id,
+            ipAddress,
+            userAgent
+        );
+
+        return res.status(200).json({
+            success: true,
+            message: 'User permissions updated successfully',
+            data: { user },
+        });
+    } catch (err: any) {
+        console.error('❌ Error updating user permissions:', err);
+
+        if (err.message === 'User not found') {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found',
+            });
+        }
+
+        return res.status(500).json({
+            success: false,
+            message: err?.message ?? 'Failed to update user permissions',
+        });
+    }
+}
+
+// Delete user (soft delete)
+export async function deleteUser(req: AuthRequest, res: Response) {
+    try {
+        const userId = parseInt(req.params.id);
+
+        if (isNaN(userId)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid user ID',
+            });
+        }
+
+        const deletedBy = req.user?.id || 0;
+
+        console.log('🗑️ Deleting user:', userId, 'by:', deletedBy);
+
+        // Get IP address and user agent for activity logging
+        const ipAddress = req.ip || req.socket.remoteAddress;
+        const userAgent = req.get('user-agent');
+
+        // Delete user (soft delete)
+        await adminUserService.deleteUser(userId, deletedBy, ipAddress, userAgent);
+
+        return res.status(200).json({
+            success: true,
+            message: 'User deleted successfully',
+        });
+    } catch (err: any) {
+        console.error('❌ Error deleting user:', err);
+
+        if (err.message === 'User not found') {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found',
+            });
+        }
+
+        return res.status(500).json({
+            success: false,
+            message: err?.message ?? 'Failed to delete user',
         });
     }
 }

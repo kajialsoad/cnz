@@ -122,15 +122,18 @@ class WardService {
      * Create new ward
      */
     async createWard(data: CreateWardDto) {
-        // Validate ward number is positive
-        if (data.wardNumber < 1) {
-            throw new Error('Ward number must be a positive integer');
-        }
-
-        // Validate zone exists
+        // Validate zone exists and get city corporation with limits
         const zone = await prisma.zone.findUnique({
             where: { id: data.zoneId },
             include: {
+                cityCorporation: {
+                    select: {
+                        id: true,
+                        name: true,
+                        minWard: true,
+                        maxWard: true,
+                    },
+                },
                 _count: {
                     select: {
                         wards: true,
@@ -143,6 +146,14 @@ class WardService {
             throw new Error(`Zone with ID ${data.zoneId} not found`);
         }
 
+        // Validate ward number is within city corporation's range
+        const minWard = zone.cityCorporation.minWard || 1;
+        const maxWard = zone.cityCorporation.maxWard || 100;
+
+        if (data.wardNumber < minWard || data.wardNumber > maxWard) {
+            throw new Error(`Ward number must be between ${minWard} and ${maxWard} for ${zone.cityCorporation.name}`);
+        }
+
         // Check ward limit (max 12 wards per zone)
         if (zone._count.wards >= 12) {
             throw new Error(
@@ -150,17 +161,21 @@ class WardService {
             );
         }
 
-        // Check if ward number already exists for this zone
+        // Check if ward number already exists in this city corporation (globally unique)
         const existing = await prisma.ward.findFirst({
             where: {
                 wardNumber: data.wardNumber,
-                zoneId: data.zoneId,
+                cityCorporationId: zone.cityCorporationId,
             },
         });
 
         if (existing) {
+            const existingZone = await prisma.zone.findUnique({
+                where: { id: existing.zoneId },
+                select: { zoneNumber: true, name: true },
+            });
             throw new Error(
-                `Ward ${data.wardNumber} already exists in Zone ${zone.zoneNumber}`
+                `Ward ${data.wardNumber} is already used in ${existingZone?.name || 'Zone ' + existingZone?.zoneNumber}. Each ward number can only be used once per city corporation.`
             );
         }
 
@@ -199,10 +214,18 @@ class WardService {
      * Bulk create wards for a zone
      */
     async createWardsBulk(zoneId: number, wardNumbers: number[]) {
-        // Validate zone exists
+        // Validate zone exists and get city corporation with limits
         const zone = await prisma.zone.findUnique({
             where: { id: zoneId },
             include: {
+                cityCorporation: {
+                    select: {
+                        id: true,
+                        name: true,
+                        minWard: true,
+                        maxWard: true,
+                    },
+                },
                 _count: {
                     select: {
                         wards: true,
@@ -215,10 +238,14 @@ class WardService {
             throw new Error(`Zone with ID ${zoneId} not found`);
         }
 
-        // Validate ward numbers are positive and unique
+        // Validate ward numbers are within city corporation's range
         const uniqueWardNumbers = Array.from(new Set(wardNumbers));
-        if (uniqueWardNumbers.some(num => num < 1)) {
-            throw new Error('All ward numbers must be positive integers');
+        const minWard = zone.cityCorporation.minWard || 1;
+        const maxWard = zone.cityCorporation.maxWard || 100;
+
+        const invalidWards = uniqueWardNumbers.filter(num => num < minWard || num > maxWard);
+        if (invalidWards.length > 0) {
+            throw new Error(`Ward numbers must be between ${minWard} and ${maxWard} for ${zone.cityCorporation.name}. Invalid: ${invalidWards.join(', ')}`);
         }
 
         // Check ward limit (max 12 wards per zone)
@@ -229,23 +256,31 @@ class WardService {
             );
         }
 
-        // Check if any ward numbers already exist for this zone
+        // Check if any ward numbers already exist in this city corporation (globally unique)
         const existingWards = await prisma.ward.findMany({
             where: {
-                zoneId,
+                cityCorporationId: zone.cityCorporationId,
                 wardNumber: {
                     in: uniqueWardNumbers,
                 },
             },
             select: {
                 wardNumber: true,
+                zone: {
+                    select: {
+                        zoneNumber: true,
+                        name: true,
+                    },
+                },
             },
         });
 
         if (existingWards.length > 0) {
-            const existingNumbers = existingWards.map(w => w.wardNumber);
+            const existingDetails = existingWards.map(
+                w => `Ward ${w.wardNumber} (in ${w.zone.name || 'Zone ' + w.zone.zoneNumber})`
+            );
             throw new Error(
-                `Ward numbers ${existingNumbers.join(', ')} already exist in Zone ${zone.zoneNumber}`
+                `The following wards are already used in this city corporation: ${existingDetails.join(', ')}. Each ward number can only be used once per city corporation.`
             );
         }
 
@@ -410,19 +445,40 @@ class WardService {
     }
 
     /**
-     * Validate ward number for zone
+     * Validate ward number for zone (checks city corporation level uniqueness)
      */
     async validateWardNumber(zoneId: number, wardNumber: number): Promise<boolean> {
-        // Validate ward number is positive
-        if (wardNumber < 1) {
+        // Get zone to find city corporation with limits
+        const zone = await prisma.zone.findUnique({
+            where: { id: zoneId },
+            select: {
+                cityCorporationId: true,
+                cityCorporation: {
+                    select: {
+                        minWard: true,
+                        maxWard: true,
+                    },
+                },
+            },
+        });
+
+        if (!zone) {
             return false;
         }
 
-        // Check if ward number already exists for this zone
+        // Validate ward number is within city corporation's range
+        const minWard = zone.cityCorporation.minWard || 1;
+        const maxWard = zone.cityCorporation.maxWard || 100;
+
+        if (wardNumber < minWard || wardNumber > maxWard) {
+            return false;
+        }
+
+        // Check if ward number already exists in this city corporation (globally unique)
         const existing = await prisma.ward.findFirst({
             where: {
                 wardNumber,
-                zoneId,
+                cityCorporationId: zone.cityCorporationId,
             },
         });
 
@@ -586,29 +642,47 @@ class WardService {
     }
 
     /**
-     * Get available ward numbers for a zone (not already used)
+     * Get available ward numbers for a zone (not already used in city corporation)
+     * Ward numbers are unique per city corporation, not per zone
      */
-    async getAvailableWardNumbers(zoneId: number, maxWardNumber: number = 100): Promise<number[]> {
-        // Validate zone exists
+    async getAvailableWardNumbers(zoneId: number): Promise<number[]> {
+        // Validate zone exists and get city corporation with limits
         const zone = await prisma.zone.findUnique({
             where: { id: zoneId },
+            select: {
+                id: true,
+                cityCorporationId: true,
+                cityCorporation: {
+                    select: {
+                        minWard: true,
+                        maxWard: true,
+                    },
+                },
+            },
         });
 
         if (!zone) {
             throw new Error(`Zone with ID ${zoneId} not found`);
         }
 
-        // Get existing ward numbers for this zone
+        // Get ward range from city corporation
+        const minWard = zone.cityCorporation.minWard || 1;
+        const maxWard = zone.cityCorporation.maxWard || 100;
+
+        // Get existing ward numbers for this CITY CORPORATION (not just this zone)
+        // Ward numbers are unique per city corporation
         const existingWards = await prisma.ward.findMany({
-            where: { zoneId },
+            where: {
+                cityCorporationId: zone.cityCorporationId
+            },
             select: { wardNumber: true },
         });
 
         const existingNumbers = existingWards.map(w => w.wardNumber);
 
-        // Generate available numbers (1 to maxWardNumber, excluding existing)
+        // Generate available numbers (minWard to maxWard, excluding existing)
         const availableNumbers: number[] = [];
-        for (let i = 1; i <= maxWardNumber; i++) {
+        for (let i = minWard; i <= maxWard; i++) {
             if (!existingNumbers.includes(i)) {
                 availableNumbers.push(i);
             }

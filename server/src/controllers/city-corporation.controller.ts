@@ -19,7 +19,7 @@ class CityCorporationController {
 
             res.json({
                 success: true,
-                data: cityCorporations,
+                cityCorporations: cityCorporations,
             });
         } catch (error: any) {
             console.error('Error fetching city corporations:', error);

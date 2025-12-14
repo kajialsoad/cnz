@@ -408,7 +408,6 @@ class WardController {
     async getAvailableWardNumbers(req: Request, res: Response) {
         try {
             const { zoneId } = req.params;
-            const { maxWardNumber } = req.query;
 
             const zoneIdNum = parseInt(zoneId);
             if (isNaN(zoneIdNum)) {
@@ -418,15 +417,8 @@ class WardController {
                 });
             }
 
-            const maxNum = maxWardNumber ? parseInt(maxWardNumber as string) : 100;
-            if (isNaN(maxNum) || maxNum < 1) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Invalid maxWardNumber parameter',
-                });
-            }
-
-            const availableNumbers = await wardService.getAvailableWardNumbers(zoneIdNum, maxNum);
+            // Service now gets limits from city corporation automatically
+            const availableNumbers = await wardService.getAvailableWardNumbers(zoneIdNum);
 
             res.json({
                 success: true,

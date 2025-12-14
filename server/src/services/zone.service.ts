@@ -108,18 +108,21 @@ class ZoneService {
      * Create new zone
      */
     async createZone(data: CreateZoneDto) {
-        // Validate zone number is between 1-20
-        if (data.zoneNumber < 1 || data.zoneNumber > 20) {
-            throw new Error('Zone number must be between 1 and 20');
-        }
-
-        // Validate city corporation exists
+        // Validate city corporation exists and get limits
         const cityCorporation = await prisma.cityCorporation.findUnique({
             where: { id: data.cityCorporationId },
         });
 
         if (!cityCorporation) {
             throw new Error(`City Corporation with ID ${data.cityCorporationId} not found`);
+        }
+
+        // Validate zone number is within city corporation's range
+        const minZone = cityCorporation.minZone || 1;
+        const maxZone = cityCorporation.maxZone || 20;
+
+        if (data.zoneNumber < minZone || data.zoneNumber > maxZone) {
+            throw new Error(`Zone number must be between ${minZone} and ${maxZone} for ${cityCorporation.name}`);
         }
 
         // Check if zone number already exists for this city corporation
@@ -252,11 +255,59 @@ class ZoneService {
     }
 
     /**
+     * Get available zone numbers for a city corporation
+     */
+    async getAvailableZoneNumbers(cityCorporationId: number): Promise<number[]> {
+        // Validate city corporation exists and get limits
+        const cityCorporation = await prisma.cityCorporation.findUnique({
+            where: { id: cityCorporationId },
+        });
+
+        if (!cityCorporation) {
+            throw new Error(`City Corporation with ID ${cityCorporationId} not found`);
+        }
+
+        // Get zone range from city corporation
+        const minZone = cityCorporation.minZone || 1;
+        const maxZone = cityCorporation.maxZone || 20;
+
+        // Get existing zone numbers for this city corporation
+        const existingZones = await prisma.zone.findMany({
+            where: { cityCorporationId },
+            select: { zoneNumber: true },
+        });
+
+        const existingNumbers = existingZones.map(z => z.zoneNumber);
+
+        // Generate available numbers (minZone to maxZone, excluding existing)
+        const availableNumbers: number[] = [];
+        for (let i = minZone; i <= maxZone; i++) {
+            if (!existingNumbers.includes(i)) {
+                availableNumbers.push(i);
+            }
+        }
+
+        return availableNumbers;
+    }
+
+    /**
      * Validate zone number for city corporation
      */
     async validateZoneNumber(cityCorporationId: number, zoneNumber: number): Promise<boolean> {
-        // Validate zone number is between 1-20
-        if (zoneNumber < 1 || zoneNumber > 20) {
+        // Get city corporation limits
+        const cityCorporation = await prisma.cityCorporation.findUnique({
+            where: { id: cityCorporationId },
+        });
+
+        if (!cityCorporation) {
+            return false;
+        }
+
+        // Validate zone number is within city corporation's range
+        const minZone = cityCorporation.minZone || 1;
+        const maxZone = cityCorporation.maxZone || 20;
+
+        if (zoneNumber < minZone || zoneNumber > maxZone) {
             return false;
         }
 

@@ -1,6 +1,8 @@
 import prisma from '../utils/prisma';
 import { hash } from 'bcrypt';
 import { users_role, UserStatus, ComplaintStatus, Prisma } from '@prisma/client';
+import { activityLogService } from './activity-log.service';
+import { redisCache, RedisCacheKeys, RedisCacheTTL, withRedisCache, invalidateRedisCache } from '../utils/redis-cache';
 
 // Query interfaces
 export interface GetUsersQuery {
@@ -114,6 +116,7 @@ export interface CreateUserDto {
     zoneId?: number;
     wardId?: number;
     role?: users_role;
+    permissions?: any;
 }
 
 export interface UpdateUserDto {
@@ -400,11 +403,29 @@ export class AdminUserService {
         };
     }
 
-    // Get aggregate statistics
+    // Get aggregate statistics (with Redis caching)
     async getUserStatistics(
         cityCorporationCode?: string,
         zoneId?: number,
         wardId?: number,
+        role?: users_role,
+        requestingUser?: { id: number; role: users_role; zoneId?: number | null; wardId?: number | null }
+    ): Promise<UserStatisticsResponse> {
+        // Generate cache key
+        const cacheKey = RedisCacheKeys.userStats(cityCorporationCode, zoneId, wardId, role);
+
+        // Try to get from cache (Redis with fallback to in-memory)
+        return withRedisCache(cacheKey, RedisCacheTTL.USER_STATS, async () => {
+            return this.fetchUserStatistics(cityCorporationCode, zoneId, wardId, role, requestingUser);
+        });
+    }
+
+    // Fetch user statistics (internal method)
+    private async fetchUserStatistics(
+        cityCorporationCode?: string,
+        zoneId?: number,
+        wardId?: number,
+        role?: users_role,
         requestingUser?: { id: number; role: users_role; zoneId?: number | null; wardId?: number | null }
     ): Promise<UserStatisticsResponse> {
         // Build base where clause with cascading filters
@@ -431,11 +452,14 @@ export class AdminUserService {
             this.applyRoleBasedFiltering(userWhere, requestingUser);
         }
 
+        // Apply role filter - default to CUSTOMER if not specified
+        const targetRole = role || users_role.CUSTOMER;
+
         // Total citizens
         const totalCitizens = await prisma.user.count({
             where: {
                 ...userWhere,
-                role: { in: [users_role.ADMIN, users_role.SUPER_ADMIN, users_role.MASTER_ADMIN] },
+                role: targetRole,
             },
         });
 
@@ -505,13 +529,29 @@ export class AdminUserService {
             },
         });
 
-        // Status breakdown
+        // Status breakdown (optimized with single groupBy query)
+        const statusGroups = await prisma.user.groupBy({
+            by: ['status'],
+            where: userWhere,
+            _count: {
+                id: true,
+            },
+        });
+
         const statusBreakdown = {
-            active: await prisma.user.count({ where: { ...userWhere, status: UserStatus.ACTIVE } }),
-            inactive: await prisma.user.count({ where: { ...userWhere, status: UserStatus.INACTIVE } }),
-            suspended: await prisma.user.count({ where: { ...userWhere, status: UserStatus.SUSPENDED } }),
-            pending: await prisma.user.count({ where: { ...userWhere, status: UserStatus.PENDING } }),
+            active: 0,
+            inactive: 0,
+            suspended: 0,
+            pending: 0,
         };
+
+        statusGroups.forEach(group => {
+            const count = group._count.id;
+            if (group.status === UserStatus.ACTIVE) statusBreakdown.active = count;
+            else if (group.status === UserStatus.INACTIVE) statusBreakdown.inactive = count;
+            else if (group.status === UserStatus.SUSPENDED) statusBreakdown.suspended = count;
+            else if (group.status === UserStatus.PENDING) statusBreakdown.pending = count;
+        });
 
         return {
             totalCitizens,
@@ -526,7 +566,7 @@ export class AdminUserService {
     }
 
     // Create new user
-    async createUser(data: CreateUserDto): Promise<UserWithStats> {
+    async createUser(data: CreateUserDto, createdBy?: number, ipAddress?: string, userAgent?: string): Promise<UserWithStats> {
         // Check if user exists by phone
         const existingUserByPhone = await prisma.user.findUnique({
             where: { phone: data.phone },
@@ -566,6 +606,7 @@ export class AdminUserService {
                 status: UserStatus.ACTIVE,
                 emailVerified: false,
                 phoneVerified: false,
+                permissions: data.permissions ? JSON.stringify(data.permissions) : undefined,
             },
             select: {
                 id: true,
@@ -617,17 +658,26 @@ export class AdminUserService {
             },
         });
 
+        // Log activity
+        if (createdBy) {
+            await activityLogService.logUserCreation(createdBy, user, ipAddress, userAgent);
+        }
+
+        // Invalidate cache (Redis and in-memory)
+        await invalidateRedisCache.user();
+
         // Get statistics
         const statistics = await this.calculateUserStats(user.id);
 
         return {
             ...user,
+            cityCorporation: user.cityCorporation || null,
             statistics,
         };
     }
 
     // Update user information
-    async updateUser(userId: number, data: UpdateUserDto): Promise<UserWithStats> {
+    async updateUser(userId: number, data: UpdateUserDto, updatedBy?: number, ipAddress?: string, userAgent?: string): Promise<UserWithStats> {
         // Check if user exists
         const existingUser = await prisma.user.findUnique({
             where: { id: userId },
@@ -730,6 +780,14 @@ export class AdminUserService {
             },
         });
 
+        // Log activity
+        if (updatedBy) {
+            await activityLogService.logUserUpdate(updatedBy, existingUser, user, ipAddress, userAgent);
+        }
+
+        // Invalidate cache (Redis and in-memory)
+        await invalidateRedisCache.user(userId);
+
         // Get statistics
         const statistics = await this.calculateUserStats(user.id);
 
@@ -740,7 +798,7 @@ export class AdminUserService {
     }
 
     // Update user status
-    async updateUserStatus(userId: number, status: UserStatus): Promise<UserWithStats> {
+    async updateUserStatus(userId: number, status: UserStatus, updatedBy?: number, ipAddress?: string, userAgent?: string): Promise<UserWithStats> {
         // Check if user exists
         const existingUser = await prisma.user.findUnique({
             where: { id: userId },
@@ -804,6 +862,23 @@ export class AdminUserService {
             },
         });
 
+        // Log activity
+        if (updatedBy) {
+            await activityLogService.logActivity({
+                userId: updatedBy,
+                action: 'UPDATE_USER_STATUS',
+                entityType: 'USER',
+                entityId: userId,
+                oldValue: { status: existingUser.status },
+                newValue: { status: user.status },
+                ipAddress,
+                userAgent,
+            });
+        }
+
+        // Invalidate cache (Redis and in-memory)
+        await invalidateRedisCache.user(userId);
+
         // Get statistics
         const statistics = await this.calculateUserStats(user.id);
 
@@ -852,47 +927,161 @@ export class AdminUserService {
         ];
     }
 
-    // Calculate user statistics
-    private async calculateUserStats(userId: number): Promise<UserStatistics> {
-        // Total complaints
-        const totalComplaints = await prisma.complaint.count({
-            where: { userId },
+    // Update user permissions
+    async updateUserPermissions(userId: number, permissions: any, updatedBy?: number, ipAddress?: string, userAgent?: string): Promise<UserWithStats> {
+        // Check if user exists
+        const existingUser = await prisma.user.findUnique({
+            where: { id: userId },
         });
 
-        // Resolved complaints
-        const resolvedComplaints = await prisma.complaint.count({
-            where: {
-                userId,
-                status: ComplaintStatus.RESOLVED,
+        if (!existingUser) {
+            throw new Error('User not found');
+        }
+
+        // Update permissions
+        const user = await prisma.user.update({
+            where: { id: userId },
+            data: {
+                permissions: JSON.stringify(permissions)
+            },
+            select: {
+                id: true,
+                email: true,
+                phone: true,
+                firstName: true,
+                lastName: true,
+                avatar: true,
+                address: true,
+                role: true,
+                status: true,
+                emailVerified: true,
+                phoneVerified: true,
+                createdAt: true,
+                updatedAt: true,
+                lastLoginAt: true,
+                cityCorporationCode: true,
+                cityCorporation: {
+                    select: {
+                        code: true,
+                        name: true,
+                        minWard: true,
+                        maxWard: true,
+                    },
+                },
+                zoneId: true,
+                zone: {
+                    select: {
+                        id: true,
+                        zoneNumber: true,
+                        name: true,
+                        officerName: true,
+                        officerDesignation: true,
+                        officerSerialNumber: true,
+                        status: true,
+                    },
+                },
+                wardId: true,
+                ward: {
+                    select: {
+                        id: true,
+                        wardNumber: true,
+                        inspectorName: true,
+                        inspectorSerialNumber: true,
+                        status: true,
+                    },
+                },
+                wardImageCount: true,
             },
         });
 
-        // Pending complaints
-        const pendingComplaints = await prisma.complaint.count({
-            where: {
+        // Log activity
+        if (updatedBy) {
+            await activityLogService.logPermissionUpdate(
+                updatedBy,
                 userId,
-                status: ComplaintStatus.PENDING,
-            },
-        });
+                existingUser.permissions,
+                permissions,
+                ipAddress,
+                userAgent
+            );
+        }
 
-        // In progress complaints
-        const inProgressComplaints = await prisma.complaint.count({
-            where: {
-                userId,
-                status: ComplaintStatus.IN_PROGRESS,
-            },
-        });
+        // Invalidate cache (Redis and in-memory)
+        await invalidateRedisCache.user(userId);
 
-        // Unresolved complaints (pending + in progress)
-        const unresolvedComplaints = pendingComplaints + inProgressComplaints;
+        // Get statistics
+        const statistics = await this.calculateUserStats(user.id);
 
         return {
-            totalComplaints,
-            resolvedComplaints,
-            unresolvedComplaints,
-            pendingComplaints,
-            inProgressComplaints,
+            ...user,
+            cityCorporation: user.cityCorporation || null,
+            statistics,
         };
+    }
+
+    // Delete user (soft delete)
+    async deleteUser(userId: number, deletedBy: number, ipAddress?: string, userAgent?: string): Promise<void> {
+        // Check if user exists
+        const existingUser = await prisma.user.findUnique({
+            where: { id: userId },
+        });
+
+        if (!existingUser) {
+            throw new Error('User not found');
+        }
+
+        // Soft delete by setting status to INACTIVE
+        await prisma.user.update({
+            where: { id: userId },
+            data: {
+                status: UserStatus.INACTIVE,
+            },
+        });
+
+        // Log activity
+        await activityLogService.logUserDeletion(deletedBy, existingUser, ipAddress, userAgent);
+
+        // Invalidate cache (Redis and in-memory)
+        await invalidateRedisCache.user(userId);
+    }
+
+    // Calculate user statistics (optimized with single query)
+    private async calculateUserStats(userId: number): Promise<UserStatistics> {
+        // Use groupBy to get all stats in a single query
+        const stats = await prisma.complaint.groupBy({
+            by: ['status'],
+            where: { userId },
+            _count: {
+                id: true,
+            },
+        });
+
+        // Initialize statistics
+        const statistics: UserStatistics = {
+            totalComplaints: 0,
+            resolvedComplaints: 0,
+            unresolvedComplaints: 0,
+            pendingComplaints: 0,
+            inProgressComplaints: 0,
+        };
+
+        // Populate statistics from grouped data
+        stats.forEach(stat => {
+            const count = stat._count.id;
+            statistics.totalComplaints += count;
+
+            if (stat.status === ComplaintStatus.RESOLVED) {
+                statistics.resolvedComplaints += count;
+            } else if (stat.status === ComplaintStatus.PENDING) {
+                statistics.pendingComplaints += count;
+                statistics.unresolvedComplaints += count;
+            } else if (stat.status === ComplaintStatus.IN_PROGRESS) {
+                statistics.inProgressComplaints += count;
+                statistics.unresolvedComplaints += count;
+            }
+        });
+
+        return statistics;
     }
 }
 

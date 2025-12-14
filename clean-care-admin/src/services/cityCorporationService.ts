@@ -9,6 +9,8 @@ export interface CityCorporation {
     name: string;
     minWard: number;
     maxWard: number;
+    minZone: number;
+    maxZone: number;
     status: 'ACTIVE' | 'INACTIVE';
     createdAt: string;
     updatedAt: string;
@@ -17,6 +19,8 @@ export interface CityCorporation {
     activeThanas?: number;
     totalZones?: number;
     totalWards?: number;
+    actualMaxZone?: number | null;
+    actualMaxWard?: number | null;
 }
 
 export interface CreateCityCorporationDto {
@@ -24,12 +28,16 @@ export interface CreateCityCorporationDto {
     name: string;
     minWard: number;
     maxWard: number;
+    minZone: number;
+    maxZone: number;
 }
 
 export interface UpdateCityCorporationDto {
     name?: string;
     minWard?: number;
     maxWard?: number;
+    minZone?: number;
+    maxZone?: number;
     status?: 'ACTIVE' | 'INACTIVE';
 }
 
@@ -46,7 +54,7 @@ class CityCorporationService {
     constructor() {
         this.apiClient = axios.create({
             baseURL: API_CONFIG.BASE_URL,
-            timeout: API_CONFIG.TIMEOUT,
+            timeout: 60000, // 60 seconds for city corporation stats
             withCredentials: true,
             headers: {
                 'Content-Type': 'application/json',
@@ -86,18 +94,27 @@ class CityCorporationService {
     }
 
     // Get all city corporations
-    async getCityCorporations(status?: 'ACTIVE' | 'INACTIVE' | 'ALL'): Promise<CityCorporation[]> {
+    async getCityCorporations(status?: 'ACTIVE' | 'INACTIVE' | 'ALL'): Promise<{ cityCorporations: CityCorporation[] }> {
         try {
             const response = await this.apiClient.get<{
                 success: boolean;
-                data: CityCorporation[];
+                cityCorporations: CityCorporation[];
             }>('/api/admin/city-corporations', {
                 params: status && status !== 'ALL' ? { status } : undefined,
             });
 
-            return response.data.data;
+            // Backend returns { success: true, cityCorporations: [...] }
+            const cityCorporations = response.data.cityCorporations || [];
+
+            if (!Array.isArray(cityCorporations)) {
+                console.warn('City corporations data is not an array, returning empty array');
+                return { cityCorporations: [] };
+            }
+
+            return { cityCorporations };
         } catch (error) {
             if (axios.isAxiosError(error)) {
+                console.error('Failed to fetch city corporations:', error.response?.data?.message || error.message);
                 throw new Error(
                     error.response?.data?.message || 'Failed to fetch city corporations'
                 );

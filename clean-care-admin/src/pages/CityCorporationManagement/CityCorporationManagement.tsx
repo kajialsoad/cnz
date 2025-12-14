@@ -70,12 +70,13 @@ const CityCorporationManagement: React.FC = () => {
         try {
             setLoading(true);
             setError(null);
-            const data = await cityCorporationService.getCityCorporations('ALL');
-            setCityCorps(data);
+            const response = await cityCorporationService.getCityCorporations('ALL');
+            setCityCorps(response.cityCorporations || []);
         } catch (err: any) {
             console.error('Error fetching city corporations:', err);
             setError(err.message || 'Failed to load city corporations');
             showToast('Failed to load city corporations', 'error');
+            setCityCorps([]);
         } finally {
             setLoading(false);
         }
@@ -228,6 +229,7 @@ const CityCorporationManagement: React.FC = () => {
                                         <TableRow sx={{ backgroundColor: '#f8f9fa' }}>
                                             <TableCell sx={{ fontWeight: 600 }}>Code</TableCell>
                                             <TableCell sx={{ fontWeight: 600 }}>Name</TableCell>
+                                            <TableCell sx={{ fontWeight: 600 }}>Zone Range</TableCell>
                                             <TableCell sx={{ fontWeight: 600 }}>Ward Range</TableCell>
                                             <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
                                             <TableCell sx={{ fontWeight: 600 }}>Total Users</TableCell>
@@ -252,12 +254,14 @@ const CityCorporationManagement: React.FC = () => {
                                                     <TableCell><Skeleton variant="rectangular" height={30} /></TableCell>
                                                     <TableCell><Skeleton variant="rectangular" height={30} /></TableCell>
                                                     <TableCell><Skeleton variant="rectangular" height={30} /></TableCell>
+                                                    <TableCell><Skeleton variant="rectangular" height={30} /></TableCell>
+                                                    <TableCell><Skeleton variant="rectangular" height={30} /></TableCell>
                                                 </TableRow>
                                             ))
                                         ) : cityCorps.length === 0 ? (
                                             // Empty state
                                             <TableRow>
-                                                <TableCell colSpan={9}>
+                                                <TableCell colSpan={11}>
                                                     <Box sx={{ textAlign: 'center', py: 4 }}>
                                                         <BusinessIcon sx={{ fontSize: 48, color: '#9e9e9e', mb: 2 }} />
                                                         <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
@@ -302,6 +306,11 @@ const CityCorporationManagement: React.FC = () => {
                                                     <TableCell>
                                                         <Typography variant="body1" sx={{ fontWeight: 500 }}>
                                                             {cityCorporation.name}
+                                                        </Typography>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Typography variant="body2" color="text.secondary">
+                                                            {cityCorporation.minZone} - {cityCorporation.maxZone}
                                                         </Typography>
                                                     </TableCell>
                                                     <TableCell>

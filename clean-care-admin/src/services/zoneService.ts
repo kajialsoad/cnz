@@ -74,22 +74,62 @@ class ZoneService {
     }
 
     /**
+     * Get zones with flexible query parameters
+     */
+    async getZones(params?: {
+        cityCorporationCode?: string;
+        cityCorporationId?: number;
+        status?: 'ACTIVE' | 'INACTIVE' | 'ALL';
+    }): Promise<{ zones: Zone[] }> {
+        try {
+            const queryParams = new URLSearchParams();
+
+            // Add cityCorporationCode if provided
+            if (params?.cityCorporationCode) {
+                queryParams.append('cityCorporationCode', params.cityCorporationCode);
+            }
+
+            // Add cityCorporationId if provided
+            if (params?.cityCorporationId) {
+                queryParams.append('cityCorporationId', params.cityCorporationId.toString());
+            }
+
+            // Add status if provided
+            if (params?.status && params.status !== 'ALL') {
+                queryParams.append('status', params.status);
+            }
+
+            const queryString = queryParams.toString();
+            const url = queryString ? `/api/admin/zones?${queryString}` : '/api/admin/zones';
+
+            const response = await this.apiClient.get(url);
+
+            console.log('🔍 Zones API Response:', response.data);
+
+            // Backend returns { success: true, data: [...] }
+            const zones = response.data.data || response.data.zones || [];
+
+            if (!Array.isArray(zones)) {
+                console.error('❌ zones is not an array:', zones);
+                return { zones: [] };
+            }
+
+            return { zones };
+        } catch (error) {
+            console.error('❌ Error fetching zones:', error);
+            return { zones: [] };
+        }
+    }
+
+    /**
      * Get zones by city corporation
      */
     async getZonesByCityCorporation(
         cityCorporationId: number,
         status?: 'ACTIVE' | 'INACTIVE' | 'ALL'
     ): Promise<Zone[]> {
-        const params = new URLSearchParams();
-        if (status && status !== 'ALL') {
-            params.append('status', status);
-        }
-
-        const response = await this.apiClient.get(
-            `/api/admin/zones?cityCorporationId=${cityCorporationId}&${params.toString()}`
-        );
-        // API returns { success: true, data: zones }
-        return Array.isArray(response.data.data) ? response.data.data : [];
+        const result = await this.getZones({ cityCorporationId, status });
+        return result.zones;
     }
 
     /**
@@ -145,6 +185,36 @@ class ZoneService {
             return response.data.valid;
         } catch (error) {
             return false;
+        }
+    }
+
+    /**
+     * Get available zone numbers for a city corporation
+     * Returns only zone numbers that are not yet used
+     */
+    async getAvailableZoneNumbers(cityCorporationId: number): Promise<number[]> {
+        try {
+            console.log('🔍 Fetching available zones for city corporation:', cityCorporationId);
+
+            const response = await this.apiClient.get(
+                `/api/admin/zones/available/${cityCorporationId}`
+            );
+
+            console.log('✅ Available zones response:', response.data);
+
+            // Backend returns { success: true, data: [1, 2, 3, ...] }
+            const availableNumbers = response.data.data || [];
+
+            if (!Array.isArray(availableNumbers)) {
+                console.error('❌ Available numbers is not an array:', availableNumbers);
+                return [];
+            }
+
+            return availableNumbers;
+        } catch (error: any) {
+            console.error('❌ Error fetching available zone numbers:', error);
+            console.error('Error details:', error.response?.data);
+            return [];
         }
     }
 }

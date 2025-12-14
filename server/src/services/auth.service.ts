@@ -9,6 +9,7 @@ import cityCorporationService from './city-corporation.service';
 // import thanaService from './thana.service'; // Thana service disabled - using Zone/Ward now
 import zoneService from './zone.service';
 import wardService from './ward.service';
+import { trackLoginAttempt, checkAccountLockout } from '../middlewares/rate-limit.middleware';
 
 export interface RegisterInput {
   email?: string;
@@ -220,8 +221,17 @@ export class AuthService {
   }
 
   // User login
-  async login(input: LoginInput): Promise<TokenResponse> {
+  async login(input: LoginInput, ip?: string): Promise<TokenResponse> {
     console.log('Login input received:', input);
+
+    // Determine identifier for rate limiting
+    const identifier = input.email || input.phone || '';
+
+    // Check if account is locked due to too many failed attempts
+    const lockout = checkAccountLockout(identifier);
+    if (lockout.locked) {
+      throw new Error(`Account temporarily locked due to too many failed login attempts. Please try again in ${Math.ceil(lockout.retryAfter! / 60)} minutes.`);
+    }
 
     // Find user by email or phone
     let user;
@@ -240,6 +250,8 @@ export class AuthService {
     console.log('User found:', user ? 'Yes' : 'No');
 
     if (!user) {
+      // Track failed login attempt
+      await trackLoginAttempt(identifier, false, ip);
       throw new Error('Invalid credentials');
     }
 
@@ -257,8 +269,13 @@ export class AuthService {
 
     const isPasswordValid = await compare(input.password, user.passwordHash);
     if (!isPasswordValid) {
+      // Track failed login attempt
+      await trackLoginAttempt(identifier, false, ip);
       throw new Error('Invalid credentials');
     }
+
+    // Track successful login attempt (clears failed attempts)
+    await trackLoginAttempt(identifier, true, ip);
 
     // Admin রোল ন্যারো করা
     const toAdminRole = (r: any): AdminRole => {
@@ -320,10 +337,12 @@ export class AuthService {
     }
   }
 
-  // Refresh access token
+  // Refresh access token with session validation
+  // Requirements: 12.1, 12.2, 12.3, 12.17
   async refreshTokens(refreshToken: string): Promise<TokenResponse> {
     const payload = verifyRefreshToken(refreshToken);
 
+    // Validate stored refresh token
     const storedToken = await prisma.refreshToken.findFirst({
       where: {
         token: refreshToken,
@@ -335,25 +354,54 @@ export class AuthService {
       throw new Error('Invalid or expired refresh token');
     }
 
-    // Generate new tokens
+    // Validate user session (check if user still exists and is active)
+    const user = await prisma.user.findUnique({
+      where: { id: payload.sub },
+      select: {
+        id: true,
+        status: true,
+        role: true,
+        email: true,
+        phone: true,
+        zoneId: true,
+        wardId: true,
+        cityCorporationCode: true
+      }
+    });
+
+    if (!user) {
+      // User no longer exists, delete the refresh token
+      await prisma.refreshToken.delete({ where: { id: storedToken.id } });
+      throw new Error('User account not found');
+    }
+
+    if (user.status !== 'ACTIVE') {
+      // User is not active, delete the refresh token
+      await prisma.refreshToken.delete({ where: { id: storedToken.id } });
+      throw new Error('User account is not active');
+    }
+
+    // Generate new tokens with updated user data
     const newAccessToken = signAccessToken({
-      id: parseInt(payload.sub.toString()),
-      sub: parseInt(payload.sub.toString()),
-      role: payload.role,
-      email: payload.email,
-      phone: payload.phone,
-      zoneId: payload.zoneId,
-      wardId: payload.wardId
+      id: parseInt(user.id.toString()),
+      sub: parseInt(user.id.toString()),
+      role: user.role as AdminRole,
+      email: user.email ?? undefined,
+      phone: user.phone ?? undefined,
+      zoneId: user.zoneId,
+      wardId: user.wardId,
+      cityCorporationCode: user.cityCorporationCode ?? undefined
     });
 
     const newRefreshToken = signRefreshToken({
-      id: parseInt(payload.sub.toString()),
-      sub: parseInt(payload.sub.toString()),
-      role: payload.role,
-      email: payload.email,
-      phone: payload.phone,
-      zoneId: payload.zoneId,
-      wardId: payload.wardId
+      id: parseInt(user.id.toString()),
+      sub: parseInt(user.id.toString()),
+      role: user.role as AdminRole,
+      email: user.email ?? undefined,
+      phone: user.phone ?? undefined,
+      zoneId: user.zoneId,
+      wardId: user.wardId,
+      cityCorporationCode: user.cityCorporationCode ?? undefined
     });
 
     // Update refresh token

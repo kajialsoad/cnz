@@ -39,8 +39,8 @@ const WeeklyTrendAnalysis: React.FC<WeeklyTrendAnalysisProps> = ({ cityCorporati
           </Typography>
         </Box>
 
-        <Box sx={{ height: 300 }}>
-          <ResponsiveContainer width="100%" height="100%">
+        <Box sx={{ height: 300, minHeight: 300, width: '100%' }}>
+          <ResponsiveContainer width="100%" height="100%" minWidth={300} minHeight={300}>
             <AreaChart
               data={weeklyData}
               margin={{

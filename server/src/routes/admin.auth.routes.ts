@@ -1,14 +1,15 @@
 import { Router } from 'express';
 import { adminLogin, adminMe, adminLogout, adminRefresh, adminUpdateProfile } from '../controllers/admin.auth.controller';
 import { authGuard, rbacGuard } from '../middlewares/auth.middleware';
+import { loginRateLimit, ipRateLimit } from '../middlewares/rate-limit.middleware';
 
 console.log('🔧 Loading admin.auth.routes.ts...');
 
 const router = Router();
 
-// Admin authentication routes
-router.post('/login', adminLogin);
-console.log('🔧 Admin route registered: POST /login');
+// Admin authentication routes with rate limiting and account lockout protection
+router.post('/login', loginRateLimit, ipRateLimit(100, 60 * 1000), adminLogin);
+console.log('🔧 Admin route registered: POST /login (with rate limiting)');
 
 router.post('/logout', adminLogout);
 console.log('🔧 Admin route registered: POST /logout');

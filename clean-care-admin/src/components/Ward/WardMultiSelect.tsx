@@ -52,7 +52,8 @@ const WardMultiSelect: React.FC<WardMultiSelectProps> = ({
         try {
             setFetchingAvailable(true);
             setError(null);
-            const available = await wardService.getAvailableWardNumbers(zoneId, 100);
+            // Backend now gets ward limits from city corporation automatically
+            const available = await wardService.getAvailableWardNumbers(zoneId);
             setAvailableWardNumbers(available);
         } catch (err: any) {
             console.error('Error fetching available ward numbers:', err);

@@ -27,7 +27,8 @@ const CityCorporationComparison: React.FC = () => {
             try {
                 setLoading(true);
                 setError(null);
-                const data = await cityCorporationService.getCityCorporations('ACTIVE');
+                const response = await cityCorporationService.getCityCorporations('ACTIVE');
+                const data = response.cityCorporations || [];
 
                 // Ensure data is an array
                 if (Array.isArray(data)) {

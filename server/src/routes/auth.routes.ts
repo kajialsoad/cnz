@@ -3,6 +3,7 @@ import { authService } from '../services/auth.service';
 import { validateInput } from '../utils/validation';
 import { registerSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema } from '../utils/validation';
 import { createRateLimiter, createEmailRateLimiter, createCodeRateLimiter } from '../middlewares/auth.middleware';
+import { loginRateLimit } from '../middlewares/rate-limit.middleware';
 import * as authController from '../controllers/auth.controller';
 
 const router = Router();
@@ -43,11 +44,12 @@ router.post('/register', registrationRateLimiter, async (req, res) => {
   }
 });
 
-// Login endpoint
-router.post('/login', authRateLimiter, async (req, res) => {
+// Login endpoint with account lockout protection
+router.post('/login', loginRateLimit, authRateLimiter, async (req, res) => {
   try {
     const value = validateInput(loginSchema, req.body);
-    const tokens = await authService.login(value);
+    const ip = req.ip || req.socket.remoteAddress;
+    const tokens = await authService.login(value, ip);
     res.json({
       success: true,
       message: 'Login successful',

@@ -4,395 +4,372 @@ import {
   Typography,
   Card,
   CardContent,
-  FormControl,
+  Grid,
+  Button,
   Select,
   MenuItem,
-  Button,
-  Chip,
-  Paper,
+  FormControl,
+  InputLabel,
+  Stack,
+  IconButton,
 } from '@mui/material';
 import {
-  Assessment as AssessmentIcon,
-  TrendingUp as TrendingUpIcon,
   Download as DownloadIcon,
-  Schedule as ScheduleIcon,
-  FileDownload as FileDownloadIcon,
-  BarChart as BarChartIcon,
   Description as DescriptionIcon,
+  CalendarToday as CalendarIcon,
 } from '@mui/icons-material';
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  Legend,
+  Tooltip,
+} from 'recharts';
 import MainLayout from '../../components/common/Layout/MainLayout';
 
-interface Report {
-  id: string;
-  title: string;
-  type: 'Monthly' | 'Quarterly' | 'Weekly' | 'Yearly';
-  date: string;
-  size: string;
-  status: 'Ready';
-}
+// Mock Data for Pie Chart
+const data = [
+  { name: 'সমাধানকৃত', value: 856, color: '#10b981' }, // Green
+  { name: 'পেন্ডিং', value: 312, color: '#f59e0b' },   // Yellow/Orange
+  { name: 'অন্যান্য', value: 79, color: '#ef4444' },   // Red
+];
 
-const Reports: React.FC = () => {
-  const [reportType, setReportType] = useState('Monthly Report');
-  const [category, setCategory] = useState('All Categories');
-  const [format, setFormat] = useState('PDF');
-
-  // Sample reports data based on the reference image
-  const reports: Report[] = [
-    {
-      id: '1',
-      title: 'Monthly Report - October 2025',
-      type: 'Monthly',
-      date: 'Oct 31, 2025',
-      size: '2.4 MB',
-      status: 'Ready',
-    },
-    {
-      id: '2',
-      title: 'Quarterly Report - Q3 2025',
-      type: 'Quarterly',
-      date: 'Oct 01, 2025',
-      size: '8.7 MB',
-      status: 'Ready',
-    },
-    {
-      id: '3',
-      title: 'Weekly Report - Week 43',
-      type: 'Weekly',
-      date: 'Oct 27, 2025',
-      size: '856 KB',
-      status: 'Ready',
-    },
-    {
-      id: '4',
-      title: 'Annual Report - 2024',
-      type: 'Yearly',
-      date: 'Jan 01, 2025',
-      size: '15.2 MB',
-      status: 'Ready',
-    },
-  ];
-
-  const stats = [
-    {
-      title: 'Total Reports',
-      value: '248',
-      icon: <AssessmentIcon />,
-      color: '#3f51b5',
-      bgColor: '#e8eaf6',
-    },
-    {
-      title: 'This Month',
-      value: '32',
-      icon: <TrendingUpIcon />,
-      color: '#4caf50',
-      bgColor: '#e8f5e8',
-    },
-    {
-      title: 'Downloaded',
-      value: '186',
-      icon: <DownloadIcon />,
-      color: '#9c27b0',
-      bgColor: '#f3e5f5',
-    },
-    {
-      title: 'Scheduled',
-      value: '12',
-      icon: <ScheduleIcon />,
-      color: '#ff9800',
-      bgColor: '#fff3e0',
-    },
-  ];
-
-  const getReportTypeColor = (type: string) => {
-    switch (type) {
-      case 'Monthly':
-        return { backgroundColor: '#e3f2fd', color: '#1976d2' };
-      case 'Quarterly':
-        return { backgroundColor: '#e8f5e8', color: '#2e7d2e' };
-      case 'Weekly':
-        return { backgroundColor: '#fff3e0', color: '#f57c00' };
-      case 'Yearly':
-        return { backgroundColor: '#f3e5f5', color: '#7b1fa2' };
-      default:
-        return { backgroundColor: '#f5f5f5', color: '#616161' };
-    }
-  };
+const renderCustomizedLabel = ({ cx, cy, midAngle, outerRadius, name, value, color }: any) => {
+  const RADIAN = Math.PI / 180;
+  const radius = outerRadius * 1.2;
+  const x = cx + radius * Math.cos(-midAngle * RADIAN);
+  const y = cy + radius * Math.sin(-midAngle * RADIAN);
 
   return (
-    <MainLayout title="Reports & Analytics">
-      <Box sx={{ width: '100%', maxWidth: '100%', px: 1.5, mx: 0 }}>
+    <text x={x} y={y} fill={color} textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" style={{ fontSize: '12px', fontWeight: 500 }}>
+      {`${name}: ${value}`}
+    </text>
+  );
+};
+
+const Reports: React.FC = () => {
+  // States for Custom Report Filters
+  const [timeFilter, setTimeFilter] = useState('month');
+  const [category, setCategory] = useState('all');
+  const [status, setStatus] = useState('all');
+  const [zone, setZone] = useState('all');
+  const [ward, setWard] = useState('all');
+  const [format, setFormat] = useState('excel');
+
+  return (
+    <MainLayout title="রিপোর্টস ও এনালিটিক্স">
+      <Box sx={{ p: 3 }}>
         {/* Header Section */}
-        <Box sx={{ mb: 3 }}>
-          <Typography variant="h4" sx={{ fontWeight: 600, mb: 0.5, color: 'text.primary' }}>
-            Reports & Analytics
+        <Box sx={{ mb: 4 }}>
+          <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 1 }}>
+            রিপোর্টস ও এনালিটিক্স
           </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Generate and download system reports
+          <Typography variant="subtitle1" color="text.secondary">
+            বিস্তারিত রিপোর্ট তৈরি ও ডাউনলোড করুন
           </Typography>
         </Box>
 
-        {/* Stats Cards */}
-        <Box sx={{ 
-          display: 'grid', 
-          gridTemplateColumns: {
-            xs: '1fr',
-            sm: '1fr 1fr',
-            md: 'repeat(4, 1fr)',
-          },
-          gap: 2, 
-          mb: 4,
-        }}>
-          {stats.map((stat, index) => (
-            <Card
-              key={index}
-              sx={{
-                borderRadius: 2,
-                border: '1px solid #e0e0e0',
-                '&:hover': {
-                  boxShadow: 2,
-                },
-              }}
-            >
-              <CardContent sx={{ p: 3 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-                  <Typography 
-                    variant="h3" 
-                    sx={{ 
-                      fontWeight: 700, 
-                      color: 'text.primary',
-                    }}
-                  >
-                    {stat.value}
-                  </Typography>
-                  <Box
-                    sx={{
-                      width: 48,
-                      height: 48,
-                      borderRadius: 2,
-                      backgroundColor: stat.bgColor,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    {React.cloneElement(stat.icon, { 
-                      sx: { color: stat.color, fontSize: 24 } 
-                    })}
-                  </Box>
-                </Box>
-                <Typography 
-                  variant="body2" 
-                  color="text.secondary"
-                  sx={{ fontWeight: 500 }}
-                >
-                  {stat.title}
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: 3, mb: 3 }}>
+          {/* Complaint Status Overview (Left Side) */}
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Card sx={{ height: '100%', borderRadius: '14px', boxShadow: '0px 1px 3px 0px rgba(0, 0, 0, 0.1), 0px 1px 2px -1px rgba(0, 0, 0, 0.1)' }}>
+              <CardContent sx={{ p: '24px !important' }}>
+                <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2 }}>
+                  অভিযোগ স্ট্যাটাস ওভারভিউ
                 </Typography>
+                <Box sx={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={data}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={0}
+                        outerRadius={100}
+                        fill="#8884d8"
+                        paddingAngle={0}
+                        dataKey="value"
+                        label={renderCustomizedLabel}
+                      >
+                        {data.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                      <Legend 
+                        verticalAlign="bottom" 
+                        height={36}
+                        formatter={(value) => (
+                          <span style={{ color: '#333', fontWeight: 500, marginLeft: 5 }}>
+                            {value}
+                          </span>
+                        )}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </Box>
               </CardContent>
             </Card>
-          ))}
+          </Box>
+
+          {/* Quick Report Download (Right Side) */}
+          <Box sx={{ width: { xs: '100%', lg: 'auto' }, minWidth: { lg: '556px' } }}>
+            <Card sx={{ height: '100%', borderRadius: '14px', boxShadow: '0px 1px 3px 0px rgba(0, 0, 0, 0.1), 0px 1px 2px -1px rgba(0, 0, 0, 0.1)' }}>
+              <CardContent sx={{ p: '24px !important' }}>
+                <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 3 }}>
+                  দ্রুত রিপোর্ট ডাউনলোড
+                </Typography>
+                <Stack spacing={2}>
+                  {/* Current Week */}
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      px: 2,
+                      height: '79px',
+                      bgcolor: '#eff6ff', // Light Blue from Figma
+                      border: '1px solid #bedbff',
+                      borderRadius: '10px',
+                      cursor: 'pointer',
+                      '&:hover': { bgcolor: '#dbeafe' },
+                      minWidth: { sm: '508px' }
+                    }}
+                  >
+                    <Box>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: '#1e2939' }}>
+                        চলমান সপ্তাহ
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: '#4a5565' }}>
+                        সপ্তাহের সকল ডেটা
+                      </Typography>
+                    </Box>
+                    <IconButton size="small" sx={{ color: '#1565C0' }}>
+                      <DownloadIcon />
+                    </IconButton>
+                  </Box>
+
+                  {/* Current Month */}
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      px: 2,
+                      height: '79px',
+                      bgcolor: '#f0fdf4', // Light Green from Figma
+                      border: '1px solid #b9f8cf',
+                      borderRadius: '10px',
+                      cursor: 'pointer',
+                      '&:hover': { bgcolor: '#dcfce7' },
+                      minWidth: { sm: '508px' }
+                    }}
+                  >
+                    <Box>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: '#1e2939' }}>
+                        চলমান মাস
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: '#4a5565' }}>
+                        মাসের সকল ডেটা
+                      </Typography>
+                    </Box>
+                    <IconButton size="small" sx={{ color: '#2E7D32' }}>
+                      <DownloadIcon />
+                    </IconButton>
+                  </Box>
+
+                  {/* Last 3 Months */}
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      px: 2,
+                      height: '79px',
+                      bgcolor: '#faf5ff', // Light Purple from Figma
+                      border: '1px solid #e9d4ff',
+                      borderRadius: '10px',
+                      cursor: 'pointer',
+                      '&:hover': { bgcolor: '#f3e8ff' },
+                      minWidth: { sm: '508px' }
+                    }}
+                  >
+                    <Box>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: '#1e2939' }}>
+                        গত ৩ মাস
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: '#4a5565' }}>
+                        ত্রৈমাসিক রিপোর্ট
+                      </Typography>
+                    </Box>
+                    <IconButton size="small" sx={{ color: '#7B1FA2' }}>
+                      <DownloadIcon />
+                    </IconButton>
+                  </Box>
+                </Stack>
+              </CardContent>
+            </Card>
+          </Box>
         </Box>
 
-        {/* Generate New Report Section */}
-        <Card sx={{ borderRadius: 2, border: '1px solid #e0e0e0', mb: 4 }}>
-          <CardContent sx={{ p: 3 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-              <BarChartIcon sx={{ color: '#4CAF50' }} />
-              <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                Generate New Report
-              </Typography>
-            </Box>
-
-            <Box sx={{ 
-              display: 'grid',
-              gridTemplateColumns: {
-                xs: '1fr',
-                md: '1fr 1fr 1fr auto',
-              },
-              gap: 2,
-              alignItems: 'center',
-            }}>
-              {/* Report Type */}
-              <FormControl>
-                <Select
-                  value={reportType}
-                  onChange={(e) => setReportType(e.target.value)}
-                  sx={{
-                    height: 48,
-                    backgroundColor: '#f8f9fa',
-                    '& .MuiSelect-select': {
-                      display: 'flex',
-                      alignItems: 'center',
-                    },
-                  }}
-                >
-                  <MenuItem value="Monthly Report">Monthly Report</MenuItem>
-                  <MenuItem value="Weekly Report">Weekly Report</MenuItem>
-                  <MenuItem value="Quarterly Report">Quarterly Report</MenuItem>
-                  <MenuItem value="Annual Report">Annual Report</MenuItem>
-                </Select>
-              </FormControl>
-
-              {/* Category */}
-              <FormControl>
-                <Select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  sx={{
-                    height: 48,
-                    backgroundColor: '#f8f9fa',
-                    '& .MuiSelect-select': {
-                      display: 'flex',
-                      alignItems: 'center',
-                    },
-                  }}
-                >
-                  <MenuItem value="All Categories">All Categories</MenuItem>
-                  <MenuItem value="Complaints">Complaints</MenuItem>
-                  <MenuItem value="Users">Users</MenuItem>
-                  <MenuItem value="Performance">Performance</MenuItem>
-                </Select>
-              </FormControl>
-
-              {/* Format */}
-              <FormControl>
-                <Select
-                  value={format}
-                  onChange={(e) => setFormat(e.target.value)}
-                  sx={{
-                    height: 48,
-                    backgroundColor: '#f8f9fa',
-                    '& .MuiSelect-select': {
-                      display: 'flex',
-                      alignItems: 'center',
-                    },
-                  }}
-                >
-                  <MenuItem value="PDF">PDF</MenuItem>
-                  <MenuItem value="Excel">Excel</MenuItem>
-                  <MenuItem value="CSV">CSV</MenuItem>
-                </Select>
-              </FormControl>
-
-              {/* Generate Button */}
-              <Button
-                variant="contained"
-                startIcon={<FileDownloadIcon />}
-                sx={{
-                  backgroundColor: '#4CAF50',
-                  '&:hover': {
-                    backgroundColor: '#45a049',
-                  },
-                  textTransform: 'none',
-                  px: 3,
-                  py: 1.5,
-                  borderRadius: 2,
-                  height: 48,
-                }}
-              >
-                Generate Report
-              </Button>
-            </Box>
-          </CardContent>
-        </Card>
-
-        {/* Recent Reports Section */}
-        <Card sx={{ borderRadius: 2, border: '1px solid #e0e0e0' }}>
-          <CardContent sx={{ p: 3 }}>
-            <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>
-              Recent Reports
-            </Typography>
-
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {reports.map((report) => (
-                <Paper
-                  key={report.id}
-                  elevation={0}
-                  sx={{
-                    border: '1px solid #e0e0e0',
-                    borderRadius: 2,
-                    p: 2.5,
-                    '&:hover': {
-                      backgroundColor: '#f8f9fa',
-                    },
-                  }}
-                >
-                  <Box sx={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    alignItems: 'center',
-                  }}>
-                    {/* Left Section - Report Info */}
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <Box
-                        sx={{
-                          width: 48,
-                          height: 48,
-                          borderRadius: 2,
-                          backgroundColor: '#e8f5e8',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                      >
-                        <DescriptionIcon sx={{ color: '#4CAF50', fontSize: 24 }} />
-                      </Box>
-
-                      <Box>
-                        <Typography variant="body1" sx={{ fontWeight: 600, mb: 0.5 }}>
-                          {report.title}
-                        </Typography>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                          <Chip
-                            label={report.type}
-                            size="small"
-                            sx={{
-                              ...getReportTypeColor(report.type),
-                              fontWeight: 500,
-                              height: 24,
-                            }}
-                          />
-                          <Typography variant="body2" color="text.secondary">
-                            {report.date}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            • {report.size}
-                          </Typography>
-                        </Box>
-                      </Box>
-                    </Box>
-
-                    {/* Right Section - Actions */}
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <Chip
-                        label={report.status}
-                        sx={{
-                          backgroundColor: '#e8f5e8',
-                          color: '#2e7d2e',
-                          fontWeight: 500,
-                        }}
-                      />
+          {/* Create Custom Report (Bottom) */}
+          <Box sx={{ width: '100%' }}>
+            <Card sx={{ borderRadius: '14px', boxShadow: '0px 1px 3px 0px rgba(0, 0, 0, 0.1), 0px 1px 2px -1px rgba(0, 0, 0, 0.1)' }}>
+              <CardContent sx={{ p: '24px !important' }}>
+                <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 3 }}>
+                  কাস্টম রিপোর্ট তৈরি করুন
+                </Typography>
+                
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="subtitle2" sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <CalendarIcon fontSize="small" /> সময় নির্বাচন করুন
+                  </Typography>
+                  <Stack direction="row" spacing={2}>
+                    {['দিন', 'সপ্তাহ', 'মাস', 'বছর'].map((label) => (
                       <Button
-                        variant="outlined"
-                        startIcon={<DownloadIcon />}
+                        key={label}
+                        variant={timeFilter === label ? 'contained' : 'outlined'}
+                        onClick={() => setTimeFilter(label)}
                         sx={{
+                          borderRadius: '10px',
                           textTransform: 'none',
-                          borderColor: '#e0e0e0',
-                          color: 'text.primary',
+                          px: 3,
+                          height: '43px',
+                          minWidth: '263px',
+                          borderColor: '#d1d5dc',
+                          bgcolor: timeFilter === label ? '#f0fdf4' : 'transparent',
+                          color: timeFilter === label ? '#3fa564' : '#0a0a0a',
+                          border: timeFilter === label ? '1px solid #3fa564' : '1px solid #d1d5dc',
                           '&:hover': {
-                            borderColor: '#4CAF50',
-                            color: '#4CAF50',
-                          },
+                            bgcolor: timeFilter === label ? '#dcfce7' : '#f5f5f5',
+                            border: timeFilter === label ? '1px solid #3fa564' : '1px solid #d1d5dc',
+                          }
                         }}
                       >
-                        Download
+                        {label}
                       </Button>
-                    </Box>
-                  </Box>
-                </Paper>
-              ))}
-            </Box>
-          </CardContent>
-        </Card>
+                    ))}
+                  </Stack>
+                </Box>
+
+                <Grid container spacing={2} sx={{ mb: 4 }}>
+                  <Grid item xs={12} md={6}>
+                    <FormControl fullWidth size="small">
+                      <InputLabel>সকল ক্যাটাগরি</InputLabel>
+                      <Select
+                        value={category}
+                        label="সকল ক্যাটাগরি"
+                        onChange={(e) => setCategory(e.target.value)}
+                        sx={{ borderRadius: '10px', height: '40px' }}
+                      >
+                        <MenuItem value="all">সকল ক্যাটাগরি</MenuItem>
+                        <MenuItem value="road">রাস্তা ও নর্দমা</MenuItem>
+                        <MenuItem value="garbage">বর্জ্য ব্যবস্থাপনা</MenuItem>
+                        <MenuItem value="mosquito">মশা নিধন</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <FormControl fullWidth size="small">
+                      <InputLabel>সকল স্ট্যাটাস</InputLabel>
+                      <Select
+                        value={status}
+                        label="সকল স্ট্যাটাস"
+                        onChange={(e) => setStatus(e.target.value)}
+                        sx={{ borderRadius: '10px', height: '40px' }}
+                      >
+                        <MenuItem value="all">সকল স্ট্যাটাস</MenuItem>
+                        <MenuItem value="resolved">সমাধানকৃত</MenuItem>
+                        <MenuItem value="pending">পেন্ডিং</MenuItem>
+                        <MenuItem value="processing">প্রক্রিয়াধীন</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <FormControl fullWidth size="small">
+                      <InputLabel>সকল জোন</InputLabel>
+                      <Select
+                        value={zone}
+                        label="সকল জোন"
+                        onChange={(e) => setZone(e.target.value)}
+                        sx={{ borderRadius: '10px', height: '40px' }}
+                      >
+                        <MenuItem value="all">সকল জোন</MenuItem>
+                        <MenuItem value="zone1">জোন ১</MenuItem>
+                        <MenuItem value="zone2">জোন ২</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <FormControl fullWidth size="small">
+                      <InputLabel>সকল ওয়ার্ড</InputLabel>
+                      <Select
+                        value={ward}
+                        label="সকল ওয়ার্ড"
+                        onChange={(e) => setWard(e.target.value)}
+                        sx={{ borderRadius: '10px', height: '40px' }}
+                      >
+                        <MenuItem value="all">সকল ওয়ার্ড</MenuItem>
+                        <MenuItem value="ward1">ওয়ার্ড ১</MenuItem>
+                        <MenuItem value="ward2">ওয়ার্ড ২</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <FormControl fullWidth size="small">
+                      <InputLabel>Excel ফরম্যাট</InputLabel>
+                      <Select
+                        value={format}
+                        label="Excel ফরম্যাট"
+                        onChange={(e) => setFormat(e.target.value)}
+                        sx={{ borderRadius: '10px', height: '40px' }}
+                      >
+                        <MenuItem value="excel">Excel ফরম্যাট</MenuItem>
+                        <MenuItem value="pdf">PDF ফরম্যাট</MenuItem>
+                        <MenuItem value="csv">CSV ফরম্যাট</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                </Grid>
+
+                <Stack direction="row" spacing={2}>
+                  <Button
+                    variant="contained"
+                    startIcon={<DescriptionIcon />}
+                    sx={{ 
+                      px: 4, 
+                      py: 1.5, 
+                      borderRadius: '10px',
+                      textTransform: 'none',
+                      fontSize: '1rem',
+                      bgcolor: '#3fa564',
+                      '&:hover': { bgcolor: '#358c54' },
+                      minWidth: '204px'
+                    }}
+                  >
+                    রিপোর্ট তৈরি করুন
+                  </Button>
+                  <Button
+                    variant="contained"
+                    startIcon={<DownloadIcon />}
+                    sx={{ 
+                      px: 4, 
+                      py: 1.5, 
+                      borderRadius: '10px',
+                      textTransform: 'none',
+                      fontSize: '1rem',
+                      bgcolor: '#2b7fff',
+                      '&:hover': { bgcolor: '#236ad6' },
+                      minWidth: '195px'
+                    }}
+                  >
+                    ডাউনলোড করুন
+                  </Button>
+                </Stack>
+              </CardContent>
+            </Card>
+          </Box>
       </Box>
     </MainLayout>
   );

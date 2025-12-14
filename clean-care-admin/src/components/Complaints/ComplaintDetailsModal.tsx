@@ -47,6 +47,7 @@ import toast from 'react-hot-toast';
 import { complaintService } from '../../services/complaintService';
 import { handleApiError } from '../../utils/errorHandler';
 import { scaleIn, slideInUp, animationConfig, statusBadgeTransition, fadeIn } from '../../styles/animations';
+import { usePermissions } from '../../hooks/usePermissions';
 import CategoryInfo from './CategoryInfo';
 import type { ComplaintDetails, ComplaintStatus } from '../../types/complaint-service.types';
 
@@ -68,6 +69,7 @@ const ComplaintDetailsModal: React.FC<ComplaintDetailsModalProps> = ({
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const isTablet = useMediaQuery(theme.breakpoints.down('md'));
+    const { canEditComplaints, canViewComplaints } = usePermissions();
 
     const [complaint, setComplaint] = useState<ComplaintDetails | null>(null);
     const [loading, setLoading] = useState(false);
@@ -1037,7 +1039,7 @@ const ComplaintDetailsModal: React.FC<ComplaintDetailsModalProps> = ({
                     }}
                 >
                     {/* Left side - Status Update Buttons */}
-                    {complaint && getAvailableStatusTransitions(complaint.status).length > 0 && (
+                    {complaint && getAvailableStatusTransitions(complaint.status).length > 0 && canEditComplaints() && (
                         <Box sx={{
                             display: 'flex',
                             flexDirection: { xs: 'column', sm: 'row' },
@@ -1069,6 +1071,15 @@ const ComplaintDetailsModal: React.FC<ComplaintDetailsModalProps> = ({
                                 </Button>
                             ))}
                         </Box>
+                    )}
+
+                    {/* View Only Mode Alert */}
+                    {complaint && !canEditComplaints() && canViewComplaints() && (
+                        <Alert severity="info" sx={{ flex: 1 }}>
+                            <Typography variant="body2">
+                                ভিউ অনলি মোড - আপনি শুধুমাত্র কমপ্লেইন দেখতে পারবেন, পরিবর্তন করতে পারবেন না।
+                            </Typography>
+                        </Alert>
                     )}
 
                     {/* Right side - Action Buttons */}

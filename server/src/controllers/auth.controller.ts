@@ -57,11 +57,12 @@ export async function register(req: AuthRequest, res: Response) {
 export async function login(req: AuthRequest, res: Response) {
   try {
     const body = loginSchema.parse(req.body);
+    const ip = req.ip || req.socket.remoteAddress;
     const result = await authService.login({
       email: body.email,
       phone: body.phone,
       password: body.password,
-    });
+    }, ip);
     return res.status(200).json(result);
   } catch (err: any) {
     return res.status(401).json({ message: err?.message ?? 'Login failed' });

@@ -97,6 +97,7 @@ export interface CreateUserDto {
     ward?: string;
     zone?: string;
     role?: users_role;
+    permissions?: any;
 }
 
 // Update user DTO

@@ -3,7 +3,7 @@ import { Box } from '@mui/material';
 import {
   ComplaintStatusOverview,
   CitizenSatisfactionScore,
-  AverageServiceTime
+  // AverageServiceTime
 } from '../ComplaintsChart';
 
 interface MiddleDashboardWidgetsProps {
@@ -17,7 +17,7 @@ const MiddleDashboardWidgets: React.FC<MiddleDashboardWidgetsProps> = ({ cityCor
         display: 'grid',
         gridTemplateColumns: {
           xs: '1fr',
-          md: 'repeat(3, 1fr)',
+          md: 'repeat(2, 1fr)',
         },
         gap: 3,
         mb: 4,
@@ -25,7 +25,8 @@ const MiddleDashboardWidgets: React.FC<MiddleDashboardWidgetsProps> = ({ cityCor
     >
       <ComplaintStatusOverview cityCorporationCode={cityCorporationCode} />
       <CitizenSatisfactionScore cityCorporationCode={cityCorporationCode} />
-      <AverageServiceTime cityCorporationCode={cityCorporationCode} />
+      {/* AverageServiceTime - Commented out for cleaner design */}
+      {/* <AverageServiceTime cityCorporationCode={cityCorporationCode} /> */}
     </Box>
   );
 };

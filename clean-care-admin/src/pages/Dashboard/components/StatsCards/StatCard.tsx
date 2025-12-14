@@ -22,6 +22,7 @@ interface StatCardProps {
   };
   color?: 'primary' | 'secondary' | 'success' | 'warning' | 'error' | 'info';
   icon?: React.ReactNode;
+  onClick?: () => void;
 }
 
 const StatCard: React.FC<StatCardProps> = ({
@@ -31,6 +32,7 @@ const StatCard: React.FC<StatCardProps> = ({
   trend,
   color = 'primary',
   icon,
+  onClick,
 }) => {
   const getColorScheme = (colorName: string) => {
     const colorMap = {
@@ -48,56 +50,83 @@ const StatCard: React.FC<StatCardProps> = ({
 
   return (
     <Card
+      onClick={onClick}
       sx={{
         height: '100%',
         position: 'relative',
         overflow: 'visible',
+        cursor: onClick ? 'pointer' : 'default',
+        transition: 'all 0.3s ease',
+        borderRadius: 2,
+        border: '1px solid #E5E7EB',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+        '&:hover': onClick
+          ? {
+            transform: 'translateY(-2px)',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          }
+          : {},
         '&:before': {
           content: '""',
           position: 'absolute',
           top: 0,
           left: 0,
-          right: 0,
-          height: 4,
+          bottom: 0,
+          width: 4,
           bgcolor: colors.main,
-          borderRadius: '12px 12px 0 0',
+          borderRadius: '8px 0 0 8px',
         },
       }}
     >
-      <CardContent sx={{ p: 3 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-          <Typography
-            variant="body2"
-            color="text.secondary"
-            sx={{ fontWeight: 500, fontSize: '0.875rem' }}
-          >
-            {title}
-          </Typography>
+      <CardContent sx={{ p: 2.5, pl: 3 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5 }}>
           {icon && (
             <Box
               sx={{
-                p: 1,
-                borderRadius: '50%',
+                width: 36,
+                height: 36,
+                borderRadius: '8px',
                 bgcolor: colors.light,
                 color: colors.main,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
+                fontSize: '1.25rem',
               }}
             >
               {icon}
             </Box>
           )}
+          {trend && (
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 0.5,
+                color: trend.isPositive ? '#10B981' : '#EF4444',
+              }}
+            >
+              {trend.isPositive ? <TrendingUpIcon sx={{ fontSize: 18 }} /> : <TrendingDownIcon sx={{ fontSize: 18 }} />}
+            </Box>
+          )}
         </Box>
 
         <Typography
-          variant="h3"
+          variant="body2"
+          color="text.secondary"
+          sx={{ fontWeight: 500, fontSize: '0.875rem', mb: 0.5 }}
+        >
+          {title}
+        </Typography>
+
+        <Typography
+          variant="h4"
           sx={{
             fontWeight: 700,
-            fontSize: '2.25rem',
+            fontSize: '1.875rem',
             lineHeight: 1.2,
             color: 'text.primary',
-            mb: 1,
+            mb: 0.5,
           }}
         >
           {value}
@@ -105,37 +134,15 @@ const StatCard: React.FC<StatCardProps> = ({
 
         {subtitle && (
           <Typography
-            variant="body2"
-            color="text.secondary"
-            sx={{ fontSize: '0.75rem', mb: trend ? 1 : 0 }}
+            variant="caption"
+            sx={{
+              fontSize: '0.75rem',
+              color: trend?.isPositive ? '#10B981' : '#6B7280',
+              fontWeight: 500,
+            }}
           >
             {subtitle}
           </Typography>
-        )}
-
-        {trend && (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Chip
-              icon={trend.isPositive ? <TrendingUpIcon /> : <TrendingDownIcon />}
-              label={`${trend.isPositive ? '+' : ''}${trend.value}%`}
-              size="small"
-              sx={{
-                height: 24,
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                bgcolor: trend.isPositive ? 'success.light' : 'error.light',
-                color: trend.isPositive ? 'success.dark' : 'error.dark',
-                '& .MuiChip-icon': {
-                  fontSize: '1rem',
-                },
-              }}
-            />
-            {trend.label && (
-              <Typography variant="caption" color="text.secondary">
-                {trend.label}
-              </Typography>
-            )}
-          </Box>
         )}
       </CardContent>
     </Card>

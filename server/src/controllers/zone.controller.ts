@@ -9,17 +9,47 @@ class ZoneController {
      */
     async getZones(req: Request, res: Response) {
         try {
-            const { cityCorporationId, status } = req.query;
+            const { cityCorporationId, cityCorporationCode, status } = req.query;
 
-            if (!cityCorporationId) {
+            // Support both cityCorporationId and cityCorporationCode
+            let ccId: number | undefined;
+
+            if (cityCorporationId) {
+                ccId = parseInt(cityCorporationId as string);
+            } else if (cityCorporationCode) {
+                // Convert code to ID
+                const prisma = req.prisma;
+                if (!prisma) {
+                    return res.status(500).json({
+                        success: false,
+                        message: 'Database connection not available',
+                    });
+                }
+
+                const cityCorporation = await prisma.cityCorporation.findUnique({
+                    where: { code: cityCorporationCode as string },
+                    select: { id: true },
+                });
+
+                if (!cityCorporation) {
+                    return res.status(404).json({
+                        success: false,
+                        message: 'City Corporation not found',
+                    });
+                }
+
+                ccId = cityCorporation.id;
+            }
+
+            if (!ccId) {
                 return res.status(400).json({
                     success: false,
-                    message: 'City Corporation ID is required',
+                    message: 'City Corporation ID or Code is required',
                 });
             }
 
             const zones = await zoneService.getZonesByCityCorporation(
-                parseInt(cityCorporationId as string),
+                ccId,
                 (status as ZoneStatus | 'ALL') || 'ALL'
             );
 
@@ -239,6 +269,46 @@ class ZoneController {
             return res.status(500).json({
                 success: false,
                 message: 'Failed to fetch zone statistics',
+                error: error.message,
+            });
+        }
+    }
+
+    /**
+     * GET /api/admin/zones/available/:cityCorporationId
+     * Get available zone numbers for a city corporation
+     */
+    async getAvailableZoneNumbers(req: Request, res: Response) {
+        try {
+            const { cityCorporationId } = req.params;
+
+            const ccId = parseInt(cityCorporationId);
+            if (isNaN(ccId)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid city corporation ID',
+                });
+            }
+
+            const availableNumbers = await zoneService.getAvailableZoneNumbers(ccId);
+
+            return res.status(200).json({
+                success: true,
+                data: availableNumbers,
+            });
+        } catch (error: any) {
+            console.error('Error fetching available zone numbers:', error);
+
+            if (error.message.includes('not found')) {
+                return res.status(404).json({
+                    success: false,
+                    message: error.message,
+                });
+            }
+
+            return res.status(500).json({
+                success: false,
+                message: 'Failed to fetch available zone numbers',
                 error: error.message,
             });
         }

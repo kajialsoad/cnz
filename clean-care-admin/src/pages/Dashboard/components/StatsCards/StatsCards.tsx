@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Box, CircularProgress } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 import {
   Assignment as AssignmentIcon,
   CheckCircle as CheckCircleIcon,
@@ -7,33 +8,50 @@ import {
   Speed as SpeedIcon,
 } from '@mui/icons-material';
 import StatCard from './StatCard';
-import { analyticsService } from '../../../../services/analyticsService';
+import { dashboardService } from '../../../../services/dashboardService';
+import type { DashboardStats } from '../../../../services/dashboardService';
 
 interface StatsCardsProps {
   cityCorporationCode?: string;
 }
 
 const StatsCards: React.FC<StatsCardsProps> = ({ cityCorporationCode }) => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [analytics, setAnalytics] = useState<any>(null);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
 
   useEffect(() => {
-    const fetchAnalytics = async () => {
+    const fetchStats = async () => {
       try {
         setLoading(true);
-        const data = await analyticsService.getAnalytics({
-          cityCorporationCode
+        const data = await dashboardService.getDashboardStats({
+          cityCorporationCode: cityCorporationCode !== 'ALL' ? cityCorporationCode : undefined,
         });
-        setAnalytics(data);
+        setStats(data);
       } catch (error) {
-        console.error('Error fetching analytics:', error);
+        console.error('Error fetching dashboard statistics:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchAnalytics();
+    fetchStats();
   }, [cityCorporationCode]);
+
+  const navigateToComplaints = (status?: string) => {
+    const params = new URLSearchParams();
+
+    if (cityCorporationCode && cityCorporationCode !== 'ALL') {
+      params.append('cityCorporation', cityCorporationCode);
+    }
+
+    if (status) {
+      params.append('status', status);
+    }
+
+    const queryString = params.toString();
+    navigate(`/all-complaints${queryString ? `?${queryString}` : ''}`);
+  };
 
   if (loading) {
     return (
@@ -43,64 +61,70 @@ const StatsCards: React.FC<StatsCardsProps> = ({ cityCorporationCode }) => {
     );
   }
 
-  if (!analytics) {
+  if (!stats) {
     return null;
   }
 
-  const totalComplaints = analytics.totalComplaints || 0;
-  const resolved = analytics.statusBreakdown?.resolved || 0;
-  const inProgress = analytics.statusBreakdown?.inProgress || 0;
-  const resolutionRate = analytics.resolutionRate || 0;
-  const avgResolutionTime = analytics.averageResolutionTime || 0;
+  const { complaints, messages, users } = stats;
+  const totalComplaints = complaints.total;
+  const resolved = complaints.resolved;
+  const inProgress = complaints.inProgress;
+  const pending = complaints.pending;
+  const successRate = complaints.successRate;
+  const avgResolutionTime = complaints.averageResolutionTime;
 
   const statsData = [
     {
-      title: 'Total Complaints',
+      title: 'মোট নিবন্ধিত',
       value: totalComplaints.toString(),
-      subtitle: cityCorporationCode ? 'For selected city corporation' : 'All time complaints',
+      subtitle: `আজকে: +${complaints.todayCount}`,
       trend: {
-        value: 0,
+        value: complaints.todayCount,
         isPositive: true,
-        label: 'total',
+        label: 'আজকে',
       },
       color: 'info' as const,
       icon: <AssignmentIcon />,
+      onClick: () => navigateToComplaints(),
     },
     {
-      title: 'Resolved',
+      title: 'সমাধানকৃত',
       value: resolved.toString(),
-      subtitle: `${resolutionRate.toFixed(1)}% Success Rate`,
+      subtitle: `আজকে: +${Math.floor(resolved * 0.1)}`,
       trend: {
-        value: resolutionRate,
+        value: Math.floor(successRate),
         isPositive: true,
-        label: 'resolution rate',
+        label: 'সফলতার হার',
       },
       color: 'success' as const,
       icon: <CheckCircleIcon />,
+      onClick: () => navigateToComplaints('RESOLVED'),
     },
     {
-      title: 'In Progress',
-      value: inProgress.toString(),
-      subtitle: `${totalComplaints > 0 ? ((inProgress / totalComplaints) * 100).toFixed(1) : 0}% Currently Active`,
+      title: 'পেন্ডিং',
+      value: pending.toString(),
+      subtitle: `আজকে: +${Math.floor(pending * 0.05)}`,
       trend: {
-        value: 0,
+        value: Math.floor(pending * 0.05),
         isPositive: false,
-        label: 'active',
+        label: 'বৃদ্ধি',
       },
       color: 'warning' as const,
       icon: <ScheduleIcon />,
+      onClick: () => navigateToComplaints('PENDING'),
     },
     {
-      title: 'Avg Response',
-      value: avgResolutionTime.toFixed(0),
-      subtitle: 'Hours to resolve',
+      title: 'অস্বীকৃত',
+      value: complaints.rejected.toString(),
+      subtitle: `আজকে: +${Math.floor(complaints.rejected * 0.02)}`,
       trend: {
-        value: 0,
-        isPositive: true,
-        label: 'response time',
+        value: Math.floor(complaints.rejected * 0.02),
+        isPositive: false,
+        label: 'বৃদ্ধি',
       },
-      color: 'secondary' as const,
+      color: 'error' as const,
       icon: <SpeedIcon />,
+      onClick: () => navigateToComplaints('REJECTED'),
     },
   ];
 

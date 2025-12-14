@@ -1,5 +1,8 @@
 import jwt, { Secret, SignOptions } from 'jsonwebtoken';
 import env from '../config/env';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 export interface JwtPayload {
   id: number;
@@ -9,6 +12,10 @@ export interface JwtPayload {
   phone?: string;
   zoneId?: number | null;
   wardId?: number | null;
+  cityCorporationCode?: string | null;
+  sessionId?: string; // Add session tracking
+  iat?: number;
+  exp?: number;
 }
 
 export function signAccessToken(payload: JwtPayload) {
@@ -76,4 +83,77 @@ export function generateOTP(length: number = 6): string {
     otp += digits[Math.floor(Math.random() * digits.length)];
   }
   return otp;
+}
+
+/**
+ * Validate user session and check if user is still active
+ * Requirements: 12.1, 12.2, 12.3
+ */
+export async function validateUserSession(userId: number): Promise<boolean> {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        status: true,
+        role: true
+      }
+    });
+
+    // Check if user exists and is active
+    if (!user) {
+      return false;
+    }
+
+    // Check if user status is ACTIVE
+    if (user.status !== 'ACTIVE') {
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error validating user session:', error);
+    return false;
+  }
+}
+
+/**
+ * Generate session ID for tracking
+ */
+export function generateSessionId(): string {
+  return generateSecureToken(32);
+}
+
+/**
+ * Decode token without verification (for inspection)
+ */
+export function decodeToken(token: string): JwtPayload | null {
+  try {
+    const decoded = jwt.decode(token);
+    if (!decoded || typeof decoded === 'string') {
+      return null;
+    }
+    return decoded as unknown as JwtPayload;
+  } catch (error) {
+    return null;
+  }
+}
+
+/**
+ * Check if token is expired
+ */
+export function isTokenExpired(token: string): boolean {
+  try {
+    const decoded = jwt.decode(token);
+    if (!decoded || typeof decoded === 'string') {
+      return true;
+    }
+    const payload = decoded as unknown as JwtPayload;
+    if (!payload.exp) {
+      return true;
+    }
+    return payload.exp * 1000 < Date.now();
+  } catch (error) {
+    return true;
+  }
 }

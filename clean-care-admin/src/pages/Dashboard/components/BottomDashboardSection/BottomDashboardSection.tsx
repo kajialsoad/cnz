@@ -1,11 +1,12 @@
 import React from 'react';
 import { Box } from '@mui/material';
-import {
-  WardZonePerformance,
-  WeeklyTrendAnalysis,
-  TotalUsersWidget
-} from '../QuickActions';
-import { OperationalMonitoring } from '../OperationalMonitoring';
+// import {
+//   WardZonePerformance,
+//   WeeklyTrendAnalysis,
+//   TotalUsersWidget
+// } from '../QuickActions';
+import { TotalUsersWidget } from '../QuickActions';
+// import { OperationalMonitoring } from '../OperationalMonitoring';
 
 interface BottomDashboardSectionProps {
   cityCorporationCode?: string;
@@ -14,8 +15,14 @@ interface BottomDashboardSectionProps {
 const BottomDashboardSection: React.FC<BottomDashboardSectionProps> = ({ cityCorporationCode }) => {
   return (
     <Box sx={{ mb: 4 }}>
+      {/* Total Users Widget - Full Width */}
+      <Box sx={{ mb: 3 }}>
+        <TotalUsersWidget cityCorporationCode={cityCorporationCode} />
+      </Box>
+
+      {/* COMMENTED OUT - Will implement later */}
       {/* Top Row: Ward Performance + Total Users */}
-      <Box
+      {/* <Box
         sx={{
           display: 'grid',
           gridTemplateColumns: {
@@ -28,15 +35,17 @@ const BottomDashboardSection: React.FC<BottomDashboardSectionProps> = ({ cityCor
       >
         <WardZonePerformance cityCorporationCode={cityCorporationCode} />
         <TotalUsersWidget cityCorporationCode={cityCorporationCode} />
-      </Box>
+      </Box> */}
 
+      {/* COMMENTED OUT - Will implement later */}
       {/* Middle Row: Weekly Trend Analysis (Full Width) */}
-      <Box sx={{ mb: 3 }}>
+      {/* <Box sx={{ mb: 3 }}>
         <WeeklyTrendAnalysis cityCorporationCode={cityCorporationCode} />
-      </Box>
+      </Box> */}
 
+      {/* COMMENTED OUT - Will implement later */}
       {/* Bottom Row: Operational Monitoring */}
-      <OperationalMonitoring cityCorporationCode={cityCorporationCode} />
+      {/* <OperationalMonitoring cityCorporationCode={cityCorporationCode} /> */}
     </Box>
   );
 };

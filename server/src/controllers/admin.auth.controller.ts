@@ -3,6 +3,7 @@ import { AuthRequest } from '../types/auth';
 import { authService } from '../services/auth.service';
 import { z } from 'zod';
 import env from '../config/env';
+import { trackLoginAttempt, checkAccountLockout } from '../middlewares/rate-limit.middleware';
 
 console.log('🔧 Loading admin.auth.controller.ts...');
 
@@ -62,6 +63,20 @@ export async function adminLogin(req: AuthRequest, res: Response) {
 
     try {
         const body = adminLoginSchema.parse(req.body);
+        const ip = req.ip || req.socket.remoteAddress;
+
+        // Check if account is locked due to too many failed attempts
+        const lockout = checkAccountLockout(body.email);
+        if (lockout.locked) {
+            return res.status(429).json({
+                success: false,
+                error: {
+                    code: 'ACCOUNT_LOCKED',
+                    message: `Account temporarily locked due to too many failed login attempts. Please try again in ${Math.ceil(lockout.retryAfter! / 60)} minutes.`,
+                    retryAfter: lockout.retryAfter
+                }
+            });
+        }
 
         // First, verify the user exists and has admin role
         const prisma = (await import('../utils/prisma')).default;
@@ -78,11 +93,15 @@ export async function adminLogin(req: AuthRequest, res: Response) {
         });
 
         if (!user) {
+            // Track failed login attempt
+            await trackLoginAttempt(body.email, false, ip);
             return res.status(401).json({ message: 'Invalid credentials' });
         }
 
         // Check if user has admin role
         if (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN' && user.role !== 'MASTER_ADMIN') {
+            // Track failed login attempt
+            await trackLoginAttempt(body.email, false, ip);
             return res.status(403).json({
                 message: 'Access denied. Admin privileges required.'
             });
@@ -93,7 +112,7 @@ export async function adminLogin(req: AuthRequest, res: Response) {
             email: body.email,
             password: body.password,
             rememberMe: body.rememberMe,
-        });
+        }, ip);
 
         const cookieOpts = {
             httpOnly: true as const,

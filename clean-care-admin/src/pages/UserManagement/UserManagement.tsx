@@ -175,15 +175,27 @@ const UserManagement: React.FC = () => {
     fetchStatistics();
   }, [selectedCityCorporation]);
 
+  // Auto-refresh statistics every 30 seconds
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      fetchStatistics();
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(intervalId);
+  }, [selectedCityCorporation]);
+
   // Fetch city corporations function
   const fetchCityCorporations = async () => {
     try {
       setCityCorporationsLoading(true);
-      const cityCorps = await cityCorporationService.getCityCorporations('ACTIVE');
-      setCityCorporations(cityCorps);
+      const response = await cityCorporationService.getCityCorporations('ACTIVE');
+      console.log('✅ City Corporations response in UserManagement:', response);
+      // getCityCorporations returns { cityCorporations: [...] }
+      setCityCorporations(response.cityCorporations || []);
     } catch (err: any) {
       console.error('Error fetching city corporations:', err);
       showToast('Failed to load city corporations', 'error');
+      setCityCorporations([]); // Ensure it's always an array
     } finally {
       setCityCorporationsLoading(false);
     }
@@ -228,6 +240,7 @@ const UserManagement: React.FC = () => {
         limit: pagination.limit,
         search: debouncedSearchTerm || undefined,
         status: statusFilter !== 'ALL' ? statusFilter : undefined,
+        role: 'CUSTOMER', // Only show app users (citizens), not admins or super admins
         cityCorporationCode: selectedCityCorporation !== 'ALL' ? selectedCityCorporation : undefined,
         zoneId: selectedZone || undefined,
         wardId: selectedWard || undefined,
@@ -252,7 +265,8 @@ const UserManagement: React.FC = () => {
     try {
       setStatsLoading(true);
       const stats = await userManagementService.getUserStatistics(
-        selectedCityCorporation !== 'ALL' ? selectedCityCorporation : undefined
+        selectedCityCorporation !== 'ALL' ? selectedCityCorporation : undefined,
+        'CUSTOMER' // Only count app users (citizens), not admins or super admins
       );
       setStatistics(stats);
     } catch (err: any) {
@@ -808,7 +822,7 @@ const UserManagement: React.FC = () => {
                           <TableCell>
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                               <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                {user.cityCorporation?.name || user.zone || 'N/A'}
+                                {user.cityCorporation?.name || 'N/A'}
                               </Typography>
                               {user.cityCorporation && (
                                 <Typography variant="caption" color="text.secondary">

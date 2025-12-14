@@ -14,7 +14,7 @@ import {
     Alert,
     CircularProgress,
 } from '@mui/material';
-import { type Zone, type CreateZoneDto, type UpdateZoneDto } from '../../services/zoneService';
+import { type Zone, type CreateZoneDto, type UpdateZoneDto, zoneService } from '../../services/zoneService';
 
 interface ZoneFormProps {
     open: boolean;
@@ -42,6 +42,35 @@ const ZoneForm: React.FC<ZoneFormProps> = ({
     const [officerSerialNumber, setOfficerSerialNumber] = useState<string>('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [availableZoneNumbers, setAvailableZoneNumbers] = useState<number[]>([]);
+    const [loadingAvailableZones, setLoadingAvailableZones] = useState(false);
+
+    // Fetch available zone numbers when dialog opens in create mode
+    useEffect(() => {
+        const fetchAvailableZones = async () => {
+            if (open && mode === 'create' && cityCorporationId) {
+                setLoadingAvailableZones(true);
+                try {
+                    console.log('🔍 Fetching available zones for CC:', cityCorporationId);
+                    const numbers = await zoneService.getAvailableZoneNumbers(cityCorporationId);
+                    console.log('✅ Available zone numbers:', numbers);
+                    setAvailableZoneNumbers(numbers);
+
+                    // Set first available zone as default
+                    if (numbers.length > 0) {
+                        setZoneNumber(numbers[0]);
+                    }
+                } catch (err) {
+                    console.error('❌ Error fetching available zones:', err);
+                    setError('Failed to load available zones');
+                } finally {
+                    setLoadingAvailableZones(false);
+                }
+            }
+        };
+
+        fetchAvailableZones();
+    }, [open, mode, cityCorporationId]);
 
     // Initialize form with zone data when editing
     useEffect(() => {
@@ -53,7 +82,6 @@ const ZoneForm: React.FC<ZoneFormProps> = ({
             setOfficerSerialNumber(zone.officerSerialNumber || '');
         } else {
             // Reset form for create mode
-            setZoneNumber(1);
             setName('');
             setOfficerName('');
             setOfficerDesignation('');
@@ -68,12 +96,7 @@ const ZoneForm: React.FC<ZoneFormProps> = ({
             setLoading(true);
             setError(null);
 
-            // Validate zone number
-            if (zoneNumber < 1 || zoneNumber > 20) {
-                setError('Zone number must be between 1 and 20');
-                return;
-            }
-
+            // Backend will validate zone number against city corporation limits
             const data: CreateZoneDto | UpdateZoneDto = mode === 'create'
                 ? {
                     zoneNumber,
@@ -141,21 +164,48 @@ const ZoneForm: React.FC<ZoneFormProps> = ({
                         variant="outlined"
                     />
 
-                    {/* Zone Number Dropdown (1-20) */}
+                    {/* Zone Number Dropdown - Shows only available zones */}
                     <FormControl fullWidth>
                         <InputLabel>Zone Number *</InputLabel>
                         <Select
                             value={zoneNumber}
                             onChange={(e) => setZoneNumber(Number(e.target.value))}
                             label="Zone Number *"
-                            disabled={mode === 'edit' || loading}
+                            disabled={mode === 'edit' || loading || loadingAvailableZones}
                         >
-                            {Array.from({ length: 20 }, (_, i) => i + 1).map((num) => (
-                                <MenuItem key={num} value={num}>
-                                    Zone {num}
+                            {mode === 'edit' ? (
+                                // In edit mode, show only the current zone number
+                                <MenuItem value={zoneNumber}>
+                                    Zone {zoneNumber}
                                 </MenuItem>
-                            ))}
+                            ) : loadingAvailableZones ? (
+                                // Show loading state
+                                <MenuItem disabled>
+                                    <CircularProgress size={20} sx={{ mr: 1 }} />
+                                    Loading available zones...
+                                </MenuItem>
+                            ) : availableZoneNumbers.length === 0 ? (
+                                // No available zones
+                                <MenuItem disabled>
+                                    No available zones (all zones are in use)
+                                </MenuItem>
+                            ) : (
+                                // Show only available zone numbers
+                                availableZoneNumbers.map((num) => (
+                                    <MenuItem key={num} value={num}>
+                                        Zone {num}
+                                    </MenuItem>
+                                ))
+                            )}
                         </Select>
+                        {mode === 'create' && !loadingAvailableZones && (
+                            <Box sx={{ mt: 0.5, fontSize: '0.75rem', color: 'text.secondary' }}>
+                                {availableZoneNumbers.length === 0
+                                    ? 'All zones are already in use for this city corporation'
+                                    : `${availableZoneNumbers.length} zone(s) available`
+                                }
+                            </Box>
+                        )}
                     </FormControl>
 
                     {/* Zone Name (Optional) */}
@@ -230,7 +280,7 @@ const ZoneForm: React.FC<ZoneFormProps> = ({
                 <Button
                     onClick={handleSubmit}
                     variant="contained"
-                    disabled={loading}
+                    disabled={loading || (mode === 'create' && availableZoneNumbers.length === 0)}
                     sx={{
                         textTransform: 'none',
                         px: 3,

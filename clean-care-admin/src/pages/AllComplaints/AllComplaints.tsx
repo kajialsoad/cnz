@@ -183,11 +183,12 @@ const AllComplaints: React.FC = () => {
   const fetchCityCorporations = async () => {
     try {
       setCityCorporationsLoading(true);
-      const cityCorps = await cityCorporationService.getCityCorporations('ACTIVE');
-      setCityCorporations(cityCorps);
+      const response = await cityCorporationService.getCityCorporations('ACTIVE');
+      setCityCorporations(response.cityCorporations || []);
     } catch (err: any) {
       console.error('Error fetching city corporations:', err);
       showErrorToast('Failed to load city corporations');
+      setCityCorporations([]);
     } finally {
       setCityCorporationsLoading(false);
     }

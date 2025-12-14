@@ -193,7 +193,12 @@ const CategoryChart: React.FC<CategoryChartProps> = ({ startDate, endDate }) => 
             </Box>
 
             {/* Chart */}
-            <ResponsiveContainer width="100%" height={isMobile ? 300 : isTablet ? 350 : 400}>
+            <ResponsiveContainer
+                width="100%"
+                height={isMobile ? 300 : isTablet ? 350 : 400}
+                minWidth={250}
+                minHeight={isMobile ? 300 : isTablet ? 350 : 400}
+            >
                 <PieChart>
                     <Pie
                         data={chartData}

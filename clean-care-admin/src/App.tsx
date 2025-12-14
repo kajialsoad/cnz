@@ -1,168 +1,203 @@
+import { lazy, Suspense } from 'react';
 import { ThemeProvider, CssBaseline } from '@mui/material';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import { theme } from './styles/theme';
+import { queryClient } from './config/reactQuery';
 import { AuthProvider } from './contexts/AuthContext';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { ProfileProvider } from './contexts/ProfileContext';
-import { ProtectedRoute } from './components/routing';
+import { ProtectedRoute, RoleBasedRoute } from './components/routing';
 import ErrorBoundary from './components/common/ErrorBoundary';
-import Dashboard from './pages/Dashboard/Dashboard';
-import AllComplaints from './pages/AllComplaints';
-import UserManagement from './pages/UserManagement';
-import AdminChatPage from './pages/AdminChatPage';
-import CategoryAnalytics from './pages/CategoryAnalytics';
-import CityCorporationManagement from './pages/CityCorporationManagement';
-import Reports from './pages/Reports';
-import Notifications from './pages/Notifications';
-import Settings from './pages/Settings';
+import PageLoadingBar from './components/common/PageLoadingBar';
+
+// Eager load critical pages
 import Login from './pages/Login';
-import AdminManagement from './pages/AdminManagement';
-import SuperAdminManagement from './pages/SuperAdminManagement';
+import Dashboard from './pages/Dashboard/Dashboard';
+
+// Lazy load management pages for code splitting
+const AllComplaints = lazy(() => import('./pages/AllComplaints'));
+const UserManagement = lazy(() => import('./pages/UserManagement'));
+const AdminManagement = lazy(() => import('./pages/AdminManagement'));
+const SuperAdminManagement = lazy(() => import('./pages/SuperAdminManagement'));
+const AdminChatPage = lazy(() => import('./pages/AdminChatPage'));
+const CategoryAnalytics = lazy(() => import('./pages/CategoryAnalytics'));
+const CityCorporationManagement = lazy(() => import('./pages/CityCorporationManagement'));
+const ActivityLogs = lazy(() => import('./pages/ActivityLogs/ActivityLogs'));
+const Reports = lazy(() => import('./pages/Reports'));
+const Notifications = lazy(() => import('./pages/Notifications'));
+const Settings = lazy(() => import('./pages/Settings'));
 
 function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            duration: 4000,
-            style: {
-              background: '#363636',
-              color: '#fff',
-              fontSize: '14px',
-              padding: '12px 16px',
-              borderRadius: '8px',
-            },
-            success: {
-              duration: 3000,
-              iconTheme: {
-                primary: '#4CAF50',
-                secondary: '#fff',
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider theme={theme}>
+          <CssBaseline />
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              duration: 4000,
+              style: {
+                background: '#363636',
+                color: '#fff',
+                fontSize: '14px',
+                padding: '12px 16px',
+                borderRadius: '8px',
               },
-            },
-            error: {
-              duration: 5000,
-              iconTheme: {
-                primary: '#f44336',
-                secondary: '#fff',
+              success: {
+                duration: 3000,
+                iconTheme: {
+                  primary: '#4CAF50',
+                  secondary: '#fff',
+                },
               },
-            },
-          }}
-        />
-        <AuthProvider>
-          <LanguageProvider>
-            <ProfileProvider>
-              <Router basename={import.meta.env.BASE_URL}>
-                <Routes>
-                  {/* Public Route */}
-                  <Route path="/login" element={<Login />} />
+              error: {
+                duration: 5000,
+                iconTheme: {
+                  primary: '#f44336',
+                  secondary: '#fff',
+                },
+              },
+            }}
+          />
+          <AuthProvider>
+            <LanguageProvider>
+              <ProfileProvider>
+                <Router
+                  basename={import.meta.env.BASE_URL}
+                  future={{
+                    v7_startTransition: true,
+                    v7_relativeSplatPath: true
+                  }}
+                >
+                  <Suspense fallback={<PageLoadingBar />}>
+                    <Routes>
+                      {/* Public Route */}
+                      <Route path="/login" element={<Login />} />
 
-                  {/* Protected Routes */}
-                  <Route
-                    path="/"
-                    element={
-                      <ProtectedRoute>
-                        <Dashboard />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/complaints"
-                    element={
-                      <ProtectedRoute>
-                        <AllComplaints />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/admins"
-                    element={
-                      <ProtectedRoute>
-                        <AdminManagement />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/super-admins"
-                    element={
-                      <ProtectedRoute>
-                        <SuperAdminManagement />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/users"
-                    element={
-                      <ProtectedRoute>
-                        <UserManagement />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/chats"
-                    element={
-                      <ProtectedRoute>
-                        <AdminChatPage />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/chats/:complaintId"
-                    element={
-                      <ProtectedRoute>
-                        <AdminChatPage />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/analytics/categories"
-                    element={
-                      <ProtectedRoute>
-                        <CategoryAnalytics />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/city-corporations"
-                    element={
-                      <ProtectedRoute>
-                        <CityCorporationManagement />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/reports"
-                    element={
-                      <ProtectedRoute>
-                        <Reports />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/notifications"
-                    element={
-                      <ProtectedRoute>
-                        <Notifications />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/settings"
-                    element={
-                      <ProtectedRoute>
-                        <Settings />
-                      </ProtectedRoute>
-                    }
-                  />
-                </Routes>
-              </Router>
-            </ProfileProvider>
-          </LanguageProvider>
-        </AuthProvider>
-      </ThemeProvider>
+                      {/* Protected Routes */}
+                      <Route
+                        path="/"
+                        element={
+                          <ProtectedRoute>
+                            <Dashboard />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/complaints"
+                        element={
+                          <ProtectedRoute>
+                            <AllComplaints />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/admins"
+                        element={
+                          <ProtectedRoute>
+                            <RoleBasedRoute allowedRoles={['MASTER_ADMIN', 'SUPER_ADMIN']}>
+                              <AdminManagement />
+                            </RoleBasedRoute>
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/super-admins"
+                        element={
+                          <ProtectedRoute>
+                            <RoleBasedRoute allowedRoles={['MASTER_ADMIN']}>
+                              <SuperAdminManagement />
+                            </RoleBasedRoute>
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/users"
+                        element={
+                          <ProtectedRoute>
+                            <UserManagement />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/chats"
+                        element={
+                          <ProtectedRoute>
+                            <AdminChatPage />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/chats/:complaintId"
+                        element={
+                          <ProtectedRoute>
+                            <AdminChatPage />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/analytics/categories"
+                        element={
+                          <ProtectedRoute>
+                            <CategoryAnalytics />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/city-corporations"
+                        element={
+                          <ProtectedRoute>
+                            <RoleBasedRoute allowedRoles={['MASTER_ADMIN', 'SUPER_ADMIN']}>
+                              <CityCorporationManagement />
+                            </RoleBasedRoute>
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/activity-logs"
+                        element={
+                          <ProtectedRoute>
+                            <RoleBasedRoute allowedRoles={['MASTER_ADMIN', 'SUPER_ADMIN']}>
+                              <ActivityLogs />
+                            </RoleBasedRoute>
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/reports"
+                        element={
+                          <ProtectedRoute>
+                            <Reports />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/notifications"
+                        element={
+                          <ProtectedRoute>
+                            <Notifications />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/settings"
+                        element={
+                          <ProtectedRoute>
+                            <Settings />
+                          </ProtectedRoute>
+                        }
+                      />
+                    </Routes>
+                  </Suspense>
+                </Router>
+              </ProfileProvider>
+            </LanguageProvider>
+          </AuthProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
     </ErrorBoundary>
   );
 }
