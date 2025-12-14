@@ -174,8 +174,18 @@ problems-report.html
 !README.md
 !**/README.md
 
-# Documentation folders
+# Documentation folders (organized project docs)
 /docs/
+
+# Server organized folders
+/server/tests/
+/server/scripts/migrations/
+/server/scripts/checks/
+/server/scripts/utilities/
+
+# Admin panel organized folders
+/clean-care-admin/docs/
+/clean-care-admin/tests/
 
 # Test files in subdirectories
 **/tests/**/*.cjs

@@ -3,3 +3,8 @@
 # Test files and documentation
 tests/
 docs/
+
+# Organized script folders
+scripts/migrations/
+scripts/checks/
+scripts/utilities/
