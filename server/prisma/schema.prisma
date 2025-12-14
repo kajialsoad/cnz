@@ -42,6 +42,7 @@ model Zone {
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
   users               User[]
+  assignedUsers       UserZone[]
   ward_inspectors     ward_inspectors[]
   wards               Ward[]
   cityCorporation     CityCorporation   @relation(fields: [cityCorporationId], references: [id], onDelete: Cascade)
@@ -117,6 +118,8 @@ model User {
   refreshTokens           RefreshToken[]
   sessions                Session[]
   user_activities         user_activities[]
+  assignedZones           UserZone[]               @relation("UserZones")
+  assignedByZones         UserZone[]               @relation("ZoneAssigner")
   cityCorporation         CityCorporation?         @relation(fields: [cityCorporationCode], references: [code])
   ward                    Ward?                    @relation(fields: [wardId], references: [id])
   zone                    Zone?                    @relation(fields: [zoneId], references: [id])
@@ -355,6 +358,25 @@ model user_activities {
 
   @@index([createdAt])
   @@index([userId])
+}
+
+model UserZone {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  zoneId     Int
+  assignedAt DateTime @default(now())
+  assignedBy Int?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  user       User     @relation("UserZones", fields: [userId], references: [id], onDelete: Cascade)
+  zone       Zone     @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+  assigner   User?    @relation("ZoneAssigner", fields: [assignedBy], references: [id], onDelete: SetNull)
+
+  @@unique([userId, zoneId])
+  @@index([userId])
+  @@index([zoneId])
+  @@index([assignedBy])
+  @@map("user_zones")
 }
 
 enum UserStatus {

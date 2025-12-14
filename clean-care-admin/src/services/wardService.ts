@@ -93,7 +93,7 @@ class WardService {
             }
 
             const response = await this.apiClient.get(
-                `/api/wards?${queryParams.toString()}`
+                `/api/admin/wards?${queryParams.toString()}`
             );
 
             console.log('🔍 Wards API Response:', response.data);

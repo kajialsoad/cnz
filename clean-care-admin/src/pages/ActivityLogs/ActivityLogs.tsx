@@ -24,13 +24,12 @@ import {
 } from '@mui/icons-material';
 import { activityLogService } from '../../services/activityLogService';
 import {
-    ActivityLog,
-    ActivityLogQuery,
     ActivityActions,
     EntityTypes,
     getActionLabel,
     getActionColor,
 } from '../../types/activityLog.types';
+import type { ActivityLog, ActivityLogQuery } from '../../types/activityLog.types';
 import ActivityLogTimeline from './components/ActivityLogTimeline';
 import ActivityLogDetailsModal from './components/ActivityLogDetailsModal';
 

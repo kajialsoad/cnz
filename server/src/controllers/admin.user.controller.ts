@@ -488,3 +488,144 @@ export async function getUserComplaints(req: AuthRequest, res: Response) {
         });
     }
 }
+
+
+/**
+ * Assign zones to Super Admin (Master Admin only)
+ */
+export async function assignZonesToSuperAdmin(req: AuthRequest, res: Response) {
+    try {
+        const userId = parseInt(req.params.id);
+        const { zoneIds } = req.body;
+
+        if (!Array.isArray(zoneIds) || zoneIds.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Zone IDs array is required',
+            });
+        }
+
+        const { multiZoneService } = await import('../services/multi-zone.service');
+
+        await multiZoneService.assignZonesToSuperAdmin(
+            { userId, zoneIds },
+            req.user!.id,
+            req.ip,
+            req.get('user-agent')
+        );
+
+        res.status(200).json({
+            success: true,
+            message: 'Zones assigned successfully',
+        });
+    } catch (error) {
+        console.error('Error in assignZonesToSuperAdmin:', error);
+        const message = error instanceof Error ? error.message : 'Failed to assign zones';
+        res.status(400).json({
+            success: false,
+            message,
+        });
+    }
+}
+
+/**
+ * Get assigned zones for a Super Admin
+ */
+export async function getAssignedZones(req: AuthRequest, res: Response) {
+    try {
+        const userId = parseInt(req.params.id);
+
+        // Authorization: Master Admin can view any, Super Admin can only view their own
+        if (req.user!.role === 'SUPER_ADMIN' && req.user!.id !== userId) {
+            return res.status(403).json({
+                success: false,
+                message: 'You can only view your own assigned zones',
+            });
+        }
+
+        const { multiZoneService } = await import('../services/multi-zone.service');
+        const zones = await multiZoneService.getAssignedZones(userId);
+
+        res.status(200).json({
+            success: true,
+            data: zones,
+        });
+    } catch (error) {
+        console.error('Error in getAssignedZones:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch assigned zones',
+        });
+    }
+}
+
+/**
+ * Update zone assignments for a Super Admin (Master Admin only)
+ */
+export async function updateZoneAssignments(req: AuthRequest, res: Response) {
+    try {
+        const userId = parseInt(req.params.id);
+        const { zoneIds } = req.body;
+
+        if (!Array.isArray(zoneIds) || zoneIds.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Zone IDs array is required',
+            });
+        }
+
+        const { multiZoneService } = await import('../services/multi-zone.service');
+
+        await multiZoneService.updateZoneAssignments(
+            userId,
+            zoneIds,
+            req.user!.id,
+            req.ip,
+            req.get('user-agent')
+        );
+
+        res.status(200).json({
+            success: true,
+            message: 'Zone assignments updated successfully',
+        });
+    } catch (error) {
+        console.error('Error in updateZoneAssignments:', error);
+        const message = error instanceof Error ? error.message : 'Failed to update zone assignments';
+        res.status(400).json({
+            success: false,
+            message,
+        });
+    }
+}
+
+/**
+ * Remove a specific zone from a Super Admin (Master Admin only)
+ */
+export async function removeZoneFromSuperAdmin(req: AuthRequest, res: Response) {
+    try {
+        const userId = parseInt(req.params.id);
+        const zoneId = parseInt(req.params.zoneId);
+
+        const { multiZoneService } = await import('../services/multi-zone.service');
+
+        await multiZoneService.removeZoneFromSuperAdmin(
+            userId,
+            zoneId,
+            req.user!.id,
+            req.ip,
+            req.get('user-agent')
+        );
+
+        res.status(200).json({
+            success: true,
+            message: 'Zone removed successfully',
+        });
+    } catch (error) {
+        console.error('Error in removeZoneFromSuperAdmin:', error);
+        const message = error instanceof Error ? error.message : 'Failed to remove zone';
+        res.status(400).json({
+            success: false,
+            message,
+        });
+    }
+}

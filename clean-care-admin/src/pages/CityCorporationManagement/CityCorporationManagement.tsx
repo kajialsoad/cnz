@@ -71,6 +71,8 @@ const CityCorporationManagement: React.FC = () => {
             setLoading(true);
             setError(null);
             const response = await cityCorporationService.getCityCorporations('ALL');
+            console.log('🏢 City Corporations Response:', response);
+            console.log('📊 First City Corp Data:', response.cityCorporations?.[0]);
             setCityCorps(response.cityCorporations || []);
         } catch (err: any) {
             console.error('Error fetching city corporations:', err);
@@ -103,15 +105,36 @@ const CityCorporationManagement: React.FC = () => {
                 await cityCorporationService.createCityCorporation(data as CreateCityCorporationDto);
                 showToast('City corporation created successfully', 'success');
             } else if (selectedCityCorporation) {
+                console.log('🔄 Updating city corporation:', selectedCityCorporation.code, data);
                 await cityCorporationService.updateCityCorporation(
                     selectedCityCorporation.code,
                     data as UpdateCityCorporationDto
                 );
                 showToast('City corporation updated successfully', 'success');
             }
+
+            // Force refresh with loading state
+            console.log('📡 Fetching updated city corporations...');
+            setLoading(true);
             await fetchCityCorporations();
+
+            // Update selected city corporation with fresh data
+            if (selectedCityCorporation) {
+                const response = await cityCorporationService.getCityCorporations('ALL');
+                const updated = response.cityCorporations.find(
+                    cc => cc.code === selectedCityCorporation.code
+                );
+                if (updated) {
+                    console.log('✅ Updated selected city corporation:', updated);
+                    setSelectedCityCorporation(updated);
+                }
+            }
+
+            setLoading(false);
+            console.log('✅ City corporations refreshed');
         } catch (err: any) {
             console.error('Error saving city corporation:', err);
+            setLoading(false);
             throw err; // Re-throw to let the form handle it
         }
     };
@@ -474,9 +497,9 @@ const CityCorporationManagement: React.FC = () => {
                     )}
 
                     {/* Thana Management Section (Legacy - can be removed later) */}
-                    {selectedCityCorporation && false && (
+                    {false && selectedCityCorporation && (
                         <ThanaManagement
-                            cityCorporation={selectedCityCorporation}
+                            cityCorporation={selectedCityCorporation!}
                             onThanaUpdate={fetchCityCorporations}
                         />
                     )}
@@ -490,7 +513,7 @@ const CityCorporationManagement: React.FC = () => {
                         setSelectedCityCorporation(null);
                     }}
                     onSave={handleSaveCityCorporation}
-                    cityCorporation={formMode === 'edit' ? selectedCityCorporation : null}
+                    cityCorporation={formMode === 'edit' ? selectedCityCorporation : undefined}
                     mode={formMode}
                 />
 

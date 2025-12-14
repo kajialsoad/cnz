@@ -11,9 +11,9 @@ import {
     Divider,
 } from '@mui/material';
 import { toast } from 'react-hot-toast';
-import axios from 'axios';
 import { format } from 'date-fns';
 import { bn } from 'date-fns/locale';
+import { activityLogService } from '../../services/activityLogService';
 
 // Activity log interface
 interface ActivityLog {
@@ -122,16 +122,15 @@ const ActivityFeed: React.FC = () => {
     const loadActivities = useCallback(async () => {
         setLoading(true);
         try {
-            const response = await axios.get('/api/admin/activity-logs', {
-                params: {
-                    page: 1,
-                    limit: 10,
-                    entityType: 'USER', // Only show user-related activities
-                },
+            const response = await activityLogService.getActivityLogs({
+                page: 1,
+                limit: 10,
+                entityType: 'USER', // Only show user-related activities
             });
 
-            if (response.data.success) {
-                setActivities(response.data.data.logs);
+            if (response && response.logs) {
+                // Cast the logs to our local interface (compatible at runtime)
+                setActivities(response.logs as unknown as ActivityLog[]);
             }
         } catch (error: any) {
             console.error('Error loading activities:', error);

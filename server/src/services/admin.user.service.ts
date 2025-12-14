@@ -3,6 +3,7 @@ import { hash } from 'bcrypt';
 import { users_role, UserStatus, ComplaintStatus, Prisma } from '@prisma/client';
 import { activityLogService } from './activity-log.service';
 import { redisCache, RedisCacheKeys, RedisCacheTTL, withRedisCache, invalidateRedisCache } from '../utils/redis-cache';
+import { multiZoneService } from './multi-zone.service';
 
 // Query interfaces
 export interface GetUsersQuery {
@@ -138,6 +139,174 @@ export interface UpdateStatusDto {
 }
 
 export class AdminUserService {
+    // Get users by multiple zones (for Super Admin multi-zone support)
+    async getUsersByZones(zoneIds: number[], query: GetUsersQuery): Promise<GetUsersResponse> {
+        const modifiedQuery = {
+            ...query,
+            // Override with multi-zone filter - will be applied in where clause
+        };
+
+        // Create a mock requesting user with multi-zone access
+        const mockUser = {
+            id: 0, // Not used for filtering
+            role: users_role.MASTER_ADMIN, // Bypass role filtering
+            zoneId: null,
+            wardId: null,
+        };
+
+        // Get users with zone filter
+        const page = modifiedQuery.page || 1;
+        const limit = modifiedQuery.limit || 20;
+        const skip = (page - 1) * limit;
+        const sortBy = modifiedQuery.sortBy || 'createdAt';
+        const sortOrder = modifiedQuery.sortOrder || 'asc';
+
+        const where: Prisma.UserWhereInput = {
+            zoneId: { in: zoneIds },
+        };
+
+        // Apply other filters
+        if (modifiedQuery.search) {
+            where.OR = this.buildSearchQuery(modifiedQuery.search);
+        }
+        if (modifiedQuery.status) {
+            where.status = modifiedQuery.status;
+        }
+        if (modifiedQuery.role) {
+            where.role = modifiedQuery.role;
+        }
+        if (modifiedQuery.cityCorporationCode) {
+            where.cityCorporationCode = modifiedQuery.cityCorporationCode;
+        }
+        if (modifiedQuery.wardId) {
+            where.wardId = modifiedQuery.wardId;
+        }
+
+        const total = await prisma.user.count({ where });
+
+        const users = await prisma.user.findMany({
+            where,
+            skip,
+            take: limit,
+            orderBy: {
+                [sortBy]: sortOrder,
+            },
+            select: {
+                id: true,
+                email: true,
+                phone: true,
+                firstName: true,
+                lastName: true,
+                avatar: true,
+                address: true,
+                role: true,
+                status: true,
+                emailVerified: true,
+                phoneVerified: true,
+                createdAt: true,
+                updatedAt: true,
+                lastLoginAt: true,
+                cityCorporationCode: true,
+                cityCorporation: {
+                    select: {
+                        code: true,
+                        name: true,
+                        minWard: true,
+                        maxWard: true,
+                    },
+                },
+                zoneId: true,
+                zone: {
+                    select: {
+                        id: true,
+                        zoneNumber: true,
+                        name: true,
+                        officerName: true,
+                        officerDesignation: true,
+                        officerSerialNumber: true,
+                        status: true,
+                    },
+                },
+                wardId: true,
+                ward: {
+                    select: {
+                        id: true,
+                        wardNumber: true,
+                        inspectorName: true,
+                        inspectorSerialNumber: true,
+                        status: true,
+                    },
+                },
+                wardImageCount: true,
+                _count: {
+                    select: {
+                        complaints: true,
+                    },
+                },
+            },
+        });
+
+        const userIds = users.map(u => u.id);
+
+        const complaintStats = await prisma.complaint.groupBy({
+            by: ['userId', 'status'],
+            where: {
+                userId: { in: userIds },
+            },
+            _count: {
+                id: true,
+            },
+        });
+
+        const statsMap = new Map<number, UserStatistics>();
+
+        userIds.forEach(userId => {
+            statsMap.set(userId, {
+                totalComplaints: 0,
+                resolvedComplaints: 0,
+                unresolvedComplaints: 0,
+                pendingComplaints: 0,
+                inProgressComplaints: 0,
+            });
+        });
+
+        complaintStats.forEach(stat => {
+            if (!stat.userId) return;
+
+            const userStat = statsMap.get(stat.userId);
+            if (!userStat) return;
+
+            const count = stat._count.id;
+
+            userStat.totalComplaints += count;
+
+            if (stat.status === ComplaintStatus.RESOLVED) {
+                userStat.resolvedComplaints += count;
+            } else if (stat.status === ComplaintStatus.PENDING) {
+                userStat.pendingComplaints += count;
+                userStat.unresolvedComplaints += count;
+            } else if (stat.status === ComplaintStatus.IN_PROGRESS) {
+                userStat.inProgressComplaints += count;
+                userStat.unresolvedComplaints += count;
+            }
+        });
+
+        const usersWithStats: UserWithStats[] = users.map(user => ({
+            ...user,
+            statistics: statsMap.get(user.id)!,
+        }));
+
+        return {
+            users: usersWithStats,
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit),
+            },
+        };
+    }
+
     // Get users with filters and pagination
     async getUsers(query: GetUsersQuery, requestingUser?: { id: number; role: users_role; zoneId?: number | null; wardId?: number | null }): Promise<GetUsersResponse> {
         const page = query.page || 1;
@@ -181,7 +350,7 @@ export class AdminUserService {
 
         // Apply role-based automatic filtering
         if (requestingUser) {
-            this.applyRoleBasedFiltering(where, requestingUser);
+            await this.applyRoleBasedFiltering(where, requestingUser);
         }
 
         // Get total count
@@ -449,7 +618,7 @@ export class AdminUserService {
 
         // Apply role-based automatic filtering
         if (requestingUser) {
-            this.applyRoleBasedFiltering(userWhere, requestingUser);
+            await this.applyRoleBasedFiltering(userWhere, requestingUser);
         }
 
         // Apply role filter - default to CUSTOMER if not specified
@@ -888,19 +1057,25 @@ export class AdminUserService {
         };
     }
 
-    // Apply role-based automatic filtering
-    private applyRoleBasedFiltering(
+    // Apply role-based automatic filtering (async for multi-zone support)
+    private async applyRoleBasedFiltering(
         where: Prisma.UserWhereInput,
         requestingUser: { id: number; role: users_role; zoneId?: number | null; wardId?: number | null }
-    ): void {
+    ): Promise<void> {
         // MASTER_ADMIN: No filtering - can see all users
         if (requestingUser.role === users_role.MASTER_ADMIN) {
             return;
         }
 
-        // SUPER_ADMIN: Filter by their assigned zone
+        // SUPER_ADMIN: Filter by their assigned zones (multi-zone support)
         if (requestingUser.role === users_role.SUPER_ADMIN) {
-            if (requestingUser.zoneId) {
+            const assignedZoneIds = await multiZoneService.getAssignedZoneIds(requestingUser.id);
+
+            if (assignedZoneIds.length > 0) {
+                // Multi-zone filtering
+                where.zoneId = { in: assignedZoneIds };
+            } else if (requestingUser.zoneId) {
+                // Fallback to single zone for backward compatibility
                 where.zoneId = requestingUser.zoneId;
             }
             return;

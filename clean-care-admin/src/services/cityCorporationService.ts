@@ -96,11 +96,25 @@ class CityCorporationService {
     // Get all city corporations
     async getCityCorporations(status?: 'ACTIVE' | 'INACTIVE' | 'ALL'): Promise<{ cityCorporations: CityCorporation[] }> {
         try {
+            // Build params with cache-busting timestamp
+            const params: Record<string, any> = {
+                _t: Date.now(), // Cache-busting timestamp
+            };
+
+            if (status && status !== 'ALL') {
+                params.status = status;
+            }
+
             const response = await this.apiClient.get<{
                 success: boolean;
                 cityCorporations: CityCorporation[];
             }>('/api/admin/city-corporations', {
-                params: status && status !== 'ALL' ? { status } : undefined,
+                params,
+                headers: {
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0',
+                },
             });
 
             // Backend returns { success: true, cityCorporations: [...] }

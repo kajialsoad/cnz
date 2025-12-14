@@ -60,6 +60,30 @@ import { getUserComplaints } from '../controllers/admin.user.controller';
 router.get('/:id/complaints', getUserComplaints);
 console.log('🔧 Admin user route registered: GET /:id/complaints');
 
+// Multi-Zone Management Endpoints (Master Admin only)
+import {
+    assignZonesToSuperAdmin,
+    getAssignedZones,
+    updateZoneAssignments,
+    removeZoneFromSuperAdmin
+} from '../controllers/admin.user.controller';
+
+// Assign zones to Super Admin
+router.post('/:id/zones', rbacGuard('MASTER_ADMIN'), strictRateLimit, assignZonesToSuperAdmin);
+console.log('🔧 Admin user route registered: POST /:id/zones (Master Admin only)');
+
+// Get assigned zones
+router.get('/:id/zones', rbacGuard('MASTER_ADMIN', 'SUPER_ADMIN'), getAssignedZones);
+console.log('🔧 Admin user route registered: GET /:id/zones');
+
+// Update zone assignments
+router.put('/:id/zones', rbacGuard('MASTER_ADMIN'), strictRateLimit, updateZoneAssignments);
+console.log('🔧 Admin user route registered: PUT /:id/zones (Master Admin only)');
+
+// Remove specific zone
+router.delete('/:id/zones/:zoneId', rbacGuard('MASTER_ADMIN'), strictRateLimit, removeZoneFromSuperAdmin);
+console.log('🔧 Admin user route registered: DELETE /:id/zones/:zoneId (Master Admin only)');
+
 console.log('✅ Admin user routes module loaded successfully');
 
 export default router;

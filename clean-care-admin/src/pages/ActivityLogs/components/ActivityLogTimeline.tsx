@@ -25,7 +25,8 @@ import {
     Login as LoginIcon,
     Logout as LogoutIcon,
 } from '@mui/icons-material';
-import { ActivityLog, getActionLabel, getActionColor } from '../../../types/activityLog.types';
+import { getActionLabel, getActionColor } from '../../../types/activityLog.types';
+import type { ActivityLog } from '../../../types/activityLog.types';
 import { format } from 'date-fns';
 
 interface ActivityLogTimelineProps {

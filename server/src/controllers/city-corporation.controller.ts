@@ -17,6 +17,19 @@ class CityCorporationController {
                 validStatus || 'ALL'
             );
 
+            // Debug log
+            console.log('🏢 City Corporations API Response:');
+            if (cityCorporations.length > 0) {
+                console.log('First City Corp:', {
+                    code: cityCorporations[0].code,
+                    name: cityCorporations[0].name,
+                    totalZones: cityCorporations[0].totalZones,
+                    totalWards: cityCorporations[0].totalWards,
+                    minZone: cityCorporations[0].minZone,
+                    maxZone: cityCorporations[0].maxZone,
+                });
+            }
+
             res.json({
                 success: true,
                 cityCorporations: cityCorporations,
@@ -69,13 +82,13 @@ class CityCorporationController {
      */
     async createCityCorporation(req: Request, res: Response) {
         try {
-            const { code, name, minWard, maxWard } = req.body;
+            const { code, name, minWard, maxWard, minZone, maxZone } = req.body;
 
             // Validation
-            if (!code || !name || !minWard || !maxWard) {
+            if (!code || !name || !minWard || !maxWard || !minZone || !maxZone) {
                 return res.status(400).json({
                     success: false,
-                    message: 'Missing required fields: code, name, minWard, maxWard',
+                    message: 'Missing required fields: code, name, minWard, maxWard, minZone, maxZone',
                 });
             }
 
@@ -84,6 +97,8 @@ class CityCorporationController {
                 name,
                 minWard: parseInt(minWard),
                 maxWard: parseInt(maxWard),
+                minZone: parseInt(minZone),
+                maxZone: parseInt(maxZone),
             });
 
             res.status(201).json({
@@ -121,12 +136,14 @@ class CityCorporationController {
     async updateCityCorporation(req: Request, res: Response) {
         try {
             const { code } = req.params;
-            const { name, minWard, maxWard, status } = req.body;
+            const { name, minWard, maxWard, minZone, maxZone, status } = req.body;
 
             const updateData: any = {};
             if (name !== undefined) updateData.name = name;
             if (minWard !== undefined) updateData.minWard = parseInt(minWard);
             if (maxWard !== undefined) updateData.maxWard = parseInt(maxWard);
+            if (minZone !== undefined) updateData.minZone = parseInt(minZone);
+            if (maxZone !== undefined) updateData.maxZone = parseInt(maxZone);
             if (status !== undefined) updateData.status = status;
 
             const cityCorporation = await cityCorporationService.updateCityCorporation(

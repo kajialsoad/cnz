@@ -1,12 +1,35 @@
-import apiClient from '../config/apiConfig';
-import { ActivityLogQuery, ActivityLogResponse } from '../types/activityLog.types';
+import axios from 'axios';
+import { API_CONFIG } from '../config/apiConfig';
+import type { ActivityLogQuery, ActivityLogResponse } from '../types/activityLog.types';
+
+// Create axios instance with correct config
+const apiClient = axios.create({
+    baseURL: API_CONFIG.BASE_URL,
+    timeout: API_CONFIG.TIMEOUT,
+    headers: {
+        'Content-Type': 'application/json',
+    },
+});
+
+// Add auth interceptor to include the token
+apiClient.interceptors.request.use(
+    (config) => {
+        const token = localStorage.getItem('accessToken');
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+    },
+    (error) => Promise.reject(error)
+);
 
 class ActivityLogService {
     /**
      * Get activity logs with filters and pagination
      */
     async getActivityLogs(query: ActivityLogQuery): Promise<ActivityLogResponse> {
-        const response = await apiClient.get('/admin/activity-logs', {
+        // Corrected path to include /api prefix
+        const response = await apiClient.get('/api/admin/activity-logs', {
             params: query,
         });
         return response.data.data;
@@ -16,7 +39,7 @@ class ActivityLogService {
      * Export activity logs as CSV
      */
     async exportActivityLogs(query: ActivityLogQuery): Promise<Blob> {
-        const response = await apiClient.get('/admin/activity-logs/export', {
+        const response = await apiClient.get('/api/admin/activity-logs/export', {
             params: query,
             responseType: 'blob',
         });

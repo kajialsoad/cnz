@@ -12,7 +12,8 @@ import {
     Grid,
     Paper,
 } from '@mui/material';
-import { ActivityLog, getActionLabel } from '../../../types/activityLog.types';
+import { getActionLabel } from '../../../types/activityLog.types';
+import type { ActivityLog } from '../../../types/activityLog.types';
 import { format } from 'date-fns';
 
 interface ActivityLogDetailsModalProps {

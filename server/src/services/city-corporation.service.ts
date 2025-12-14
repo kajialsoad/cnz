@@ -7,6 +7,8 @@ interface CreateCityCorporationDto {
     name: string;
     minWard: number;
     maxWard: number;
+    minZone: number;
+    maxZone: number;
 }
 
 interface UpdateCityCorporationDto {
@@ -184,6 +186,15 @@ class CityCorporationService {
             throw new Error('minWard must be at least 1');
         }
 
+        // Validate zone range
+        if (data.minZone >= data.maxZone) {
+            throw new Error('minZone must be less than maxZone');
+        }
+
+        if (data.minZone < 1) {
+            throw new Error('minZone must be at least 1');
+        }
+
         // Check if code already exists
         const existing = await prisma.cityCorporation.findUnique({
             where: { code: data.code },
@@ -199,6 +210,8 @@ class CityCorporationService {
                 name: data.name,
                 minWard: data.minWard,
                 maxWard: data.maxWard,
+                minZone: data.minZone,
+                maxZone: data.maxZone,
                 status: 'ACTIVE',
             },
         });
