@@ -66,11 +66,12 @@ async function register(req, res) {
 async function login(req, res) {
     try {
         const body = loginSchema.parse(req.body);
+        const ip = req.ip || req.socket.remoteAddress;
         const result = await auth_service_1.authService.login({
             email: body.email,
             phone: body.phone,
             password: body.password,
-        });
+        }, ip);
         return res.status(200).json(result);
     }
     catch (err) {

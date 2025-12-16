@@ -18,6 +18,9 @@ const admin_user_routes_1 = __importDefault(require("./routes/admin.user.routes"
 const admin_complaint_routes_1 = __importDefault(require("./routes/admin.complaint.routes"));
 const admin_analytics_routes_1 = __importDefault(require("./routes/admin.analytics.routes"));
 const admin_chat_routes_1 = __importDefault(require("./routes/admin.chat.routes"));
+const admin_direct_message_routes_1 = __importDefault(require("./routes/admin.direct-message.routes"));
+const admin_activity_log_routes_1 = __importDefault(require("./routes/admin.activity-log.routes"));
+const dashboard_routes_1 = __importDefault(require("./routes/dashboard.routes"));
 const category_routes_1 = __importDefault(require("./routes/category.routes"));
 const city_corporation_routes_1 = __importDefault(require("./routes/city-corporation.routes"));
 const public_city_corporation_routes_1 = __importDefault(require("./routes/public-city-corporation.routes"));
@@ -26,6 +29,8 @@ const zone_routes_1 = __importDefault(require("./routes/zone.routes"));
 const public_zone_routes_1 = __importDefault(require("./routes/public-zone.routes"));
 const ward_routes_1 = __importDefault(require("./routes/ward.routes"));
 const public_ward_routes_1 = __importDefault(require("./routes/public-ward.routes"));
+const security_middleware_1 = require("./middlewares/security.middleware");
+const rate_limit_middleware_1 = require("./middlewares/rate-limit.middleware");
 console.log('🚀 Starting Clean Care API Server...');
 console.log('🔧 Importing admin auth routes...');
 console.log('🔧 Importing admin user routes...');
@@ -33,6 +38,14 @@ console.log('🔧 Importing admin complaint routes...');
 console.log('🔧 Importing admin analytics routes...');
 console.log('🔧 Importing admin chat routes...');
 const app = (0, express_1.default)();
+// Security middleware - Apply first for maximum protection
+app.use(security_middleware_1.helmetConfig); // Security headers
+app.use(security_middleware_1.securityHeaders); // Additional security headers
+app.use(security_middleware_1.noSqlInjectionPrevention); // NoSQL injection prevention
+app.use(security_middleware_1.parameterPollutionPrevention); // HTTP parameter pollution prevention
+// Global IP-based rate limiting - 1000 requests per minute per IP
+// Requirements: 12.18
+app.use('/api', (0, rate_limit_middleware_1.ipRateLimit)(1000, 60 * 1000));
 // Middleware to add prisma to request
 app.use((req, res, next) => {
     req.prisma = prisma_1.default;
@@ -40,6 +53,8 @@ app.use((req, res, next) => {
 });
 app.use(express_1.default.json({ limit: '2mb' }));
 app.use((0, cookie_parser_1.default)());
+// XSS prevention - Apply after body parsing
+app.use(security_middleware_1.xssPrevention);
 // Allow multiple origins and any localhost:* during development
 const allowedOrigins = env_1.default.CORS_ORIGINS;
 app.use((0, cors_1.default)({
@@ -122,6 +137,14 @@ app.get('/login', (_req, res) => {
 });
 app.use('/api/admin/chat', admin_chat_routes_1.default); // Admin chat routes
 console.log('✅ Admin chat routes registered at /api/admin/chat');
+app.use('/api/admin/direct-chat', admin_direct_message_routes_1.default); // Admin direct message routes
+console.log('✅ Admin direct message routes registered at /api/admin/direct-chat');
+app.use('/api/admin/activity-logs', admin_activity_log_routes_1.default); // Admin activity log routes
+console.log('✅ Admin activity log routes registered at /api/admin/activity-logs');
+app.use('/api/dashboard', dashboard_routes_1.default); // Dashboard statistics routes
+console.log('✅ Dashboard routes registered at /api/dashboard');
+app.use('/api/admin/dashboard', dashboard_routes_1.default); // Admin dashboard statistics routes with geographical filtering
+console.log('✅ Admin dashboard routes registered at /api/admin/dashboard');
 app.use('/api/categories', category_routes_1.default); // Category routes
 console.log('✅ Category routes registered at /api/categories');
 app.use('/api/admin/city-corporations', city_corporation_routes_1.default); // City Corporation routes

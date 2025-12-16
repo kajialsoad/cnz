@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getUsers = getUsers;
 exports.getUserById = getUserById;
@@ -6,7 +39,13 @@ exports.getUserStatistics = getUserStatistics;
 exports.createUser = createUser;
 exports.updateUser = updateUser;
 exports.updateUserStatus = updateUserStatus;
+exports.updateUserPermissions = updateUserPermissions;
+exports.deleteUser = deleteUser;
 exports.getUserComplaints = getUserComplaints;
+exports.assignZonesToSuperAdmin = assignZonesToSuperAdmin;
+exports.getAssignedZones = getAssignedZones;
+exports.updateZoneAssignments = updateZoneAssignments;
+exports.removeZoneFromSuperAdmin = removeZoneFromSuperAdmin;
 const admin_user_service_1 = require("../services/admin.user.service");
 const zod_1 = require("zod");
 const client_1 = require("@prisma/client");
@@ -32,23 +71,27 @@ const createUserSchema = zod_1.z.object({
     phone: zod_1.z.string().min(10, 'Valid phone number is required'),
     email: zod_1.z.string().email().optional(),
     password: zod_1.z.string().min(8, 'Password must be at least 8 characters'),
+    cityCorporationCode: zod_1.z.string().optional(),
     ward: zod_1.z.string().optional(),
     zone: zod_1.z.string().optional(),
     zoneId: zod_1.z.number().int().positive().optional(),
     wardId: zod_1.z.number().int().positive().optional(),
     role: zod_1.z.nativeEnum(client_1.users_role).optional(),
+    permissions: zod_1.z.any().optional(),
 });
 const updateUserSchema = zod_1.z.object({
     firstName: zod_1.z.string().min(1).optional(),
     lastName: zod_1.z.string().min(1).optional(),
     email: zod_1.z.string().email().optional(),
     phone: zod_1.z.string().min(10).optional(),
+    cityCorporationCode: zod_1.z.string().optional(),
     ward: zod_1.z.string().optional(),
     zone: zod_1.z.string().optional(),
     zoneId: zod_1.z.number().int().positive().optional(),
     wardId: zod_1.z.number().int().positive().optional(),
     role: zod_1.z.nativeEnum(client_1.users_role).optional(),
     status: zod_1.z.nativeEnum(client_1.UserStatus).optional(),
+    permissions: zod_1.z.any().optional(),
 });
 const updateStatusSchema = zod_1.z.object({
     status: zod_1.z.nativeEnum(client_1.UserStatus),
@@ -61,12 +104,21 @@ async function getUsers(req, res) {
         // Validate query parameters
         const query = getUsersQuerySchema.parse(req.query);
         // Get requesting user info for role-based filtering
-        const requestingUser = req.user ? {
+        let requestingUser = req.user ? {
             id: req.user.id,
             role: req.user.role,
             zoneId: req.user.zoneId,
             wardId: req.user.wardId,
         } : undefined;
+        // For Super Admins, fetch their assigned zones
+        if (requestingUser && requestingUser.role === client_1.users_role.SUPER_ADMIN) {
+            const { multiZoneService } = await Promise.resolve().then(() => __importStar(require('../services/multi-zone.service')));
+            const assignedZoneIds = await multiZoneService.getAssignedZoneIds(requestingUser.id);
+            requestingUser = {
+                ...requestingUser,
+                assignedZoneIds,
+            };
+        }
         // Fetch users from service with role-based filtering
         const result = await admin_user_service_1.adminUserService.getUsers(query, requestingUser);
         return res.status(200).json({
@@ -126,20 +178,31 @@ async function getUserStatistics(req, res) {
         const cityCorporationCode = req.query.cityCorporationCode;
         const zoneId = req.query.zoneId ? parseInt(req.query.zoneId) : undefined;
         const wardId = req.query.wardId ? parseInt(req.query.wardId) : undefined;
+        const role = req.query.role;
         // Get requesting user info for role-based filtering
-        const requestingUser = req.user ? {
+        let requestingUser = req.user ? {
             id: req.user.id,
             role: req.user.role,
             zoneId: req.user.zoneId,
             wardId: req.user.wardId,
         } : undefined;
+        // For Super Admins, fetch their assigned zones
+        if (requestingUser && requestingUser.role === client_1.users_role.SUPER_ADMIN) {
+            const { multiZoneService } = await Promise.resolve().then(() => __importStar(require('../services/multi-zone.service')));
+            const assignedZoneIds = await multiZoneService.getAssignedZoneIds(requestingUser.id);
+            requestingUser = {
+                ...requestingUser,
+                assignedZoneIds,
+            };
+        }
         console.log('📊 Fetching user statistics', {
             cityCorporationCode,
             zoneId,
             wardId,
+            role,
             requestingUser: requestingUser ? `${requestingUser.role} (ID: ${requestingUser.id})` : 'none',
         });
-        const statistics = await admin_user_service_1.adminUserService.getUserStatistics(cityCorporationCode, zoneId, wardId, requestingUser);
+        const statistics = await admin_user_service_1.adminUserService.getUserStatistics(cityCorporationCode, zoneId, wardId, role, requestingUser);
         return res.status(200).json({
             success: true,
             data: statistics,
@@ -159,8 +222,11 @@ async function createUser(req, res) {
         console.log('➕ Creating new user:', { ...req.body, password: '***' });
         // Validate request body
         const data = createUserSchema.parse(req.body);
+        // Get IP address and user agent for activity logging
+        const ipAddress = req.ip || req.socket.remoteAddress;
+        const userAgent = req.get('user-agent');
         // Create user
-        const user = await admin_user_service_1.adminUserService.createUser(data);
+        const user = await admin_user_service_1.adminUserService.createUser(data, req.user?.id, ipAddress, userAgent);
         return res.status(201).json({
             success: true,
             message: 'User created successfully',
@@ -170,6 +236,7 @@ async function createUser(req, res) {
     catch (err) {
         console.error('❌ Error creating user:', err);
         if (err instanceof zod_1.z.ZodError) {
+            console.error('❌ Zod Validation Error:', JSON.stringify(err.errors, null, 2));
             return res.status(400).json({
                 success: false,
                 message: 'Validation error',
@@ -201,8 +268,11 @@ async function updateUser(req, res) {
         console.log('✏️ Updating user:', userId, req.body);
         // Validate request body
         const data = updateUserSchema.parse(req.body);
+        // Get IP address and user agent for activity logging
+        const ipAddress = req.ip || req.socket.remoteAddress;
+        const userAgent = req.get('user-agent');
         // Update user
-        const user = await admin_user_service_1.adminUserService.updateUser(userId, data);
+        const user = await admin_user_service_1.adminUserService.updateUser(userId, data, req.user?.id, ipAddress, userAgent);
         return res.status(200).json({
             success: true,
             message: 'User updated successfully',
@@ -249,8 +319,11 @@ async function updateUserStatus(req, res) {
         console.log('🔄 Updating user status:', userId, req.body);
         // Validate request body
         const { status, reason } = updateStatusSchema.parse(req.body);
+        // Get IP address and user agent for activity logging
+        const ipAddress = req.ip || req.socket.remoteAddress;
+        const userAgent = req.get('user-agent');
         // Update status
-        const user = await admin_user_service_1.adminUserService.updateUserStatus(userId, status);
+        const user = await admin_user_service_1.adminUserService.updateUserStatus(userId, status, req.user?.id, ipAddress, userAgent);
         return res.status(200).json({
             success: true,
             message: `User status updated to ${status}${reason ? `: ${reason}` : ''}`,
@@ -275,6 +348,80 @@ async function updateUserStatus(req, res) {
         return res.status(500).json({
             success: false,
             message: err?.message ?? 'Failed to update user status',
+        });
+    }
+}
+// Update user permissions
+async function updateUserPermissions(req, res) {
+    try {
+        const userId = parseInt(req.params.id);
+        if (isNaN(userId)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid user ID',
+            });
+        }
+        console.log('🔐 Updating user permissions:', userId, req.body);
+        // Validate permissions structure
+        const permissions = req.body;
+        // Get IP address and user agent for activity logging
+        const ipAddress = req.ip || req.socket.remoteAddress;
+        const userAgent = req.get('user-agent');
+        // Update permissions
+        const user = await admin_user_service_1.adminUserService.updateUserPermissions(userId, permissions, req.user?.id, ipAddress, userAgent);
+        return res.status(200).json({
+            success: true,
+            message: 'User permissions updated successfully',
+            data: { user },
+        });
+    }
+    catch (err) {
+        console.error('❌ Error updating user permissions:', err);
+        if (err.message === 'User not found') {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found',
+            });
+        }
+        return res.status(500).json({
+            success: false,
+            message: err?.message ?? 'Failed to update user permissions',
+        });
+    }
+}
+// Delete user (soft delete)
+async function deleteUser(req, res) {
+    try {
+        const userId = parseInt(req.params.id);
+        if (isNaN(userId)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid user ID',
+            });
+        }
+        const deletedBy = req.user?.id || 0;
+        console.log('🗑️ Deleting user:', userId, 'by:', deletedBy);
+        // Get IP address and user agent for activity logging
+        const ipAddress = req.ip || req.socket.remoteAddress;
+        const userAgent = req.get('user-agent');
+        // Delete user (soft delete)
+        await admin_user_service_1.adminUserService.deleteUser(userId, deletedBy, ipAddress, userAgent);
+        return res.status(200).json({
+            success: true,
+            message: 'User deleted successfully',
+        });
+    }
+    catch (err) {
+        console.error('❌ Error deleting user:', err);
+        if (err.message === 'User not found') {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found',
+            });
+        }
+        return res.status(500).json({
+            success: false,
+            message: err?.message ?? 'Failed to delete user',
         });
     }
 }
@@ -305,6 +452,115 @@ async function getUserComplaints(req, res) {
         res.status(statusCode).json({
             success: false,
             message: error instanceof Error ? error.message : 'Failed to fetch user complaints'
+        });
+    }
+}
+/**
+ * Assign zones to Super Admin (Master Admin only)
+ */
+async function assignZonesToSuperAdmin(req, res) {
+    try {
+        const userId = parseInt(req.params.id);
+        const { zoneIds } = req.body;
+        if (!Array.isArray(zoneIds) || zoneIds.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Zone IDs array is required',
+            });
+        }
+        const { multiZoneService } = await Promise.resolve().then(() => __importStar(require('../services/multi-zone.service')));
+        await multiZoneService.assignZonesToSuperAdmin({ userId, zoneIds }, req.user.id, req.ip, req.get('user-agent'));
+        res.status(200).json({
+            success: true,
+            message: 'Zones assigned successfully',
+        });
+    }
+    catch (error) {
+        console.error('Error in assignZonesToSuperAdmin:', error);
+        const message = error instanceof Error ? error.message : 'Failed to assign zones';
+        res.status(400).json({
+            success: false,
+            message,
+        });
+    }
+}
+/**
+ * Get assigned zones for a Super Admin
+ */
+async function getAssignedZones(req, res) {
+    try {
+        const userId = parseInt(req.params.id);
+        // Authorization: Master Admin can view any, Super Admin can only view their own
+        if (req.user.role === 'SUPER_ADMIN' && req.user.id !== userId) {
+            return res.status(403).json({
+                success: false,
+                message: 'You can only view your own assigned zones',
+            });
+        }
+        const { multiZoneService } = await Promise.resolve().then(() => __importStar(require('../services/multi-zone.service')));
+        const zones = await multiZoneService.getAssignedZones(userId);
+        res.status(200).json({
+            success: true,
+            data: zones,
+        });
+    }
+    catch (error) {
+        console.error('Error in getAssignedZones:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch assigned zones',
+        });
+    }
+}
+/**
+ * Update zone assignments for a Super Admin (Master Admin only)
+ */
+async function updateZoneAssignments(req, res) {
+    try {
+        const userId = parseInt(req.params.id);
+        const { zoneIds } = req.body;
+        if (!Array.isArray(zoneIds) || zoneIds.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Zone IDs array is required',
+            });
+        }
+        const { multiZoneService } = await Promise.resolve().then(() => __importStar(require('../services/multi-zone.service')));
+        await multiZoneService.updateZoneAssignments(userId, zoneIds, req.user.id, req.ip, req.get('user-agent'));
+        res.status(200).json({
+            success: true,
+            message: 'Zone assignments updated successfully',
+        });
+    }
+    catch (error) {
+        console.error('Error in updateZoneAssignments:', error);
+        const message = error instanceof Error ? error.message : 'Failed to update zone assignments';
+        res.status(400).json({
+            success: false,
+            message,
+        });
+    }
+}
+/**
+ * Remove a specific zone from a Super Admin (Master Admin only)
+ */
+async function removeZoneFromSuperAdmin(req, res) {
+    try {
+        const userId = parseInt(req.params.id);
+        const zoneId = parseInt(req.params.zoneId);
+        const { multiZoneService } = await Promise.resolve().then(() => __importStar(require('../services/multi-zone.service')));
+        await multiZoneService.removeZoneFromSuperAdmin(userId, zoneId, req.user.id, req.ip, req.get('user-agent'));
+        res.status(200).json({
+            success: true,
+            message: 'Zone removed successfully',
+        });
+    }
+    catch (error) {
+        console.error('Error in removeZoneFromSuperAdmin:', error);
+        const message = error instanceof Error ? error.message : 'Failed to remove zone';
+        res.status(400).json({
+            success: false,
+            message,
         });
     }
 }

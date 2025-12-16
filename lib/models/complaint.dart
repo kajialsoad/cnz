@@ -18,6 +18,11 @@ class Complaint {
   final int priority;
   final DateTime createdAt;
   final DateTime updatedAt;
+  
+  // Geographical information from user
+  final Map<String, dynamic>? cityCorporation;
+  final Map<String, dynamic>? zone;
+  final Map<String, dynamic>? ward;
 
   Complaint({
     required this.id,
@@ -35,11 +40,31 @@ class Complaint {
     required this.priority,
     required this.createdAt,
     required this.updatedAt,
+    this.cityCorporation,
+    this.zone,
+    this.ward,
   });
 
   factory Complaint.fromJson(Map<String, dynamic> json) {
     // Handle nested complaint object (from backend response)
     final complaintData = json['complaint'] ?? json;
+    
+    // Parse geographical information from user relationship
+    Map<String, dynamic>? cityCorporation;
+    Map<String, dynamic>? zone;
+    Map<String, dynamic>? ward;
+    
+    if (complaintData['user'] != null) {
+      final userData = complaintData['user'] as Map<String, dynamic>;
+      cityCorporation = userData['cityCorporation'] as Map<String, dynamic>?;
+      zone = userData['zone'] as Map<String, dynamic>?;
+      ward = userData['ward'] as Map<String, dynamic>?;
+    }
+    
+    // Also check for direct geographical fields (from backend response)
+    cityCorporation ??= complaintData['cityCorporation'] as Map<String, dynamic>?;
+    zone ??= complaintData['zone'] as Map<String, dynamic>?;
+    ward ??= complaintData['ward'] as Map<String, dynamic>?;
     
     return Complaint(
       id: complaintData['id'].toString(),
@@ -57,6 +82,9 @@ class Complaint {
       priority: complaintData['priority'] ?? 1,
       createdAt: DateTime.parse(complaintData['createdAt'] ?? DateTime.now().toIso8601String()),
       updatedAt: DateTime.parse(complaintData['updatedAt'] ?? DateTime.now().toIso8601String()),
+      cityCorporation: cityCorporation,
+      zone: zone,
+      ward: ward,
     );
   }
 
@@ -172,6 +200,25 @@ class Complaint {
 
   /// Check if complaint has media attachments
   bool get hasMedia => imageUrls.isNotEmpty || audioUrls.isNotEmpty;
+  
+  /// Get geographical display text
+  String get geographicalInfo {
+    final parts = <String>[];
+    
+    if (cityCorporation != null) {
+      parts.add(cityCorporation!['name'] ?? cityCorporation!['nameBangla'] ?? '');
+    }
+    if (zone != null) {
+      final zoneName = zone!['name'] ?? zone!['displayName'] ?? 'Zone ${zone!['zoneNumber'] ?? ''}';
+      parts.add(zoneName);
+    }
+    if (ward != null) {
+      final wardName = ward!['displayName'] ?? 'Ward ${ward!['wardNumber'] ?? ''}';
+      parts.add(wardName);
+    }
+    
+    return parts.isNotEmpty ? parts.join(' • ') : '';
+  }
 
   Map<String, dynamic> toJson() {
     return {
@@ -189,6 +236,9 @@ class Complaint {
       'audioUrls': audioUrls,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
+      'cityCorporation': cityCorporation,
+      'zone': zone,
+      'ward': ward,
     };
   }
 
@@ -208,6 +258,9 @@ class Complaint {
     int? priority,
     DateTime? createdAt,
     DateTime? updatedAt,
+    Map<String, dynamic>? cityCorporation,
+    Map<String, dynamic>? zone,
+    Map<String, dynamic>? ward,
   }) {
     return Complaint(
       id: id ?? this.id,
@@ -225,6 +278,9 @@ class Complaint {
       priority: priority ?? this.priority,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      cityCorporation: cityCorporation ?? this.cityCorporation,
+      zone: zone ?? this.zone,
+      ward: ward ?? this.ward,
     );
   }
 

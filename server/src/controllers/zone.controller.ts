@@ -48,6 +48,22 @@ class ZoneController {
                 });
             }
 
+            // If User is authenticated and not a Master Admin, use getAccessibleZones
+            // We need to check req.user. The interface might need extending or casting.
+            const user = (req as any).user;
+
+            if (user && (user.role === 'SUPER_ADMIN' || user.role === 'ADMIN')) {
+                const zones = await zoneService.getAccessibleZones(user.id);
+
+                // If specific city corporation filter was requested, we might want to double check
+                // but getAccessibleZones already respects assignments.
+                // We can return here.
+                return res.status(200).json({
+                    success: true,
+                    data: zones,
+                });
+            }
+
             const zones = await zoneService.getZonesByCityCorporation(
                 ccId,
                 (status as ZoneStatus | 'ALL') || 'ALL'
@@ -112,6 +128,7 @@ class ZoneController {
                 officerName,
                 officerDesignation,
                 officerSerialNumber,
+                officerPhone,
             } = req.body;
 
             // Validate required fields
@@ -129,6 +146,7 @@ class ZoneController {
                 officerName,
                 officerDesignation,
                 officerSerialNumber,
+                officerPhone,
             });
 
             return res.status(201).json({
@@ -169,6 +187,7 @@ class ZoneController {
                 officerName,
                 officerDesignation,
                 officerSerialNumber,
+                officerPhone,
                 status,
             } = req.body;
 
@@ -177,6 +196,7 @@ class ZoneController {
                 officerName,
                 officerDesignation,
                 officerSerialNumber,
+                officerPhone,
                 status,
             });
 

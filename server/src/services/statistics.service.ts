@@ -70,6 +70,7 @@ export interface StatisticsFilters {
     wardId?: number;
     startDate?: Date;
     endDate?: Date;
+    assignedZoneIds?: number[]; // New field
 }
 
 export interface AdminPerformance {
@@ -93,7 +94,7 @@ export class StatisticsService {
      */
     async getDashboardStats(
         filters: StatisticsFilters = {},
-        requestingUser?: { id: number; role: users_role; zoneId?: number | null; wardId?: number | null }
+        requestingUser?: { id: number; role: users_role; zoneId?: number | null; wardId?: number | null; assignedZoneIds?: number[] }
     ): Promise<DashboardStats> {
         // Apply role-based filtering
         const effectiveFilters = this.applyRoleBasedFiltering(filters, requestingUser);
@@ -255,15 +256,29 @@ export class StatisticsService {
         const where: Prisma.ComplaintChatMessageWhereInput = {};
 
         // Apply filters through complaint relation
-        if (filters.cityCorporationCode || filters.zoneId || filters.wardId) {
-            where.complaint = {};
-            if (filters.wardId) {
-                where.complaint.wardId = filters.wardId;
-            } else if (filters.zoneId) {
-                where.complaint.wards = {
-                    zoneId: filters.zoneId,
-                };
+        // Re-using logic similar to buildComplaintWhere but adapted for nested relation
+        const complaintWhere: any = {};
+
+        if (filters.wardId) {
+            complaintWhere.user = { wardId: filters.wardId };
+        } else if (filters.assignedZoneIds && filters.assignedZoneIds.length > 0) {
+            if (filters.zoneId) {
+                if (!filters.assignedZoneIds.includes(filters.zoneId)) {
+                    complaintWhere.id = -1; // impossible
+                } else {
+                    complaintWhere.user = { zoneId: filters.zoneId };
+                }
+            } else {
+                complaintWhere.user = { zoneId: { in: filters.assignedZoneIds } };
             }
+        } else if (filters.zoneId) {
+            complaintWhere.user = { zoneId: filters.zoneId };
+        } else if (filters.cityCorporationCode) {
+            complaintWhere.user = { cityCorporationCode: filters.cityCorporationCode };
+        }
+
+        if (Object.keys(complaintWhere).length > 0) {
+            where.complaint = complaintWhere;
         }
 
         // Total messages
@@ -312,12 +327,20 @@ export class StatisticsService {
             where.cityCorporationCode = filters.cityCorporationCode;
         }
 
-        if (filters.zoneId) {
-            where.zoneId = filters.zoneId;
-        }
-
         if (filters.wardId) {
             where.wardId = filters.wardId;
+        } else if (filters.assignedZoneIds && filters.assignedZoneIds.length > 0) {
+            if (filters.zoneId) {
+                if (!filters.assignedZoneIds.includes(filters.zoneId)) {
+                    where.id = -1; // Force invalid
+                } else {
+                    where.zoneId = filters.zoneId;
+                }
+            } else {
+                where.zoneId = { in: filters.assignedZoneIds };
+            }
+        } else if (filters.zoneId) {
+            where.zoneId = filters.zoneId;
         }
 
         // Total citizens
@@ -583,7 +606,7 @@ export class StatisticsService {
      */
     private applyRoleBasedFiltering(
         filters: StatisticsFilters,
-        requestingUser?: { id: number; role: users_role; zoneId?: number | null; wardId?: number | null }
+        requestingUser?: { id: number; role: users_role; zoneId?: number | null; wardId?: number | null; assignedZoneIds?: number[] }
     ): StatisticsFilters {
         if (!requestingUser) {
             return filters;
@@ -596,9 +619,17 @@ export class StatisticsService {
             return effectiveFilters;
         }
 
-        // SUPER_ADMIN: Filter by their zone
+        // SUPER_ADMIN: Filter by their zone (multi-zone supported)
         if (requestingUser.role === users_role.SUPER_ADMIN) {
-            effectiveFilters.zoneId = requestingUser.zoneId || undefined;
+            if (requestingUser.assignedZoneIds && requestingUser.assignedZoneIds.length > 0) {
+                effectiveFilters.assignedZoneIds = requestingUser.assignedZoneIds;
+                // If the request specifically asks for a zoneId, ensure it's allowed
+                if (effectiveFilters.zoneId && !effectiveFilters.assignedZoneIds.includes(effectiveFilters.zoneId)) {
+                    effectiveFilters.zoneId = -1; // Block access
+                }
+            } else {
+                effectiveFilters.zoneId = requestingUser.zoneId || undefined;
+            }
             return effectiveFilters;
         }
 
@@ -616,13 +647,30 @@ export class StatisticsService {
      */
     private buildComplaintWhere(filters: StatisticsFilters): Prisma.ComplaintWhereInput {
         const where: Prisma.ComplaintWhereInput = {};
+        const userFilter: any = {};
 
         if (filters.wardId) {
-            where.wardId = filters.wardId;
+            userFilter.wardId = filters.wardId;
+        } else if (filters.assignedZoneIds && filters.assignedZoneIds.length > 0) {
+            if (filters.zoneId) {
+                if (!filters.assignedZoneIds.includes(filters.zoneId)) {
+                    where.id = -1; // Invalid
+                } else {
+                    userFilter.zoneId = filters.zoneId;
+                }
+            } else {
+                userFilter.zoneId = { in: filters.assignedZoneIds };
+            }
         } else if (filters.zoneId) {
-            where.wards = {
-                zoneId: filters.zoneId,
-            };
+            userFilter.zoneId = filters.zoneId;
+        }
+
+        if (filters.cityCorporationCode) {
+            userFilter.cityCorporationCode = filters.cityCorporationCode;
+        }
+
+        if (Object.keys(userFilter).length > 0) {
+            where.user = userFilter;
         }
 
         if (filters.startDate || filters.endDate) {
@@ -648,6 +696,7 @@ export class StatisticsService {
             filters.cityCorporationCode || 'all',
             filters.zoneId?.toString() || 'all',
             filters.wardId?.toString() || 'all',
+            filters.assignedZoneIds?.sort().join(',') || 'all' // Include assigned zones in cache key
         ];
 
         if (filters.startDate) {

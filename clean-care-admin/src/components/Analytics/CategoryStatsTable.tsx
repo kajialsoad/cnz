@@ -28,6 +28,7 @@ import type { CategoryStatistic } from '../../types/category-service.types';
 interface CategoryStatsTableProps {
     startDate?: string;
     endDate?: string;
+    zoneId?: number;
 }
 
 type SortField = 'category' | 'count' | 'percentage';
@@ -41,7 +42,7 @@ type SortOrder = 'asc' | 'desc';
  * 
  * Requirements: 8.2, 8.3, 8.5
  */
-const CategoryStatsTable: React.FC<CategoryStatsTableProps> = ({ startDate, endDate }) => {
+const CategoryStatsTable: React.FC<CategoryStatsTableProps> = ({ startDate, endDate, zoneId }) => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
@@ -55,7 +56,7 @@ const CategoryStatsTable: React.FC<CategoryStatsTableProps> = ({ startDate, endD
 
     useEffect(() => {
         fetchCategoryStatistics();
-    }, [startDate, endDate]);
+    }, [startDate, endDate, zoneId]);
 
     const fetchCategoryStatistics = async () => {
         try {
@@ -65,6 +66,7 @@ const CategoryStatsTable: React.FC<CategoryStatsTableProps> = ({ startDate, endD
             const query: any = {};
             if (startDate) query.startDate = startDate;
             if (endDate) query.endDate = endDate;
+            if (zoneId) query.zoneId = zoneId;
 
             const statistics = await analyticsService.getCategoryStats(query);
             setStatistics(statistics);

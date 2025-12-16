@@ -47,6 +47,7 @@ const ZoneList: React.FC<ZoneListProps> = ({
                             <TableCell sx={{ fontWeight: 600 }}>Zone Name</TableCell>
                             <TableCell sx={{ fontWeight: 600 }}>Officer Name</TableCell>
                             <TableCell sx={{ fontWeight: 600 }}>Officer Designation</TableCell>
+                            <TableCell sx={{ fontWeight: 600 }}>Officer Phone</TableCell>
                             <TableCell sx={{ fontWeight: 600 }}>Total Wards</TableCell>
                             <TableCell sx={{ fontWeight: 600 }}>Total Users</TableCell>
                             <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
@@ -91,6 +92,7 @@ const ZoneList: React.FC<ZoneListProps> = ({
                         <TableCell sx={{ fontWeight: 600 }}>Zone Name</TableCell>
                         <TableCell sx={{ fontWeight: 600 }}>Officer Name</TableCell>
                         <TableCell sx={{ fontWeight: 600 }}>Officer Designation</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>Officer Phone</TableCell>
                         <TableCell sx={{ fontWeight: 600 }}>Total Wards</TableCell>
                         <TableCell sx={{ fontWeight: 600 }}>Total Users</TableCell>
                         <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
@@ -130,6 +132,11 @@ const ZoneList: React.FC<ZoneListProps> = ({
                             <TableCell>
                                 <Typography variant="body2" color="text.secondary">
                                     {zone.officerDesignation || '-'}
+                                </Typography>
+                            </TableCell>
+                            <TableCell>
+                                <Typography variant="body2" color="text.secondary">
+                                    {zone.officerPhone || '-'}
                                 </Typography>
                             </TableCell>
                             <TableCell>

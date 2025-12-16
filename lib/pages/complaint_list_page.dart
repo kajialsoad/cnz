@@ -586,6 +586,40 @@ class _ComplaintListPageState extends State<ComplaintListPage> {
                         ],
                       ),
                       SizedBox(height: 6),
+                      
+                      // Geographical Information
+                      if (complaint.geographicalInfo.isNotEmpty)
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Color(0xFF4CAF50).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.location_city,
+                                size: 12,
+                                color: Color(0xFF4CAF50),
+                              ),
+                              SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  complaint.geographicalInfo,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Color(0xFF4CAF50),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (complaint.geographicalInfo.isNotEmpty)
+                        SizedBox(height: 6),
 
                       // Time and Media indicators
                       Row(

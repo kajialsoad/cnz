@@ -316,23 +316,64 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
           ),
           const SizedBox(height: 20),
 
-          // City Corporation / Zone
-          _buildInfoItem(
-            icon: Icons.location_city_outlined,
-            label: 'City Corporation',
-            value: _user?.zone ?? 'Not provided',
-            translateValue: _user?.zone == null,
-          ),
-          const SizedBox(height: 20),
-
-          // Ward Number
-          _buildInfoItem(
-            icon: Icons.map_outlined,
-            label: 'Ward Number',
-            value: _user?.ward ?? 'Not provided',
-            translateValue: _user?.ward == null,
-          ),
-          const SizedBox(height: 20),
+          // Geographical Information Section
+          if (_user?.cityCorporation != null || _user?.zoneData != null || _user?.wardData != null) ...[
+            Divider(height: 32),
+            Row(
+              children: [
+                Icon(
+                  Icons.location_on,
+                  size: 20,
+                  color: Color(0xFF4CAF50),
+                ),
+                SizedBox(width: 8),
+                TranslatedText(
+                  'Administrative Area',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF4CAF50),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 16),
+            
+            // City Corporation
+            if (_user?.cityCorporation != null)
+              _buildGeographicalInfoItem(
+                icon: Icons.location_city,
+                label: 'City Corporation',
+                labelBangla: 'সিটি কর্পোরেশন',
+                value: _user!.cityCorporationName,
+              ),
+            
+            if (_user?.cityCorporation != null && _user?.zoneData != null)
+              SizedBox(height: 16),
+            
+            // Zone
+            if (_user?.zoneData != null)
+              _buildGeographicalInfoItem(
+                icon: Icons.map,
+                label: 'Zone',
+                labelBangla: 'জোন',
+                value: _user!.zoneName,
+              ),
+            
+            if (_user?.zoneData != null && _user?.wardData != null)
+              SizedBox(height: 16),
+            
+            // Ward
+            if (_user?.wardData != null)
+              _buildGeographicalInfoItem(
+                icon: Icons.place,
+                label: 'Ward',
+                labelBangla: 'ওয়ার্ড',
+                value: _user!.wardName,
+              ),
+            
+            SizedBox(height: 20),
+          ],
 
           // Address
           _buildInfoItem(
@@ -398,6 +439,72 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
           ),
         ),
       ],
+    );
+  }
+  
+  Widget _buildGeographicalInfoItem({
+    required IconData icon,
+    required String label,
+    required String labelBangla,
+    required String value,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF4CAF50).withOpacity(0.05),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: const Color(0xFF4CAF50).withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF4CAF50).withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              icon,
+              size: 20,
+              color: const Color(0xFF4CAF50),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF666666),
+                  ),
+                ),
+                Text(
+                  labelBangla,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.grey[500],
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF2E2E2E),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 

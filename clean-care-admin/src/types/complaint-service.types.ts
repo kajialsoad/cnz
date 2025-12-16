@@ -41,6 +41,7 @@ export interface Complaint {
             id: number;
             name: string;
         } | null;
+        avatar?: string | null;
     };
     trackingNumber?: string;
     createdAt: string;

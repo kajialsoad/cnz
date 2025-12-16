@@ -18,6 +18,8 @@ import {
     Step,
     StepLabel,
     Box,
+    Chip,
+    OutlinedInput,
 } from '@mui/material';
 import { Close } from '@mui/icons-material';
 import { useForm, Controller } from 'react-hook-form';
@@ -27,6 +29,7 @@ import { superAdminService } from '../../services/superAdminService';
 import type { CreateSuperAdminDto, SuperAdminPermissions } from '../../services/superAdminService';
 import { cityCorporationService } from '../../services/cityCorporationService';
 import { zoneService } from '../../services/zoneService';
+import { MultiZoneSelector } from '../common';
 
 interface SuperAdminAddModalProps {
     open: boolean;
@@ -41,7 +44,7 @@ interface FormData {
     email: string;
     password: string;
     cityCorporationCode: string;
-    zoneId: number | null;
+    zoneIds: number[];
     permissions: SuperAdminPermissions;
 }
 
@@ -52,10 +55,8 @@ const SuperAdminAddModal: React.FC<SuperAdminAddModalProps> = ({ open, onClose, 
     const [avatarUrl, setAvatarUrl] = useState<string | undefined>(undefined);
     const [loading, setLoading] = useState(false);
     const [cityCorporations, setCityCorporations] = useState<any[]>([]);
-    const [zones, setZones] = useState<any[]>([]);
-    const [loadingZones, setLoadingZones] = useState(false);
 
-    const { control, handleSubmit, watch, reset, formState: { errors } } = useForm<FormData>({
+    const { control, handleSubmit, watch, reset, setValue, getValues, formState: { errors } } = useForm<FormData>({
         defaultValues: {
             firstName: '',
             lastName: '',
@@ -63,7 +64,7 @@ const SuperAdminAddModal: React.FC<SuperAdminAddModalProps> = ({ open, onClose, 
             email: '',
             password: '',
             cityCorporationCode: '',
-            zoneId: null,
+            zoneIds: [],
             permissions: {
                 zones: [],
                 categories: [],
@@ -80,6 +81,7 @@ const SuperAdminAddModal: React.FC<SuperAdminAddModalProps> = ({ open, onClose, 
                 },
             },
         },
+        shouldUnregister: false,
     });
 
     const selectedCityCode = watch('cityCorporationCode');
@@ -99,28 +101,6 @@ const SuperAdminAddModal: React.FC<SuperAdminAddModalProps> = ({ open, onClose, 
         }
     }, [open]);
 
-    // Load zones when city corporation changes
-    useEffect(() => {
-        const loadZones = async () => {
-            if (!selectedCityCode) {
-                setZones([]);
-                return;
-            }
-
-            setLoadingZones(true);
-            try {
-                const response = await zoneService.getZones({ cityCorporationCode: selectedCityCode });
-                setZones(response.zones || []);
-            } catch (error) {
-                console.error('Error loading zones:', error);
-                toast.error('জোন লোড করতে ব্যর্থ');
-            } finally {
-                setLoadingZones(false);
-            }
-        };
-
-        loadZones();
-    }, [selectedCityCode]);
 
     const handleNext = () => {
         setActiveStep((prev) => prev + 1);
@@ -138,8 +118,17 @@ const SuperAdminAddModal: React.FC<SuperAdminAddModalProps> = ({ open, onClose, 
     };
 
     const onSubmit = async (data: FormData) => {
+        console.log('🚀 Final Form Data (onSubmit arg):', data);
+        console.log('🧐 getValues() result:', getValues());
+        console.log('❌ Form Errors:', errors);
+
+        if (!data.firstName) {
+            console.error('CRITICAL: firstName is missing in data object!');
+        }
+
         setLoading(true);
         try {
+            // First create the user (without specific single zone)
             const createData: CreateSuperAdminDto = {
                 firstName: data.firstName,
                 lastName: data.lastName,
@@ -147,11 +136,19 @@ const SuperAdminAddModal: React.FC<SuperAdminAddModalProps> = ({ open, onClose, 
                 email: data.email || undefined,
                 password: data.password,
                 cityCorporationCode: data.cityCorporationCode || undefined,
-                zoneId: data.zoneId || undefined,
+                // Pass the first selected zone as primary for backward compatibility if needed, 
+                // or undefined if the backend handles it. Passing undefined for now as we use multi-zone service.
+                zoneId: undefined,
                 permissions: data.permissions,
             };
 
-            await superAdminService.createSuperAdmin(createData);
+            const user = await superAdminService.createSuperAdmin(createData);
+
+            // Then assign the selected zones using the new multi-zone service
+            if (data.zoneIds && data.zoneIds.length > 0) {
+                await superAdminService.assignZones(user.id, data.zoneIds);
+            }
+
             toast.success('সুপার এডমিন সফলভাবে যুক্ত হয়েছে');
             handleClose();
             onSuccess();
@@ -164,9 +161,10 @@ const SuperAdminAddModal: React.FC<SuperAdminAddModalProps> = ({ open, onClose, 
     };
 
     const renderStepContent = () => {
-        switch (activeStep) {
-            case 0:
-                return (
+        return (
+            <>
+                {/* Step 0: Profile Info */}
+                <Box sx={{ display: activeStep === 0 ? 'block' : 'none' }}>
                     <Stack spacing={2}>
                         <Stack direction="row" spacing={2} alignItems="center" justifyContent="center">
                             <AvatarUpload
@@ -275,10 +273,10 @@ const SuperAdminAddModal: React.FC<SuperAdminAddModalProps> = ({ open, onClose, 
                             )}
                         />
                     </Stack>
-                );
+                </Box>
 
-            case 1:
-                return (
+                {/* Step 1: Access Control */}
+                <Box sx={{ display: activeStep === 1 ? 'block' : 'none' }}>
                     <Stack spacing={2}>
                         <Controller
                             name="cityCorporationCode"
@@ -304,33 +302,19 @@ const SuperAdminAddModal: React.FC<SuperAdminAddModalProps> = ({ open, onClose, 
                         />
 
                         <Controller
-                            name="zoneId"
+                            name="zoneIds"
                             control={control}
-                            rules={{ required: 'জোন নির্বাচন করুন (সুপার এডমিন নির্দিষ্ট জোনের দায়িত্বে থাকবে)' }}
+                            rules={{ required: 'কমপক্ষে একটি জোন নির্বাচন করুন' }}
                             render={({ field }) => (
-                                <FormControl fullWidth disabled={!selectedCityCode || loadingZones} error={!!errors.zoneId}>
-                                    <InputLabel>জোন (Zone) *</InputLabel>
-                                    <Select
-                                        {...field}
-                                        value={field.value || ''}
-                                        onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : null)}
-                                        label="জোন (Zone) *"
-                                    >
-                                        <MenuItem value="">
-                                            <em>জোন নির্বাচন করুন</em>
-                                        </MenuItem>
-                                        {zones.map((zone) => (
-                                            <MenuItem key={zone.id} value={zone.id}>
-                                                {zone.name} (জোন {zone.zoneNumber})
-                                            </MenuItem>
-                                        ))}
-                                    </Select>
-                                    {errors.zoneId && (
-                                        <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 2 }}>
-                                            {errors.zoneId.message}
-                                        </Typography>
-                                    )}
-                                </FormControl>
+                                <MultiZoneSelector
+                                    value={field.value}
+                                    onChange={field.onChange}
+                                    cityCorporationCode={selectedCityCode}
+                                    label="জোন (একাধিক নির্বাচন করা যাবে) *"
+                                    error={!!errors.zoneIds}
+                                    helperText={errors.zoneIds?.message}
+                                    disabled={!selectedCityCode || loading}
+                                />
                             )}
                         />
 
@@ -339,23 +323,23 @@ const SuperAdminAddModal: React.FC<SuperAdminAddModalProps> = ({ open, onClose, 
                                 ⚠️ গুরুত্বপূর্ণ তথ্য:
                             </Typography>
                             <Typography variant="body2" color="text.secondary" sx={{ fontSize: 13 }}>
-                                • সুপার এডমিন নির্দিষ্ট <strong>Zone</strong> এর দায়িত্বে থাকবে
+                                • সুপার এডমিন নির্বাচিত <strong>Zone</strong> সমূহের দায়িত্বে থাকবে
                             </Typography>
                             <Typography variant="body2" color="text.secondary" sx={{ fontSize: 13 }}>
-                                • সেই Zone এর সকল <strong>Ward</strong> দেখতে পারবে
+                                • নির্বাচিত Zone সমূহের সকল <strong>Ward</strong> দেখতে পারবে
                             </Typography>
                             <Typography variant="body2" color="text.secondary" sx={{ fontSize: 13 }}>
-                                • সেই Zone এর <strong>Admin</strong> (Ward Inspector) দের manage করতে পারবে
+                                • নির্বাচিত Zone সমূহের <strong>Admin</strong> (Ward Inspector) দের manage করতে পারবে
                             </Typography>
                             <Typography variant="body2" color="text.secondary" sx={{ fontSize: 13 }}>
-                                • সেই Zone এর সকল <strong>User</strong> এবং <strong>Complaint</strong> দেখতে পারবে
+                                • নির্বাচিত Zone সমূহের সকল <strong>User</strong> এবং <strong>Complaint</strong> দেখতে পারবে
                             </Typography>
                         </Box>
                     </Stack>
-                );
+                </Box>
 
-            case 2:
-                return (
+                {/* Step 2: Permissions */}
+                <Box sx={{ display: activeStep === 2 ? 'block' : 'none' }}>
                     <Stack spacing={2.5}>
                         <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#1e2939' }}>
                             পারমিশন সেটিংস
@@ -494,11 +478,9 @@ const SuperAdminAddModal: React.FC<SuperAdminAddModalProps> = ({ open, onClose, 
                             </Stack>
                         )}
                     </Stack>
-                );
-
-            default:
-                return null;
-        }
+                </Box>
+            </>
+        );
     };
 
     return (

@@ -17,6 +17,9 @@ class ComplaintRepository {
     String? district,
     String? thana,
     String? ward,
+    String? cityCorporationCode,  // NEW: City Corporation code
+    int? zoneId,  // NEW: Zone ID
+    int? wardId,  // NEW: Ward ID
     List<XFile>? images, // Changed to XFile for web compatibility
     List<File>? audioFiles,
   }) async {
@@ -30,6 +33,9 @@ class ComplaintRepository {
       print('- district: $district');
       print('- thana: $thana');
       print('- ward: $ward');
+      print('- cityCorporationCode: $cityCorporationCode');  // NEW: Log geographical IDs
+      print('- zoneId: $zoneId');
+      print('- wardId: $wardId');
       
       // Construct location object from address components
       final locationData = {
@@ -56,6 +62,17 @@ class ComplaintRepository {
       if (subcategory != null && subcategory.isNotEmpty) {
         data['subcategory'] = subcategory;
       }
+      
+      // NEW: Add geographical IDs if provided
+      if (cityCorporationCode != null && cityCorporationCode.isNotEmpty) {
+        data['cityCorporationCode'] = cityCorporationCode;
+      }
+      if (zoneId != null) {
+        data['zoneId'] = zoneId.toString();
+      }
+      if (wardId != null) {
+        data['wardId'] = wardId.toString();
+      }
 
       final response = await _apiClient.postMultipart(
         '/api/complaints',
@@ -67,7 +84,9 @@ class ComplaintRepository {
       );
 
       if (response['success'] == true) {
-        return Complaint.fromJson(response['data']);
+        // Parse complaint with geographical data
+        final complaintData = response['data'];
+        return Complaint.fromJson(complaintData);
       } else {
         // NEW: Better error message handling
         final errorMessage = response['message'] ?? 'Failed to create complaint';
@@ -154,9 +173,11 @@ class ComplaintRepository {
       final response = await _apiClient.get('/api/complaints/$id');
       
       if (response['success'] == true) {
-        // Backend returns complaint in data.complaint object
+        // Backend returns complaint in data.complaint object with geographical data
         final data = response['data'];
         final complaintData = data['complaint'] ?? data;
+        
+        // Ensure geographical data is included
         return Complaint.fromJson(complaintData);
       } else {
         throw Exception(response['message'] ?? 'Failed to fetch complaint');

@@ -5,6 +5,7 @@ import {
   Typography,
   TextField,
   InputAdornment,
+  InputLabel,
   FormControl,
   Select,
   MenuItem,
@@ -28,6 +29,7 @@ import {
   WifiOff as WifiOffIcon,
   Error as ErrorIcon,
 } from '@mui/icons-material';
+import { ZoneFilter } from '../../components/common';
 import { showSuccessToast, showErrorToast, showNetworkErrorToast } from '../../utils/toastUtils';
 import MainLayout from '../../components/common/Layout/MainLayout';
 import ComplaintCardSkeleton from '../../components/common/ComplaintCardSkeleton';
@@ -43,7 +45,6 @@ import { cityCorporationService } from '../../services/cityCorporationService';
 import { zoneService } from '../../services/zoneService';
 import { wardService } from '../../services/wardService';
 import type { CityCorporation } from '../../services/cityCorporationService';
-import type { Zone } from '../../services/zoneService';
 import type { Ward } from '../../services/wardService';
 import { useDebounce } from '../../hooks/useDebounce';
 import { formatTimeAgo } from '../../utils/dateUtils';
@@ -80,16 +81,14 @@ const AllComplaints: React.FC = () => {
     searchParams.get('cityCorporation') || 'ALL'
   );
   const [selectedCityCorporationId, setSelectedCityCorporationId] = useState<number | null>(null);
-  const [selectedZone, setSelectedZone] = useState<number | null>(
-    searchParams.get('zone') ? Number(searchParams.get('zone')) : null
+  const [selectedZone, setSelectedZone] = useState<number | ''>(
+    searchParams.get('zone') ? Number(searchParams.get('zone')) : ''
   );
   const [selectedWard, setSelectedWard] = useState<number | null>(
     searchParams.get('ward') ? Number(searchParams.get('ward')) : null
   );
-  const [zones, setZones] = useState<Zone[]>([]);
   const [wards, setWards] = useState<Ward[]>([]);
   const [cityCorporationsLoading, setCityCorporationsLoading] = useState<boolean>(false);
-  const [zonesLoading, setZonesLoading] = useState<boolean>(false);
   const [wardsLoading, setWardsLoading] = useState<boolean>(false);
 
   const [statusCounts, setStatusCounts] = useState<ComplaintStats>({
@@ -135,14 +134,13 @@ const AllComplaints: React.FC = () => {
       const cityCorporation = cityCorporations.find(cc => cc.code === selectedCityCorporation);
       if (cityCorporation) {
         setSelectedCityCorporationId(cityCorporation.id);
-        fetchZones(cityCorporation.id);
       }
     } else {
       setSelectedCityCorporationId(null);
-      setZones([]);
       setWards([]);
     }
-    setSelectedZone(null);
+    // Reset zone and ward when city corporation changes
+    setSelectedZone('');
     setSelectedWard(null);
   }, [selectedCityCorporation, cityCorporations]);
 
@@ -183,10 +181,20 @@ const AllComplaints: React.FC = () => {
   const fetchCityCorporations = async () => {
     try {
       setCityCorporationsLoading(true);
+      console.log('🏙️ Fetching city corporations...');
       const response = await cityCorporationService.getCityCorporations('ACTIVE');
-      setCityCorporations(response.cityCorporations || []);
+      console.log('✅ City corporations fetched:', response);
+      console.log('📊 City corporations array:', response.cityCorporations);
+
+      if (response.cityCorporations && Array.isArray(response.cityCorporations)) {
+        setCityCorporations(response.cityCorporations);
+        console.log(`✅ Set ${response.cityCorporations.length} city corporations`);
+      } else {
+        console.warn('⚠️ City corporations response is not valid:', response);
+        setCityCorporations([]);
+      }
     } catch (err: any) {
-      console.error('Error fetching city corporations:', err);
+      console.error('❌ Error fetching city corporations:', err);
       showErrorToast('Failed to load city corporations');
       setCityCorporations([]);
     } finally {
@@ -197,18 +205,7 @@ const AllComplaints: React.FC = () => {
   /**
    * Fetch zones for selected city corporation
    */
-  const fetchZones = async (cityCorporationId: number) => {
-    try {
-      setZonesLoading(true);
-      const zonesData = await zoneService.getZonesByCityCorporation(cityCorporationId, 'ACTIVE');
-      setZones(zonesData);
-    } catch (err: any) {
-      console.error('Error fetching zones:', err);
-      showErrorToast('Failed to load zones');
-    } finally {
-      setZonesLoading(false);
-    }
-  };
+
 
   /**
    * Fetch wards for selected zone
@@ -385,7 +382,7 @@ const AllComplaints: React.FC = () => {
   /**
    * Handle zone filter change
    */
-  const handleZoneFilterChange = (value: number | null) => {
+  const handleZoneFilterChange = (value: number | '') => {
     setSelectedZone(value);
     // Reset to page 1 when filter changes
     setPagination((prev) => ({ ...prev, page: 1 }));
@@ -409,7 +406,8 @@ const AllComplaints: React.FC = () => {
     setCategoryFilter('');
     setSubcategoryFilter('');
     setSelectedCityCorporation('ALL');
-    setSelectedZone(null);
+    setSelectedCityCorporation('ALL');
+    setSelectedZone('');
     setSelectedWard(null);
     setPagination((prev) => ({ ...prev, page: 1 }));
   };
@@ -496,11 +494,10 @@ const AllComplaints: React.FC = () => {
   }, [complaints]);
 
   /**
-   * Handle opening complaint details modal
+   * Handle opening complaint details page
    */
   const handleViewDetails = (complaintId: number) => {
-    setSelectedComplaintId(complaintId);
-    setDetailsModalOpen(true);
+    navigate(`/complaints/${complaintId}`);
   };
 
   /**
@@ -915,7 +912,7 @@ const AllComplaints: React.FC = () => {
                     },
                   }}
                 >
-                  <MenuItem value="ALL">All City Corporations</MenuItem>
+                  <MenuItem value="ALL">সকল সিটি কর্পোরেশন</MenuItem>
                   {cityCorporations && cityCorporations.map((cc) => (
                     <MenuItem key={cc.code} value={cc.code}>
                       {cc.name}
@@ -925,41 +922,15 @@ const AllComplaints: React.FC = () => {
               </FormControl>
 
               {/* Zone Filter */}
-              <FormControl sx={{ minWidth: { xs: '100%', sm: 200 } }}>
-                <Select
-                  value={selectedZone || ''}
-                  onChange={(e) => handleZoneFilterChange(e.target.value ? Number(e.target.value) : null)}
-                  displayEmpty
-                  disabled={selectedCityCorporation === 'ALL' || zonesLoading || !zones || zones.length === 0}
-                  sx={{
-                    backgroundColor: 'white',
-                    height: { xs: 40, sm: 44 },
-                    '& .MuiSelect-select': {
-                      display: 'flex',
-                      alignItems: 'center',
-                      fontSize: { xs: '0.875rem', sm: '0.95rem' },
-                    },
-                    '&:hover': {
-                      '& .MuiOutlinedInput-notchedOutline': {
-                        borderColor: '#4CAF50',
-                      },
-                    },
-                    '&.Mui-focused': {
-                      '& .MuiOutlinedInput-notchedOutline': {
-                        borderColor: '#4CAF50',
-                        borderWidth: 2,
-                      },
-                    },
-                  }}
-                >
-                  <MenuItem value="">All Zones</MenuItem>
-                  {zones && zones.map((zone) => (
-                    <MenuItem key={zone.id} value={zone.id}>
-                      Zone {zone.zoneNumber}{zone.name ? ` - ${zone.name}` : ''}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+              <Box sx={{ minWidth: { xs: '100%', sm: 200 } }}>
+                <ZoneFilter
+                  value={selectedZone}
+                  onChange={handleZoneFilterChange}
+                  cityCorporationCode={selectedCityCorporation !== 'ALL' ? selectedCityCorporation : ''}
+                  disabled={selectedCityCorporation === 'ALL'}
+                  hideLabel={true}
+                />
+              </Box>
 
               {/* Ward Filter */}
               <FormControl sx={{ minWidth: { xs: '100%', sm: 200 } }}>
@@ -989,10 +960,10 @@ const AllComplaints: React.FC = () => {
                     },
                   }}
                 >
-                  <MenuItem value="">All Wards</MenuItem>
+                  <MenuItem value="">সকল ওয়ার্ড</MenuItem>
                   {wards && wards.map((ward) => (
                     <MenuItem key={ward.id} value={ward.id}>
-                      Ward {ward.wardNumber}
+                      ওয়ার্ড {ward.wardNumber || ward.id}
                     </MenuItem>
                   ))}
                 </Select>
@@ -1097,9 +1068,9 @@ const AllComplaints: React.FC = () => {
                 )}
                 {selectedZone && (
                   <Chip
-                    label={`Zone: ${zones.find(z => z.id === selectedZone)?.zoneNumber || selectedZone}`}
+                    label={`Zone: ${selectedZone}`}
                     size="small"
-                    onDelete={() => handleZoneFilterChange(null)}
+                    onDelete={() => handleZoneFilterChange('')}
                     sx={{
                       backgroundColor: 'white',
                       fontSize: '0.75rem',
@@ -1308,6 +1279,32 @@ const AllComplaints: React.FC = () => {
                           <Typography variant="body2" color="text.secondary">
                             Citizen
                           </Typography>
+                          {complaint.user.zone && (
+                            <Chip
+                              label={`Zone ${complaint.user.zone}`}
+                              size="small"
+                              variant="outlined"
+                              sx={{
+                                height: 24,
+                                fontSize: '0.75rem',
+                                borderColor: '#e0e0e0',
+                                color: 'text.secondary',
+                              }}
+                            />
+                          )}
+                          {complaint.user.ward && (
+                            <Chip
+                              label={`Ward ${complaint.user.ward}`}
+                              size="small"
+                              variant="outlined"
+                              sx={{
+                                height: 24,
+                                fontSize: '0.75rem',
+                                borderColor: '#e0e0e0',
+                                color: 'text.secondary',
+                              }}
+                            />
+                          )}
                         </Box>
                       </Box>
 

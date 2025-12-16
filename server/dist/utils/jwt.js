@@ -9,8 +9,14 @@ exports.verifyAccessToken = verifyAccessToken;
 exports.verifyRefreshToken = verifyRefreshToken;
 exports.generateSecureToken = generateSecureToken;
 exports.generateOTP = generateOTP;
+exports.validateUserSession = validateUserSession;
+exports.generateSessionId = generateSessionId;
+exports.decodeToken = decodeToken;
+exports.isTokenExpired = isTokenExpired;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const env_1 = __importDefault(require("../config/env"));
+const client_1 = require("@prisma/client");
+const prisma = new client_1.PrismaClient();
 function signAccessToken(payload) {
     const secret = env_1.default.JWT_ACCESS_SECRET;
     const options = {
@@ -25,7 +31,8 @@ function signRefreshToken(payload) {
     const options = {
         expiresIn: env_1.default.REFRESH_TTL,
         issuer: 'clean-care-app',
-        audience: 'clean-care-users'
+        audience: 'clean-care-users',
+        jwtid: generateSecureToken(16) // Add unique ID to ensure token uniqueness
     };
     return jsonwebtoken_1.default.sign(payload, secret, options);
 }
@@ -74,4 +81,73 @@ function generateOTP(length = 6) {
         otp += digits[Math.floor(Math.random() * digits.length)];
     }
     return otp;
+}
+/**
+ * Validate user session and check if user is still active
+ * Requirements: 12.1, 12.2, 12.3
+ */
+async function validateUserSession(userId) {
+    try {
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: {
+                id: true,
+                status: true,
+                role: true
+            }
+        });
+        // Check if user exists and is active
+        if (!user) {
+            return false;
+        }
+        // Check if user status is ACTIVE
+        if (user.status !== 'ACTIVE') {
+            return false;
+        }
+        return true;
+    }
+    catch (error) {
+        console.error('Error validating user session:', error);
+        return false;
+    }
+}
+/**
+ * Generate session ID for tracking
+ */
+function generateSessionId() {
+    return generateSecureToken(32);
+}
+/**
+ * Decode token without verification (for inspection)
+ */
+function decodeToken(token) {
+    try {
+        const decoded = jsonwebtoken_1.default.decode(token);
+        if (!decoded || typeof decoded === 'string') {
+            return null;
+        }
+        return decoded;
+    }
+    catch (error) {
+        return null;
+    }
+}
+/**
+ * Check if token is expired
+ */
+function isTokenExpired(token) {
+    try {
+        const decoded = jsonwebtoken_1.default.decode(token);
+        if (!decoded || typeof decoded === 'string') {
+            return true;
+        }
+        const payload = decoded;
+        if (!payload.exp) {
+            return true;
+        }
+        return payload.exp * 1000 < Date.now();
+    }
+    catch (error) {
+        return true;
+    }
 }

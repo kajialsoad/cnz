@@ -38,6 +38,7 @@ const auth_service_1 = require("../services/auth.service");
 const validation_1 = require("../utils/validation");
 const validation_2 = require("../utils/validation");
 const auth_middleware_1 = require("../middlewares/auth.middleware");
+const rate_limit_middleware_1 = require("../middlewares/rate-limit.middleware");
 const authController = __importStar(require("../controllers/auth.controller"));
 const router = (0, express_1.Router)();
 // Rate limiters (increased for development)
@@ -73,11 +74,12 @@ router.post('/register', registrationRateLimiter, async (req, res) => {
         });
     }
 });
-// Login endpoint
-router.post('/login', authRateLimiter, async (req, res) => {
+// Login endpoint with account lockout protection
+router.post('/login', rate_limit_middleware_1.loginRateLimit, authRateLimiter, async (req, res) => {
     try {
         const value = (0, validation_1.validateInput)(validation_2.loginSchema, req.body);
-        const tokens = await auth_service_1.authService.login(value);
+        const ip = req.ip || req.socket.remoteAddress;
+        const tokens = await auth_service_1.authService.login(value, ip);
         res.json({
             success: true,
             message: 'Login successful',

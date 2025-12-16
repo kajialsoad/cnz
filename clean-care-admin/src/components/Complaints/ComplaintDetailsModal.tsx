@@ -641,7 +641,7 @@ const ComplaintDetailsModal: React.FC<ComplaintDetailsModalProps> = ({
                                             Ward
                                         </Typography>
                                         <Typography variant={isMobile ? 'body2' : 'body1'}>
-                                            {complaint.locationDetails?.ward || 'N/A'}
+                                            {complaint.locationDetails?.ward || complaint.user.ward || 'N/A'}
                                         </Typography>
                                     </Box>
                                     <Box sx={{ gridColumn: { xs: '1', sm: '1 / -1' } }}>
@@ -716,7 +716,15 @@ const ComplaintDetailsModal: React.FC<ComplaintDetailsModalProps> = ({
                                             City Corporation
                                         </Typography>
                                         <Typography variant={isMobile ? 'body2' : 'body1'}>
-                                            {complaint.user.cityCorporation?.name || complaint.user.zone || 'N/A'}
+                                            {complaint.user.cityCorporation?.name || 'N/A'}
+                                        </Typography>
+                                    </Box>
+                                    <Box>
+                                        <Typography variant={isMobile ? 'caption' : 'body2'} color="text.secondary">
+                                            Zone
+                                        </Typography>
+                                        <Typography variant={isMobile ? 'body2' : 'body1'}>
+                                            {complaint.user.zone ? `Zone ${complaint.user.zone}` : 'N/A'}
                                         </Typography>
                                     </Box>
                                     <Box>

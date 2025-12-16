@@ -22,10 +22,20 @@ class _EditProfilePageState extends State<EditProfilePage> {
   late TextEditingController _phoneController;
   late TextEditingController _emailController;
   late TextEditingController _addressController;
-  String? _selectedZone;
-  int? _selectedWard;
-
+  
+  // Dynamic geographical data
+  List<Map<String, dynamic>> _cityCorporations = [];
+  List<Map<String, dynamic>> _zones = [];
+  List<Map<String, dynamic>> _wards = [];
+  
+  int? _selectedCityCorporationId;
+  int? _selectedZoneId;
+  int? _selectedWardId;
+  
   bool _isLoading = false;
+  bool _isLoadingCityCorporations = false;
+  bool _isLoadingZones = false;
+  bool _isLoadingWards = false;
 
   @override
   void initState() {
@@ -35,8 +45,16 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _phoneController = TextEditingController(text: widget.user.phone);
     _emailController = TextEditingController(text: widget.user.email ?? '');
     _addressController = TextEditingController(text: widget.user.address ?? '');
-    _selectedZone = widget.user.zone;
-    _selectedWard = widget.user.ward != null ? int.tryParse(widget.user.ward!) : null;
+    
+    // Initialize with user's current geographical data
+    if (widget.user.cityCorporation != null) {
+      _selectedCityCorporationId = widget.user.cityCorporation!['id'] as int?;
+    }
+    _selectedZoneId = widget.user.zoneId;
+    _selectedWardId = widget.user.wardId;
+    
+    // Load city corporations
+    _loadCityCorporations();
   }
 
   @override
@@ -47,6 +65,105 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _emailController.dispose();
     _addressController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadCityCorporations() async {
+    setState(() => _isLoadingCityCorporations = true);
+    
+    try {
+      final apiClient = ApiClient(ApiConfig.baseUrl);
+      final response = await apiClient.get('/api/city-corporations');
+      
+      if (response['success'] == true && response['cityCorporations'] != null) {
+        setState(() {
+          _cityCorporations = List<Map<String, dynamic>>.from(
+            response['cityCorporations'] as List
+          );
+          _isLoadingCityCorporations = false;
+        });
+        
+        // If user has a city corporation, load zones
+        if (_selectedCityCorporationId != null) {
+          await _loadZones(_selectedCityCorporationId!);
+        }
+      }
+    } catch (e) {
+      setState(() => _isLoadingCityCorporations = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load city corporations: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _loadZones(int cityCorporationId) async {
+    setState(() {
+      _isLoadingZones = true;
+      _zones = [];
+      _wards = [];
+    });
+    
+    try {
+      final apiClient = ApiClient(ApiConfig.baseUrl);
+      final response = await apiClient.get(
+        '/api/zones?cityCorporationId=$cityCorporationId'
+      );
+      
+      if (response['success'] == true && response['data'] != null) {
+        setState(() {
+          _zones = List<Map<String, dynamic>>.from(response['data'] as List);
+          _isLoadingZones = false;
+        });
+        
+        // If user has a zone, load wards
+        if (_selectedZoneId != null) {
+          await _loadWards(_selectedZoneId!);
+        }
+      }
+    } catch (e) {
+      setState(() => _isLoadingZones = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load zones: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _loadWards(int zoneId) async {
+    setState(() {
+      _isLoadingWards = true;
+      _wards = [];
+    });
+    
+    try {
+      final apiClient = ApiClient(ApiConfig.baseUrl);
+      final response = await apiClient.get('/api/wards?zoneId=$zoneId');
+      
+      if (response['success'] == true && response['data'] != null) {
+        setState(() {
+          _wards = List<Map<String, dynamic>>.from(response['data'] as List);
+          _isLoadingWards = false;
+        });
+      }
+    } catch (e) {
+      setState(() => _isLoadingWards = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load wards: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _saveProfile() async {
@@ -64,8 +181,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
         lastName: _lastNameController.text.trim(),
         phone: _phoneController.text.trim(),
         email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
-        zone: _selectedZone,
-        ward: _selectedWard?.toString(),
+        zoneId: _selectedZoneId,
+        wardId: _selectedWardId,
         address: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
       );
 
@@ -331,38 +448,36 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 ),
               ),
               const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: ChoiceChip(
-                      label: const Text('Dhaka South City'),
-                      selected: _selectedZone == 'DSCC',
-                      onSelected: (s) => setState(() => _selectedZone = s ? 'DSCC' : null),
-                      selectedColor: const Color(0xFF4CAF50),
-                      labelStyle: TextStyle(
-                        color: _selectedZone == 'DSCC' ? Colors.white : Colors.black87,
-                      ),
+              _isLoadingCityCorporations
+                  ? const Center(child: CircularProgressIndicator())
+                  : DropdownButtonFormField<int>(
+                      value: _selectedCityCorporationId,
+                      decoration: _dec('Select City Corporation', icon: Icons.location_city),
+                      items: _cityCorporations.map((cc) {
+                        return DropdownMenuItem<int>(
+                          value: cc['id'] as int,
+                          child: Text(cc['name'] as String),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedCityCorporationId = value;
+                          _selectedZoneId = null;
+                          _selectedWardId = null;
+                          _zones = [];
+                          _wards = [];
+                        });
+                        if (value != null) {
+                          _loadZones(value);
+                        }
+                      },
+                      validator: (v) => v == null ? 'Please select a city corporation' : null,
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: ChoiceChip(
-                      label: const Text('Dhaka North City'),
-                      selected: _selectedZone == 'DNCC',
-                      onSelected: (s) => setState(() => _selectedZone = s ? 'DNCC' : null),
-                      selectedColor: const Color(0xFF4CAF50),
-                      labelStyle: TextStyle(
-                        color: _selectedZone == 'DNCC' ? Colors.white : Colors.black87,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
               const SizedBox(height: 16),
 
-              // Ward Number
+              // Zone Selection
               TranslatedText(
-                'Ward Number (1 to 72)',
+                'Zone',
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -370,14 +485,65 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 ),
               ),
               const SizedBox(height: 8),
-              DropdownButtonFormField<int>(
-                value: _selectedWard,
-                decoration: _dec('Select Ward', icon: Icons.map),
-                items: List.generate(72, (i) => i + 1)
-                    .map((w) => DropdownMenuItem<int>(value: w, child: Text('Ward $w')))
-                    .toList(),
-                onChanged: (v) => setState(() => _selectedWard = v),
+              _isLoadingZones
+                  ? const Center(child: CircularProgressIndicator())
+                  : DropdownButtonFormField<int>(
+                      value: _selectedZoneId,
+                      decoration: _dec('Select Zone', icon: Icons.map),
+                      items: _zones.map((zone) {
+                        final zoneName = zone['name'] as String? ?? 'Zone ${zone['zoneNumber']}';
+                        return DropdownMenuItem<int>(
+                          value: zone['id'] as int,
+                          child: Text(zoneName),
+                        );
+                      }).toList(),
+                      onChanged: _selectedCityCorporationId == null
+                          ? null
+                          : (value) {
+                              setState(() {
+                                _selectedZoneId = value;
+                                _selectedWardId = null;
+                                _wards = [];
+                              });
+                              if (value != null) {
+                                _loadWards(value);
+                              }
+                            },
+                      validator: (v) => v == null ? 'Please select a zone' : null,
+                    ),
+              const SizedBox(height: 16),
+
+              // Ward Selection
+              TranslatedText(
+                'Ward',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF2E2E2E),
+                ),
               ),
+              const SizedBox(height: 8),
+              _isLoadingWards
+                  ? const Center(child: CircularProgressIndicator())
+                  : DropdownButtonFormField<int>(
+                      value: _selectedWardId,
+                      decoration: _dec('Select Ward', icon: Icons.place),
+                      items: _wards.map((ward) {
+                        final wardNumber = ward['wardNumber'] as int?;
+                        return DropdownMenuItem<int>(
+                          value: ward['id'] as int,
+                          child: Text('Ward ${wardNumber ?? 'N/A'}'),
+                        );
+                      }).toList(),
+                      onChanged: _selectedZoneId == null
+                          ? null
+                          : (value) {
+                              setState(() {
+                                _selectedWardId = value;
+                              });
+                            },
+                      validator: (v) => v == null ? 'Please select a ward' : null,
+                    ),
               const SizedBox(height: 16),
 
               // Address

@@ -16,6 +16,7 @@ router.get('/', async (req, res) => {
         const cityCorporations = await city_corporation_service_1.default.getCityCorporations('ACTIVE');
         // Return simplified data for public use
         const publicData = cityCorporations.map((cc) => ({
+            id: cc.id,
             code: cc.code,
             name: cc.name,
             minWard: cc.minWard,
@@ -44,6 +45,7 @@ router.get('/active', async (req, res) => {
         const cityCorporations = await city_corporation_service_1.default.getCityCorporations('ACTIVE');
         // Return simplified data for public use
         const publicData = cityCorporations.map((cc) => ({
+            id: cc.id,
             code: cc.code,
             name: cc.name,
             minWard: cc.minWard,

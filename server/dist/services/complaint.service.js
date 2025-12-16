@@ -184,7 +184,11 @@ class ComplaintService {
                     imageUrl: finalImageUrls.length > 0 ? JSON.stringify(finalImageUrls) : null,
                     audioUrl: finalAudioUrls.length > 0 ? JSON.stringify(finalAudioUrls) : null,
                     userId: input.forSomeoneElse ? undefined : (input.userId ?? undefined),
-                    location: locationString
+                    location: locationString,
+                    // NEW: Store geographical IDs for dynamic system
+                    cityCorporationCode: input.cityCorporationCode || user?.cityCorporationCode || null,
+                    zoneId: input.zoneId || user?.zoneId || null,
+                    wardId: input.wardId || user?.wardId || null
                 },
                 include: {
                     user: {
@@ -193,7 +197,10 @@ class ComplaintService {
                             zone: true,
                             ward: true
                         }
-                    }
+                    },
+                    cityCorporation: true,
+                    zone: true,
+                    wards: true
                 }
             });
             // Increment ward image count if images were uploaded
@@ -579,9 +586,9 @@ class ComplaintService {
         };
     }
     // Update getComplaints to return formatted responses
-    async getComplaints(query = {}) {
+    async getComplaints(query = {}, requestingUser) {
         try {
-            const result = await this.getComplaintsRaw(query);
+            const result = await this.getComplaintsRaw(query, requestingUser);
             return {
                 ...result,
                 data: result.data.map(complaint => this.formatComplaintResponse(complaint))
@@ -592,8 +599,8 @@ class ComplaintService {
         }
     }
     // Raw method for internal use
-    async getComplaintsRaw(query = {}) {
-        const { page = 1, limit = 10, status, category, subcategory, priority, sortBy = 'createdAt', sortOrder = 'desc', userId } = query;
+    async getComplaintsRaw(query = {}, requestingUser) {
+        const { page = 1, limit = 10, status, category, subcategory, priority, sortBy = 'createdAt', sortOrder = 'desc', userId, cityCorporationCode, zoneId, wardId } = query;
         const skip = (page - 1) * limit;
         // Build where clause
         const where = {};
@@ -607,6 +614,40 @@ class ComplaintService {
             where.priority = priority;
         if (userId)
             where.userId = userId;
+        // Apply geographical filters via user relationship
+        if (cityCorporationCode || zoneId || wardId) {
+            where.user = where.user || {};
+            if (cityCorporationCode) {
+                where.user.cityCorporationCode = cityCorporationCode;
+            }
+            if (zoneId) {
+                where.user.zoneId = zoneId;
+            }
+            if (wardId) {
+                where.user.wardId = wardId;
+            }
+        }
+        // Apply role-based automatic filtering
+        if (requestingUser) {
+            where.user = where.user || {};
+            if (requestingUser.role === 'SUPER_ADMIN') {
+                // Get assigned zones for SUPER_ADMIN
+                const assignedZones = await prisma_1.default.userZone.findMany({
+                    where: { userId: requestingUser.id },
+                    select: { zoneId: true }
+                });
+                const assignedZoneIds = assignedZones.map(uz => uz.zoneId);
+                if (assignedZoneIds.length > 0) {
+                    where.user.zoneId = { in: assignedZoneIds };
+                }
+            }
+            else if (requestingUser.role === 'ADMIN') {
+                // Filter by assigned ward
+                if (requestingUser.wardId) {
+                    where.user.wardId = requestingUser.wardId;
+                }
+            }
+        }
         // Build order by clause
         const orderBy = {};
         orderBy[sortBy] = sortOrder;

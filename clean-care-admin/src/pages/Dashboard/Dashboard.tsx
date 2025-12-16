@@ -11,30 +11,51 @@ import { CityCorporationComparison } from './components/CityCorporationCompariso
 import { cityCorporationService } from '../../services/cityCorporationService';
 import type { CityCorporation } from '../../services/cityCorporationService';
 
+import { useAuth } from '../../contexts/AuthContext';
+import { superAdminService } from '../../services/superAdminService';
+import { UserRole } from '../../types/userManagement.types';
+import { ZoneComparison } from './components/ZoneComparison/ZoneComparison';
+import { ZoneFilter } from '../../components/common';
+import type { Zone } from '../../services/zoneService';
+
 const Dashboard: React.FC = () => {
+  const { user } = useAuth();
   const [cityCorps, setCityCorps] = useState<CityCorporation[]>([]);
   const [selectedCityCorporation, setSelectedCityCorporation] = useState<string>('ALL');
+  const [selectedZoneId, setSelectedZoneId] = useState<number | ''>('');
+  const [assignedZones, setAssignedZones] = useState<Zone[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
-  // Fetch city corporations on mount
+  // Fetch initial data
   useEffect(() => {
-    const fetchCityCorps = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
-        const response = await cityCorporationService.getCityCorporations('ACTIVE');
-        setCityCorps(response.cityCorporations || []);
+
+        // Fetch city corporations
+        const cityResponse = await cityCorporationService.getCityCorporations('ACTIVE');
+        setCityCorps(cityResponse.cityCorporations || []);
+
+        // Fetch assigned zones if Super Admin
+        if (user?.role === UserRole.SUPER_ADMIN) {
+          try {
+            const zones = await superAdminService.getAssignedZones(Number(user.id));
+            setAssignedZones(zones);
+          } catch (err) {
+            console.error('Error fetching assigned zones:', err);
+          }
+        }
       } catch (error) {
-        console.error('Error fetching city corporations:', error);
-        setCityCorps([]);
+        console.error('Error fetching dashboard data:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchCityCorps();
-  }, []);
+    fetchData();
+  }, [user]);
 
   // Auto-refresh every 30 seconds
   useEffect(() => {
@@ -61,11 +82,10 @@ const Dashboard: React.FC = () => {
         {/* Welcome Banner */}
         <WelcomeBanner />
 
-        {/* City Corporation Filter and Refresh */}
         <Paper sx={{ p: 2, mb: 3 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
             <Typography variant="h6" sx={{ minWidth: 'fit-content' }}>
-              Filter by City Corporation:
+              Filters:
             </Typography>
             <FormControl sx={{ minWidth: 250 }}>
               <InputLabel>City Corporation</InputLabel>
@@ -83,10 +103,37 @@ const Dashboard: React.FC = () => {
                 ))}
               </Select>
             </FormControl>
+
+            {/* Zone Filter */}
+            <Box sx={{ minWidth: 200 }}>
+              <ZoneFilter
+                value={selectedZoneId}
+                onChange={(val) => setSelectedZoneId(val as number | '')}
+                cityCorporationCode={selectedCityCorporation !== 'ALL' ? selectedCityCorporation : undefined}
+                disabled={loading}
+                zones={assignedZones.length > 0 ? assignedZones : undefined}
+              />
+            </Box>
+
             {selectedCityCorporation !== 'ALL' && (
               <Typography variant="body2" color="text.secondary">
                 Showing data for {cityCorps.find(cc => cc.code === selectedCityCorporation)?.name}
+                {selectedZoneId && ` (Zone ${selectedZoneId})`}
               </Typography>
+            )}
+
+            {/* Display Assigned Zones for Super Admin */}
+            {user?.role === UserRole.SUPER_ADMIN && assignedZones.length > 0 && (
+              <Box sx={{ mt: 1, width: '100%', display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                  Assigned Zones:
+                </Typography>
+                {assignedZones.map(zone => (
+                  <Typography key={zone.id} variant="caption" sx={{ bgcolor: '#e3f2fd', px: 1, borderRadius: 1 }}>
+                    {zone.name || `Zone ${zone.zoneNumber}`}
+                  </Typography>
+                ))}
+              </Box>
             )}
             <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1 }}>
               <Typography variant="caption" color="text.secondary">
@@ -106,6 +153,8 @@ const Dashboard: React.FC = () => {
           <StatsCards
             key={`stats-${refreshKey}`}
             cityCorporationCode={selectedCityCorporation !== 'ALL' ? selectedCityCorporation : undefined}
+            // @ts-ignore - Prop might not exist yet
+            zoneId={selectedZoneId || undefined}
           />
         </ErrorBoundary>
 
@@ -115,6 +164,8 @@ const Dashboard: React.FC = () => {
             <MiddleDashboardWidgets
               key={`widgets-${refreshKey}`}
               cityCorporationCode={selectedCityCorporation !== 'ALL' ? selectedCityCorporation : undefined}
+              // @ts-ignore - Prop might not exist yet
+              zoneId={selectedZoneId || undefined}
             />
           </ErrorBoundary>
         </Box>
@@ -125,6 +176,8 @@ const Dashboard: React.FC = () => {
             <BottomDashboardSection
               key={`bottom-${refreshKey}`}
               cityCorporationCode={selectedCityCorporation !== 'ALL' ? selectedCityCorporation : undefined}
+              // @ts-ignore - Prop might not exist yet
+              zoneId={selectedZoneId || undefined}
             />
           </ErrorBoundary>
         </Box>
@@ -134,6 +187,18 @@ const Dashboard: React.FC = () => {
           <Box sx={{ mt: 4 }}>
             <ErrorBoundary>
               <CityCorporationComparison />
+            </ErrorBoundary>
+          </Box>
+        )}
+
+        {/* Zone Comparison - Show when a City Corp is selected but no specific Zone */}
+        {selectedCityCorporation !== 'ALL' && !selectedZoneId && (
+          <Box sx={{ mt: 4 }}>
+            <ErrorBoundary>
+              <ZoneComparison
+                cityCorporationCode={selectedCityCorporation}
+                assignedZones={assignedZones}
+              />
             </ErrorBoundary>
           </Box>
         )}

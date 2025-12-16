@@ -16,13 +16,28 @@ class CityCorporationService {
             orderBy: {
                 code: 'asc',
             },
+            select: {
+                id: true,
+                code: true,
+                name: true,
+                minWard: true,
+                maxWard: true,
+                minZone: true,
+                maxZone: true,
+                status: true,
+                createdAt: true,
+                updatedAt: true,
+                _count: {
+                    select: {
+                        users: true,
+                        zones: true,
+                    },
+                },
+            },
         });
-        // Fetch statistics for each city corporation
-        const cityCorporationsWithStats = await Promise.all(cityCorporations.map(async (cc) => {
-            // Get total users
-            const totalUsers = await prisma.user.count({
-                where: { cityCorporationCode: cc.code },
-            });
+        // Fetch statistics for each city corporation sequentially to avoid DB connection exhaustion
+        const cityCorporationsWithStats = [];
+        for (const cc of cityCorporations) {
             // Get total complaints
             const totalComplaints = await prisma.complaint.count({
                 where: {
@@ -38,13 +53,21 @@ class CityCorporationService {
                     status: 'ACTIVE',
                 },
             });
-            return {
+            // Get total wards count (using direct relation for better performance)
+            const totalWards = await prisma.ward.count({
+                where: {
+                    cityCorporationId: cc.id,
+                },
+            });
+            cityCorporationsWithStats.push({
                 ...cc,
-                totalUsers,
+                totalUsers: cc._count.users,
                 totalComplaints,
+                totalZones: cc._count.zones,
                 activeZones,
-            };
-        }));
+                totalWards,
+            });
+        }
         return cityCorporationsWithStats;
     }
     /**
@@ -53,7 +76,17 @@ class CityCorporationService {
     async getCityCorporationByCode(code) {
         const cityCorporation = await prisma.cityCorporation.findUnique({
             where: { code },
-            include: {
+            select: {
+                id: true,
+                code: true,
+                name: true,
+                minWard: true,
+                maxWard: true,
+                minZone: true,
+                maxZone: true,
+                status: true,
+                createdAt: true,
+                updatedAt: true,
                 zones: {
                     where: {
                         status: 'ACTIVE',
@@ -72,7 +105,34 @@ class CityCorporationService {
         if (!cityCorporation) {
             throw new Error(`City Corporation with code ${code} not found`);
         }
-        return cityCorporation;
+        // Get actual max zone and ward numbers from database
+        const maxExistingZone = await prisma.zone.findFirst({
+            where: {
+                cityCorporationId: cityCorporation.id,
+            },
+            orderBy: {
+                zoneNumber: 'desc',
+            },
+            select: {
+                zoneNumber: true,
+            },
+        });
+        const maxExistingWard = await prisma.ward.findFirst({
+            where: {
+                cityCorporationId: cityCorporation.id,
+            },
+            orderBy: {
+                wardNumber: 'desc',
+            },
+            select: {
+                wardNumber: true,
+            },
+        });
+        return {
+            ...cityCorporation,
+            actualMaxZone: maxExistingZone?.zoneNumber || null,
+            actualMaxWard: maxExistingWard?.wardNumber || null,
+        };
     }
     /**
      * Create new city corporation
@@ -84,6 +144,13 @@ class CityCorporationService {
         }
         if (data.minWard < 1) {
             throw new Error('minWard must be at least 1');
+        }
+        // Validate zone range
+        if (data.minZone >= data.maxZone) {
+            throw new Error('minZone must be less than maxZone');
+        }
+        if (data.minZone < 1) {
+            throw new Error('minZone must be at least 1');
         }
         // Check if code already exists
         const existing = await prisma.cityCorporation.findUnique({
@@ -98,6 +165,8 @@ class CityCorporationService {
                 name: data.name,
                 minWard: data.minWard,
                 maxWard: data.maxWard,
+                minZone: data.minZone,
+                maxZone: data.maxZone,
                 status: 'ACTIVE',
             },
         });
@@ -118,6 +187,47 @@ class CityCorporationService {
             }
             if (minWard < 1) {
                 throw new Error('minWard must be at least 1');
+            }
+            // Check if there are existing wards beyond the new maxWard
+            const maxExistingWard = await prisma.ward.findFirst({
+                where: {
+                    cityCorporationId: existing.id,
+                },
+                orderBy: {
+                    wardNumber: 'desc',
+                },
+                select: {
+                    wardNumber: true,
+                },
+            });
+            if (maxExistingWard && maxExistingWard.wardNumber && maxExistingWard.wardNumber > maxWard) {
+                throw new Error(`Cannot set maximum ward to ${maxWard}. Ward ${maxExistingWard.wardNumber} already exists. Please set maximum ward to at least ${maxExistingWard.wardNumber} or delete existing wards first.`);
+            }
+        }
+        // Validate zone range if being updated (minZone and maxZone)
+        if (data.minZone !== undefined || data.maxZone !== undefined) {
+            const minZone = data.minZone ?? existing.minZone;
+            const maxZone = data.maxZone ?? existing.maxZone;
+            if (minZone >= maxZone) {
+                throw new Error('minZone must be less than maxZone');
+            }
+            if (minZone < 1) {
+                throw new Error('minZone must be at least 1');
+            }
+            // Check if there are existing zones beyond the new maxZone
+            const maxExistingZone = await prisma.zone.findFirst({
+                where: {
+                    cityCorporationId: existing.id,
+                },
+                orderBy: {
+                    zoneNumber: 'desc',
+                },
+                select: {
+                    zoneNumber: true,
+                },
+            });
+            if (maxExistingZone && maxExistingZone.zoneNumber && maxExistingZone.zoneNumber > maxZone) {
+                throw new Error(`Cannot set maximum zone to ${maxZone}. Zone ${maxExistingZone.zoneNumber} already exists. Please set maximum zone to at least ${maxExistingZone.zoneNumber} or delete existing zones first.`);
             }
         }
         const cityCorporation = await prisma.cityCorporation.update({

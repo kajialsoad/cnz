@@ -3,6 +3,12 @@ import 'package:provider/provider.dart';
 
 import '../components/custom_bottom_nav.dart';
 import '../providers/complaint_provider.dart';
+import '../config/api_config.dart';
+import '../repositories/auth_repository.dart';
+import '../services/api_client.dart';
+import '../models/city_corporation_model.dart';
+import '../models/zone_model.dart';
+import '../models/ward_model.dart';
 
 class ComplaintAddressPage extends StatefulWidget {
   const ComplaintAddressPage({super.key});
@@ -14,51 +20,116 @@ class ComplaintAddressPage extends StatefulWidget {
 class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
   int _currentIndex = 0;
   bool _forMyself = true;
+  late final AuthRepository _auth;
 
   // Form controllers
-  String? selectedDistrict;
-  String? selectedThana;
-  String? selectedCityCorporation;
-  final TextEditingController _wardController = TextEditingController();
   final TextEditingController _fullAddressController = TextEditingController();
 
-  // Data lists
-  final List<String> districts = [
-    'Select district',
-    'Dhaka',
-    'Chittagong',
-    'Sylhet',
-    'Rajshahi',
-    'Khulna',
-    'Barisal',
-    'Rangpur',
-    'Mymensingh',
-  ];
+  // City Corporation, Zone and Ward state
+  List<CityCorporation> _cityCorporations = [];
+  CityCorporation? _selectedCityCorporation;
+  List<Zone> _zones = [];
+  Zone? _selectedZone;
+  List<Ward> _wards = [];
+  Ward? _selectedWard;
+  bool _isLoadingCityCorps = false;
+  bool _isLoadingZones = false;
+  bool _isLoadingWards = false;
 
-  final List<String> thanas = [
-    'Select thana',
-    'Dhanmondi',
-    'Gulshan',
-    'Uttara',
-    'Mirpur',
-    'Wari',
-    'Ramna',
-    'Tejgaon',
-    'Pallabi',
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _auth = AuthRepository(ApiClient(ApiConfig.baseUrl));
+    _loadCityCorporations();
+  }
 
-  final List<String> cityCorporations = [
-    'Select city corporation',
-    'DSCC (Dhaka South)',
-    'DNCC (Dhaka North)',
-    'Chittagong City Corporation',
-    'Sylhet City Corporation',
-    'Rajshahi City Corporation',
-  ];
+  Future<void> _loadCityCorporations() async {
+    setState(() => _isLoadingCityCorps = true);
+
+    try {
+      final cityCorps = await _auth.getActiveCityCorporations();
+      if (mounted) {
+        setState(() {
+          _cityCorporations = cityCorps;
+          _isLoadingCityCorps = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingCityCorps = false);
+        _showErrorSnackBar(
+          'Failed to load City Corporations: ${e.toString().replaceAll('Exception: ', '')}',
+        );
+      }
+    }
+  }
+
+  Future<void> _onCityCorporationChanged(CityCorporation? cityCorporation) async {
+    setState(() {
+      _selectedCityCorporation = cityCorporation;
+      _selectedZone = null;
+      _selectedWard = null;
+      _zones = [];
+      _wards = [];
+    });
+
+    if (cityCorporation != null) {
+      setState(() => _isLoadingZones = true);
+
+      try {
+        if (cityCorporation.id != null) {
+          final zones = await _auth.getZonesByCityCorporation(cityCorporation.id!);
+          if (mounted) {
+            setState(() {
+              _zones = zones;
+              _isLoadingZones = false;
+            });
+          }
+        } else {
+          setState(() => _isLoadingZones = false);
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() => _isLoadingZones = false);
+          _showErrorSnackBar(
+            'Failed to load Zones: ${e.toString().replaceAll('Exception: ', '')}',
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _onZoneChanged(Zone? zone) async {
+    setState(() {
+      _selectedZone = zone;
+      _selectedWard = null;
+      _wards = [];
+    });
+
+    if (zone != null) {
+      setState(() => _isLoadingWards = true);
+
+      try {
+        final wards = await _auth.getWardsByZone(zone.id);
+        if (mounted) {
+          setState(() {
+            _wards = wards;
+            _isLoadingWards = false;
+          });
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() => _isLoadingWards = false);
+          _showErrorSnackBar(
+            'Failed to load Wards: ${e.toString().replaceAll('Exception: ', '')}',
+          );
+        }
+      }
+    }
+  }
 
   @override
   void dispose() {
-    _wardController.dispose();
     _fullAddressController.dispose();
     super.dispose();
   }
@@ -177,49 +248,52 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
   Widget _buildFormFields() {
     return Column(
       children: [
-        _buildDropdownField(
-          label: 'District',
-          value: selectedDistrict,
-          items: districts,
-          onChanged: (value) {
-            setState(() {
-              selectedDistrict = value;
-            });
-          },
-        ),
+        // City Corporation Dropdown
+        _buildCityCorporationDropdown(),
         const SizedBox(height: 16),
-        _buildDropdownField(
-          label: 'Thana / Police station',
-          value: selectedThana,
-          items: thanas,
-          onChanged: (value) {
-            setState(() {
-              selectedThana = value;
-            });
-          },
-        ),
-        const SizedBox(height: 16),
-        _buildDropdownField(
-          label: 'City Corporation',
-          value: selectedCityCorporation,
-          items: cityCorporations,
-          onChanged: (value) {
-            setState(() {
-              selectedCityCorporation = value;
-            });
-          },
-        ),
-        const SizedBox(height: 16),
+        
+        // Zone Dropdown (shows only if City Corporation is selected)
+        if (_selectedCityCorporation != null) ...[
+          _buildZoneDropdown(),
+          const SizedBox(height: 16),
+        ],
+        
+        // Ward Dropdown (shows only if Zone is selected)
+        if (_selectedZone != null) ...[
+          _buildWardDropdown(),
+          const SizedBox(height: 16),
+        ],
+        
+        // Show message if no zones available
+        if (_selectedCityCorporation != null && _zones.isEmpty && !_isLoadingZones) ...[
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.orange.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.orange.withOpacity(0.3)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline, color: Colors.orange[700], size: 20),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'এই সিটি কর্পোরেশনের জন্য কোন জোন উপলব্ধ নেই',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.orange[900],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
+        
         _buildTextFormField(
-          label: 'Ward Number',
-          controller: _wardController,
-          hintText: 'Enter ward number',
-          keyboardType: TextInputType.number,
-          isWardNumber: true,
-        ),
-        const SizedBox(height: 16),
-        _buildTextFormField(
-          label: 'Full Address',
+          label: 'Full Address / সম্পূর্ণ ঠিকানা',
           controller: _fullAddressController,
           hintText: 'House/Road/Area',
           maxLines: 3,
@@ -227,19 +301,14 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
       ],
     );
   }
-
-  Widget _buildDropdownField({
-    required String label,
-    required String? value,
-    required List<String> items,
-    required ValueChanged<String?> onChanged,
-  }) {
+  
+  Widget _buildCityCorporationDropdown() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: const TextStyle(
+        const Text(
+          'City Corporation / সিটি কর্পোরেশন',
+          style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w500,
             color: Colors.black87,
@@ -258,40 +327,192 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
               ),
             ],
           ),
-          child: DropdownButtonFormField<String>(
-            value: value,
-            decoration: InputDecoration(
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide.none,
-              ),
-              fillColor: Colors.white,
-              filled: true,
-            ),
-            hint: Text(
-              items.first,
-              style: TextStyle(color: Colors.grey[500], fontSize: 14),
-            ),
-            items: items.skip(1).map((String item) {
-              return DropdownMenuItem<String>(
-                value: item,
-                child: Text(
-                  item,
-                  style: const TextStyle(fontSize: 14, color: Colors.black87),
+          child: _isLoadingCityCorps
+              ? const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Center(
+                    child: SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
+                )
+              : DropdownButtonFormField<CityCorporation>(
+                  value: _selectedCityCorporation,
+                  decoration: InputDecoration(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide.none,
+                    ),
+                    fillColor: Colors.white,
+                    filled: true,
+                  ),
+                  hint: Text(
+                    'Select City Corporation',
+                    style: TextStyle(color: Colors.grey[500], fontSize: 14),
+                  ),
+                  items: _cityCorporations.map((cc) {
+                    return DropdownMenuItem<CityCorporation>(
+                      value: cc,
+                      child: Text(
+                        cc.name,
+                        style: const TextStyle(fontSize: 14, color: Colors.black87),
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: _onCityCorporationChanged,
+                  icon: Icon(Icons.keyboard_arrow_down, color: Colors.grey[600]),
+                  dropdownColor: Colors.white,
                 ),
-              );
-            }).toList(),
-            onChanged: (value) {
-              // Pass the value directly without converting to null
-              onChanged(value);
-            },
-            icon: Icon(Icons.keyboard_arrow_down, color: Colors.grey[600]),
-            dropdownColor: Colors.white,
+        ),
+      ],
+    );
+  }
+  
+  Widget _buildZoneDropdown() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Zone / জোন',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: Colors.black87,
           ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.06),
+                blurRadius: 4,
+                offset: const Offset(0, 1),
+              ),
+            ],
+          ),
+          child: _isLoadingZones
+              ? const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Center(
+                    child: SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
+                )
+              : DropdownButtonFormField<Zone>(
+                  value: _selectedZone,
+                  decoration: InputDecoration(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide.none,
+                    ),
+                    fillColor: Colors.white,
+                    filled: true,
+                  ),
+                  hint: Text(
+                    'Select Zone',
+                    style: TextStyle(color: Colors.grey[500], fontSize: 14),
+                  ),
+                  items: _zones.map((zone) {
+                    return DropdownMenuItem<Zone>(
+                      value: zone,
+                      child: Text(
+                        zone.displayName,
+                        style: const TextStyle(fontSize: 14, color: Colors.black87),
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: _onZoneChanged,
+                  icon: Icon(Icons.keyboard_arrow_down, color: Colors.grey[600]),
+                  dropdownColor: Colors.white,
+                ),
+        ),
+      ],
+    );
+  }
+  
+  Widget _buildWardDropdown() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Ward / ওয়ার্ড',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.06),
+                blurRadius: 4,
+                offset: const Offset(0, 1),
+              ),
+            ],
+          ),
+          child: _isLoadingWards
+              ? const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Center(
+                    child: SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
+                )
+              : DropdownButtonFormField<Ward>(
+                  value: _selectedWard,
+                  decoration: InputDecoration(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide.none,
+                    ),
+                    fillColor: Colors.white,
+                    filled: true,
+                  ),
+                  hint: Text(
+                    'Select Ward',
+                    style: TextStyle(color: Colors.grey[500], fontSize: 14),
+                  ),
+                  items: _wards.map((ward) {
+                    return DropdownMenuItem<Ward>(
+                      value: ward,
+                      child: Text(
+                        ward.displayName,
+                        style: const TextStyle(fontSize: 14, color: Colors.black87),
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (v) => setState(() => _selectedWard = v),
+                  icon: Icon(Icons.keyboard_arrow_down, color: Colors.grey[600]),
+                  dropdownColor: Colors.white,
+                ),
         ),
       ],
     );
@@ -303,7 +524,6 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
     required String hintText,
     int maxLines = 1,
     TextInputType keyboardType = TextInputType.text,
-    bool isWardNumber = false,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -346,7 +566,7 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
               ),
               fillColor: Colors.white,
               filled: true,
-              suffixIcon: isWardNumber ? _buildWardNumberButtons() : null,
+
             ),
             style: const TextStyle(fontSize: 14, color: Colors.black87),
           ),
@@ -355,43 +575,7 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
     );
   }
 
-  Widget _buildWardNumberButtons() {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Decrease button
-        Container(
-          width: 32,
-          height: 32,
-          margin: const EdgeInsets.only(right: 4),
-          decoration: BoxDecoration(
-            color: const Color(0xFF4CAF50).withOpacity(0.1),
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: InkWell(
-            onTap: _decreaseWardNumber,
-            borderRadius: BorderRadius.circular(6),
-            child: const Icon(Icons.remove, size: 18, color: Color(0xFF4CAF50)),
-          ),
-        ),
-        // Increase button
-        Container(
-          width: 32,
-          height: 32,
-          margin: const EdgeInsets.only(right: 8),
-          decoration: BoxDecoration(
-            color: const Color(0xFF4CAF50).withOpacity(0.1),
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: InkWell(
-            onTap: _increaseWardNumber,
-            borderRadius: BorderRadius.circular(6),
-            child: const Icon(Icons.add, size: 18, color: Color(0xFF4CAF50)),
-          ),
-        ),
-      ],
-    );
-  }
+
 
   Widget _buildSubmitButton() {
     return Container(
@@ -434,18 +618,6 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
     );
   }
 
-  void _decreaseWardNumber() {
-    final currentValue = int.tryParse(_wardController.text) ?? 0;
-    if (currentValue > 1) {
-      _wardController.text = (currentValue - 1).toString();
-    }
-  }
-
-  void _increaseWardNumber() {
-    final currentValue = int.tryParse(_wardController.text) ?? 0;
-    _wardController.text = (currentValue + 1).toString();
-  }
-
   void _submitComplaint() async {
     // Validate form
     if (_validateForm()) {
@@ -454,18 +626,24 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
         listen: false,
       );
 
-      // Store address components separately for backend
+      // Store address components for backend
       final fullAddress = _fullAddressController.text.trim();
-      final ward = _wardController.text.trim();
 
       complaintProvider.setAddress(fullAddress);
-      complaintProvider.setDistrict(selectedDistrict);
-      complaintProvider.setThana(selectedThana);
-      complaintProvider.setWard(ward);
+      
+      // Set geographical IDs for backend
+      complaintProvider.setCityCorporationCode(_selectedCityCorporation?.code);
+      complaintProvider.setZoneId(_selectedZone?.id);
+      complaintProvider.setWardId(_selectedWard?.id);
 
-      // Also construct location string for display purposes
-      final locationString =
-          '$fullAddress, $selectedDistrict, $selectedThana, $selectedCityCorporation, Ward: $ward';
+      // Construct location string for display purposes
+      final locationParts = <String>[];
+      if (fullAddress.isNotEmpty) locationParts.add(fullAddress);
+      if (_selectedCityCorporation != null) locationParts.add(_selectedCityCorporation!.name);
+      if (_selectedZone != null) locationParts.add(_selectedZone!.displayName);
+      if (_selectedWard != null) locationParts.add(_selectedWard!.displayName);
+      
+      final locationString = locationParts.join(', ');
       complaintProvider.setLocation(locationString);
 
       // Show loading indicator
@@ -536,7 +714,7 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
   bool _validateForm() {
     print('Validating form...');
     
-    // NEW: Validate category is selected
+    // Validate category is selected
     final complaintProvider = Provider.of<ComplaintProvider>(
       context,
       listen: false,
@@ -544,37 +722,32 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
     
     if (complaintProvider.category.isEmpty) {
       _showErrorDialog(
-        'Category Required',
-        'Please select a category before submitting your complaint.',
+        'Category Required / ক্যাটাগরি প্রয়োজন',
+        'Please select a category before submitting your complaint.\nঅভিযোগ জমা দেওয়ার আগে একটি ক্যাটাগরি নির্বাচন করুন।',
         showReturnButton: true,
       );
       return false;
     }
     
-    print('selectedDistrict: $selectedDistrict');
-    print('selectedThana: $selectedThana');
-    print('selectedCityCorporation: $selectedCityCorporation');
-    print('ward: ${_wardController.text}');
+    print('selectedCityCorporation: $_selectedCityCorporation');
+    print('selectedZone: $_selectedZone');
+    print('selectedWard: $_selectedWard');
     print('fullAddress: ${_fullAddressController.text}');
 
-    if (selectedDistrict == null || selectedDistrict!.isEmpty) {
-      _showErrorSnackBar('Please select a district');
+    if (_selectedCityCorporation == null) {
+      _showErrorSnackBar('সিটি কর্পোরেশন নির্বাচন করুন / Please select a city corporation');
       return false;
     }
-    if (selectedThana == null || selectedThana!.isEmpty) {
-      _showErrorSnackBar('Please select a thana/police station');
+    if (_selectedZone == null) {
+      _showErrorSnackBar('জোন নির্বাচন করুন / Please select a zone');
       return false;
     }
-    if (selectedCityCorporation == null || selectedCityCorporation!.isEmpty) {
-      _showErrorSnackBar('Please select a city corporation');
-      return false;
-    }
-    if (_wardController.text.trim().isEmpty) {
-      _showErrorSnackBar('Please enter ward number');
+    if (_selectedWard == null) {
+      _showErrorSnackBar('ওয়ার্ড নির্বাচন করুন / Please select a ward');
       return false;
     }
     if (_fullAddressController.text.trim().isEmpty) {
-      _showErrorSnackBar('Please enter full address');
+      _showErrorSnackBar('সম্পূর্ণ ঠিকানা লিখুন / Please enter full address');
       return false;
     }
     return true;

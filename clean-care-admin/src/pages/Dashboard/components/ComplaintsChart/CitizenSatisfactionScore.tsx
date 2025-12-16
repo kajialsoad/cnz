@@ -4,9 +4,10 @@ import { CircularProgress } from '@mui/material';
 
 interface CitizenSatisfactionScoreProps {
   cityCorporationCode?: string;
+  zoneId?: number;
 }
 
-const CitizenSatisfactionScore: React.FC<CitizenSatisfactionScoreProps> = ({ cityCorporationCode }) => {
+const CitizenSatisfactionScore: React.FC<CitizenSatisfactionScoreProps> = ({ cityCorporationCode, zoneId }) => {
   const score = 4.2;
   const maxScore = 5.0;
   const percentage = (score / maxScore) * 100;

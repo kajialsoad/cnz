@@ -3,6 +3,7 @@ import { AuthRequest } from '../middlewares/auth.middleware';
 import { adminComplaintService } from '../services/admin-complaint.service';
 import { adminComplaintServiceFixed } from '../services/admin-complaint-fixed.service';
 import { ComplaintStatus } from '@prisma/client';
+import { multiZoneService } from '../services/multi-zone.service';
 
 /**
  * Get all complaints (admin view)
@@ -26,6 +27,12 @@ export async function getAdminComplaints(req: AuthRequest, res: Response) {
             sortOrder
         } = req.query;
 
+        // Get assigned zone IDs for SUPER_ADMIN users
+        let assignedZoneIds: number[] | undefined;
+        if (req.user && req.user.role === 'SUPER_ADMIN') {
+            assignedZoneIds = await multiZoneService.getAssignedZoneIds(req.user.sub);
+        }
+
         const result = await adminComplaintService.getAdminComplaints({
             page: page ? parseInt(page as string) : undefined,
             limit: limit ? parseInt(limit as string) : undefined,
@@ -41,7 +48,7 @@ export async function getAdminComplaints(req: AuthRequest, res: Response) {
             endDate: endDate as string,
             sortBy: sortBy as any,
             sortOrder: sortOrder as 'asc' | 'desc'
-        });
+        }, assignedZoneIds);
 
         res.status(200).json({
             success: true,
@@ -180,8 +187,15 @@ export async function getComplaintStatsByZone(req: AuthRequest, res: Response) {
     try {
         const { cityCorporationCode } = req.query;
 
+        // Get assigned zone IDs for SUPER_ADMIN users
+        let assignedZoneIds: number[] | undefined;
+        if (req.user && req.user.role === 'SUPER_ADMIN') {
+            assignedZoneIds = await multiZoneService.getAssignedZoneIds(req.user.sub);
+        }
+
         const stats = await adminComplaintService.getComplaintStatsByZone(
-            cityCorporationCode as string | undefined
+            cityCorporationCode as string | undefined,
+            assignedZoneIds
         );
 
         res.status(200).json({
@@ -204,9 +218,16 @@ export async function getComplaintStatsByWard(req: AuthRequest, res: Response) {
     try {
         const { zoneId, cityCorporationCode } = req.query;
 
+        // Get assigned zone IDs for SUPER_ADMIN users
+        let assignedZoneIds: number[] | undefined;
+        if (req.user && req.user.role === 'SUPER_ADMIN') {
+            assignedZoneIds = await multiZoneService.getAssignedZoneIds(req.user.sub);
+        }
+
         const stats = await adminComplaintService.getComplaintStatsByWard(
             zoneId ? parseInt(zoneId as string) : undefined,
-            cityCorporationCode as string | undefined
+            cityCorporationCode as string | undefined,
+            assignedZoneIds
         );
 
         res.status(200).json({

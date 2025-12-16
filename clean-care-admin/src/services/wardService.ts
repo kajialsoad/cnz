@@ -18,6 +18,7 @@ export interface Ward {
     };
     inspectorName?: string;
     inspectorSerialNumber?: string;
+    inspectorPhone?: string;
     status: 'ACTIVE' | 'INACTIVE';
     createdAt: string;
     updatedAt: string;
@@ -34,11 +35,13 @@ export interface CreateWardDto {
     zoneId: number;
     inspectorName?: string;
     inspectorSerialNumber?: string;
+    inspectorPhone?: string;
 }
 
 export interface UpdateWardDto {
     inspectorName?: string;
     inspectorSerialNumber?: string;
+    inspectorPhone?: string;
     status?: 'ACTIVE' | 'INACTIVE';
 }
 

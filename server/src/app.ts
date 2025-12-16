@@ -13,6 +13,7 @@ import adminUserRoutes from './routes/admin.user.routes';
 import adminComplaintRoutes from './routes/admin.complaint.routes';
 import adminAnalyticsRoutes from './routes/admin.analytics.routes';
 import adminChatRoutes from './routes/admin.chat.routes';
+import adminDirectMessageRoutes from './routes/admin.direct-message.routes';
 import adminActivityLogRoutes from './routes/admin.activity-log.routes';
 import dashboardRoutes from './routes/dashboard.routes';
 import categoryRoutes from './routes/category.routes';
@@ -164,11 +165,17 @@ app.get('/login', (_req: Request, res: Response) => {
 app.use('/api/admin/chat', adminChatRoutes); // Admin chat routes
 console.log('✅ Admin chat routes registered at /api/admin/chat');
 
+app.use('/api/admin/direct-chat', adminDirectMessageRoutes); // Admin direct message routes
+console.log('✅ Admin direct message routes registered at /api/admin/direct-chat');
+
 app.use('/api/admin/activity-logs', adminActivityLogRoutes); // Admin activity log routes
 console.log('✅ Admin activity log routes registered at /api/admin/activity-logs');
 
 app.use('/api/dashboard', dashboardRoutes); // Dashboard statistics routes
 console.log('✅ Dashboard routes registered at /api/dashboard');
+
+app.use('/api/admin/dashboard', dashboardRoutes); // Admin dashboard statistics routes with geographical filtering
+console.log('✅ Admin dashboard routes registered at /api/admin/dashboard');
 
 app.use('/api/categories', categoryRoutes); // Category routes
 console.log('✅ Category routes registered at /api/categories');

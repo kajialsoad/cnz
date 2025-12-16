@@ -14,6 +14,7 @@ import { analyticsService } from '../../services/analyticsService';
 interface CategoryChartProps {
     startDate?: string;
     endDate?: string;
+    zoneId?: number;
 }
 
 /**
@@ -24,7 +25,7 @@ interface CategoryChartProps {
  * 
  * Requirements: 8.1, 8.2, 8.3, 8.4, 8.5
  */
-const CategoryChart: React.FC<CategoryChartProps> = ({ startDate, endDate }) => {
+const CategoryChart: React.FC<CategoryChartProps> = ({ startDate, endDate, zoneId }) => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const isTablet = useMediaQuery(theme.breakpoints.down('md'));
@@ -36,7 +37,7 @@ const CategoryChart: React.FC<CategoryChartProps> = ({ startDate, endDate }) => 
 
     useEffect(() => {
         fetchCategoryStatistics();
-    }, [startDate, endDate]);
+    }, [startDate, endDate, zoneId]);
 
     const fetchCategoryStatistics = async () => {
         try {
@@ -46,6 +47,7 @@ const CategoryChart: React.FC<CategoryChartProps> = ({ startDate, endDate }) => 
             const query: any = {};
             if (startDate) query.startDate = startDate;
             if (endDate) query.endDate = endDate;
+            if (zoneId) query.zoneId = zoneId;
 
             const statistics = await analyticsService.getCategoryStats(query);
 

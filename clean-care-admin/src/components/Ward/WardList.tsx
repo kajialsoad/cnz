@@ -39,6 +39,7 @@ const WardList: React.FC<WardListProps> = ({
                             <TableCell sx={{ fontWeight: 600 }}>Ward Number</TableCell>
                             <TableCell sx={{ fontWeight: 600 }}>Inspector Name</TableCell>
                             <TableCell sx={{ fontWeight: 600 }}>Inspector Serial</TableCell>
+                            <TableCell sx={{ fontWeight: 600 }}>Inspector Phone</TableCell>
                             <TableCell sx={{ fontWeight: 600 }}>Total Users</TableCell>
                             <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
                             <TableCell sx={{ fontWeight: 600 }}>Actions</TableCell>
@@ -99,6 +100,7 @@ const WardList: React.FC<WardListProps> = ({
                             <TableCell sx={{ fontWeight: 600 }}>Ward Number</TableCell>
                             <TableCell sx={{ fontWeight: 600 }}>Inspector Name</TableCell>
                             <TableCell sx={{ fontWeight: 600 }}>Inspector Serial</TableCell>
+                            <TableCell sx={{ fontWeight: 600 }}>Inspector Phone</TableCell>
                             <TableCell sx={{ fontWeight: 600 }}>Total Users</TableCell>
                             <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
                             <TableCell sx={{ fontWeight: 600 }}>Actions</TableCell>
@@ -148,6 +150,26 @@ const WardList: React.FC<WardListProps> = ({
                                         <Tooltip title="Click Edit to assign serial number">
                                             <Chip
                                                 label="Not Assigned"
+                                                size="small"
+                                                sx={{
+                                                    backgroundColor: '#fff3e0',
+                                                    color: '#e65100',
+                                                    fontWeight: 500,
+                                                    cursor: 'pointer',
+                                                }}
+                                            />
+                                        </Tooltip>
+                                    )}
+                                </TableCell>
+                                <TableCell>
+                                    {ward.inspectorPhone ? (
+                                        <Typography variant="body2" color="text.secondary">
+                                            {ward.inspectorPhone}
+                                        </Typography>
+                                    ) : (
+                                        <Tooltip title="Click Edit to assign phone number">
+                                            <Chip
+                                                label="No Phone"
                                                 size="small"
                                                 sx={{
                                                     backgroundColor: '#fff3e0',

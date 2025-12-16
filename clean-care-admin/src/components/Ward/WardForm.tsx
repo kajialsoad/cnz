@@ -27,6 +27,7 @@ const WardForm: React.FC<WardFormProps> = ({
 }) => {
     const [inspectorName, setInspectorName] = useState<string>('');
     const [inspectorSerialNumber, setInspectorSerialNumber] = useState<string>('');
+    const [inspectorPhone, setInspectorPhone] = useState<string>('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -35,6 +36,7 @@ const WardForm: React.FC<WardFormProps> = ({
         if (ward) {
             setInspectorName(ward.inspectorName || '');
             setInspectorSerialNumber(ward.inspectorSerialNumber || '');
+            setInspectorPhone(ward.inspectorPhone || '');
         }
         setError(null);
     }, [ward, open]);
@@ -48,6 +50,7 @@ const WardForm: React.FC<WardFormProps> = ({
             const data: UpdateWardDto = {
                 inspectorName: inspectorName.trim() || undefined,
                 inspectorSerialNumber: inspectorSerialNumber.trim() || undefined,
+                inspectorPhone: inspectorPhone.trim() || undefined,
             };
 
             await onSave(data);
@@ -146,7 +149,19 @@ const WardForm: React.FC<WardFormProps> = ({
                             onChange={(e) => setInspectorSerialNumber(e.target.value)}
                             disabled={loading}
                             variant="outlined"
+                            sx={{ mb: 2.5 }}
                             helperText="Enter the serial number of the inspector"
+                        />
+
+                        {/* Inspector Phone Number */}
+                        <TextField
+                            fullWidth
+                            label="Inspector Phone Number"
+                            value={inspectorPhone}
+                            onChange={(e) => setInspectorPhone(e.target.value)}
+                            disabled={loading}
+                            variant="outlined"
+                            helperText="Enter the contact number of the inspector"
                         />
                     </Box>
                 </Box>

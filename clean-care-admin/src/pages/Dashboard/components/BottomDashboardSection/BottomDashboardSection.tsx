@@ -10,14 +10,15 @@ import { TotalUsersWidget } from '../QuickActions';
 
 interface BottomDashboardSectionProps {
   cityCorporationCode?: string;
+  zoneId?: number;
 }
 
-const BottomDashboardSection: React.FC<BottomDashboardSectionProps> = ({ cityCorporationCode }) => {
+const BottomDashboardSection: React.FC<BottomDashboardSectionProps> = ({ cityCorporationCode, zoneId }) => {
   return (
     <Box sx={{ mb: 4 }}>
       {/* Total Users Widget - Full Width */}
       <Box sx={{ mb: 3 }}>
-        <TotalUsersWidget cityCorporationCode={cityCorporationCode} />
+        <TotalUsersWidget cityCorporationCode={cityCorporationCode} zoneId={zoneId} />
       </Box>
 
       {/* COMMENTED OUT - Will implement later */}

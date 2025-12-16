@@ -11,10 +11,10 @@ class AnalyticsService {
     /**
      * Get comprehensive complaint analytics
      */
-    async getComplaintAnalytics(query = {}) {
+    async getComplaintAnalytics(query = {}, assignedZoneIds) {
         try {
             const { startDate, endDate, cityCorporationCode } = query;
-            // Build date filter
+            // Build date filter (which acts as base where clause)
             const dateFilter = {};
             if (startDate || endDate) {
                 dateFilter.createdAt = {};
@@ -26,10 +26,16 @@ class AnalyticsService {
                 }
             }
             // Add city corporation filter through user relationship
+            const userFilter = {};
             if (cityCorporationCode) {
-                dateFilter.user = {
-                    cityCorporationCode: cityCorporationCode
-                };
+                userFilter.cityCorporationCode = cityCorporationCode;
+            }
+            // Multi-zone Logic
+            if (assignedZoneIds && assignedZoneIds.length > 0) {
+                userFilter.zoneId = { in: assignedZoneIds };
+            }
+            if (Object.keys(userFilter).length > 0) {
+                dateFilter.user = userFilter;
             }
             // Get all analytics data in parallel
             const [totalComplaints, statusBreakdown, categoryBreakdown, wardBreakdown, averageResolutionTime, resolutionRate] = await Promise.all([
@@ -57,7 +63,7 @@ class AnalyticsService {
     /**
      * Get complaint trends over time
      */
-    async getComplaintTrends(query = {}) {
+    async getComplaintTrends(query = {}, assignedZoneIds) {
         try {
             const { period = 'week', startDate, endDate, cityCorporationCode } = query;
             // Calculate date range based on period
@@ -70,10 +76,16 @@ class AnalyticsService {
                 }
             };
             // Add city corporation filter through user relationship
+            const userFilter = {};
             if (cityCorporationCode) {
-                where.user = {
-                    cityCorporationCode: cityCorporationCode
-                };
+                userFilter.cityCorporationCode = cityCorporationCode;
+            }
+            // Multi-zone Logic
+            if (assignedZoneIds && assignedZoneIds.length > 0) {
+                userFilter.zoneId = { in: assignedZoneIds };
+            }
+            if (Object.keys(userFilter).length > 0) {
+                where.user = userFilter;
             }
             // Get complaints within date range
             const complaints = await prisma_1.default.complaint.findMany({
@@ -153,7 +165,7 @@ class AnalyticsService {
     /**
      * Get category statistics with counts and percentages
      */
-    async getCategoryStatistics(query = {}) {
+    async getCategoryStatistics(query = {}, assignedZoneIds) {
         try {
             const { startDate, endDate, cityCorporationCode } = query;
             // Build date filter
@@ -168,10 +180,16 @@ class AnalyticsService {
                 }
             }
             // Add city corporation filter through user relationship
+            const userFilter = {};
             if (cityCorporationCode) {
-                dateFilter.user = {
-                    cityCorporationCode: cityCorporationCode
-                };
+                userFilter.cityCorporationCode = cityCorporationCode;
+            }
+            // Multi-zone Logic
+            if (assignedZoneIds && assignedZoneIds.length > 0) {
+                userFilter.zoneId = { in: assignedZoneIds };
+            }
+            if (Object.keys(userFilter).length > 0) {
+                dateFilter.user = userFilter;
             }
             // Get complaints grouped by category and subcategory
             const complaints = await prisma_1.default.complaint.findMany({
@@ -247,7 +265,7 @@ class AnalyticsService {
     /**
      * Get category trends over time
      */
-    async getCategoryTrends(query = {}) {
+    async getCategoryTrends(query = {}, assignedZoneIds) {
         try {
             const { period = 'week', startDate, endDate, cityCorporationCode } = query;
             // Calculate date range based on period
@@ -260,10 +278,16 @@ class AnalyticsService {
                 }
             };
             // Add city corporation filter through user relationship
+            const userFilter = {};
             if (cityCorporationCode) {
-                where.user = {
-                    cityCorporationCode: cityCorporationCode
-                };
+                userFilter.cityCorporationCode = cityCorporationCode;
+            }
+            // Multi-zone Logic
+            if (assignedZoneIds && assignedZoneIds.length > 0) {
+                userFilter.zoneId = { in: assignedZoneIds };
+            }
+            if (Object.keys(userFilter).length > 0) {
+                where.user = userFilter;
             }
             // Get complaints within date range with category info
             const complaints = await prisma_1.default.complaint.findMany({

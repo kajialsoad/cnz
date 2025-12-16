@@ -40,6 +40,7 @@ const ZoneForm: React.FC<ZoneFormProps> = ({
     const [officerName, setOfficerName] = useState<string>('');
     const [officerDesignation, setOfficerDesignation] = useState<string>('');
     const [officerSerialNumber, setOfficerSerialNumber] = useState<string>('');
+    const [officerPhone, setOfficerPhone] = useState<string>('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [availableZoneNumbers, setAvailableZoneNumbers] = useState<number[]>([]);
@@ -80,12 +81,14 @@ const ZoneForm: React.FC<ZoneFormProps> = ({
             setOfficerName(zone.officerName || '');
             setOfficerDesignation(zone.officerDesignation || '');
             setOfficerSerialNumber(zone.officerSerialNumber || '');
+            setOfficerPhone(zone.officerPhone || '');
         } else {
             // Reset form for create mode
             setName('');
             setOfficerName('');
             setOfficerDesignation('');
             setOfficerSerialNumber('');
+            setOfficerPhone('');
         }
         setError(null);
     }, [mode, zone, open]);
@@ -105,12 +108,14 @@ const ZoneForm: React.FC<ZoneFormProps> = ({
                     officerName: officerName.trim() || undefined,
                     officerDesignation: officerDesignation.trim() || undefined,
                     officerSerialNumber: officerSerialNumber.trim() || undefined,
+                    officerPhone: officerPhone.trim() || undefined,
                 }
                 : {
                     name: name.trim() || undefined,
                     officerName: officerName.trim() || undefined,
                     officerDesignation: officerDesignation.trim() || undefined,
                     officerSerialNumber: officerSerialNumber.trim() || undefined,
+                    officerPhone: officerPhone.trim() || undefined,
                 };
 
             await onSave(data);
@@ -262,6 +267,17 @@ const ZoneForm: React.FC<ZoneFormProps> = ({
                             label="Officer Serial Number"
                             value={officerSerialNumber}
                             onChange={(e) => setOfficerSerialNumber(e.target.value)}
+                            disabled={loading}
+                            variant="outlined"
+                            sx={{ mb: 2.5 }}
+                        />
+
+                        {/* Officer Phone Number */}
+                        <TextField
+                            fullWidth
+                            label="Officer Phone Number"
+                            value={officerPhone}
+                            onChange={(e) => setOfficerPhone(e.target.value)}
                             disabled={loading}
                             variant="outlined"
                         />

@@ -3,11 +3,12 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const admin_auth_controller_1 = require("../controllers/admin.auth.controller");
 const auth_middleware_1 = require("../middlewares/auth.middleware");
+const rate_limit_middleware_1 = require("../middlewares/rate-limit.middleware");
 console.log('🔧 Loading admin.auth.routes.ts...');
 const router = (0, express_1.Router)();
-// Admin authentication routes
-router.post('/login', admin_auth_controller_1.adminLogin);
-console.log('🔧 Admin route registered: POST /login');
+// Admin authentication routes with rate limiting and account lockout protection
+router.post('/login', rate_limit_middleware_1.loginRateLimit, (0, rate_limit_middleware_1.ipRateLimit)(100, 60 * 1000), admin_auth_controller_1.adminLogin);
+console.log('🔧 Admin route registered: POST /login (with rate limiting)');
 router.post('/logout', admin_auth_controller_1.adminLogout);
 console.log('🔧 Admin route registered: POST /logout');
 router.post('/refresh', admin_auth_controller_1.adminRefresh);

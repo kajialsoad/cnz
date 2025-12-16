@@ -30,12 +30,15 @@ import ErrorBoundary from '../../components/common/ErrorBoundary';
  * 
  * Requirements: 8.1, 8.2, 8.3, 15.1, 15.2, 15.3, 15.4
  */
+import { ZoneFilter } from '../../components/common';
+
 const CategoryAnalytics: React.FC = () => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
     const [startDate, setStartDate] = useState<Date | null>(null);
     const [endDate, setEndDate] = useState<Date | null>(null);
+    const [selectedZoneId, setSelectedZoneId] = useState<number | ''>('');
     const [refreshKey, setRefreshKey] = useState(0);
 
     /**
@@ -44,6 +47,7 @@ const CategoryAnalytics: React.FC = () => {
     const handleResetDates = () => {
         setStartDate(null);
         setEndDate(null);
+        setSelectedZoneId('');
         setRefreshKey((prev) => prev + 1);
     };
 
@@ -137,6 +141,13 @@ const CategoryAnalytics: React.FC = () => {
                                     }}
                                     minDate={startDate || undefined}
                                 />
+
+                                <Box sx={{ minWidth: 200 }}>
+                                    <ZoneFilter
+                                        value={selectedZoneId}
+                                        onChange={(val) => setSelectedZoneId(val as number | '')}
+                                    />
+                                </Box>
                             </Box>
 
                             {/* Action Buttons */}
@@ -162,7 +173,7 @@ const CategoryAnalytics: React.FC = () => {
                                         },
                                     }}
                                 >
-                                    Reset Dates
+                                    Reset Filters
                                 </Button>
 
                                 <Button
@@ -226,6 +237,8 @@ const CategoryAnalytics: React.FC = () => {
                                     key={`chart-${refreshKey}`}
                                     startDate={formattedStartDate}
                                     endDate={formattedEndDate}
+                                    // @ts-ignore
+                                    zoneId={selectedZoneId || undefined}
                                 />
                             </ErrorBoundary>
                         </Paper>
@@ -246,6 +259,8 @@ const CategoryAnalytics: React.FC = () => {
                                     key={`table-${refreshKey}`}
                                     startDate={formattedStartDate}
                                     endDate={formattedEndDate}
+                                    // @ts-ignore
+                                    zoneId={selectedZoneId || undefined}
                                 />
                             </ErrorBoundary>
                         </Paper>

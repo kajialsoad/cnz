@@ -39,6 +39,7 @@ import EditOutlined from '@mui/icons-material/EditOutlined';
 import DeleteOutline from '@mui/icons-material/DeleteOutline';
 import Close from '@mui/icons-material/Close';
 import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined';
+import ChatBubbleOutline from '@mui/icons-material/ChatBubbleOutline';
 import { useForm, Controller } from 'react-hook-form';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
@@ -50,6 +51,7 @@ import type { UserWithStats, GetUsersQuery } from '../../types/userManagement.ty
 import AdminAddModal from '../../components/AdminManagement/AdminAddModal';
 import AdminEditModal from '../../components/AdminManagement/AdminEditModal';
 import AdminDetailsModal from '../../components/AdminManagement/AdminDetailsModal';
+import { ZoneFilter } from '../../components/common';
 
 // Interfaces
 interface CityCorporation {
@@ -57,12 +59,7 @@ interface CityCorporation {
   name: string;
 }
 
-interface Zone {
-  id: number;
-  name: string;
-  zoneNumber: number | null;
-  cityCorporationCode: string;
-}
+
 
 interface Ward {
   id: number;
@@ -129,7 +126,7 @@ const AdminManagement: React.FC = () => {
 
   // Dropdowns data
   const [cityCorporations, setCityCorporations] = useState<CityCorporation[]>([]);
-  const [zones, setZones] = useState<Zone[]>([]);
+
   const [wards, setWards] = useState<Ward[]>([]);
 
   // Statistics
@@ -171,22 +168,7 @@ const AdminManagement: React.FC = () => {
     }
   }, []);
 
-  // Fetch zones based on city corporation
-  const fetchZones = useCallback(async (cityCorporationCode: string) => {
-    try {
-      const response = await zoneService.getZones({ cityCorporationCode });
-      console.log('✅ Zones response:', response);
-      if (response && response.zones && Array.isArray(response.zones)) {
-        setZones(response.zones);
-      } else {
-        console.warn('⚠️ Invalid zones response format:', response);
-        setZones([]);
-      }
-    } catch (error) {
-      console.error('❌ Error fetching zones:', error);
-      setZones([]);
-    }
-  }, []);
+
 
   // Fetch wards based on zone
   const fetchWards = useCallback(async (zoneId: number) => {
@@ -274,15 +256,10 @@ const AdminManagement: React.FC = () => {
     fetchStatistics();
   }, [fetchStatistics]);
 
-  // Load zones when city corporation filter changes
+  // Reset zone filter when city corporation changes
   useEffect(() => {
-    if (cityCorporationFilter) {
-      fetchZones(cityCorporationFilter);
-    } else {
-      setZones([]);
-      setZoneFilter('');
-    }
-  }, [cityCorporationFilter, fetchZones]);
+    setZoneFilter('');
+  }, [cityCorporationFilter]);
 
   // Handle search with debounce
   useEffect(() => {
@@ -409,22 +386,15 @@ const AdminManagement: React.FC = () => {
               </FormControl>
             )}
 
-            <FormControl sx={{ minWidth: 140 }}>
-              <InputLabel>সকল জোন</InputLabel>
-              <Select
-                label="সকল জোন"
+            <Box sx={{ minWidth: 200 }}>
+              <ZoneFilter
                 value={zoneFilter}
-                onChange={(e) => setZoneFilter(e.target.value as number | '')}
+                onChange={(val) => setZoneFilter(val as number | '')}
+                cityCorporationCode={cityCorporationFilter}
                 disabled={!cityCorporationFilter && userRole === 'MASTER_ADMIN'}
-              >
-                <MenuItem value="">সকল জোন</MenuItem>
-                {Array.isArray(zones) && zones.map((zone) => (
-                  <MenuItem key={zone.id} value={zone.id}>
-                    {zone.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+                label="সকল জোন"
+              />
+            </Box>
 
             <TextField
               value={searchQuery}
@@ -520,12 +490,35 @@ const AdminManagement: React.FC = () => {
                           </Stack>
                         </TableCell>
                         <TableCell sx={{ width: '25%' }}>
-                          <Typography sx={{ fontSize: 16, color: '#1e2939' }}>
-                            {admin.cityCorporation?.name || 'N/A'}
-                          </Typography>
-                          <Typography sx={{ fontSize: 16, color: '#4a5565' }}>
-                            {admin.zone?.name || 'N/A'}, {admin.ward ? `Ward ${admin.ward.wardNumber}` : 'N/A'}
-                          </Typography>
+                          <Stack spacing={0.5}>
+                            <Typography sx={{ fontSize: 16, color: '#1e2939' }}>
+                              {admin.cityCorporation?.name || 'N/A'}
+                            </Typography>
+                            <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap sx={{ mt: 0.5 }}>
+                              {admin.zone ? (
+                                <Chip
+                                  label={admin.zone.name}
+                                  size="small"
+                                  variant="outlined"
+                                  color="primary"
+                                  sx={{ height: 24 }}
+                                />
+                              ) : null}
+                              {admin.ward ? (
+                                <Chip
+                                  label={`Ward ${admin.ward.wardNumber}`}
+                                  size="small"
+                                  variant="outlined"
+                                  sx={{ height: 24 }}
+                                />
+                              ) : null}
+                              {!admin.zone && !admin.ward && (
+                                <Typography variant="caption" color="text.secondary">
+                                  N/A
+                                </Typography>
+                              )}
+                            </Stack>
+                          </Stack>
                         </TableCell>
                         <TableCell sx={{ width: '20%' }}>
                           <Stack direction="row" spacing={1} alignItems="center">
@@ -559,6 +552,17 @@ const AdminManagement: React.FC = () => {
                             </Stack>
                             <Divider orientation="vertical" flexItem />
                             <Stack direction="row" spacing={1}>
+                              <IconButton
+                                size="small"
+                                color="primary"
+                                onClick={() => {
+                                  toast('Direct messaging coming soon!', {
+                                    icon: '💬',
+                                  });
+                                }}
+                              >
+                                <ChatBubbleOutline />
+                              </IconButton>
                               <IconButton
                                 size="small"
                                 onClick={() => {

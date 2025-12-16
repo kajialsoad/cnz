@@ -3,6 +3,7 @@ import axios from 'axios';
 import type { AxiosInstance } from 'axios';
 import { API_CONFIG } from '../config/apiConfig';
 import { UserRole, UserStatus } from '../types/userManagement.types';
+import { handleApiError } from '../utils/errorHandler';
 
 export interface SuperAdminPermissions {
     zones?: number[];
@@ -57,6 +58,7 @@ export interface SuperAdmin {
         wardNumber: number | null;
         inspectorName: string | null;
     } | null;
+    assignedZones?: ZoneAssignment[];
     permissions: SuperAdminPermissions | null;
     statistics: {
         totalComplaints: number;
@@ -125,6 +127,20 @@ export interface UpdateSuperAdminDto {
     zoneId?: number;
     status?: UserStatus;
     permissions?: SuperAdminPermissions;
+}
+
+export interface ZoneAssignment {
+    id: number;
+    userId: number;
+    zoneId: number;
+    assignedAt: string;
+    assignedBy: number;
+    zone: {
+        id: number;
+        zoneNumber: number;
+        name: string;
+        cityCorporationCode: string;
+    };
 }
 
 class SuperAdminService {
@@ -231,6 +247,45 @@ class SuperAdminService {
      */
     async deleteSuperAdmin(id: number): Promise<void> {
         await this.apiClient.delete(`/api/admin/users/${id}`);
+    }
+
+    /**
+     * Assign zones to super admin
+     */
+
+
+    /**
+     * Assign zones to super admin
+     */
+    async assignZones(userId: number, zoneIds: number[]): Promise<void> {
+        try {
+            await this.apiClient.post(`/api/admin/users/${userId}/zones`, { zoneIds });
+        } catch (error) {
+            throw handleApiError(error);
+        }
+    }
+
+    /**
+     * Update zone assignments for super admin
+     */
+    async updateZones(userId: number, zoneIds: number[]): Promise<void> {
+        try {
+            await this.apiClient.put(`/api/admin/users/${userId}/zones`, { zoneIds });
+        } catch (error) {
+            throw handleApiError(error);
+        }
+    }
+
+    /**
+     * Get assigned zones for super admin
+     */
+    async getAssignedZones(userId: number): Promise<ZoneAssignment[]> {
+        try {
+            const response = await this.apiClient.get(`/api/admin/users/${userId}/zones`);
+            return response.data.data;
+        } catch (error) {
+            throw handleApiError(error);
+        }
     }
 }
 

@@ -13,9 +13,10 @@ import type { DashboardStats } from '../../../../services/dashboardService';
 
 interface StatsCardsProps {
   cityCorporationCode?: string;
+  zoneId?: number;
 }
 
-const StatsCards: React.FC<StatsCardsProps> = ({ cityCorporationCode }) => {
+const StatsCards: React.FC<StatsCardsProps> = ({ cityCorporationCode, zoneId }) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -26,6 +27,7 @@ const StatsCards: React.FC<StatsCardsProps> = ({ cityCorporationCode }) => {
         setLoading(true);
         const data = await dashboardService.getDashboardStats({
           cityCorporationCode: cityCorporationCode !== 'ALL' ? cityCorporationCode : undefined,
+          zoneId: zoneId,
         });
         setStats(data);
       } catch (error) {
@@ -36,13 +38,17 @@ const StatsCards: React.FC<StatsCardsProps> = ({ cityCorporationCode }) => {
     };
 
     fetchStats();
-  }, [cityCorporationCode]);
+  }, [cityCorporationCode, zoneId]);
 
   const navigateToComplaints = (status?: string) => {
     const params = new URLSearchParams();
 
     if (cityCorporationCode && cityCorporationCode !== 'ALL') {
       params.append('cityCorporation', cityCorporationCode);
+    }
+
+    if (zoneId) {
+      params.append('zoneId', zoneId.toString());
     }
 
     if (status) {

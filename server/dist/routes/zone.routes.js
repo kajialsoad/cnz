@@ -9,6 +9,8 @@ const auth_middleware_1 = require("../middlewares/auth.middleware");
 const router = (0, express_1.Router)();
 // All routes require SUPER_ADMIN or MASTER_ADMIN role
 router.use(auth_middleware_1.authGuard, (0, auth_middleware_1.rbacGuard)('SUPER_ADMIN', 'MASTER_ADMIN'));
+// GET /api/admin/zones/available/:cityCorporationId - Get available zone numbers
+router.get('/available/:cityCorporationId', zone_controller_1.default.getAvailableZoneNumbers);
 // GET /api/admin/zones - Get zones by city corporation
 router.get('/', zone_controller_1.default.getZones);
 // GET /api/admin/zones/:id - Get single zone

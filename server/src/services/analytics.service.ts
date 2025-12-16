@@ -49,11 +49,11 @@ export class AnalyticsService {
     /**
      * Get comprehensive complaint analytics
      */
-    async getComplaintAnalytics(query: AnalyticsQueryInput = {}) {
+    async getComplaintAnalytics(query: AnalyticsQueryInput = {}, assignedZoneIds?: number[]) {
         try {
             const { startDate, endDate, cityCorporationCode } = query;
 
-            // Build date filter
+            // Build date filter (which acts as base where clause)
             const dateFilter: any = {};
             if (startDate || endDate) {
                 dateFilter.createdAt = {};
@@ -66,10 +66,18 @@ export class AnalyticsService {
             }
 
             // Add city corporation filter through user relationship
+            const userFilter: any = {};
             if (cityCorporationCode) {
-                dateFilter.user = {
-                    cityCorporationCode: cityCorporationCode
-                };
+                userFilter.cityCorporationCode = cityCorporationCode;
+            }
+
+            // Multi-zone Logic
+            if (assignedZoneIds && assignedZoneIds.length > 0) {
+                userFilter.zoneId = { in: assignedZoneIds };
+            }
+
+            if (Object.keys(userFilter).length > 0) {
+                dateFilter.user = userFilter;
             }
 
             // Get all analytics data in parallel
@@ -106,7 +114,7 @@ export class AnalyticsService {
     /**
      * Get complaint trends over time
      */
-    async getComplaintTrends(query: AnalyticsQueryInput = {}): Promise<TrendDataPoint[]> {
+    async getComplaintTrends(query: AnalyticsQueryInput = {}, assignedZoneIds?: number[]): Promise<TrendDataPoint[]> {
         try {
             const { period = 'week', startDate, endDate, cityCorporationCode } = query;
 
@@ -122,10 +130,18 @@ export class AnalyticsService {
             };
 
             // Add city corporation filter through user relationship
+            const userFilter: any = {};
             if (cityCorporationCode) {
-                where.user = {
-                    cityCorporationCode: cityCorporationCode
-                };
+                userFilter.cityCorporationCode = cityCorporationCode;
+            }
+
+            // Multi-zone Logic
+            if (assignedZoneIds && assignedZoneIds.length > 0) {
+                userFilter.zoneId = { in: assignedZoneIds };
+            }
+
+            if (Object.keys(userFilter).length > 0) {
+                where.user = userFilter;
             }
 
             // Get complaints within date range
@@ -214,7 +230,7 @@ export class AnalyticsService {
     /**
      * Get category statistics with counts and percentages
      */
-    async getCategoryStatistics(query: AnalyticsQueryInput = {}): Promise<CategorySummary[]> {
+    async getCategoryStatistics(query: AnalyticsQueryInput = {}, assignedZoneIds?: number[]): Promise<CategorySummary[]> {
         try {
             const { startDate, endDate, cityCorporationCode } = query;
 
@@ -231,10 +247,18 @@ export class AnalyticsService {
             }
 
             // Add city corporation filter through user relationship
+            const userFilter: any = {};
             if (cityCorporationCode) {
-                dateFilter.user = {
-                    cityCorporationCode: cityCorporationCode
-                };
+                userFilter.cityCorporationCode = cityCorporationCode;
+            }
+
+            // Multi-zone Logic
+            if (assignedZoneIds && assignedZoneIds.length > 0) {
+                userFilter.zoneId = { in: assignedZoneIds };
+            }
+
+            if (Object.keys(userFilter).length > 0) {
+                dateFilter.user = userFilter;
             }
 
             // Get complaints grouped by category and subcategory
@@ -323,7 +347,7 @@ export class AnalyticsService {
     /**
      * Get category trends over time
      */
-    async getCategoryTrends(query: AnalyticsQueryInput = {}): Promise<any> {
+    async getCategoryTrends(query: AnalyticsQueryInput = {}, assignedZoneIds?: number[]): Promise<any> {
         try {
             const { period = 'week', startDate, endDate, cityCorporationCode } = query;
 
@@ -339,10 +363,18 @@ export class AnalyticsService {
             };
 
             // Add city corporation filter through user relationship
+            const userFilter: any = {};
             if (cityCorporationCode) {
-                where.user = {
-                    cityCorporationCode: cityCorporationCode
-                };
+                userFilter.cityCorporationCode = cityCorporationCode;
+            }
+
+            // Multi-zone Logic
+            if (assignedZoneIds && assignedZoneIds.length > 0) {
+                userFilter.zoneId = { in: assignedZoneIds };
+            }
+
+            if (Object.keys(userFilter).length > 0) {
+                where.user = userFilter;
             }
 
             // Get complaints within date range with category info

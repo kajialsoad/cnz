@@ -63,6 +63,18 @@ export interface UserWithStats {
         inspectorSerialNumber: string | null;
         status: string;
     } | null;
+    assignedZones?: {
+        zone: {
+            id: number;
+            name: string;
+            zoneNumber: number | null;
+            cityCorporation?: {
+                id: number;
+                name: string;
+                code: string;
+            };
+        };
+    }[];
     wardImageCount: number;
     statistics: UserStatistics;
 }
@@ -237,6 +249,24 @@ export class AdminUserService {
                         status: true,
                     },
                 },
+                assignedZones: {
+                    select: {
+                        zone: {
+                            select: {
+                                id: true,
+                                name: true,
+                                zoneNumber: true,
+                                cityCorporation: {
+                                    select: {
+                                        id: true,
+                                        name: true,
+                                        code: true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
                 wardImageCount: true,
                 _count: {
                     select: {
@@ -308,7 +338,7 @@ export class AdminUserService {
     }
 
     // Get users with filters and pagination
-    async getUsers(query: GetUsersQuery, requestingUser?: { id: number; role: users_role; zoneId?: number | null; wardId?: number | null }): Promise<GetUsersResponse> {
+    async getUsers(query: GetUsersQuery, requestingUser?: { id: number; role: users_role; zoneId?: number | null; wardId?: number | null; assignedZoneIds?: number[] }): Promise<GetUsersResponse> {
         const page = query.page || 1;
         const limit = query.limit || 20;
         const skip = (page - 1) * limit;
@@ -350,7 +380,23 @@ export class AdminUserService {
 
         // Apply role-based automatic filtering
         if (requestingUser) {
-            await this.applyRoleBasedFiltering(where, requestingUser);
+            // Check for multi-zone assignment (SUPER_ADMIN)
+            if (requestingUser.role === users_role.SUPER_ADMIN && requestingUser.assignedZoneIds && requestingUser.assignedZoneIds.length > 0) {
+                // If specific zone requested, ensure it is in assigned list
+                if (query.zoneId) {
+                    if (!requestingUser.assignedZoneIds.includes(query.zoneId)) {
+                        // Should retrieve empty result or throw forbidden. 
+                        // For list filtering, usually empty result is better or let the detailed middleware handle strict forbidden.
+                        // Here we return empty by forcing an impossible condition
+                        where.id = -1;
+                    }
+                } else {
+                    // Filter by all assigned zones
+                    where.zoneId = { in: requestingUser.assignedZoneIds };
+                }
+            } else {
+                await this.applyRoleBasedFiltering(where, requestingUser);
+            }
         }
 
         // Get total count
@@ -409,6 +455,24 @@ export class AdminUserService {
                         inspectorSerialNumber: true,
                         status: true,
                     },
+                },
+                assignedZones: {
+                    select: {
+                        zone: {
+                            select: {
+                                id: true,
+                                name: true,
+                                zoneNumber: true,
+                                cityCorporation: {
+                                    select: {
+                                        id: true,
+                                        name: true,
+                                        code: true
+                                    }
+                                }
+                            }
+                        }
+                    }
                 },
                 wardImageCount: true,
                 _count: {
@@ -595,7 +659,7 @@ export class AdminUserService {
         zoneId?: number,
         wardId?: number,
         role?: users_role,
-        requestingUser?: { id: number; role: users_role; zoneId?: number | null; wardId?: number | null }
+        requestingUser?: { id: number; role: users_role; zoneId?: number | null; wardId?: number | null; assignedZoneIds?: number[] }
     ): Promise<UserStatisticsResponse> {
         // Build base where clause with cascading filters
         const userWhere: Prisma.UserWhereInput = {};
@@ -618,7 +682,18 @@ export class AdminUserService {
 
         // Apply role-based automatic filtering
         if (requestingUser) {
-            await this.applyRoleBasedFiltering(userWhere, requestingUser);
+            if (requestingUser.role === users_role.SUPER_ADMIN && requestingUser.assignedZoneIds && requestingUser.assignedZoneIds.length > 0) {
+                if (zoneId) {
+                    if (!requestingUser.assignedZoneIds.includes(zoneId)) {
+                        // Forbidden effectively for stats
+                        userWhere.id = -1;
+                    }
+                } else {
+                    userWhere.zoneId = { in: requestingUser.assignedZoneIds };
+                }
+            } else {
+                await this.applyRoleBasedFiltering(userWhere, requestingUser);
+            }
         }
 
         // Apply role filter - default to CUSTOMER if not specified

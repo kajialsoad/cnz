@@ -18,8 +18,9 @@ import Dashboard from './pages/Dashboard/Dashboard';
 
 // Lazy load management pages for code splitting
 const AllComplaints = lazy(() => import('./pages/AllComplaints'));
+const ComplaintDetails = lazy(() => import('./pages/ComplaintDetails/ComplaintDetails'));
 const UserManagement = lazy(() => import('./pages/UserManagement'));
-const AdminManagement = lazy(() => import('./pages/AdminManagement'));
+const AdminManagement = lazy(() => import('./pages/AdminManagement/AdminManagement'));
 const SuperAdminManagement = lazy(() => import('./pages/SuperAdminManagement'));
 const AdminChatPage = lazy(() => import('./pages/AdminChatPage'));
 const CategoryAnalytics = lazy(() => import('./pages/CategoryAnalytics'));
@@ -72,7 +73,7 @@ function App() {
                     v7_relativeSplatPath: true
                   }}
                 >
-                  <Suspense fallback={<PageLoadingBar />}>
+                  <Suspense fallback={<PageLoadingBar loading={true} />}>
                     <Routes>
                       {/* Public Route */}
                       <Route path="/login" element={<Login />} />
@@ -91,6 +92,14 @@ function App() {
                         element={
                           <ProtectedRoute>
                             <AllComplaints />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/complaints/:id"
+                        element={
+                          <ProtectedRoute>
+                            <ComplaintDetails />
                           </ProtectedRoute>
                         }
                       />

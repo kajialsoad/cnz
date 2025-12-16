@@ -5,11 +5,13 @@ interface CreateWardDto {
     zoneId: number;
     inspectorName?: string;
     inspectorSerialNumber?: string;
+    inspectorPhone?: string;
 }
 
 interface UpdateWardDto {
     inspectorName?: string;
     inspectorSerialNumber?: string;
+    inspectorPhone?: string;
     status?: 'ACTIVE' | 'INACTIVE';
 }
 
@@ -187,6 +189,7 @@ class WardService {
                 cityCorporationId: zone.cityCorporationId, // Required field
                 inspectorName: data.inspectorName,
                 inspectorSerialNumber: data.inspectorSerialNumber,
+                inspectorPhone: data.inspectorPhone,
                 status: 'ACTIVE',
             },
             include: {
@@ -527,6 +530,7 @@ class WardService {
         inspectorData: {
             inspectorName?: string;
             inspectorSerialNumber?: string;
+            inspectorPhone?: string;
         }
     ) {
         // Check if ward exists
@@ -542,6 +546,7 @@ class WardService {
             data: {
                 inspectorName: inspectorData.inspectorName,
                 inspectorSerialNumber: inspectorData.inspectorSerialNumber,
+                inspectorPhone: inspectorData.inspectorPhone,
             },
             include: {
                 zone: {
@@ -575,6 +580,7 @@ class WardService {
                 wardNumber: true,
                 inspectorName: true,
                 inspectorSerialNumber: true,
+                inspectorPhone: true,
                 zone: {
                     select: {
                         id: true,
@@ -602,6 +608,7 @@ class WardService {
             inspector: {
                 name: ward.inspectorName,
                 serialNumber: ward.inspectorSerialNumber,
+                phone: ward.inspectorPhone,
             },
         };
     }
@@ -612,6 +619,7 @@ class WardService {
     validateInspectorData(inspectorData: {
         inspectorName?: string;
         inspectorSerialNumber?: string;
+        inspectorPhone?: string;
     }): { valid: boolean; errors: string[] } {
         const errors: string[] = [];
 
@@ -632,6 +640,15 @@ class WardService {
                 errors.push('Inspector serial number must be a string');
             } else if (inspectorData.inspectorSerialNumber.length > 100) {
                 errors.push('Inspector serial number cannot exceed 100 characters');
+            }
+        }
+
+        // Inspector phone validation
+        if (inspectorData.inspectorPhone !== undefined) {
+            if (typeof inspectorData.inspectorPhone !== 'string') {
+                errors.push('Inspector phone must be a string');
+            } else if (inspectorData.inspectorPhone.length > 20) {
+                errors.push('Inspector phone cannot exceed 20 characters');
             }
         }
 

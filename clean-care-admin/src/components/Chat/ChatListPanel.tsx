@@ -29,8 +29,8 @@ import ChatListItem from './ChatListItem';
 import ChatListSkeleton from './ChatListSkeleton';
 import EmptyState from './EmptyState';
 import { cityCorporationService, type CityCorporation } from '../../services/cityCorporationService';
-import { zoneService, type Zone } from '../../services/zoneService';
 import { wardService, type Ward } from '../../services/wardService';
+import { ZoneFilter } from '../common';
 
 interface ChatListPanelProps {
     chats: ChatConversation[];
@@ -76,13 +76,9 @@ const ChatListPanel: React.FC<ChatListPanelProps> = ({
 
     // State for city corporations, zones, and wards
     const [cityCorporations, setCityCorporations] = useState<CityCorporation[]>([]);
-    const [zones, setZones] = useState<Zone[]>([]);
     const [wards, setWards] = useState<Ward[]>([]);
-    const [thanas, setThanas] = useState<any[]>([]);
     const [loadingCityCorporations, setLoadingCityCorporations] = useState(false);
-    const [loadingZones, setLoadingZones] = useState(false);
     const [loadingWards, setLoadingWards] = useState(false);
-    const [loadingThanas, setLoadingThanas] = useState(false);
 
     // Debounce search to avoid excessive filtering
     const debouncedSearchTerm = useDebounce(localSearchTerm, 500);
@@ -110,76 +106,20 @@ const ChatListPanel: React.FC<ChatListPanelProps> = ({
         fetchCityCorporations();
     }, []);
 
-    // Fetch zones when city corporation changes
-    useEffect(() => {
-        const fetchZones = async () => {
-            if (!filters.cityCorporationCode) {
-                setZones([]);
-                setWards([]);
-                return;
-            }
-
-            try {
-                setLoadingZones(true);
-                const cityCorp = cityCorporations.find(cc => cc.code === filters.cityCorporationCode);
-                if (cityCorp) {
-                    const zonesData = await zoneService.getZonesByCityCorporation(cityCorp.id, 'ACTIVE');
-                    setZones(zonesData);
-                }
-            } catch (error) {
-                console.error('Error fetching zones:', error);
-                setZones([]);
-            } finally {
-                setLoadingZones(false);
-            }
-        };
-
-        fetchZones();
-    }, [filters.cityCorporationCode, cityCorporations]);
-
-    // Fetch thanas when city corporation changes (for backward compatibility)
-    useEffect(() => {
-        const fetchThanas = async () => {
-            if (!filters.cityCorporationCode) {
-                setThanas([]);
-                return;
-            }
-
-            try {
-                setLoadingThanas(true);
-                // Thanas are now replaced by zones, so we'll use zones as thanas
-                const cityCorp = cityCorporations.find(cc => cc.code === filters.cityCorporationCode);
-                if (cityCorp) {
-                    const zonesData = await zoneService.getZonesByCityCorporation(cityCorp.id, 'ACTIVE');
-                    // Map zones to thana format for backward compatibility
-                    const thanasData = zonesData.map(zone => ({
-                        id: zone.id,
-                        name: zone.name,
-                    }));
-                    setThanas(thanasData);
-                }
-            } catch (error) {
-                console.error('Error fetching thanas:', error);
-                setThanas([]);
-            } finally {
-                setLoadingThanas(false);
-            }
-        };
-
-        fetchThanas();
-    }, [filters.cityCorporationCode, cityCorporations]);
-
     // Fetch wards when zone changes
     useEffect(() => {
         const fetchWards = async () => {
-            if (!filters.zoneId) {
+            // Ensure zoneId is a valid number before fetching
+            const zoneId = filters.zone ? parseInt(filters.zone, 10) : undefined;
+
+            if (!zoneId) {
                 setWards([]);
                 return;
             }
 
             try {
                 setLoadingWards(true);
-                const wardsData = await wardService.getWardsByZone(filters.zoneId, 'ACTIVE');
+                const wardsData = await wardService.getWardsByZone(zoneId, 'ACTIVE');
                 setWards(wardsData);
             } catch (error) {
                 console.error('Error fetching wards:', error);
@@ -190,7 +130,7 @@ const ChatListPanel: React.FC<ChatListPanelProps> = ({
         };
 
         fetchWards();
-    }, [filters.zoneId]);
+    }, [filters.zone]);
 
     /**
      * Handle local search input change
@@ -230,9 +170,13 @@ const ChatListPanel: React.FC<ChatListPanelProps> = ({
     /**
      * Handle zone filter change
      */
-    const handleZoneChange = (value: string) => {
+    /**
+     * Handle zone filter change
+     */
+    const handleZoneChange = (value: number | '') => {
         onFilterChange({
-            zone: value === 'ALL' ? undefined : value,
+            zone: value === '' ? undefined : value.toString(),
+            // Ensure thana is also updated for backward compatibility if needed, though we're focusing on Zone
         });
     };
 
@@ -243,17 +187,15 @@ const ChatListPanel: React.FC<ChatListPanelProps> = ({
         onFilterChange({
             cityCorporationCode: value === 'ALL' ? undefined : value,
             thanaId: undefined, // Reset thana when city corporation changes
+            zone: undefined, // Reset zone when city corporation changes
+            ward: undefined, // Reset ward when city corporation changes
         });
     };
 
     /**
      * Handle thana filter change
      */
-    const handleThanaChange = (value: string) => {
-        onFilterChange({
-            thanaId: value === 'ALL' ? undefined : parseInt(value, 10),
-        });
-    };
+
 
     /**
      * Handle status filter change
@@ -333,7 +275,7 @@ const ChatListPanel: React.FC<ChatListPanelProps> = ({
      * Get unique zones from statistics
      */
     const getZones = useCallback(() => {
-        return statistics.byZone?.map((item) => item.category) || [];
+        return statistics.byZone?.map((item) => Number(item.category)) || [];
     }, [statistics.byZone]);
 
     return (
@@ -443,26 +385,7 @@ const ChatListPanel: React.FC<ChatListPanelProps> = ({
                         </Select>
                     </FormControl>
 
-                    {/* Thana Filter */}
-                    <FormControl fullWidth size="small">
-                        <Select
-                            value={filters.thanaId?.toString() || 'ALL'}
-                            onChange={(e) => handleThanaChange(e.target.value)}
-                            displayEmpty
-                            disabled={!filters.cityCorporationCode || loadingThanas}
-                            sx={{
-                                backgroundColor: 'background.default',
-                                fontSize: '0.875rem',
-                            }}
-                        >
-                            <MenuItem value="ALL">All Thanas</MenuItem>
-                            {thanas && thanas.map((thana) => (
-                                <MenuItem key={thana.id} value={thana.id.toString()}>
-                                    {thana.name}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
+
 
                     {/* District and Upazila filters hidden - not needed for DSCC/DNCC filtering */}
 
@@ -486,25 +409,14 @@ const ChatListPanel: React.FC<ChatListPanelProps> = ({
                         </Select>
                     </FormControl>
 
+
                     {/* Zone Filter */}
-                    <FormControl fullWidth size="small">
-                        <Select
-                            value={filters.zone || 'ALL'}
-                            onChange={(e) => handleZoneChange(e.target.value)}
-                            displayEmpty
-                            sx={{
-                                backgroundColor: 'background.default',
-                                fontSize: '0.875rem',
-                            }}
-                        >
-                            <MenuItem value="ALL">All Zones</MenuItem>
-                            {getZones().map((zone) => (
-                                <MenuItem key={zone} value={zone}>
-                                    Zone {zone}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
+                    <ZoneFilter
+                        value={filters.zone ? Number(filters.zone) : ''}
+                        onChange={handleZoneChange}
+                        cityCorporationCode={filters.cityCorporationCode || ''}
+                        disabled={false} // Always render, handles its own empty state
+                    />
 
                     {/* Status Filter */}
                     <FormControl fullWidth size="small">

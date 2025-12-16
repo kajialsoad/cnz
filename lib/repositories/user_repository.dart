@@ -27,8 +27,10 @@ class UserRepository {
     String? phone,
     String? email,
     String? avatar,
-    String? zone,
-    String? ward,
+    String? zone, // Deprecated - kept for backward compatibility
+    String? ward, // Deprecated - kept for backward compatibility
+    int? zoneId,
+    int? wardId,
     String? address,
   }) async {
     try {
@@ -38,8 +40,20 @@ class UserRepository {
       if (phone != null) body['phone'] = phone;
       if (email != null) body['email'] = email;
       if (avatar != null) body['avatar'] = avatar;
-      if (zone != null) body['zone'] = zone;
-      if (ward != null) body['ward'] = ward;
+      
+      // Use new zoneId/wardId if provided, otherwise fall back to old zone/ward
+      if (zoneId != null) {
+        body['zoneId'] = zoneId;
+      } else if (zone != null) {
+        body['zone'] = zone;
+      }
+      
+      if (wardId != null) {
+        body['wardId'] = wardId;
+      } else if (ward != null) {
+        body['ward'] = ward;
+      }
+      
       if (address != null) body['address'] = address;
 
       final data = await api.put('/api/users/profile', body);

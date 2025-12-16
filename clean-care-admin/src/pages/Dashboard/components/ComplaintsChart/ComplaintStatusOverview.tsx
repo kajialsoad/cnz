@@ -5,9 +5,10 @@ import { analyticsService } from '../../../../services/analyticsService';
 
 interface ComplaintStatusOverviewProps {
   cityCorporationCode?: string;
+  zoneId?: number;
 }
 
-const ComplaintStatusOverview: React.FC<ComplaintStatusOverviewProps> = ({ cityCorporationCode }) => {
+const ComplaintStatusOverview: React.FC<ComplaintStatusOverviewProps> = ({ cityCorporationCode, zoneId }) => {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<any[]>([]);
 
@@ -16,7 +17,8 @@ const ComplaintStatusOverview: React.FC<ComplaintStatusOverviewProps> = ({ cityC
       try {
         setLoading(true);
         const analytics = await analyticsService.getAnalytics({
-          cityCorporationCode
+          cityCorporationCode,
+          zoneId
         });
 
         const total = analytics.totalComplaints || 1; // Avoid division by zero
@@ -56,7 +58,7 @@ const ComplaintStatusOverview: React.FC<ComplaintStatusOverviewProps> = ({ cityC
     };
 
     fetchData();
-  }, [cityCorporationCode]);
+  }, [cityCorporationCode, zoneId]);
 
   if (loading) {
     return (

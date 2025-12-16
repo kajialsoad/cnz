@@ -171,6 +171,38 @@ const ChatListItem: React.FC<ChatListItemProps> = ({ chat, isSelected, onClick }
                         {!chat.citizen.cityCorporationName && `, ${chat.citizen.upazila}`}
                     </Typography>
 
+                    {/* Zone and Ward Info */}
+                    <Box sx={{ display: 'flex', gap: 0.5, mb: 0.5, flexWrap: 'wrap' }}>
+                        {chat.citizen.zone && (
+                            <Chip
+                                label={`Zone ${chat.citizen.zone}`}
+                                size="small"
+                                variant="outlined"
+                                sx={{
+                                    height: 20,
+                                    fontSize: '0.7rem',
+                                    color: 'text.secondary',
+                                    borderColor: 'divider',
+                                    backgroundColor: 'action.hover',
+                                }}
+                            />
+                        )}
+                        {chat.citizen.ward && (
+                            <Chip
+                                label={`Ward ${chat.citizen.ward}`}
+                                size="small"
+                                variant="outlined"
+                                sx={{
+                                    height: 20,
+                                    fontSize: '0.7rem',
+                                    color: 'text.secondary',
+                                    borderColor: 'divider',
+                                    backgroundColor: 'action.hover',
+                                }}
+                            />
+                        )}
+                    </Box>
+
                     {/* Last Message Preview */}
                     <Typography
                         variant="body2"

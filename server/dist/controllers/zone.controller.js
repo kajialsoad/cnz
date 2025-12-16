@@ -11,14 +11,53 @@ class ZoneController {
      */
     async getZones(req, res) {
         try {
-            const { cityCorporationId, status } = req.query;
-            if (!cityCorporationId) {
+            const { cityCorporationId, cityCorporationCode, status } = req.query;
+            // Support both cityCorporationId and cityCorporationCode
+            let ccId;
+            if (cityCorporationId) {
+                ccId = parseInt(cityCorporationId);
+            }
+            else if (cityCorporationCode) {
+                // Convert code to ID
+                const prisma = req.prisma;
+                if (!prisma) {
+                    return res.status(500).json({
+                        success: false,
+                        message: 'Database connection not available',
+                    });
+                }
+                const cityCorporation = await prisma.cityCorporation.findUnique({
+                    where: { code: cityCorporationCode },
+                    select: { id: true },
+                });
+                if (!cityCorporation) {
+                    return res.status(404).json({
+                        success: false,
+                        message: 'City Corporation not found',
+                    });
+                }
+                ccId = cityCorporation.id;
+            }
+            if (!ccId) {
                 return res.status(400).json({
                     success: false,
-                    message: 'City Corporation ID is required',
+                    message: 'City Corporation ID or Code is required',
                 });
             }
-            const zones = await zone_service_1.default.getZonesByCityCorporation(parseInt(cityCorporationId), status || 'ALL');
+            // If User is authenticated and not a Master Admin, use getAccessibleZones
+            // We need to check req.user. The interface might need extending or casting.
+            const user = req.user;
+            if (user && (user.role === 'SUPER_ADMIN' || user.role === 'ADMIN')) {
+                const zones = await zone_service_1.default.getAccessibleZones(user.id);
+                // If specific city corporation filter was requested, we might want to double check
+                // but getAccessibleZones already respects assignments.
+                // We can return here.
+                return res.status(200).json({
+                    success: true,
+                    data: zones,
+                });
+            }
+            const zones = await zone_service_1.default.getZonesByCityCorporation(ccId, status || 'ALL');
             return res.status(200).json({
                 success: true,
                 data: zones,
@@ -199,6 +238,41 @@ class ZoneController {
             return res.status(500).json({
                 success: false,
                 message: 'Failed to fetch zone statistics',
+                error: error.message,
+            });
+        }
+    }
+    /**
+     * GET /api/admin/zones/available/:cityCorporationId
+     * Get available zone numbers for a city corporation
+     */
+    async getAvailableZoneNumbers(req, res) {
+        try {
+            const { cityCorporationId } = req.params;
+            const ccId = parseInt(cityCorporationId);
+            if (isNaN(ccId)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid city corporation ID',
+                });
+            }
+            const availableNumbers = await zone_service_1.default.getAvailableZoneNumbers(ccId);
+            return res.status(200).json({
+                success: true,
+                data: availableNumbers,
+            });
+        }
+        catch (error) {
+            console.error('Error fetching available zone numbers:', error);
+            if (error.message.includes('not found')) {
+                return res.status(404).json({
+                    success: false,
+                    message: error.message,
+                });
+            }
+            return res.status(500).json({
+                success: false,
+                message: 'Failed to fetch available zone numbers',
                 error: error.message,
             });
         }

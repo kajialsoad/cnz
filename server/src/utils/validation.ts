@@ -182,36 +182,52 @@ export const createComplaintSchema = Joi.object({
       'number.max': 'অগ্রাধিকার ১-৪ এর মধ্যে হতে হবে',
     }),
   forSomeoneElse: Joi.boolean().optional(), // Flag for nullable userId
-  location: Joi.object({
-    address: Joi.string().min(10).max(500).required()
-      .messages({
-        'string.empty': 'সম্পূর্ণ ঠিকানা প্রয়োজন',
-        'string.min': 'ঠিকানা কমপক্ষে ১০ অক্ষরের হতে হবে',
-        'string.max': 'ঠিকানা সর্বোচ্চ ৫০০ অক্ষরের হতে হবে',
-      }),
-    district: Joi.string().required()
-      .messages({
-        'string.empty': 'জেলা নির্বাচন করুন',
-      }),
-    thana: Joi.string().required()
-      .messages({
-        'string.empty': 'থানা নির্বাচন করুন',
-      }),
-    ward: Joi.string().required()
-      .messages({
-        'string.empty': 'ওয়ার্ড নম্বর প্রয়োজন',
-      }),
-    latitude: Joi.number().min(-90).max(90).optional()
-      .messages({
-        'number.min': 'বৈধ অক্ষাংশ প্রয়োজন',
-        'number.max': 'বৈধ অক্ষাংশ প্রয়োজন',
-      }),
-    longitude: Joi.number().min(-180).max(180).optional()
-      .messages({
-        'number.min': 'বৈধ দ্রাঘিমাংশ প্রয়োজন',
-        'number.max': 'বৈধ দ্রাঘিমাংশ প্রয়োজন',
-      }),
-  }).required(),
+  // NEW: Geographical ID fields for dynamic system
+  cityCorporationCode: Joi.string().optional()
+    .messages({
+      'string.empty': 'সিটি কর্পোরেশন নির্বাচন করুন',
+    }),
+  zoneId: Joi.alternatives().try(
+    Joi.number().integer().positive(),
+    Joi.string().pattern(/^\d+$/).custom((value, helpers) => parseInt(value, 10))
+  ).optional()
+    .messages({
+      'number.base': 'বৈধ জোন নির্বাচন করুন',
+      'number.positive': 'বৈধ জোন নির্বাচন করুন',
+    }),
+  wardId: Joi.alternatives().try(
+    Joi.number().integer().positive(),
+    Joi.string().pattern(/^\d+$/).custom((value, helpers) => parseInt(value, 10))
+  ).optional()
+    .messages({
+      'number.base': 'বৈধ ওয়ার্ড নির্বাচন করুন',
+      'number.positive': 'বৈধ ওয়ার্ড নির্বাচন করুন',
+    }),
+  // Location object - when using new geographical IDs, only address is required
+  location: Joi.alternatives().try(
+    Joi.object({
+      address: Joi.string().min(3).max(500).required()
+        .messages({
+          'string.empty': 'সম্পূর্ণ ঠিকানা প্রয়োজন',
+          'string.min': 'ঠিকানা কমপক্ষে ৩ অক্ষরের হতে হবে',
+          'string.max': 'ঠিকানা সর্বোচ্চ ৫০০ অক্ষরের হতে হবে',
+        }),
+      district: Joi.string().optional().allow('').default(''),
+      thana: Joi.string().optional().allow('').default(''),
+      ward: Joi.string().optional().allow('').default(''),
+      latitude: Joi.number().min(-90).max(90).optional()
+        .messages({
+          'number.min': 'বৈধ অক্ষাংশ প্রয়োজন',
+          'number.max': 'বৈধ অক্ষাংশ প্রয়োজন',
+        }),
+      longitude: Joi.number().min(-180).max(180).optional()
+        .messages({
+          'number.min': 'বৈধ দ্রাঘিমাংশ প্রয়োজন',
+          'number.max': 'বৈধ দ্রাঘিমাংশ প্রয়োজন',
+        }),
+    }),
+    Joi.string().min(3).max(500)
+  ).optional(),
   imageUrls: Joi.array().items(Joi.string().uri()).optional()
     .messages({
       'string.uri': 'বৈধ ছবির URL প্রয়োজন',
@@ -220,7 +236,29 @@ export const createComplaintSchema = Joi.object({
     .messages({
       'string.uri': 'বৈধ ভয়েস নোট URL প্রয়োজন',
     }),
-});
+}).custom((value, helpers) => {
+  // Custom validation: Ensure either geographical IDs or full location is provided
+  const hasGeographicalIds = value.cityCorporationCode && value.zoneId && value.wardId;
+  const hasFullLocation = value.location &&
+    value.location.address &&
+    value.location.district &&
+    value.location.thana &&
+    value.location.ward;
+
+  // If geographical IDs are provided, location fields are optional
+  if (hasGeographicalIds) {
+    return value;
+  }
+
+  // If no geographical IDs, require full location
+  if (!hasFullLocation) {
+    return helpers.error('custom.locationRequired', {
+      message: 'জোন নির্বাচন করুন, ওয়ার্ড নির্বাচন করুন, ওয়ার্ড নম্বর প্রয়োজন'
+    });
+  }
+
+  return value;
+}, 'Location or Geographical IDs validation');
 
 export const updateComplaintSchema = Joi.object({
   title: Joi.string().min(5).max(200).optional(),

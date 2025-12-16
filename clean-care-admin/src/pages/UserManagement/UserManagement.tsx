@@ -37,11 +37,14 @@ import {
   FilterList as FilterIcon,
   PersonOff as PersonOffIcon,
   SearchOff as SearchOffIcon,
+  ChatBubbleOutline,
 } from '@mui/icons-material';
+import { ZoneFilter } from '../../components/common';
 import MainLayout from '../../components/common/Layout/MainLayout';
 import UserDetailsModal from '../../components/UserManagement/UserDetailsModal';
 import UserEditModal from '../../components/UserManagement/UserEditModal';
 import UserAddModal from '../../components/UserManagement/UserAddModal';
+import DirectMessageModal from '../../components/UserManagement/DirectMessageModal';
 import EmptyState from '../../components/common/EmptyState';
 import ErrorBoundary from '../../components/common/ErrorBoundary';
 import { userManagementService } from '../../services/userManagementService';
@@ -49,7 +52,6 @@ import { cityCorporationService } from '../../services/cityCorporationService';
 import { zoneService } from '../../services/zoneService';
 import { wardService } from '../../services/wardService';
 import type { CityCorporation } from '../../services/cityCorporationService';
-import type { Zone } from '../../services/zoneService';
 import type { Ward } from '../../services/wardService';
 import type {
   UserWithStats,
@@ -80,12 +82,10 @@ const UserManagement: React.FC = () => {
   const [cityCorporations, setCityCorporations] = useState<CityCorporation[]>([]);
   const [selectedCityCorporation, setSelectedCityCorporation] = useState<string>('ALL');
   const [selectedCityCorporationId, setSelectedCityCorporationId] = useState<number | null>(null);
-  const [selectedZone, setSelectedZone] = useState<number | null>(null);
+  const [selectedZone, setSelectedZone] = useState<number | ''>('');
   const [selectedWard, setSelectedWard] = useState<number | null>(null);
-  const [zones, setZones] = useState<Zone[]>([]);
   const [wards, setWards] = useState<Ward[]>([]);
   const [cityCorporationsLoading, setCityCorporationsLoading] = useState<boolean>(false);
-  const [zonesLoading, setZonesLoading] = useState<boolean>(false);
   const [wardsLoading, setWardsLoading] = useState<boolean>(false);
 
   // State for statistics
@@ -97,7 +97,10 @@ const UserManagement: React.FC = () => {
   const [selectedUserComplaints, setSelectedUserComplaints] = useState<any[]>([]);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState<boolean>(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
+
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
+  const [isChatModalOpen, setIsChatModalOpen] = useState<boolean>(false);
+  const [selectedChatUser, setSelectedChatUser] = useState<UserWithStats | null>(null);
 
   // State for pagination
   const [pagination, setPagination] = useState({
@@ -144,14 +147,12 @@ const UserManagement: React.FC = () => {
       const cityCorporation = cityCorporations.find(cc => cc.code === selectedCityCorporation);
       if (cityCorporation) {
         setSelectedCityCorporationId(cityCorporation.id);
-        fetchZones(cityCorporation.id);
       }
     } else {
       setSelectedCityCorporationId(null);
-      setZones([]);
       setWards([]);
     }
-    setSelectedZone(null);
+    setSelectedZone('');
     setSelectedWard(null);
   }, [selectedCityCorporation, cityCorporations]);
 
@@ -201,19 +202,7 @@ const UserManagement: React.FC = () => {
     }
   };
 
-  // Fetch zones function
-  const fetchZones = async (cityCorporationId: number) => {
-    try {
-      setZonesLoading(true);
-      const zonesData = await zoneService.getZonesByCityCorporation(cityCorporationId, 'ACTIVE');
-      setZones(zonesData);
-    } catch (err: any) {
-      console.error('Error fetching zones:', err);
-      showToast('Failed to load zones', 'error');
-    } finally {
-      setZonesLoading(false);
-    }
-  };
+
 
   // Fetch wards function
   const fetchWards = async (zoneId: number) => {
@@ -294,7 +283,8 @@ const UserManagement: React.FC = () => {
     setSearchTerm('');
     setStatusFilter('ALL');
     setSelectedCityCorporation('ALL');
-    setSelectedZone(null);
+    setSelectedCityCorporation('ALL');
+    setSelectedZone('');
     setSelectedWard(null);
     setPagination(prev => ({ ...prev, page: 1 }));
   };
@@ -344,7 +334,6 @@ const UserManagement: React.FC = () => {
     }
   };
 
-  // Handle create user
   const handleCreateUser = async (data: CreateUserDto) => {
     try {
       await userManagementService.createUser(data);
@@ -357,6 +346,18 @@ const UserManagement: React.FC = () => {
       showToast(err.response?.data?.message || 'Failed to create user', 'error');
       throw err; // Re-throw to let the modal handle it
     }
+  };
+
+  // Handle open chat
+  const handleOpenChat = (user: UserWithStats) => {
+    setSelectedChatUser(user);
+    setIsChatModalOpen(true);
+  };
+
+  // Handle close chat
+  const handleCloseChat = () => {
+    setIsChatModalOpen(false);
+    setSelectedChatUser(null);
   };
 
 
@@ -609,29 +610,14 @@ const UserManagement: React.FC = () => {
                 </FormControl>
 
                 {/* Zone Filter */}
-                <FormControl sx={{ minWidth: 200 }}>
-                  <InputLabel id="zone-filter-label" sx={{ top: -8 }}>
-                    Zone
-                  </InputLabel>
-                  <Select
-                    labelId="zone-filter-label"
-                    value={selectedZone || ''}
-                    onChange={(e) => setSelectedZone(e.target.value ? Number(e.target.value) : null)}
-                    label="Zone"
-                    disabled={selectedCityCorporation === 'ALL' || zonesLoading || !zones || zones.length === 0}
-                    sx={{
-                      height: 40,
-                      backgroundColor: '#f8f9fa',
-                    }}
-                  >
-                    <MenuItem value="">All Zones</MenuItem>
-                    {zones && zones.map((zone) => (
-                      <MenuItem key={zone.id} value={zone.id}>
-                        Zone {zone.zoneNumber}{zone.name ? ` - ${zone.name}` : ''}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+                <Box sx={{ minWidth: 200 }}>
+                  <ZoneFilter
+                    value={selectedZone}
+                    onChange={(val) => setSelectedZone(val as number | '')}
+                    cityCorporationCode={selectedCityCorporation !== 'ALL' ? selectedCityCorporation : ''}
+                    disabled={false} // Always enabled, but content depends on City Corp
+                  />
+                </Box>
 
                 {/* Ward Filter */}
                 <FormControl sx={{ minWidth: 200 }}>
@@ -833,21 +819,25 @@ const UserManagement: React.FC = () => {
                           </TableCell>
                           <TableCell>
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                              {user.zone && (
-                                <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                  Zone {user.zone.zoneNumber}{user.zone.name ? ` - ${user.zone.name}` : ''}
-                                </Typography>
-                              )}
-                              {user.ward && (
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                  <LocationIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                                  <Typography variant="body2" color="text.secondary">
-                                    Ward {user.ward.wardNumber}
-                                  </Typography>
-                                </Box>
-                              )}
+                              {user.zone ? (
+                                <Chip
+                                  label={`Zone ${user.zone.zoneNumber}${user.zone.name ? ` - ${user.zone.name}` : ''}`}
+                                  size="small"
+                                  variant="outlined"
+                                  color="primary"
+                                  sx={{ height: 24, justifyContent: 'flex-start' }}
+                                />
+                              ) : null}
+                              {user.ward ? (
+                                <Chip
+                                  label={`Ward ${user.ward.wardNumber}`}
+                                  size="small"
+                                  variant="outlined"
+                                  sx={{ height: 24, justifyContent: 'flex-start' }}
+                                />
+                              ) : null}
                               {!user.zone && !user.ward && (
-                                <Typography variant="body2" color="text.secondary">
+                                <Typography variant="caption" color="text.secondary">
                                   N/A
                                 </Typography>
                               )}
@@ -908,6 +898,24 @@ const UserManagement: React.FC = () => {
                                 }}
                               >
                                 {actionLoading.viewUser === user.id ? 'Loading...' : 'View'}
+                              </Button>
+                              <Button
+                                variant="outlined"
+                                size="small"
+                                color="primary"
+                                onClick={() => handleOpenChat(user)}
+                                sx={{
+                                  textTransform: 'none',
+                                  borderColor: '#e0e0e0',
+                                  minWidth: '40px',
+                                  color: 'text.primary',
+                                  '&:hover': {
+                                    borderColor: '#2196F3',
+                                    color: '#2196F3',
+                                  },
+                                }}
+                              >
+                                <ChatBubbleOutline fontSize="small" />
                               </Button>
                               <Button
                                 variant="outlined"
@@ -1079,6 +1087,15 @@ const UserManagement: React.FC = () => {
           onSave={handleCreateUser}
         />
 
+        {selectedChatUser && (
+          <DirectMessageModal
+            userId={selectedChatUser.id}
+            userName={`${selectedChatUser.firstName} ${selectedChatUser.lastName}`}
+            open={isChatModalOpen}
+            onClose={handleCloseChat}
+          />
+        )}
+
         {/* Toast Notification */}
         <Snackbar
           open={toast.open}
@@ -1095,7 +1112,7 @@ const UserManagement: React.FC = () => {
           </Alert>
         </Snackbar>
       </MainLayout>
-    </ErrorBoundary>
+    </ErrorBoundary >
   );
 };
 

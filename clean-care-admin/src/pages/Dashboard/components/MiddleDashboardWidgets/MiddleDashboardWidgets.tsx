@@ -8,9 +8,10 @@ import {
 
 interface MiddleDashboardWidgetsProps {
   cityCorporationCode?: string;
+  zoneId?: number;
 }
 
-const MiddleDashboardWidgets: React.FC<MiddleDashboardWidgetsProps> = ({ cityCorporationCode }) => {
+const MiddleDashboardWidgets: React.FC<MiddleDashboardWidgetsProps> = ({ cityCorporationCode, zoneId }) => {
   return (
     <Box
       sx={{
@@ -23,10 +24,10 @@ const MiddleDashboardWidgets: React.FC<MiddleDashboardWidgetsProps> = ({ cityCor
         mb: 4,
       }}
     >
-      <ComplaintStatusOverview cityCorporationCode={cityCorporationCode} />
-      <CitizenSatisfactionScore cityCorporationCode={cityCorporationCode} />
+      <ComplaintStatusOverview cityCorporationCode={cityCorporationCode} zoneId={zoneId} />
+      <CitizenSatisfactionScore cityCorporationCode={cityCorporationCode} zoneId={zoneId} />
       {/* AverageServiceTime - Commented out for cleaner design */}
-      {/* <AverageServiceTime cityCorporationCode={cityCorporationCode} /> */}
+      {/* <AverageServiceTime cityCorporationCode={cityCorporationCode} zoneId={zoneId} /> */}
     </Box>
   );
 };

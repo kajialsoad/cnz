@@ -113,67 +113,107 @@ export const validateCityCorporationAccess = (req: AuthRequest, res: Response, n
  * - SUPER_ADMIN: Can only access their assigned zone
  * - ADMIN: Cannot access zone-level data directly
  */
-export const validateZoneAccess = (req: AuthRequest, res: Response, next: NextFunction) => {
-    const userRole = req.user?.role;
-    const userZoneId = req.user?.zoneId;
 
-    // MASTER_ADMIN can access all zones
-    if (userRole === users_role.MASTER_ADMIN) {
-        return next();
-    }
+/**
+ * Zone access validation middleware
+ * Ensures users can only access zones they are assigned to
+ * 
+ * Requirements: 12.4, 20.1-20.20
+ * 
+ * Access Rules:
+ * - MASTER_ADMIN: Can access all zones
+ * - SUPER_ADMIN: Can only access their assigned zones (multi-zone support)
+ * - ADMIN: Cannot access zone-level data directly
+ */
+export const validateZoneAccess = async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+        const userRole = req.user?.role;
+        const userZoneId = req.user?.zoneId;
+        const userId = req.user?.id;
 
-    // Extract requested zone ID from various sources
-    const requestedZoneIdStr =
-        req.params.zoneId ||
-        req.query.zoneId ||
-        req.body.zoneId;
+        // MASTER_ADMIN can access all zones
+        if (userRole === users_role.MASTER_ADMIN) {
+            return next();
+        }
 
-    // If no zone is requested, allow (will be filtered by service layer)
-    if (!requestedZoneIdStr) {
-        return next();
-    }
+        // Extract requested zone ID from various sources
+        const requestedZoneIdStr =
+            req.params.zoneId ||
+            req.query.zoneId ||
+            req.body.zoneId;
 
-    const requestedZoneId = parseInt(requestedZoneIdStr as string);
+        // If no zone is requested, allow (will be filtered by service layer using applyZoneFilter)
+        if (!requestedZoneIdStr) {
+            return next();
+        }
 
-    if (isNaN(requestedZoneId)) {
-        return res.status(400).json({
-            success: false,
-            error: {
-                code: 'VALIDATION_FAILED',
-                message: 'Invalid zone ID format',
-            },
-        });
-    }
+        const requestedZoneId = parseInt(requestedZoneIdStr as string);
 
-    // ADMIN cannot access zone-level data
-    if (userRole === users_role.ADMIN) {
-        return res.status(403).json({
-            success: false,
-            error: {
-                code: 'AUTH_INSUFFICIENT_PERMISSIONS',
-                message: 'Admins cannot access zone-level data',
-            },
-        });
-    }
-
-    // SUPER_ADMIN can only access their assigned zone
-    if (userRole === users_role.SUPER_ADMIN) {
-        if (userZoneId !== requestedZoneId) {
-            return res.status(403).json({
+        if (isNaN(requestedZoneId)) {
+            return res.status(400).json({
                 success: false,
                 error: {
-                    code: 'AUTH_ZONE_MISMATCH',
-                    message: 'You do not have access to this zone',
-                    details: {
-                        userZone: userZoneId,
-                        requestedZone: requestedZoneId,
-                    },
+                    code: 'VALIDATION_FAILED',
+                    message: 'Invalid zone ID format',
                 },
             });
         }
-    }
 
-    next();
+        // ADMIN cannot access zone-level data
+        if (userRole === users_role.ADMIN) {
+            return res.status(403).json({
+                success: false,
+                error: {
+                    code: 'AUTH_INSUFFICIENT_PERMISSIONS',
+                    message: 'Admins cannot access zone-level data',
+                },
+            });
+        }
+
+        // SUPER_ADMIN can only access their assigned zones
+        if (userRole === users_role.SUPER_ADMIN && userId) {
+            let allowedZones: number[] = [];
+
+            // Check if already populated by filterByAssignedZones
+            if (req.assignedZoneIds) {
+                allowedZones = req.assignedZoneIds;
+            } else {
+                // Fetch from service if not populated
+                // Use dynamic import to avoid circular dependencies
+                const { multiZoneService } = await import('../services/multi-zone.service');
+                allowedZones = await multiZoneService.getAssignedZoneIds(userId);
+
+                // Cache it in request for subsequent use
+                req.assignedZoneIds = allowedZones;
+            }
+
+            // Check if requested zone is in allow list
+            if (!allowedZones.includes(requestedZoneId)) {
+                return res.status(403).json({
+                    success: false,
+                    error: {
+                        code: 'AUTH_ZONE_MISMATCH',
+                        message: 'You do not have access to this zone',
+                        details: {
+                            assignedZones: allowedZones,
+                            requestedZone: requestedZoneId,
+                        },
+                    },
+                });
+            }
+        }
+
+        next();
+    } catch (error) {
+        console.error('Zone access validation error:', error);
+        return res.status(500).json({
+            success: false,
+            error: {
+                code: 'SERVER_ERROR',
+                message: 'Error validating zone access',
+            },
+        });
+    }
 };
 
 /**
@@ -576,6 +616,120 @@ export const requireSuperAdminManagementAccess = (
     next();
 };
 
+
+/**
+ * Middleware to populate assignedZoneIds for SUPER_ADMIN
+ * Requirements: 12.4, 20.1-20.20
+ * 
+ * This middleware:
+ * 1. Checks if user is SUPER_ADMIN
+ * 2. Fetches their assigned zones from MultiZoneService
+ * 3. Attaches zones to req.assignedZoneIds
+ * 4. Verifies if requested zoneId is allowed
+ */
+export const filterByAssignedZones = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+) => {
+    try {
+        const userRole = req.user?.role;
+        const userId = req.user?.id;
+
+        // SKIP if no user (should be handled by authGuard, but safe check)
+        if (!userId || !userRole) {
+            return next();
+        }
+
+        // MASTER_ADMIN: No filtering needed (can access all)
+        if (userRole === users_role.MASTER_ADMIN) {
+            return next();
+        }
+
+        // ADMIN: Handled by legacy single zone check (usually)
+        // But for consistency we could populate assignedZoneIds with single ID
+        if (userRole === users_role.ADMIN) {
+            if (req.user?.zoneId) {
+                req.assignedZoneIds = [req.user.zoneId];
+            }
+            return next();
+        }
+
+        // SUPER_ADMIN: Fetch assigned zones
+        if (userRole === users_role.SUPER_ADMIN) {
+            // Lazy load service to avoid circular dependency issues if any
+            const { multiZoneService } = await import('../services/multi-zone.service');
+            const assignedIds = await multiZoneService.getAssignedZoneIds(userId);
+
+            // Should we fallback to legacy zoneId if no multi-zones? 
+            // The legacy zoneId is likely one of them.
+            // Requirement says "Service validates...". 
+            // We'll trust multiZoneService.
+
+            req.assignedZoneIds = assignedIds;
+
+            // Check if specific zone requested
+            const requestedZoneIdStr = req.params.zoneId || req.query.zoneId || req.body.zoneId;
+
+            if (requestedZoneIdStr) {
+                const requestedZoneId = parseInt(requestedZoneIdStr as string);
+                if (!isNaN(requestedZoneId)) {
+                    if (!assignedIds.includes(requestedZoneId)) {
+                        return res.status(403).json({
+                            success: false,
+                            error: {
+                                code: 'AUTH_ZONE_MISMATCH',
+                                message: 'You do not have access to this zone'
+                            },
+                        });
+                    }
+                }
+            }
+        }
+
+        next();
+    } catch (error) {
+        console.error('Zone filter middleware error:', error);
+        return res.status(500).json({
+            success: false,
+            error: {
+                code: 'SERVER_ERROR',
+                message: 'Error processing zone authorization',
+            },
+        });
+    }
+};
+
+/**
+ * Helper to apply zone filter to Prisma queries
+ * @param req AuthRequest
+ * @returns Prisma query clause or undefined
+ */
+export const applyZoneFilter = (req: AuthRequest) => {
+    const { user, assignedZoneIds } = req;
+
+    if (!user) return {};
+
+    if (user.role === users_role.MASTER_ADMIN) {
+        return {}; // No filter
+    }
+
+    if (user.role === users_role.SUPER_ADMIN && assignedZoneIds && assignedZoneIds.length > 0) {
+        return {
+            zoneId: { in: assignedZoneIds }
+        };
+    }
+
+    // Fallback for single zone roles (ADMIN)
+    if (user.zoneId) {
+        return {
+            zoneId: user.zoneId
+        };
+    }
+
+    return {};
+};
+
 /**
  * Export all authorization middleware
  */
@@ -592,4 +746,6 @@ export default {
     blockIfViewOnly,
     requireAdminManagementAccess,
     requireSuperAdminManagementAccess,
+    filterByAssignedZones,
+    applyZoneFilter
 };

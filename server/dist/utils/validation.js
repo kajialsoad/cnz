@@ -181,25 +181,32 @@ exports.createComplaintSchema = joi_1.default.object({
         'number.max': 'অগ্রাধিকার ১-৪ এর মধ্যে হতে হবে',
     }),
     forSomeoneElse: joi_1.default.boolean().optional(), // Flag for nullable userId
-    location: joi_1.default.object({
-        address: joi_1.default.string().min(10).max(500).required()
+    // NEW: Geographical ID fields for dynamic system
+    cityCorporationCode: joi_1.default.string().optional()
+        .messages({
+        'string.empty': 'সিটি কর্পোরেশন নির্বাচন করুন',
+    }),
+    zoneId: joi_1.default.alternatives().try(joi_1.default.number().integer().positive(), joi_1.default.string().pattern(/^\d+$/).custom((value, helpers) => parseInt(value, 10))).optional()
+        .messages({
+        'number.base': 'বৈধ জোন নির্বাচন করুন',
+        'number.positive': 'বৈধ জোন নির্বাচন করুন',
+    }),
+    wardId: joi_1.default.alternatives().try(joi_1.default.number().integer().positive(), joi_1.default.string().pattern(/^\d+$/).custom((value, helpers) => parseInt(value, 10))).optional()
+        .messages({
+        'number.base': 'বৈধ ওয়ার্ড নির্বাচন করুন',
+        'number.positive': 'বৈধ ওয়ার্ড নির্বাচন করুন',
+    }),
+    // Location object - when using new geographical IDs, only address is required
+    location: joi_1.default.alternatives().try(joi_1.default.object({
+        address: joi_1.default.string().min(3).max(500).required()
             .messages({
             'string.empty': 'সম্পূর্ণ ঠিকানা প্রয়োজন',
-            'string.min': 'ঠিকানা কমপক্ষে ১০ অক্ষরের হতে হবে',
+            'string.min': 'ঠিকানা কমপক্ষে ৩ অক্ষরের হতে হবে',
             'string.max': 'ঠিকানা সর্বোচ্চ ৫০০ অক্ষরের হতে হবে',
         }),
-        district: joi_1.default.string().required()
-            .messages({
-            'string.empty': 'জেলা নির্বাচন করুন',
-        }),
-        thana: joi_1.default.string().required()
-            .messages({
-            'string.empty': 'থানা নির্বাচন করুন',
-        }),
-        ward: joi_1.default.string().required()
-            .messages({
-            'string.empty': 'ওয়ার্ড নম্বর প্রয়োজন',
-        }),
+        district: joi_1.default.string().optional().allow('').default(''),
+        thana: joi_1.default.string().optional().allow('').default(''),
+        ward: joi_1.default.string().optional().allow('').default(''),
         latitude: joi_1.default.number().min(-90).max(90).optional()
             .messages({
             'number.min': 'বৈধ অক্ষাংশ প্রয়োজন',
@@ -210,7 +217,7 @@ exports.createComplaintSchema = joi_1.default.object({
             'number.min': 'বৈধ দ্রাঘিমাংশ প্রয়োজন',
             'number.max': 'বৈধ দ্রাঘিমাংশ প্রয়োজন',
         }),
-    }).required(),
+    }), joi_1.default.string().min(3).max(500)).optional(),
     imageUrls: joi_1.default.array().items(joi_1.default.string().uri()).optional()
         .messages({
         'string.uri': 'বৈধ ছবির URL প্রয়োজন',
@@ -219,7 +226,26 @@ exports.createComplaintSchema = joi_1.default.object({
         .messages({
         'string.uri': 'বৈধ ভয়েস নোট URL প্রয়োজন',
     }),
-});
+}).custom((value, helpers) => {
+    // Custom validation: Ensure either geographical IDs or full location is provided
+    const hasGeographicalIds = value.cityCorporationCode && value.zoneId && value.wardId;
+    const hasFullLocation = value.location &&
+        value.location.address &&
+        value.location.district &&
+        value.location.thana &&
+        value.location.ward;
+    // If geographical IDs are provided, location fields are optional
+    if (hasGeographicalIds) {
+        return value;
+    }
+    // If no geographical IDs, require full location
+    if (!hasFullLocation) {
+        return helpers.error('custom.locationRequired', {
+            message: 'জোন নির্বাচন করুন, ওয়ার্ড নির্বাচন করুন, ওয়ার্ড নম্বর প্রয়োজন'
+        });
+    }
+    return value;
+}, 'Location or Geographical IDs validation');
 exports.updateComplaintSchema = joi_1.default.object({
     title: joi_1.default.string().min(5).max(200).optional(),
     description: joi_1.default.string().min(10).max(2000).optional(),

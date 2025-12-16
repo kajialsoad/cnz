@@ -75,16 +75,18 @@ class ZoneService {
      * Create new zone
      */
     async createZone(data) {
-        // Validate zone number is between 1-20
-        if (data.zoneNumber < 1 || data.zoneNumber > 20) {
-            throw new Error('Zone number must be between 1 and 20');
-        }
-        // Validate city corporation exists
+        // Validate city corporation exists and get limits
         const cityCorporation = await prisma.cityCorporation.findUnique({
             where: { id: data.cityCorporationId },
         });
         if (!cityCorporation) {
             throw new Error(`City Corporation with ID ${data.cityCorporationId} not found`);
+        }
+        // Validate zone number is within city corporation's range
+        const minZone = cityCorporation.minZone || 1;
+        const maxZone = cityCorporation.maxZone || 20;
+        if (data.zoneNumber < minZone || data.zoneNumber > maxZone) {
+            throw new Error(`Zone number must be between ${minZone} and ${maxZone} for ${cityCorporation.name}`);
         }
         // Check if zone number already exists for this city corporation
         const existing = await prisma.zone.findFirst({
@@ -196,11 +198,49 @@ class ZoneService {
         };
     }
     /**
+     * Get available zone numbers for a city corporation
+     */
+    async getAvailableZoneNumbers(cityCorporationId) {
+        // Validate city corporation exists and get limits
+        const cityCorporation = await prisma.cityCorporation.findUnique({
+            where: { id: cityCorporationId },
+        });
+        if (!cityCorporation) {
+            throw new Error(`City Corporation with ID ${cityCorporationId} not found`);
+        }
+        // Get zone range from city corporation
+        const minZone = cityCorporation.minZone || 1;
+        const maxZone = cityCorporation.maxZone || 20;
+        // Get existing zone numbers for this city corporation
+        const existingZones = await prisma.zone.findMany({
+            where: { cityCorporationId },
+            select: { zoneNumber: true },
+        });
+        const existingNumbers = existingZones.map(z => z.zoneNumber);
+        // Generate available numbers (minZone to maxZone, excluding existing)
+        const availableNumbers = [];
+        for (let i = minZone; i <= maxZone; i++) {
+            if (!existingNumbers.includes(i)) {
+                availableNumbers.push(i);
+            }
+        }
+        return availableNumbers;
+    }
+    /**
      * Validate zone number for city corporation
      */
     async validateZoneNumber(cityCorporationId, zoneNumber) {
-        // Validate zone number is between 1-20
-        if (zoneNumber < 1 || zoneNumber > 20) {
+        // Get city corporation limits
+        const cityCorporation = await prisma.cityCorporation.findUnique({
+            where: { id: cityCorporationId },
+        });
+        if (!cityCorporation) {
+            return false;
+        }
+        // Validate zone number is within city corporation's range
+        const minZone = cityCorporation.minZone || 1;
+        const maxZone = cityCorporation.maxZone || 20;
+        if (zoneNumber < minZone || zoneNumber > maxZone) {
             return false;
         }
         // Check if zone number already exists for this city corporation
@@ -342,6 +382,59 @@ class ZoneService {
             valid: errors.length === 0,
             errors,
         };
+    }
+    /**
+     * Get zones accessible by a specific user based on their role and assignments
+     */
+    async getAccessibleZones(userId) {
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            include: {
+                cityCorporation: true,
+                assignedZones: {
+                    include: {
+                        zone: {
+                            include: {
+                                cityCorporation: {
+                                    select: {
+                                        id: true,
+                                        code: true,
+                                        name: true,
+                                    }
+                                },
+                                _count: {
+                                    select: {
+                                        wards: true,
+                                        users: true,
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        if (!user) {
+            throw new Error('User not found');
+        }
+        // If Master Admin, return all zones (or handled by controller filters)
+        // For now, if no specific restriction, we might want to return all or specific logic.
+        // Assuming this method is called when we WANT restricted zones.
+        // If Super Admin (Zone Officer), return only assigned zones
+        if (user.role === 'SUPER_ADMIN') { // Using string literal if enum import is tricky, or better:
+            // We should use the enum values if possible. 
+            // The file doesn't import users_role yet. 
+            // I'll assume 'SUPER_ADMIN' string or update imports.
+            // Let's check imports.
+            return user.assignedZones.map(az => az.zone);
+        }
+        // If Admin (City Corp Admin), return zones for their City Corp
+        if (user.role === 'ADMIN' && user.cityCorporation) {
+            return this.getZonesByCityCorporation(user.cityCorporation.id, 'ACTIVE');
+        }
+        // Default: If no specific logic, maybe return empty or all?
+        // "ja access ache" -> if no access, nothing.
+        return [];
     }
 }
 exports.default = new ZoneService();

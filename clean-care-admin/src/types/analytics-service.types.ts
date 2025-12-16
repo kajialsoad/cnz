@@ -28,6 +28,7 @@ export interface AnalyticsQuery {
     startDate?: string;
     endDate?: string;
     cityCorporationCode?: string;
+    zoneId?: number;
 }
 
 export interface GetAnalyticsResponse {

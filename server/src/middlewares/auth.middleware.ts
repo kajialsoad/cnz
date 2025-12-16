@@ -3,6 +3,7 @@ import { verifyAccessToken, JwtPayload, validateUserSession, isTokenExpired } fr
 
 export interface AuthRequest extends Request {
   user?: JwtPayload;
+  assignedZoneIds?: number[];
 }
 
 /**

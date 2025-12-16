@@ -112,7 +112,7 @@ android/app/proguard-rules.pro
 .kiro/specs/
 
 # Server documentation and test files (not needed in production)
-/server/tests/
+# /server/tests/
 /server/docs/
 /server/*.md
 /server/RAILWAY*.md
@@ -178,7 +178,7 @@ problems-report.html
 /docs/
 
 # Server organized folders
-/server/tests/
+# /server/tests/
 /server/scripts/migrations/
 /server/scripts/checks/
 /server/scripts/utilities/

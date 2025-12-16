@@ -146,6 +146,30 @@ class ComplaintProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Geographical IDs for backend
+  String? _cityCorporationCode;
+  int? _zoneId;
+  int? _wardId;
+
+  String? get cityCorporationCode => _cityCorporationCode;
+  int? get zoneId => _zoneId;
+  int? get wardId => _wardId;
+
+  void setCityCorporationCode(String? code) {
+    _cityCorporationCode = code;
+    notifyListeners();
+  }
+
+  void setZoneId(int? id) {
+    _zoneId = id;
+    notifyListeners();
+  }
+
+  void setWardId(int? id) {
+    _wardId = id;
+    notifyListeners();
+  }
+
   // File management
   Future<void> addImage() async {
     try {
@@ -245,6 +269,9 @@ class ComplaintProvider extends ChangeNotifier {
         district: _district,
         thana: _thana,
         ward: _ward,
+        cityCorporationCode: _cityCorporationCode,  // NEW: Pass geographical IDs
+        zoneId: _zoneId,
+        wardId: _wardId,
         images: _selectedImages.isNotEmpty ? _selectedImages : null,
         audioFiles: _selectedAudioFiles.isNotEmpty ? _selectedAudioFiles : null,
       );

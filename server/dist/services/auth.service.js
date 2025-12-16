@@ -13,6 +13,7 @@ const city_corporation_service_1 = __importDefault(require("./city-corporation.s
 // import thanaService from './thana.service'; // Thana service disabled - using Zone/Ward now
 const zone_service_1 = __importDefault(require("./zone.service"));
 const ward_service_1 = __importDefault(require("./ward.service"));
+const rate_limit_middleware_1 = require("../middlewares/rate-limit.middleware");
 class AuthService {
     // User registration
     async register(input) {
@@ -153,8 +154,15 @@ class AuthService {
         };
     }
     // User login
-    async login(input) {
+    async login(input, ip) {
         console.log('Login input received:', input);
+        // Determine identifier for rate limiting
+        const identifier = input.email || input.phone || '';
+        // Check if account is locked due to too many failed attempts
+        const lockout = (0, rate_limit_middleware_1.checkAccountLockout)(identifier);
+        if (lockout.locked) {
+            throw new Error(`Account temporarily locked due to too many failed login attempts. Please try again in ${Math.ceil(lockout.retryAfter / 60)} minutes.`);
+        }
         // Find user by email or phone
         let user;
         if (input.email) {
@@ -171,6 +179,8 @@ class AuthService {
         }
         console.log('User found:', user ? 'Yes' : 'No');
         if (!user) {
+            // Track failed login attempt
+            await (0, rate_limit_middleware_1.trackLoginAttempt)(identifier, false, ip);
             throw new Error('Invalid credentials');
         }
         if (user.status === 'SUSPENDED') {
@@ -184,8 +194,12 @@ class AuthService {
         }
         const isPasswordValid = await (0, bcrypt_1.compare)(input.password, user.passwordHash);
         if (!isPasswordValid) {
+            // Track failed login attempt
+            await (0, rate_limit_middleware_1.trackLoginAttempt)(identifier, false, ip);
             throw new Error('Invalid credentials');
         }
+        // Track successful login attempt (clears failed attempts)
+        await (0, rate_limit_middleware_1.trackLoginAttempt)(identifier, true, ip);
         // Admin রোল ন্যারো করা
         const toAdminRole = (r) => {
             if (r === 'ADMIN' || r === 'SUPER_ADMIN' || r === 'MASTER_ADMIN')
@@ -213,13 +227,19 @@ class AuthService {
                 wardId: user.wardId
             });
             // Store refresh token
-            await prisma_1.default.refreshToken.create({
-                data: {
-                    token: refreshToken,
-                    userId: user.id,
-                    expiresAt: new Date(Date.now() + env_1.default.REFRESH_TTL_SECONDS * 1000)
-                }
-            });
+            try {
+                await prisma_1.default.refreshToken.create({
+                    data: {
+                        token: refreshToken,
+                        userId: user.id,
+                        expiresAt: new Date(Date.now() + env_1.default.REFRESH_TTL_SECONDS * 1000)
+                    }
+                });
+            }
+            catch (dbError) {
+                console.error('Database error storing refresh token:', dbError);
+                throw new Error('Failed to store refresh token');
+            }
             // Update last login
             await prisma_1.default.user.update({
                 where: { id: user.id },
@@ -237,9 +257,11 @@ class AuthService {
             throw new Error('Failed to generate authentication tokens');
         }
     }
-    // Refresh access token
+    // Refresh access token with session validation
+    // Requirements: 12.1, 12.2, 12.3, 12.17
     async refreshTokens(refreshToken) {
         const payload = (0, jwt_1.verifyRefreshToken)(refreshToken);
+        // Validate stored refresh token
         const storedToken = await prisma_1.default.refreshToken.findFirst({
             where: {
                 token: refreshToken,
@@ -249,24 +271,50 @@ class AuthService {
         if (!storedToken || storedToken.expiresAt < new Date()) {
             throw new Error('Invalid or expired refresh token');
         }
-        // Generate new tokens
+        // Validate user session (check if user still exists and is active)
+        const user = await prisma_1.default.user.findUnique({
+            where: { id: payload.sub },
+            select: {
+                id: true,
+                status: true,
+                role: true,
+                email: true,
+                phone: true,
+                zoneId: true,
+                wardId: true,
+                cityCorporationCode: true
+            }
+        });
+        if (!user) {
+            // User no longer exists, delete the refresh token
+            await prisma_1.default.refreshToken.delete({ where: { id: storedToken.id } });
+            throw new Error('User account not found');
+        }
+        if (user.status !== 'ACTIVE') {
+            // User is not active, delete the refresh token
+            await prisma_1.default.refreshToken.delete({ where: { id: storedToken.id } });
+            throw new Error('User account is not active');
+        }
+        // Generate new tokens with updated user data
         const newAccessToken = (0, jwt_1.signAccessToken)({
-            id: parseInt(payload.sub.toString()),
-            sub: parseInt(payload.sub.toString()),
-            role: payload.role,
-            email: payload.email,
-            phone: payload.phone,
-            zoneId: payload.zoneId,
-            wardId: payload.wardId
+            id: parseInt(user.id.toString()),
+            sub: parseInt(user.id.toString()),
+            role: user.role,
+            email: user.email ?? undefined,
+            phone: user.phone ?? undefined,
+            zoneId: user.zoneId,
+            wardId: user.wardId,
+            cityCorporationCode: user.cityCorporationCode ?? undefined
         });
         const newRefreshToken = (0, jwt_1.signRefreshToken)({
-            id: parseInt(payload.sub.toString()),
-            sub: parseInt(payload.sub.toString()),
-            role: payload.role,
-            email: payload.email,
-            phone: payload.phone,
-            zoneId: payload.zoneId,
-            wardId: payload.wardId
+            id: parseInt(user.id.toString()),
+            sub: parseInt(user.id.toString()),
+            role: user.role,
+            email: user.email ?? undefined,
+            phone: user.phone ?? undefined,
+            zoneId: user.zoneId,
+            wardId: user.wardId,
+            cityCorporationCode: user.cityCorporationCode ?? undefined
         });
         // Update refresh token
         await prisma_1.default.refreshToken.update({

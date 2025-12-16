@@ -11,9 +11,11 @@ class AdminComplaintService {
      * Get all complaints with admin-level access (no user restriction)
      * Supports pagination, filtering, and search
      */
-    async getAdminComplaints(query = {}) {
+    async getAdminComplaints(query = {}, assignedZoneIds) {
         try {
-            const { page = 1, limit = 20, status, category, subcategory, ward, cityCorporationCode, thanaId, search, startDate, endDate, sortBy = 'createdAt', sortOrder = 'desc' } = query;
+            const { page = 1, limit = 20, status, category, subcategory, ward, zoneId, // specific zone filter requested
+            wardId, cityCorporationCode, thanaId, // Deprecated but kept for backward compatibility
+            search, startDate, endDate, sortBy = 'createdAt', sortOrder = 'desc' } = query;
             const skip = (page - 1) * limit;
             // Build where clause - COMPLETELY REWRITTEN
             const andConditions = [];
@@ -59,8 +61,46 @@ class AdminComplaintService {
                     }
                 });
             }
-            // Ward filter (filter through user relationship)
-            if (ward) {
+            // Zone filter (filter through user relationship)
+            // Multi-zone Logic:
+            if (assignedZoneIds && assignedZoneIds.length > 0) {
+                // If specific zone requested, validate against assigned zones
+                if (zoneId) {
+                    if (!assignedZoneIds.includes(zoneId)) {
+                        // Requested zone not in assigned zones -> Return empty result
+                        andConditions.push({ id: -1 });
+                    }
+                    else {
+                        andConditions.push({ user: { zoneId: zoneId } });
+                    }
+                }
+                else {
+                    // No specific zone requested -> Filter by all assigned zones
+                    andConditions.push({ user: { zoneId: { in: assignedZoneIds } } });
+                }
+            }
+            else {
+                // No assigned zones restriction (e.g. Master Admin)
+                // Just use the requested zoneId if present
+                if (zoneId) {
+                    andConditions.push({
+                        user: {
+                            zoneId: zoneId
+                        }
+                    });
+                }
+            }
+            // Ward filter (filter through user relationship using wardId)
+            if (wardId) {
+                andConditions.push({
+                    user: {
+                        wardId: wardId
+                    }
+                });
+            }
+            // Legacy ward filter (filter through user relationship using ward string)
+            // Kept for backward compatibility
+            if (ward && !wardId) {
                 andConditions.push({
                     user: {
                         ward: ward
@@ -68,6 +108,7 @@ class AdminComplaintService {
                 });
             }
             // Thana filter (filter through user relationship)
+            // Deprecated but kept for backward compatibility
             if (thanaId) {
                 andConditions.push({
                     user: {
@@ -137,8 +178,6 @@ class AdminComplaintService {
                                 lastName: true,
                                 email: true,
                                 phone: true,
-                                ward: true,
-                                zone: true,
                                 address: true,
                                 cityCorporationCode: true,
                                 zoneId: true,
@@ -148,13 +187,30 @@ class AdminComplaintService {
                                         code: true,
                                         name: true
                                     }
+                                },
+                                zone: {
+                                    select: {
+                                        id: true,
+                                        zoneNumber: true,
+                                        name: true,
+                                        officerName: true,
+                                        officerDesignation: true
+                                    }
+                                },
+                                ward: {
+                                    select: {
+                                        id: true,
+                                        wardNumber: true,
+                                        inspectorName: true,
+                                        inspectorSerialNumber: true
+                                    }
                                 }
                             }
                         }
                     }
                 }),
                 prisma_1.default.complaint.count({ where }),
-                this.getStatusCounts(cityCorporationCode)
+                this.getStatusCounts(cityCorporationCode, zoneId, wardId, assignedZoneIds)
             ]);
             // Format complaints with parsed file URLs
             const formattedComplaints = complaints.map(complaint => this.formatComplaintResponse(complaint));
@@ -363,12 +419,40 @@ class AdminComplaintService {
     }
     /**
      * Get status counts for all complaints
-     * Optionally filtered by city corporation
+     * Optionally filtered by city corporation, zone, or ward
+     * multi-zone aware
      */
-    async getStatusCounts(cityCorporationCode) {
-        // Build where clause for city corporation filter
-        const whereClause = cityCorporationCode
-            ? { user: { cityCorporationCode } }
+    async getStatusCounts(cityCorporationCode, zoneId, wardId, assignedZoneIds) {
+        // Build where clause for filters
+        const userFilter = {};
+        if (cityCorporationCode) {
+            userFilter.cityCorporationCode = cityCorporationCode;
+        }
+        // Multi-zone Logic for stats
+        if (assignedZoneIds && assignedZoneIds.length > 0) {
+            if (zoneId) {
+                if (!assignedZoneIds.includes(zoneId)) {
+                    // Impossible condition for forbidden access
+                    userFilter.id = -1;
+                }
+                else {
+                    userFilter.zoneId = zoneId;
+                }
+            }
+            else {
+                userFilter.zoneId = { in: assignedZoneIds };
+            }
+        }
+        else {
+            if (zoneId) {
+                userFilter.zoneId = zoneId;
+            }
+        }
+        if (wardId) {
+            userFilter.wardId = wardId;
+        }
+        const whereClause = Object.keys(userFilter).length > 0
+            ? { user: userFilter }
             : {};
         const [pending, inProgress, resolved, rejected] = await Promise.all([
             prisma_1.default.complaint.count({
@@ -477,6 +561,202 @@ class AdminComplaintService {
         if (diffDays < 30)
             return `${Math.floor(diffDays / 7)} week${Math.floor(diffDays / 7) > 1 ? 's' : ''} ago`;
         return `${Math.floor(diffDays / 30)} month${Math.floor(diffDays / 30) > 1 ? 's' : ''} ago`;
+    }
+    /**
+     * Get complaint statistics grouped by zone
+     * @param cityCorporationCode Optional filter by city corporation
+     */
+    async getComplaintStatsByZone(cityCorporationCode, assignedZoneIds) {
+        try {
+            // Build where clause
+            const userFilter = {};
+            if (cityCorporationCode) {
+                userFilter.cityCorporationCode = cityCorporationCode;
+            }
+            if (assignedZoneIds && assignedZoneIds.length > 0) {
+                userFilter.zoneId = { in: assignedZoneIds };
+            }
+            const whereClause = Object.keys(userFilter).length > 0
+                ? { user: userFilter }
+                : {};
+            // Get all complaints with user zone information
+            const complaints = await prisma_1.default.complaint.findMany({
+                where: whereClause,
+                select: {
+                    id: true,
+                    status: true,
+                    user: {
+                        select: {
+                            zoneId: true,
+                            zone: {
+                                select: {
+                                    id: true,
+                                    zoneNumber: true,
+                                    name: true
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            // Group by zone
+            const zoneStats = new Map();
+            complaints.forEach(complaint => {
+                const zoneId = complaint.user?.zoneId;
+                const zone = complaint.user?.zone;
+                if (!zoneId || !zone)
+                    return;
+                if (!zoneStats.has(zoneId)) {
+                    zoneStats.set(zoneId, {
+                        zoneId,
+                        zoneNumber: zone.zoneNumber,
+                        zoneName: zone.name,
+                        total: 0,
+                        pending: 0,
+                        inProgress: 0,
+                        resolved: 0,
+                        rejected: 0
+                    });
+                }
+                const stats = zoneStats.get(zoneId);
+                stats.total++;
+                switch (complaint.status) {
+                    case client_1.ComplaintStatus.PENDING:
+                        stats.pending++;
+                        break;
+                    case client_1.ComplaintStatus.IN_PROGRESS:
+                        stats.inProgress++;
+                        break;
+                    case client_1.ComplaintStatus.RESOLVED:
+                        stats.resolved++;
+                        break;
+                    case client_1.ComplaintStatus.REJECTED:
+                        stats.rejected++;
+                        break;
+                }
+            });
+            // Convert map to array and sort by zone number
+            return Array.from(zoneStats.values()).sort((a, b) => a.zoneNumber - b.zoneNumber);
+        }
+        catch (error) {
+            console.error('Error getting complaint stats by zone:', error);
+            throw error;
+        }
+    }
+    /**
+     * Get complaint statistics grouped by ward
+     * @param zoneId Optional filter by zone
+     * @param cityCorporationCode Optional filter by city corporation
+     */
+    async getComplaintStatsByWard(zoneId, cityCorporationCode, assignedZoneIds) {
+        try {
+            // Build where clause
+            const userFilter = {};
+            if (cityCorporationCode) {
+                userFilter.cityCorporationCode = cityCorporationCode;
+            }
+            // Multi-zone logic
+            if (assignedZoneIds && assignedZoneIds.length > 0) {
+                if (zoneId) {
+                    if (!assignedZoneIds.includes(zoneId)) {
+                        userFilter.id = -1; // Forbidden
+                    }
+                    else {
+                        userFilter.zoneId = zoneId;
+                    }
+                }
+                else {
+                    userFilter.zoneId = { in: assignedZoneIds };
+                }
+            }
+            else {
+                if (zoneId) {
+                    userFilter.zoneId = zoneId;
+                }
+            }
+            const whereClause = Object.keys(userFilter).length > 0
+                ? { user: userFilter }
+                : {};
+            // Get all complaints with user ward information
+            const complaints = await prisma_1.default.complaint.findMany({
+                where: whereClause,
+                select: {
+                    id: true,
+                    status: true,
+                    user: {
+                        select: {
+                            wardId: true,
+                            zoneId: true,
+                            ward: {
+                                select: {
+                                    id: true,
+                                    wardNumber: true,
+                                    inspectorName: true
+                                }
+                            },
+                            zone: {
+                                select: {
+                                    id: true,
+                                    zoneNumber: true,
+                                    name: true
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            // Group by ward
+            const wardStats = new Map();
+            complaints.forEach(complaint => {
+                const wardId = complaint.user?.wardId;
+                const ward = complaint.user?.ward;
+                const zone = complaint.user?.zone;
+                if (!wardId || !ward)
+                    return;
+                if (!wardStats.has(wardId)) {
+                    wardStats.set(wardId, {
+                        wardId,
+                        wardNumber: ward.wardNumber,
+                        inspectorName: ward.inspectorName,
+                        zoneId: complaint.user?.zoneId,
+                        zoneNumber: zone?.zoneNumber,
+                        zoneName: zone?.name,
+                        total: 0,
+                        pending: 0,
+                        inProgress: 0,
+                        resolved: 0,
+                        rejected: 0
+                    });
+                }
+                const stats = wardStats.get(wardId);
+                stats.total++;
+                switch (complaint.status) {
+                    case client_1.ComplaintStatus.PENDING:
+                        stats.pending++;
+                        break;
+                    case client_1.ComplaintStatus.IN_PROGRESS:
+                        stats.inProgress++;
+                        break;
+                    case client_1.ComplaintStatus.RESOLVED:
+                        stats.resolved++;
+                        break;
+                    case client_1.ComplaintStatus.REJECTED:
+                        stats.rejected++;
+                        break;
+                }
+            });
+            // Convert map to array and sort by zone number then ward number
+            return Array.from(wardStats.values()).sort((a, b) => {
+                if (a.zoneNumber !== b.zoneNumber) {
+                    return a.zoneNumber - b.zoneNumber;
+                }
+                return a.wardNumber - b.wardNumber;
+            });
+        }
+        catch (error) {
+            console.error('Error getting complaint stats by ward:', error);
+            throw error;
+        }
     }
 }
 exports.AdminComplaintService = AdminComplaintService;

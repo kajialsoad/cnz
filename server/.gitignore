@@ -1,7 +1,7 @@
 .vercel
 
 # Test files and documentation
-tests/
+# tests/
 docs/
 
 # Organized script folders

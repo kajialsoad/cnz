@@ -19,6 +19,8 @@ import {
     Stepper,
     Step,
     StepLabel,
+    Chip,
+    OutlinedInput,
 } from '@mui/material';
 import { Close } from '@mui/icons-material';
 import { useForm, Controller } from 'react-hook-form';
@@ -28,6 +30,7 @@ import { superAdminService } from '../../services/superAdminService';
 import type { SuperAdmin, UpdateSuperAdminDto, SuperAdminPermissions } from '../../services/superAdminService';
 import { cityCorporationService } from '../../services/cityCorporationService';
 import { zoneService } from '../../services/zoneService';
+import { MultiZoneSelector } from '../common';
 import { UserStatus } from '../../types/userManagement.types';
 
 interface SuperAdminEditModalProps {
@@ -44,7 +47,7 @@ interface FormData {
     email: string;
     password?: string;
     cityCorporationCode: string;
-    zoneId: number | null;
+    zoneIds: number[];
     status: UserStatus;
     permissions: SuperAdminPermissions;
 }
@@ -56,8 +59,7 @@ const SuperAdminEditModal: React.FC<SuperAdminEditModalProps> = ({ open, onClose
     const [avatarUrl, setAvatarUrl] = useState<string | undefined>(undefined);
     const [loading, setLoading] = useState(false);
     const [cityCorporations, setCityCorporations] = useState<any[]>([]);
-    const [zones, setZones] = useState<any[]>([]);
-    const [loadingZones, setLoadingZones] = useState(false);
+
     const [changePassword, setChangePassword] = useState(false);
 
     const { control, handleSubmit, watch, reset, setValue, formState: { errors } } = useForm<FormData>({
@@ -68,7 +70,7 @@ const SuperAdminEditModal: React.FC<SuperAdminEditModalProps> = ({ open, onClose
             email: '',
             password: '',
             cityCorporationCode: '',
-            zoneId: null,
+            zoneIds: [],
             status: UserStatus.ACTIVE,
             permissions: {
                 zones: [],
@@ -92,21 +94,43 @@ const SuperAdminEditModal: React.FC<SuperAdminEditModalProps> = ({ open, onClose
 
     // Load super admin data when modal opens
     useEffect(() => {
-        if (open && superAdmin) {
-            setValue('firstName', superAdmin.firstName);
-            setValue('lastName', superAdmin.lastName);
-            setValue('phone', superAdmin.phone);
-            setValue('email', superAdmin.email || '');
-            setValue('cityCorporationCode', superAdmin.cityCorporationCode || '');
-            setValue('zoneId', superAdmin.zoneId);
-            setValue('status', superAdmin.status);
-            setAvatarUrl(superAdmin.avatar || undefined);
+        const loadSuperAdminData = async () => {
+            if (open && superAdmin) {
+                setValue('firstName', superAdmin.firstName);
+                setValue('lastName', superAdmin.lastName);
+                setValue('phone', superAdmin.phone);
+                setValue('email', superAdmin.email || '');
+                setValue('cityCorporationCode', superAdmin.cityCorporationCode || '');
+                setValue('status', superAdmin.status);
+                setAvatarUrl(superAdmin.avatar || undefined);
 
-            // Set permissions
-            if (superAdmin.permissions) {
-                setValue('permissions', superAdmin.permissions);
+                // Set permissions
+                if (superAdmin.permissions) {
+                    setValue('permissions', superAdmin.permissions);
+                }
+
+                // Load assigned zones
+                try {
+                    const assignedZones = await superAdminService.getAssignedZones(superAdmin.id);
+                    if (assignedZones && assignedZones.length > 0) {
+                        setValue('zoneIds', assignedZones.map((z: any) => z.zoneId));
+                    } else if (superAdmin.zoneId) {
+                        // Fallback to single zoneId if no multi-zone assignments found
+                        setValue('zoneIds', [superAdmin.zoneId]);
+                    } else {
+                        setValue('zoneIds', []);
+                    }
+                } catch (error) {
+                    console.error('Error loading assigned zones:', error);
+                    // Fallback to single zoneId on error
+                    if (superAdmin.zoneId) {
+                        setValue('zoneIds', [superAdmin.zoneId]);
+                    }
+                }
             }
-        }
+        };
+
+        loadSuperAdminData();
     }, [open, superAdmin, setValue]);
 
     // Load city corporations
@@ -124,28 +148,7 @@ const SuperAdminEditModal: React.FC<SuperAdminEditModalProps> = ({ open, onClose
         }
     }, [open]);
 
-    // Load zones when city corporation changes
-    useEffect(() => {
-        const loadZones = async () => {
-            if (!selectedCityCode) {
-                setZones([]);
-                return;
-            }
 
-            setLoadingZones(true);
-            try {
-                const response = await zoneService.getZones({ cityCorporationCode: selectedCityCode });
-                setZones(response.zones || []);
-            } catch (error) {
-                console.error('Error loading zones:', error);
-                toast.error('জোন লোড করতে ব্যর্থ');
-            } finally {
-                setLoadingZones(false);
-            }
-        };
-
-        loadZones();
-    }, [selectedCityCode]);
 
     const handleNext = () => {
         setActiveStep((prev) => prev + 1);
@@ -176,7 +179,9 @@ const SuperAdminEditModal: React.FC<SuperAdminEditModalProps> = ({ open, onClose
                 phone: data.phone,
                 email: data.email || undefined,
                 cityCorporationCode: data.cityCorporationCode || undefined,
-                zoneId: data.zoneId || undefined,
+                // Pass undefined for zoneId as we handle it separately, 
+                // but if we need to maintain backward compatibility, we can pass the first one.
+                zoneId: undefined,
                 status: data.status,
                 permissions: data.permissions,
             };
@@ -187,6 +192,12 @@ const SuperAdminEditModal: React.FC<SuperAdminEditModalProps> = ({ open, onClose
             }
 
             await superAdminService.updateSuperAdmin(superAdmin.id, updateData);
+
+            // Update zone assignments
+            if (data.zoneIds) {
+                await superAdminService.updateZones(superAdmin.id, data.zoneIds);
+            }
+
             toast.success('সুপার এডমিন সফলভাবে আপডেট হয়েছে');
             handleClose();
             onSuccess();
@@ -374,33 +385,19 @@ const SuperAdminEditModal: React.FC<SuperAdminEditModalProps> = ({ open, onClose
                         />
 
                         <Controller
-                            name="zoneId"
+                            name="zoneIds"
                             control={control}
-                            rules={{ required: 'জোন নির্বাচন করুন (সুপার এডমিন নির্দিষ্ট জোনের দায়িত্বে থাকবে)' }}
+                            rules={{ required: 'কমপক্ষে একটি জোন নির্বাচন করুন' }}
                             render={({ field }) => (
-                                <FormControl fullWidth disabled={!selectedCityCode || loadingZones || loading} error={!!errors.zoneId}>
-                                    <InputLabel>জোন (Zone) *</InputLabel>
-                                    <Select
-                                        {...field}
-                                        value={field.value || ''}
-                                        onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : null)}
-                                        label="জোন (Zone) *"
-                                    >
-                                        <MenuItem value="">
-                                            <em>জোন নির্বাচন করুন</em>
-                                        </MenuItem>
-                                        {zones.map((zone) => (
-                                            <MenuItem key={zone.id} value={zone.id}>
-                                                {zone.name} (জোন {zone.zoneNumber})
-                                            </MenuItem>
-                                        ))}
-                                    </Select>
-                                    {errors.zoneId && (
-                                        <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 2 }}>
-                                            {errors.zoneId.message}
-                                        </Typography>
-                                    )}
-                                </FormControl>
+                                <MultiZoneSelector
+                                    value={field.value}
+                                    onChange={field.onChange}
+                                    cityCorporationCode={selectedCityCode}
+                                    label="জোন (একাধিক নির্বাচন করা যাবে) *"
+                                    error={!!errors.zoneIds}
+                                    helperText={errors.zoneIds?.message}
+                                    disabled={!selectedCityCode || loading}
+                                />
                             )}
                         />
 
@@ -409,16 +406,16 @@ const SuperAdminEditModal: React.FC<SuperAdminEditModalProps> = ({ open, onClose
                                 ⚠️ গুরুত্বপূর্ণ তথ্য:
                             </Typography>
                             <Typography variant="body2" color="text.secondary" sx={{ fontSize: 13 }}>
-                                • সুপার এডমিন নির্দিষ্ট <strong>Zone</strong> এর দায়িত্বে থাকবে
+                                • সুপার এডমিন নির্বাচিত <strong>Zone</strong> সমূহের দায়িত্বে থাকবে
                             </Typography>
                             <Typography variant="body2" color="text.secondary" sx={{ fontSize: 13 }}>
-                                • সেই Zone এর সকল <strong>Ward</strong> দেখতে পারবে
+                                • নির্বাচিত Zone সমূহের সকল <strong>Ward</strong> দেখতে পারবে
                             </Typography>
                             <Typography variant="body2" color="text.secondary" sx={{ fontSize: 13 }}>
-                                • সেই Zone এর <strong>Admin</strong> (Ward Inspector) দের manage করতে পারবে
+                                • নির্বাচিত Zone সমূহের <strong>Admin</strong> (Ward Inspector) দের manage করতে পারবে
                             </Typography>
                             <Typography variant="body2" color="text.secondary" sx={{ fontSize: 13 }}>
-                                • সেই Zone এর সকল <strong>User</strong> এবং <strong>Complaint</strong> দেখতে পারবে
+                                • নির্বাচিত Zone সমূহের সকল <strong>User</strong> এবং <strong>Complaint</strong> দেখতে পারবে
                             </Typography>
                         </Box>
                     </Stack>

@@ -27,6 +27,21 @@ class WardController {
                 });
             }
 
+            // Validate zone access for Super Admins
+            const user = (req as any).user;
+            if (user && user.role === 'SUPER_ADMIN') {
+                const zoneService = (await import('../services/zone.service')).default;
+                const accessibleZones = await zoneService.getAccessibleZones(user.id);
+                const accessibleZoneIds = accessibleZones.map((z: any) => z.id);
+
+                if (!accessibleZoneIds.includes(zoneIdNum)) {
+                    return res.status(403).json({
+                        success: false,
+                        message: 'You do not have access to this zone',
+                    });
+                }
+            }
+
             const validStatus = status as WardStatus | 'ALL' | undefined;
 
             const wards = await wardService.getWardsByZone(
@@ -102,7 +117,7 @@ class WardController {
      */
     async createWard(req: Request, res: Response) {
         try {
-            const { wardNumber, zoneId, inspectorName, inspectorSerialNumber } = req.body;
+            const { wardNumber, zoneId, inspectorName, inspectorSerialNumber, inspectorPhone } = req.body;
 
             // Validation
             if (!wardNumber || !zoneId) {
@@ -131,6 +146,7 @@ class WardController {
                 zoneId,
                 inspectorName,
                 inspectorSerialNumber,
+                inspectorPhone,
             });
 
             res.status(201).json({
@@ -261,11 +277,12 @@ class WardController {
                 });
             }
 
-            const { inspectorName, inspectorSerialNumber, status } = req.body;
+            const { inspectorName, inspectorSerialNumber, inspectorPhone, status } = req.body;
 
             const updateData: any = {};
             if (inspectorName !== undefined) updateData.inspectorName = inspectorName;
             if (inspectorSerialNumber !== undefined) updateData.inspectorSerialNumber = inspectorSerialNumber;
+            if (inspectorPhone !== undefined) updateData.inspectorPhone = inspectorPhone;
             if (status !== undefined) updateData.status = status;
 
             if (Object.keys(updateData).length === 0) {
@@ -276,10 +293,11 @@ class WardController {
             }
 
             // Validate inspector data if provided
-            if (updateData.inspectorName !== undefined || updateData.inspectorSerialNumber !== undefined) {
+            if (updateData.inspectorName !== undefined || updateData.inspectorSerialNumber !== undefined || updateData.inspectorPhone !== undefined) {
                 const validation = wardService.validateInspectorData({
                     inspectorName: updateData.inspectorName,
                     inspectorSerialNumber: updateData.inspectorSerialNumber,
+                    inspectorPhone: updateData.inspectorPhone,
                 });
 
                 if (!validation.valid) {

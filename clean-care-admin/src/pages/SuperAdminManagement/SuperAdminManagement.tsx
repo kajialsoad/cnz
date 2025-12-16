@@ -279,18 +279,33 @@ const SuperAdminManagement: React.FC = () => {
                             <Typography sx={{ fontSize: 14, color: '#1e2939', fontWeight: 600 }}>
                               {admin.cityCorporation?.name || 'N/A'}
                             </Typography>
-                            <Typography sx={{ fontSize: 13, color: '#4a5565', fontWeight: 600 }}>
-                              {admin.zone ? `🏢 ${admin.zone.name}` : '⚠️ জোন নির্ধারিত নেই'}
-                            </Typography>
-                            {admin.zone && (
-                              <Typography sx={{ fontSize: 12, color: '#6b7280' }}>
-                                জোন নং: {admin.zone.zoneNumber || 'N/A'}
-                              </Typography>
+                            {admin.assignedZones && admin.assignedZones.length > 0 ? (
+                              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
+                                {admin.assignedZones.map((az) => (
+                                  <Chip
+                                    key={az.zone.id}
+                                    label={az.zone.name}
+                                    size="small"
+                                    sx={{ fontSize: '0.7rem', height: 20 }}
+                                  />
+                                ))}
+                              </Box>
+                            ) : (
+                              <Box>
+                                <Typography sx={{ fontSize: 13, color: '#4a5565', fontWeight: 600 }}>
+                                  {admin.zone ? `🏢 ${admin.zone.name}` : '⚠️ জোন নির্ধারিত নেই'}
+                                </Typography>
+                                {admin.zone && (
+                                  <Typography sx={{ fontSize: 12, color: '#6b7280' }}>
+                                    জোন নং: {admin.zone.zoneNumber || 'N/A'}
+                                  </Typography>
+                                )}
+                              </Box>
                             )}
                           </TableCell>
                           <TableCell sx={{ width: '15%' }}>
                             <Stack spacing={0.5}>
-                              {admin.zone ? (
+                              {admin.zone || (admin.assignedZones && admin.assignedZones.length > 0) ? (
                                 <>
                                   <Typography sx={{ fontSize: 13, color: '#059669', fontWeight: 600 }}>
                                     ✓ জোন অফিসার

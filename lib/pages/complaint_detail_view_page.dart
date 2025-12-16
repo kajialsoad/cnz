@@ -403,8 +403,126 @@ class _ComplaintDetailViewPageState extends State<ComplaintDetailViewPage> {
               ),
             ),
           ],
+          
+          // Geographical Information
+          if (complaint.cityCorporation != null || complaint.zone != null || complaint.ward != null) ...[
+            SizedBox(height: 16),
+            Container(
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Color(0xFF4CAF50).withOpacity(0.05),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: Color(0xFF4CAF50).withOpacity(0.2),
+                  width: 1,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.location_city,
+                        size: 16,
+                        color: Color(0xFF4CAF50),
+                      ),
+                      SizedBox(width: 6),
+                      Text(
+                        'Administrative Area',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF4CAF50),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 8),
+                  
+                  // City Corporation
+                  if (complaint.cityCorporation != null)
+                    _buildGeographicalRow(
+                      icon: Icons.location_city,
+                      label: 'City Corporation',
+                      labelBangla: 'সিটি কর্পোরেশন',
+                      value: complaint.cityCorporation!['name'] ?? 
+                             complaint.cityCorporation!['nameBangla'] ?? 
+                             'N/A',
+                    ),
+                  
+                  if (complaint.cityCorporation != null && complaint.zone != null)
+                    SizedBox(height: 8),
+                  
+                  // Zone
+                  if (complaint.zone != null)
+                    _buildGeographicalRow(
+                      icon: Icons.map,
+                      label: 'Zone',
+                      labelBangla: 'জোন',
+                      value: complaint.zone!['name'] ?? 
+                             complaint.zone!['displayName'] ?? 
+                             'Zone ${complaint.zone!['zoneNumber'] ?? 'N/A'}',
+                    ),
+                  
+                  if (complaint.zone != null && complaint.ward != null)
+                    SizedBox(height: 8),
+                  
+                  // Ward
+                  if (complaint.ward != null)
+                    _buildGeographicalRow(
+                      icon: Icons.place,
+                      label: 'Ward',
+                      labelBangla: 'ওয়ার্ড',
+                      value: complaint.ward!['displayName'] ?? 
+                             'Ward ${complaint.ward!['wardNumber'] ?? 'N/A'}',
+                    ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
+    );
+  }
+  
+  Widget _buildGeographicalRow({
+    required IconData icon,
+    required String label,
+    required String labelBangla,
+    required String value,
+  }) {
+    return Row(
+      children: [
+        Icon(
+          icon,
+          size: 14,
+          color: Color(0xFF4CAF50).withOpacity(0.7),
+        ),
+        SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '$label ($labelBangla)',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.grey[600],
+                ),
+              ),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.grey[800],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

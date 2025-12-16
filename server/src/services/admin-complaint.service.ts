@@ -30,7 +30,7 @@ export class AdminComplaintService {
      * Get all complaints with admin-level access (no user restriction)
      * Supports pagination, filtering, and search
      */
-    async getAdminComplaints(query: AdminComplaintQueryInput = {}) {
+    async getAdminComplaints(query: AdminComplaintQueryInput = {}, assignedZoneIds?: number[]) {
         try {
             const {
                 page = 1,
@@ -39,7 +39,7 @@ export class AdminComplaintService {
                 category,
                 subcategory,
                 ward,
-                zoneId,
+                zoneId, // specific zone filter requested
                 wardId,
                 cityCorporationCode,
                 thanaId, // Deprecated but kept for backward compatibility
@@ -100,12 +100,30 @@ export class AdminComplaintService {
             }
 
             // Zone filter (filter through user relationship)
-            if (zoneId) {
-                andConditions.push({
-                    user: {
-                        zoneId: zoneId
+            // Multi-zone Logic:
+            if (assignedZoneIds && assignedZoneIds.length > 0) {
+                // If specific zone requested, validate against assigned zones
+                if (zoneId) {
+                    if (!assignedZoneIds.includes(zoneId)) {
+                        // Requested zone not in assigned zones -> Return empty result
+                        andConditions.push({ id: -1 });
+                    } else {
+                        andConditions.push({ user: { zoneId: zoneId } });
                     }
-                });
+                } else {
+                    // No specific zone requested -> Filter by all assigned zones
+                    andConditions.push({ user: { zoneId: { in: assignedZoneIds } } });
+                }
+            } else {
+                // No assigned zones restriction (e.g. Master Admin)
+                // Just use the requested zoneId if present
+                if (zoneId) {
+                    andConditions.push({
+                        user: {
+                            zoneId: zoneId
+                        }
+                    });
+                }
             }
 
             // Ward filter (filter through user relationship using wardId)
@@ -235,7 +253,7 @@ export class AdminComplaintService {
                     }
                 }),
                 prisma.complaint.count({ where }),
-                this.getStatusCounts(cityCorporationCode, zoneId, wardId)
+                this.getStatusCounts(cityCorporationCode, zoneId, wardId, assignedZoneIds)
             ]);
 
             // Format complaints with parsed file URLs
@@ -461,8 +479,9 @@ export class AdminComplaintService {
     /**
      * Get status counts for all complaints
      * Optionally filtered by city corporation, zone, or ward
+     * multi-zone aware
      */
-    private async getStatusCounts(cityCorporationCode?: string, zoneId?: number, wardId?: number) {
+    private async getStatusCounts(cityCorporationCode?: string, zoneId?: number, wardId?: number, assignedZoneIds?: number[]) {
         // Build where clause for filters
         const userFilter: any = {};
 
@@ -470,8 +489,22 @@ export class AdminComplaintService {
             userFilter.cityCorporationCode = cityCorporationCode;
         }
 
-        if (zoneId) {
-            userFilter.zoneId = zoneId;
+        // Multi-zone Logic for stats
+        if (assignedZoneIds && assignedZoneIds.length > 0) {
+            if (zoneId) {
+                if (!assignedZoneIds.includes(zoneId)) {
+                    // Impossible condition for forbidden access
+                    userFilter.id = -1;
+                } else {
+                    userFilter.zoneId = zoneId;
+                }
+            } else {
+                userFilter.zoneId = { in: assignedZoneIds };
+            }
+        } else {
+            if (zoneId) {
+                userFilter.zoneId = zoneId;
+            }
         }
 
         if (wardId) {
@@ -597,11 +630,21 @@ export class AdminComplaintService {
      * Get complaint statistics grouped by zone
      * @param cityCorporationCode Optional filter by city corporation
      */
-    async getComplaintStatsByZone(cityCorporationCode?: string) {
+    async getComplaintStatsByZone(cityCorporationCode?: string, assignedZoneIds?: number[]) {
         try {
             // Build where clause
-            const whereClause = cityCorporationCode
-                ? { user: { cityCorporationCode } }
+            const userFilter: any = {};
+
+            if (cityCorporationCode) {
+                userFilter.cityCorporationCode = cityCorporationCode;
+            }
+
+            if (assignedZoneIds && assignedZoneIds.length > 0) {
+                userFilter.zoneId = { in: assignedZoneIds };
+            }
+
+            const whereClause = Object.keys(userFilter).length > 0
+                ? { user: userFilter }
                 : {};
 
             // Get all complaints with user zone information
@@ -679,7 +722,7 @@ export class AdminComplaintService {
      * @param zoneId Optional filter by zone
      * @param cityCorporationCode Optional filter by city corporation
      */
-    async getComplaintStatsByWard(zoneId?: number, cityCorporationCode?: string) {
+    async getComplaintStatsByWard(zoneId?: number, cityCorporationCode?: string, assignedZoneIds?: number[]) {
         try {
             // Build where clause
             const userFilter: any = {};
@@ -688,8 +731,21 @@ export class AdminComplaintService {
                 userFilter.cityCorporationCode = cityCorporationCode;
             }
 
-            if (zoneId) {
-                userFilter.zoneId = zoneId;
+            // Multi-zone logic
+            if (assignedZoneIds && assignedZoneIds.length > 0) {
+                if (zoneId) {
+                    if (!assignedZoneIds.includes(zoneId)) {
+                        userFilter.id = -1; // Forbidden
+                    } else {
+                        userFilter.zoneId = zoneId;
+                    }
+                } else {
+                    userFilter.zoneId = { in: assignedZoneIds };
+                }
+            } else {
+                if (zoneId) {
+                    userFilter.zoneId = zoneId;
+                }
             }
 
             const whereClause = Object.keys(userFilter).length > 0

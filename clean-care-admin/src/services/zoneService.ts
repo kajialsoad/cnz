@@ -15,6 +15,7 @@ export interface Zone {
     officerName?: string;
     officerDesignation?: string;
     officerSerialNumber?: string;
+    officerPhone?: string;
     status: 'ACTIVE' | 'INACTIVE';
     createdAt: string;
     updatedAt: string;
@@ -34,6 +35,7 @@ export interface CreateZoneDto {
     officerName?: string;
     officerDesignation?: string;
     officerSerialNumber?: string;
+    officerPhone?: string;
 }
 
 export interface UpdateZoneDto {
@@ -41,6 +43,7 @@ export interface UpdateZoneDto {
     officerName?: string;
     officerDesignation?: string;
     officerSerialNumber?: string;
+    officerPhone?: string;
     status?: 'ACTIVE' | 'INACTIVE';
 }
 
@@ -82,6 +85,13 @@ class ZoneService {
         status?: 'ACTIVE' | 'INACTIVE' | 'ALL';
     }): Promise<{ zones: Zone[] }> {
         try {
+            // Check if user is authenticated
+            const token = localStorage.getItem('accessToken');
+            if (!token) {
+                console.log('⚠️ No auth token found, skipping zone fetch');
+                return { zones: [] };
+            }
+
             const queryParams = new URLSearchParams();
 
             // Add cityCorporationCode if provided
@@ -100,7 +110,14 @@ class ZoneService {
             }
 
             const queryString = queryParams.toString();
-            const url = queryString ? `/api/admin/zones?${queryString}` : '/api/admin/zones';
+
+            // If no parameters provided, return empty array (backend requires cityCorporationId or cityCorporationCode)
+            if (!queryString) {
+                console.log('⚠️ No city corporation specified, returning empty zones');
+                return { zones: [] };
+            }
+
+            const url = `/api/admin/zones?${queryString}`;
 
             const response = await this.apiClient.get(url);
 
@@ -115,8 +132,11 @@ class ZoneService {
             }
 
             return { zones };
-        } catch (error) {
+        } catch (error: any) {
             console.error('❌ Error fetching zones:', error);
+            if (error.response?.status === 401) {
+                console.log('⚠️ Unauthorized - user needs to login');
+            }
             return { zones: [] };
         }
     }

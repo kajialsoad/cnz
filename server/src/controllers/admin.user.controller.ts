@@ -28,11 +28,13 @@ const createUserSchema = z.object({
     phone: z.string().min(10, 'Valid phone number is required'),
     email: z.string().email().optional(),
     password: z.string().min(8, 'Password must be at least 8 characters'),
+    cityCorporationCode: z.string().optional(),
     ward: z.string().optional(),
     zone: z.string().optional(),
     zoneId: z.number().int().positive().optional(),
     wardId: z.number().int().positive().optional(),
     role: z.nativeEnum(users_role).optional(),
+    permissions: z.any().optional(),
 });
 
 const updateUserSchema = z.object({
@@ -40,12 +42,14 @@ const updateUserSchema = z.object({
     lastName: z.string().min(1).optional(),
     email: z.string().email().optional(),
     phone: z.string().min(10).optional(),
+    cityCorporationCode: z.string().optional(),
     ward: z.string().optional(),
     zone: z.string().optional(),
     zoneId: z.number().int().positive().optional(),
     wardId: z.number().int().positive().optional(),
     role: z.nativeEnum(users_role).optional(),
     status: z.nativeEnum(UserStatus).optional(),
+    permissions: z.any().optional(),
 });
 
 const updateStatusSchema = z.object({
@@ -62,12 +66,22 @@ export async function getUsers(req: AuthRequest, res: Response) {
         const query = getUsersQuerySchema.parse(req.query);
 
         // Get requesting user info for role-based filtering
-        const requestingUser = req.user ? {
+        let requestingUser = req.user ? {
             id: req.user.id,
             role: req.user.role,
             zoneId: req.user.zoneId,
             wardId: req.user.wardId,
         } : undefined;
+
+        // For Super Admins, fetch their assigned zones
+        if (requestingUser && requestingUser.role === users_role.SUPER_ADMIN) {
+            const { multiZoneService } = await import('../services/multi-zone.service');
+            const assignedZoneIds = await multiZoneService.getAssignedZoneIds(requestingUser.id);
+            requestingUser = {
+                ...requestingUser,
+                assignedZoneIds,
+            } as any;
+        }
 
         // Fetch users from service with role-based filtering
         const result = await adminUserService.getUsers(query, requestingUser);
@@ -140,12 +154,22 @@ export async function getUserStatistics(req: AuthRequest, res: Response) {
         const role = req.query.role as users_role | undefined;
 
         // Get requesting user info for role-based filtering
-        const requestingUser = req.user ? {
+        let requestingUser = req.user ? {
             id: req.user.id,
             role: req.user.role,
             zoneId: req.user.zoneId,
             wardId: req.user.wardId,
         } : undefined;
+
+        // For Super Admins, fetch their assigned zones
+        if (requestingUser && requestingUser.role === users_role.SUPER_ADMIN) {
+            const { multiZoneService } = await import('../services/multi-zone.service');
+            const assignedZoneIds = await multiZoneService.getAssignedZoneIds(requestingUser.id);
+            requestingUser = {
+                ...requestingUser,
+                assignedZoneIds,
+            } as any;
+        }
 
         console.log('📊 Fetching user statistics', {
             cityCorporationCode,
@@ -206,6 +230,7 @@ export async function createUser(req: AuthRequest, res: Response) {
         console.error('❌ Error creating user:', err);
 
         if (err instanceof z.ZodError) {
+            console.error('❌ Zod Validation Error:', JSON.stringify(err.errors, null, 2));
             return res.status(400).json({
                 success: false,
                 message: 'Validation error',

@@ -4,19 +4,29 @@ exports.getAdminComplaints = getAdminComplaints;
 exports.getAdminComplaintById = getAdminComplaintById;
 exports.updateComplaintStatus = updateComplaintStatus;
 exports.getComplaintsByUser = getComplaintsByUser;
+exports.getComplaintStatsByZone = getComplaintStatsByZone;
+exports.getComplaintStatsByWard = getComplaintStatsByWard;
 const admin_complaint_service_1 = require("../services/admin-complaint.service");
+const multi_zone_service_1 = require("../services/multi-zone.service");
 /**
  * Get all complaints (admin view)
  */
 async function getAdminComplaints(req, res) {
     try {
-        const { page, limit, status, category, ward, cityCorporationCode, thanaId, search, startDate, endDate, sortBy, sortOrder } = req.query;
+        const { page, limit, status, category, ward, zoneId, wardId, cityCorporationCode, thanaId, search, startDate, endDate, sortBy, sortOrder } = req.query;
+        // Get assigned zone IDs for SUPER_ADMIN users
+        let assignedZoneIds;
+        if (req.user && req.user.role === 'SUPER_ADMIN') {
+            assignedZoneIds = await multi_zone_service_1.multiZoneService.getAssignedZoneIds(req.user.sub);
+        }
         const result = await admin_complaint_service_1.adminComplaintService.getAdminComplaints({
             page: page ? parseInt(page) : undefined,
             limit: limit ? parseInt(limit) : undefined,
             status: status,
             category: category,
             ward: ward,
+            zoneId: zoneId ? parseInt(zoneId) : undefined,
+            wardId: wardId ? parseInt(wardId) : undefined,
             cityCorporationCode: cityCorporationCode,
             thanaId: thanaId ? parseInt(thanaId) : undefined,
             search: search,
@@ -24,7 +34,7 @@ async function getAdminComplaints(req, res) {
             endDate: endDate,
             sortBy: sortBy,
             sortOrder: sortOrder
-        });
+        }, assignedZoneIds);
         res.status(200).json({
             success: true,
             data: result
@@ -135,6 +145,56 @@ async function getComplaintsByUser(req, res) {
         res.status(statusCode).json({
             success: false,
             message: error instanceof Error ? error.message : 'Failed to fetch user complaints'
+        });
+    }
+}
+/**
+ * Get complaint statistics grouped by zone
+ */
+async function getComplaintStatsByZone(req, res) {
+    try {
+        const { cityCorporationCode } = req.query;
+        // Get assigned zone IDs for SUPER_ADMIN users
+        let assignedZoneIds;
+        if (req.user && req.user.role === 'SUPER_ADMIN') {
+            assignedZoneIds = await multi_zone_service_1.multiZoneService.getAssignedZoneIds(req.user.sub);
+        }
+        const stats = await admin_complaint_service_1.adminComplaintService.getComplaintStatsByZone(cityCorporationCode, assignedZoneIds);
+        res.status(200).json({
+            success: true,
+            data: { stats }
+        });
+    }
+    catch (error) {
+        console.error('Error in getComplaintStatsByZone:', error);
+        res.status(500).json({
+            success: false,
+            message: error instanceof Error ? error.message : 'Failed to fetch zone statistics'
+        });
+    }
+}
+/**
+ * Get complaint statistics grouped by ward
+ */
+async function getComplaintStatsByWard(req, res) {
+    try {
+        const { zoneId, cityCorporationCode } = req.query;
+        // Get assigned zone IDs for SUPER_ADMIN users
+        let assignedZoneIds;
+        if (req.user && req.user.role === 'SUPER_ADMIN') {
+            assignedZoneIds = await multi_zone_service_1.multiZoneService.getAssignedZoneIds(req.user.sub);
+        }
+        const stats = await admin_complaint_service_1.adminComplaintService.getComplaintStatsByWard(zoneId ? parseInt(zoneId) : undefined, cityCorporationCode, assignedZoneIds);
+        res.status(200).json({
+            success: true,
+            data: { stats }
+        });
+    }
+    catch (error) {
+        console.error('Error in getComplaintStatsByWard:', error);
+        res.status(500).json({
+            success: false,
+            message: error instanceof Error ? error.message : 'Failed to fetch ward statistics'
         });
     }
 }

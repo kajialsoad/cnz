@@ -18,6 +18,11 @@ class UserModel {
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? lastLoginAt;
+  
+  // Geographical relationships
+  final Map<String, dynamic>? cityCorporation;
+  final Map<String, dynamic>? zoneData;
+  final Map<String, dynamic>? wardData;
 
   UserModel({
     required this.id,
@@ -39,6 +44,9 @@ class UserModel {
     required this.createdAt,
     required this.updatedAt,
     this.lastLoginAt,
+    this.cityCorporation,
+    this.zoneData,
+    this.wardData,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -68,6 +76,9 @@ class UserModel {
       lastLoginAt: json['lastLoginAt'] != null
           ? DateTime.parse(json['lastLoginAt'] as String)
           : null,
+      cityCorporation: json['cityCorporation'] as Map<String, dynamic>?,
+      zoneData: json['zone'] as Map<String, dynamic>?,
+      wardData: json['ward'] as Map<String, dynamic>?,
     );
   }
 
@@ -92,6 +103,9 @@ class UserModel {
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       'lastLoginAt': lastLoginAt?.toIso8601String(),
+      'cityCorporation': cityCorporation,
+      'zoneData': zoneData,
+      'wardData': wardData,
     };
   }
 
@@ -109,5 +123,50 @@ class UserModel {
       return '+880 ${phone.substring(0, 4)}-${phone.substring(4)}';
     }
     return phone;
+  }
+  
+  /// Get geographical display text
+  String get geographicalInfo {
+    final parts = <String>[];
+    
+    if (cityCorporation != null) {
+      parts.add(cityCorporation!['name'] ?? cityCorporation!['nameBangla'] ?? '');
+    }
+    if (zoneData != null) {
+      final zoneName = zoneData!['name'] ?? zoneData!['displayName'] ?? 'Zone ${zoneData!['zoneNumber'] ?? ''}';
+      parts.add(zoneName);
+    }
+    if (wardData != null) {
+      final wardName = wardData!['displayName'] ?? 'Ward ${wardData!['wardNumber'] ?? ''}';
+      parts.add(wardName);
+    }
+    
+    return parts.isNotEmpty ? parts.join(' • ') : '';
+  }
+  
+  /// Get City Corporation name
+  String get cityCorporationName {
+    if (cityCorporation != null) {
+      return cityCorporation!['name'] ?? cityCorporation!['nameBangla'] ?? 'N/A';
+    }
+    // Fallback to old zone field
+    return zone ?? 'Not provided';
+  }
+  
+  /// Get Zone name
+  String get zoneName {
+    if (zoneData != null) {
+      return zoneData!['name'] ?? zoneData!['displayName'] ?? 'Zone ${zoneData!['zoneNumber'] ?? 'N/A'}';
+    }
+    return 'Not provided';
+  }
+  
+  /// Get Ward name
+  String get wardName {
+    if (wardData != null) {
+      return wardData!['displayName'] ?? 'Ward ${wardData!['wardNumber'] ?? 'N/A'}';
+    }
+    // Fallback to old ward field
+    return ward != null ? 'Ward $ward' : 'Not provided';
   }
 }

@@ -6,9 +6,10 @@ import { useAuth } from '../../../../contexts/AuthContext';
 
 interface TotalUsersWidgetProps {
   cityCorporationCode?: string;
+  zoneId?: number;
 }
 
-const TotalUsersWidget: React.FC<TotalUsersWidgetProps> = ({ cityCorporationCode }) => {
+const TotalUsersWidget: React.FC<TotalUsersWidgetProps> = ({ cityCorporationCode, zoneId }) => {
   const { user } = useAuth();
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -21,6 +22,7 @@ const TotalUsersWidget: React.FC<TotalUsersWidgetProps> = ({ cityCorporationCode
         setError(null);
         const stats = await dashboardService.getDashboardStats({
           cityCorporationCode,
+          zoneId,
         });
         setUserStats(stats.users);
       } catch (err) {
@@ -32,7 +34,7 @@ const TotalUsersWidget: React.FC<TotalUsersWidgetProps> = ({ cityCorporationCode
     };
 
     fetchUserStats();
-  }, [cityCorporationCode]);
+  }, [cityCorporationCode, zoneId]);
 
   // Filter user categories based on logged-in user's role
   const userCategories = useMemo(() => {

@@ -279,131 +279,151 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
 
                     {/* Location Information */}
                     <Box sx={{ mb: 2 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                            <LocationIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
-                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                                Location
-                            </Typography>
-                        </Box>
-                        <Typography variant="body2" color="text.secondary" sx={{ ml: 3 }}>
-                            {citizen.district}, {citizen.upazila}, Ward {citizen.ward}
+                        <LocationIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                            Location
                         </Typography>
-                        {citizen.address && (
-                            <Typography
-                                variant="body2"
-                                color="text.secondary"
-                                sx={{
-                                    ml: 3,
-                                    mt: 0.5,
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
-                                    display: '-webkit-box',
-                                    WebkitLineClamp: 2,
-                                    WebkitBoxOrient: 'vertical',
-                                }}
-                            >
-                                {citizen.address}
-                            </Typography>
-                        )}
                     </Box>
-
-                    {/* Contact Information */}
-                    <Box sx={{ mb: 2 }}>
-                        <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
-                            Contact Information
-                        </Typography>
-
-                        {/* Phone */}
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                            <PhoneIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                            <Typography variant="body2" color="text.secondary">
-                                {citizen.phone}
-                            </Typography>
-                        </Box>
-
-                        {/* Email */}
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <EmailIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                            <Typography
-                                variant="body2"
-                                color="text.secondary"
-                                sx={{
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
-                                    whiteSpace: 'nowrap',
-                                }}
-                            >
-                                {citizen.email}
-                            </Typography>
-                        </Box>
-                    </Box>
-
-                    {/* Complaint Date */}
-                    <Box sx={{ mb: 2 }}>
+                    <Box sx={{ ml: 3, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                         <Typography variant="body2" color="text.secondary">
-                            Submitted on {formatDate(complaint.createdAt)}
+                            {citizen.cityCorporationName || citizen.district}
+                            {citizen.thanaName ? `, ${citizen.thanaName}` : `, ${citizen.upazila}`}
+                        </Typography>
+                        {/* Zone and Ward info */}
+                        <Box sx={{ display: 'flex', gap: 1 }}>
+                            {citizen.zone && (
+                                <Chip
+                                    label={`Zone ${citizen.zone}`}
+                                    size="small"
+                                    variant="outlined"
+                                    sx={{ height: 20, fontSize: '0.7rem' }}
+                                />
+                            )}
+                            {citizen.ward && (
+                                <Chip
+                                    label={`Ward ${citizen.ward}`}
+                                    size="small"
+                                    variant="outlined"
+                                    sx={{ height: 20, fontSize: '0.7rem' }}
+                                />
+                            )}
+                        </Box>
+                    </Box>
+                    {citizen.address && (
+                        <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            sx={{
+                                ml: 3,
+                                mt: 0.5,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                display: '-webkit-box',
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: 'vertical',
+                            }}
+                        >
+                            {citizen.address}
+                        </Typography>
+                    )}
+                </Box>
+
+                {/* Contact Information */}
+                <Box sx={{ mb: 2 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
+                        Contact Information
+                    </Typography>
+
+                    {/* Phone */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                        <PhoneIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                        <Typography variant="body2" color="text.secondary">
+                            {citizen.phone}
                         </Typography>
                     </Box>
 
-                    {/* Quick Action Buttons */}
-                    <Box
-                        sx={{
-                            display: 'flex',
-                            gap: 1,
-                            flexWrap: 'wrap',
-                        }}
-                    >
-                        {/* View Full Details Button */}
-                        <Button
-                            variant="outlined"
-                            size="small"
-                            startIcon={<VisibilityIcon />}
-                            onClick={onViewDetails}
+                    {/* Email */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <EmailIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                        <Typography
+                            variant="body2"
+                            color="text.secondary"
                             sx={{
-                                textTransform: 'none',
-                                borderRadius: 2,
-                                flex: isSmallMobile ? '1 1 100%' : '0 1 auto',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
                             }}
                         >
-                            View Full Details
-                        </Button>
-
-                        {/* Change Status Button */}
-                        <Button
-                            variant="outlined"
-                            size="small"
-                            onClick={handleStatusMenuOpen}
-                            sx={{
-                                textTransform: 'none',
-                                borderRadius: 2,
-                                flex: isSmallMobile ? '1 1 100%' : '0 1 auto',
-                            }}
-                        >
-                            Change Status
-                        </Button>
-
-                        {/* View History Button */}
-                        {onViewHistory && (
-                            <Button
-                                variant="outlined"
-                                size="small"
-                                startIcon={<HistoryIcon />}
-                                onClick={onViewHistory}
-                                sx={{
-                                    textTransform: 'none',
-                                    borderRadius: 2,
-                                    flex: isSmallMobile ? '1 1 100%' : '0 1 auto',
-                                }}
-                            >
-                                View History
-                            </Button>
-                        )}
+                            {citizen.email}
+                        </Typography>
                     </Box>
                 </Box>
-            </Collapse>
+
+                {/* Complaint Date */}
+                <Box sx={{ mb: 2 }}>
+                    <Typography variant="body2" color="text.secondary">
+                        Submitted on {formatDate(complaint.createdAt)}
+                    </Typography>
+                </Box>
+
+                {/* Quick Action Buttons */}
+                <Box
+                    sx={{
+                        display: 'flex',
+                        gap: 1,
+                        flexWrap: 'wrap',
+                    }}
+                >
+                    {/* View Full Details Button */}
+                    <Button
+                        variant="outlined"
+                        size="small"
+                        startIcon={<VisibilityIcon />}
+                        onClick={onViewDetails}
+                        sx={{
+                            textTransform: 'none',
+                            borderRadius: 2,
+                            flex: isSmallMobile ? '1 1 100%' : '0 1 auto',
+                        }}
+                    >
+                        View Full Details
+                    </Button>
+
+                    {/* Change Status Button */}
+                    <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={handleStatusMenuOpen}
+                        sx={{
+                            textTransform: 'none',
+                            borderRadius: 2,
+                            flex: isSmallMobile ? '1 1 100%' : '0 1 auto',
+                        }}
+                    >
+                        Change Status
+                    </Button>
+
+                    {/* View History Button */}
+                    {onViewHistory && (
+                        <Button
+                            variant="outlined"
+                            size="small"
+                            startIcon={<HistoryIcon />}
+                            onClick={onViewHistory}
+                            sx={{
+                                textTransform: 'none',
+                                borderRadius: 2,
+                                flex: isSmallMobile ? '1 1 100%' : '0 1 auto',
+                            }}
+                        >
+                            View History
+                        </Button>
+                    )}
+                </Box>
+            </Collapse >
 
             {/* Status Change Menu */}
-            <Menu
+            < Menu
                 anchorEl={statusMenuAnchor}
                 open={statusMenuOpen}
                 onClose={handleStatusMenuClose}
@@ -416,35 +436,37 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
                     horizontal: 'left',
                 }}
             >
-                {statusOptions.map((status) => (
-                    <MenuItem
-                        key={status}
-                        onClick={() => handleStatusChange(status)}
-                        disabled={status === complaint.status}
-                        sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 1,
-                        }}
-                    >
-                        <Box
+                {
+                    statusOptions.map((status) => (
+                        <MenuItem
+                            key={status}
+                            onClick={() => handleStatusChange(status)}
+                            disabled={status === complaint.status}
                             sx={{
-                                width: 12,
-                                height: 12,
-                                borderRadius: '50%',
-                                backgroundColor: getStatusColor(status),
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 1,
                             }}
-                        />
-                        <Typography variant="body2">{getStatusLabel(status)}</Typography>
-                        {status === complaint.status && (
-                            <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
-                                (Current)
-                            </Typography>
-                        )}
-                    </MenuItem>
-                ))}
-            </Menu>
-        </Box>
+                        >
+                            <Box
+                                sx={{
+                                    width: 12,
+                                    height: 12,
+                                    borderRadius: '50%',
+                                    backgroundColor: getStatusColor(status),
+                                }}
+                            />
+                            <Typography variant="body2">{getStatusLabel(status)}</Typography>
+                            {status === complaint.status && (
+                                <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                                    (Current)
+                                </Typography>
+                            )}
+                        </MenuItem>
+                    ))
+                }
+            </Menu >
+        </Box >
     );
 };
 

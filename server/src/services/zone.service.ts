@@ -9,6 +9,7 @@ interface CreateZoneDto {
     officerName?: string;
     officerDesignation?: string;
     officerSerialNumber?: string;
+    officerPhone?: string;
 }
 
 interface UpdateZoneDto {
@@ -16,6 +17,7 @@ interface UpdateZoneDto {
     officerName?: string;
     officerDesignation?: string;
     officerSerialNumber?: string;
+    officerPhone?: string;
     status?: ZoneStatus;
 }
 
@@ -148,6 +150,7 @@ class ZoneService {
                 officerName: data.officerName,
                 officerDesignation: data.officerDesignation,
                 officerSerialNumber: data.officerSerialNumber,
+                officerPhone: data.officerPhone,
                 status: 'ACTIVE',
             },
             include: {
@@ -365,6 +368,7 @@ class ZoneService {
             officerName?: string;
             officerDesignation?: string;
             officerSerialNumber?: string;
+            officerPhone?: string;
         }
     ) {
         // Check if zone exists
@@ -381,6 +385,7 @@ class ZoneService {
                 officerName: officerData.officerName,
                 officerDesignation: officerData.officerDesignation,
                 officerSerialNumber: officerData.officerSerialNumber,
+                officerPhone: officerData.officerPhone,
             },
             include: {
                 cityCorporation: {
@@ -409,6 +414,7 @@ class ZoneService {
                 officerName: true,
                 officerDesignation: true,
                 officerSerialNumber: true,
+                officerPhone: true,
                 cityCorporation: {
                     select: {
                         code: true,
@@ -431,6 +437,7 @@ class ZoneService {
                 name: zone.officerName,
                 designation: zone.officerDesignation,
                 serialNumber: zone.officerSerialNumber,
+                phone: zone.officerPhone,
             },
         };
     }
@@ -442,6 +449,7 @@ class ZoneService {
         officerName?: string;
         officerDesignation?: string;
         officerSerialNumber?: string;
+        officerPhone?: string;
     }): { valid: boolean; errors: string[] } {
         const errors: string[] = [];
 
@@ -474,10 +482,78 @@ class ZoneService {
             }
         }
 
+        // Officer phone validation
+        if (officerData.officerPhone !== undefined) {
+            if (typeof officerData.officerPhone !== 'string') {
+                errors.push('Officer phone must be a string');
+            } else if (officerData.officerPhone.length > 20) {
+                errors.push('Officer phone cannot exceed 20 characters');
+            }
+        }
+
         return {
             valid: errors.length === 0,
             errors,
         };
+    }
+
+    /**
+     * Get zones accessible by a specific user based on their role and assignments
+     */
+    async getAccessibleZones(userId: number) {
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            include: {
+                cityCorporation: true,
+                assignedZones: {
+                    include: {
+                        zone: {
+                            include: {
+                                cityCorporation: {
+                                    select: {
+                                        id: true,
+                                        code: true,
+                                        name: true,
+                                    }
+                                },
+                                _count: {
+                                    select: {
+                                        wards: true,
+                                        users: true,
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        if (!user) {
+            throw new Error('User not found');
+        }
+
+        // If Master Admin, return all zones (or handled by controller filters)
+        // For now, if no specific restriction, we might want to return all or specific logic.
+        // Assuming this method is called when we WANT restricted zones.
+
+        // If Super Admin (Zone Officer), return only assigned zones
+        if (user.role === 'SUPER_ADMIN') { // Using string literal if enum import is tricky, or better:
+            // We should use the enum values if possible. 
+            // The file doesn't import users_role yet. 
+            // I'll assume 'SUPER_ADMIN' string or update imports.
+            // Let's check imports.
+            return user.assignedZones.map(az => az.zone);
+        }
+
+        // If Admin (City Corp Admin), return zones for their City Corp
+        if (user.role === 'ADMIN' && user.cityCorporation) {
+            return this.getZonesByCityCorporation(user.cityCorporation.id, 'ACTIVE');
+        }
+
+        // Default: If no specific logic, maybe return empty or all?
+        // "ja access ache" -> if no access, nothing.
+        return [];
     }
 }
 
