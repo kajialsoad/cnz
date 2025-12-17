@@ -84,36 +84,57 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen> {
   @override
+  void initState() {
+    super.initState();
+    _checkLoginStatus();
+  }
+
+  Future<void> _checkLoginStatus() async {
+    // Wait for a minimum time for the splash effect (optional)
+    await Future.delayed(const Duration(seconds: 2));
+
+    if (!mounted) return;
+
+    final isLoggedIn = await AuthService.isLoggedIn();
+
+    if (!mounted) return;
+
+    if (isLoggedIn) {
+      Navigator.pushReplacementNamed(context, '/home');
+    } else {
+      Navigator.pushReplacementNamed(context, '/welcome');
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFFFFFFF),
-      body: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () {
-          Navigator.pushReplacementNamed(context, '/onboarding');
-        },
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Image.asset(
-                'assets/logo_clean_c.png',
-                width: 130,
-                height: 128,
-                fit: BoxFit.contain,
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Image.asset(
+              'assets/logo_clean_c.png',
+              width: 130,
+              height: 128,
+              fit: BoxFit.contain,
+            ),
+            const SizedBox(height: 22),
+            const Text(
+              'ক্লিন কেয়ার',
+              style: TextStyle(
+                color: Color(0xFF184F27),
+                fontSize: 31,
+                fontWeight: FontWeight.w600,
               ),
-              const SizedBox(height: 22),
-              const Text(
-                'ক্লিন কেয়ার',
-                style: TextStyle(
-                  color: Color(0xFF184F27),
-                  fontSize: 31,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 8),
-            ],
-          ),
+            ),
+            const SizedBox(height: 8),
+            // Optional: Loading indicator
+            const CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF2E8B57)),
+            ),
+          ],
         ),
       ),
     );

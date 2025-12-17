@@ -835,8 +835,13 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
   }
 
   void _navigateToNextPage() {
+    final complaintProvider = Provider.of<ComplaintProvider>(context, listen: false);
     // Navigate to complaint success page
-    Navigator.pushReplacementNamed(context, '/complaint-success');
+    Navigator.pushReplacementNamed(
+      context, 
+      '/complaint-success', 
+      arguments: complaintProvider.currentComplaint,
+    );
   }
 
   void _handleNavigation(int index) {

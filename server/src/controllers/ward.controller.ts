@@ -277,9 +277,11 @@ class WardController {
                 });
             }
 
-            const { inspectorName, inspectorSerialNumber, inspectorPhone, status } = req.body;
+            const { wardNumber, zoneId, inspectorName, inspectorSerialNumber, inspectorPhone, status } = req.body;
 
             const updateData: any = {};
+            if (wardNumber !== undefined) updateData.wardNumber = wardNumber;
+            if (zoneId !== undefined) updateData.zoneId = zoneId;
             if (inspectorName !== undefined) updateData.inspectorName = inspectorName;
             if (inspectorSerialNumber !== undefined) updateData.inspectorSerialNumber = inspectorSerialNumber;
             if (inspectorPhone !== undefined) updateData.inspectorPhone = inspectorPhone;

@@ -23,6 +23,7 @@ class Complaint {
   final Map<String, dynamic>? cityCorporation;
   final Map<String, dynamic>? zone;
   final Map<String, dynamic>? ward;
+  final Map<String, dynamic>? assignedAdmin;
 
   Complaint({
     required this.id,
@@ -43,6 +44,7 @@ class Complaint {
     this.cityCorporation,
     this.zone,
     this.ward,
+    this.assignedAdmin,
   });
 
   factory Complaint.fromJson(Map<String, dynamic> json) {
@@ -64,6 +66,8 @@ class Complaint {
     // Also check for direct geographical fields (from backend response)
     cityCorporation ??= complaintData['cityCorporation'] as Map<String, dynamic>?;
     zone ??= complaintData['zone'] as Map<String, dynamic>?;
+    // Check for both 'wards' (Prisma relation name) and 'ward' (legacy)
+    ward ??= complaintData['wards'] as Map<String, dynamic>?;
     ward ??= complaintData['ward'] as Map<String, dynamic>?;
     
     return Complaint(
@@ -85,6 +89,7 @@ class Complaint {
       cityCorporation: cityCorporation,
       zone: zone,
       ward: ward,
+      assignedAdmin: complaintData['assignedAdmin'] as Map<String, dynamic>?,
     );
   }
 
@@ -239,6 +244,7 @@ class Complaint {
       'cityCorporation': cityCorporation,
       'zone': zone,
       'ward': ward,
+      'assignedAdmin': assignedAdmin,
     };
   }
 
@@ -261,6 +267,7 @@ class Complaint {
     Map<String, dynamic>? cityCorporation,
     Map<String, dynamic>? zone,
     Map<String, dynamic>? ward,
+    Map<String, dynamic>? assignedAdmin,
   }) {
     return Complaint(
       id: id ?? this.id,
@@ -281,6 +288,7 @@ class Complaint {
       cityCorporation: cityCorporation ?? this.cityCorporation,
       zone: zone ?? this.zone,
       ward: ward ?? this.ward,
+      assignedAdmin: assignedAdmin ?? this.assignedAdmin,
     );
   }
 

@@ -51,7 +51,6 @@ const ComplaintDetails: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
 
-    const messagesEndRef = useRef<HTMLDivElement>(null);
     const messageContainerRef = useRef<HTMLDivElement>(null);
 
     const [complaint, setComplaint] = useState<Complaint | null>(null);
@@ -59,6 +58,7 @@ const ComplaintDetails: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [updatingStatus, setUpdatingStatus] = useState(false);
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
+    const messagesEndRef = useRef<HTMLDivElement>(null);
 
     // Chat state
     const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -68,27 +68,33 @@ const ComplaintDetails: React.FC = () => {
     const [imageFile, setImageFile] = useState<{ file: File; preview: string } | null>(null);
     const [uploadingImage, setUploadingImage] = useState(false);
 
-    // Mock timeline data (apni pore dynamic korben)
-    const mockTimeline = [
-        {
+    // Dynamic timeline based on complaint data
+    const getTimeline = () => {
+        const timeline = [];
+
+        // Complaint submitted
+        timeline.push({
             id: 1,
-            action: 'অভিযোগ',
-            date: '2024-12-15 10:30 AM',
-            description: 'অভিযোগটি জমা দেওয়া হয়েছে',
-        },
-        {
-            id: 2,
-            action: 'প্রক্রিয়াধীন',
-            date: '2024-12-15 11:45 AM',
-            description: 'অভিযোগটি প্রক্রিয়াধীন করা হয়েছে',
-        },
-        {
-            id: 3,
-            action: 'পরিদর্শন',
-            date: '2024-12-15 02:30 PM',
-            description: 'ওয়ার্ড ইন্সপেক্টর পরিদর্শন করেছেন',
-        },
-    ];
+            action: 'অভিযোগ জমা',
+            date: new Date(complaint?.createdAt || '').toLocaleString('bn-BD'),
+            description: 'অভিযোগটি সফলভাবে জমা দেওয়া হয়েছে',
+        });
+
+        // If status changed from PENDING
+        if (complaint?.status && complaint.status !== 'PENDING') {
+            timeline.push({
+                id: 2,
+                action: complaint.status === 'IN_PROGRESS' ? 'প্রক্রিয়াধীন' :
+                    complaint.status === 'RESOLVED' ? 'সমাধান' : 'প্রত্যাখ্যাত',
+                date: new Date(complaint?.updatedAt || '').toLocaleString('bn-BD'),
+                description: complaint.status === 'IN_PROGRESS' ? 'অভিযোগটি প্রক্রিয়াধীন করা হয়েছে' :
+                    complaint.status === 'RESOLVED' ? 'অভিযোগটি সমাধান করা হয়েছে' :
+                        'অভিযোগটি প্রত্যাখ্যাত হয়েছে',
+            });
+        }
+
+        return timeline;
+    };
 
     /**
      * Scroll to bottom of messages
@@ -521,6 +527,105 @@ const ComplaintDetails: React.FC = () => {
                             </Box>
                         </Card>
 
+                        {/* Responsible Officers Card */}
+                        {(complaint.wards?.inspectorName || complaint.zone?.officerName) && (
+                            <Card sx={{
+                                mb: 3,
+                                borderRadius: 2,
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                                border: '1px solid #e5e7eb'
+                            }}>
+                                <Box sx={{ p: 2, borderBottom: '1px solid #f3f4f6', backgroundColor: '#f9fafb' }}>
+                                    <Typography variant="h6" sx={{ fontWeight: 700, color: '#1e2939' }}>
+                                        দায়িত্বপ্রাপ্ত কর্মকর্তাগণ
+                                    </Typography>
+                                </Box>
+                                <Box sx={{ p: 3 }}>
+                                    <Grid container spacing={2}>
+                                        {/* Ward Inspector */}
+                                        {complaint.wards?.inspectorName && (
+                                            <Grid size={{ xs: 12 }}>
+                                                <Box sx={{
+                                                    p: 2,
+                                                    border: '1px solid #bfdbfe',
+                                                    borderRadius: 2,
+                                                    backgroundColor: '#eff6ff'
+                                                }}>
+                                                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+                                                        <Avatar sx={{
+                                                            bgcolor: '#fff',
+                                                            color: '#2563eb',
+                                                            width: 48,
+                                                            height: 48,
+                                                            boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                                                        }}>
+                                                            <AdminIcon />
+                                                        </Avatar>
+                                                        <Box>
+                                                            <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mb: 0.5 }}>
+                                                                Ward Inspector / ওয়ার্ড ইন্সপেক্টর
+                                                            </Typography>
+                                                            <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#1e2939' }}>
+                                                                {complaint.wards.inspectorName}
+                                                            </Typography>
+                                                            {complaint.wards.inspectorPhone && (
+                                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                                                                    <PhoneIcon sx={{ fontSize: 16, color: '#2563eb' }} />
+                                                                    <Typography variant="body2" sx={{ color: '#4b5563', fontWeight: 500 }}>
+                                                                        {complaint.wards.inspectorPhone}
+                                                                    </Typography>
+                                                                </Box>
+                                                            )}
+                                                        </Box>
+                                                    </Box>
+                                                </Box>
+                                            </Grid>
+                                        )}
+
+                                        {/* Zone Officer */}
+                                        {complaint.zone?.officerName && (
+                                            <Grid size={{ xs: 12 }}>
+                                                <Box sx={{
+                                                    p: 2,
+                                                    border: '1px solid #fed7aa',
+                                                    borderRadius: 2,
+                                                    backgroundColor: '#fff7ed'
+                                                }}>
+                                                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+                                                        <Avatar sx={{
+                                                            bgcolor: '#fff',
+                                                            color: '#f97316',
+                                                            width: 48,
+                                                            height: 48,
+                                                            boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                                                        }}>
+                                                            <PersonIcon />
+                                                        </Avatar>
+                                                        <Box>
+                                                            <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mb: 0.5 }}>
+                                                                Zone Officer / জোন অফিসার
+                                                            </Typography>
+                                                            <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#1e2939' }}>
+                                                                {complaint.zone.officerName}
+                                                            </Typography>
+                                                            {complaint.zone.officerPhone && (
+                                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                                                                    <PhoneIcon sx={{ fontSize: 16, color: '#f97316' }} />
+                                                                    <Typography variant="body2" sx={{ color: '#4b5563', fontWeight: 500 }}>
+                                                                        {complaint.zone.officerPhone}
+                                                                    </Typography>
+                                                                </Box>
+                                                            )}
+                                                        </Box>
+                                                    </Box>
+                                                </Box>
+                                            </Grid>
+                                        )}
+                                    </Grid>
+                                </Box>
+                            </Card>
+                        )}
+
                         {/* Location & Geographical Info Card */}
                         <Card sx={{
                             mb: 3,
@@ -542,9 +647,11 @@ const ComplaintDetails: React.FC = () => {
                                                 সিটি কর্পোরেশন
                                             </Typography>
                                             <Typography variant="body2" sx={{ fontWeight: 600, color: '#3fa564' }}>
-                                                {typeof complaint.user.cityCorporation === 'object' && complaint.user.cityCorporation
-                                                    ? complaint.user.cityCorporation.name
-                                                    : (typeof complaint.user.cityCorporation === 'string' ? complaint.user.cityCorporation : 'ঢাকা উত্তর সিটি কর্পোরেশন')}
+                                                {/* Try to get from direct relation first, then user relation */}
+                                                {complaint.cityCorporation?.name ||
+                                                    complaint.cityCorporation?.nameBangla ||
+                                                    (typeof complaint.user?.cityCorporation === 'object' ? complaint.user.cityCorporation?.name : null) ||
+                                                    (typeof complaint.user?.cityCorporation === 'string' ? complaint.user.cityCorporation : 'ঢাকা উত্তর সিটি কর্পোরেশন')}
                                             </Typography>
                                         </Box>
                                     </Grid>
@@ -556,7 +663,12 @@ const ComplaintDetails: React.FC = () => {
                                                 ওয়ার্ড
                                             </Typography>
                                             <Typography variant="body2" sx={{ fontWeight: 600, color: '#1e2939' }}>
-                                                {complaint.locationDetails?.ward || complaint.user.ward || 'তথ্য নেই'}
+                                                {/* Prioritize complaint.wards over complaint.user.ward */}
+                                                {complaint.wards?.displayName ||
+                                                    (complaint.wards?.wardNumber ? `Ward ${complaint.wards.wardNumber}` : null) ||
+                                                    (complaint.wards?.number ? `Ward ${complaint.wards.number}` : null) ||
+                                                    complaint.user.ward ||
+                                                    'তথ্য নেই'}
                                             </Typography>
                                         </Box>
                                     </Grid>
@@ -568,7 +680,12 @@ const ComplaintDetails: React.FC = () => {
                                                 জোন
                                             </Typography>
                                             <Typography variant="body2" sx={{ fontWeight: 600, color: '#1e2939' }}>
-                                                {complaint.user.zone || 'তথ্য নেই'}
+                                                {/* Prioritize complaint.zone over complaint.user.zone */}
+                                                {complaint.zone?.displayName ||
+                                                    complaint.zone?.name ||
+                                                    (complaint.zone?.zoneNumber ? `Zone ${complaint.zone.zoneNumber}` : null) ||
+                                                    complaint.user.zone ||
+                                                    'তথ্য নেই'}
                                             </Typography>
                                         </Box>
                                     </Grid>
@@ -667,10 +784,10 @@ const ComplaintDetails: React.FC = () => {
                             </Box>
                             <Box sx={{ p: 3 }}>
                                 <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                                    {mockTimeline.map((item, index) => (
+                                    {getTimeline().map((item, index) => (
                                         <Box key={item.id} sx={{ display: 'flex', gap: 2, position: 'relative' }}>
                                             {/* Timeline Line */}
-                                            {index < mockTimeline.length - 1 && (
+                                            {index < getTimeline().length - 1 && (
                                                 <Box sx={{
                                                     position: 'absolute',
                                                     left: 11,
@@ -731,8 +848,11 @@ const ComplaintDetails: React.FC = () => {
                                     {/* Name */}
                                     <Grid size={{ xs: 12, sm: 6 }}>
                                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                                            <Avatar sx={{ bgcolor: '#eff6ff', color: '#1d4ed8' }}>
-                                                <PersonIcon />
+                                            <Avatar
+                                                src={complaint.user.avatar || undefined}
+                                                sx={{ bgcolor: '#eff6ff', color: '#1d4ed8' }}
+                                            >
+                                                {!complaint.user.avatar && <PersonIcon />}
                                             </Avatar>
                                             <Box>
                                                 <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>
@@ -821,37 +941,90 @@ const ComplaintDetails: React.FC = () => {
                         </Card>
 
                         {/* Ward Inspector Card */}
-                        <Card sx={{
-                            mb: 3,
-                            borderRadius: 2,
-                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                            border: '1px solid #e5e7eb'
-                        }}>
-                            <Box sx={{ p: 2, borderBottom: '1px solid #f3f4f6', backgroundColor: '#f9fafb' }}>
-                                <Typography variant="h6" sx={{ fontWeight: 700, color: '#1e2939' }}>
-                                    ওয়ার্ড ইন্সপেক্টর
-                                </Typography>
-                            </Box>
-                            <Box sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
-                                <Avatar sx={{ width: 48, height: 48, bgcolor: '#eff6ff', color: '#2563eb', fontWeight: 600 }}>
-                                    WI
-                                </Avatar>
-                                <Box sx={{ flex: 1 }}>
-                                    <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1f2937' }}>
-                                        মোঃ রহিম উদ্দিন
+                        {complaint.wards?.inspectorName && (
+                            <Card sx={{
+                                mb: 3,
+                                borderRadius: 2,
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                                border: '1px solid #e5e7eb'
+                            }}>
+                                <Box sx={{ p: 2, borderBottom: '1px solid #f3f4f6', backgroundColor: '#f9fafb' }}>
+                                    <Typography variant="h6" sx={{ fontWeight: 700, color: '#1e2939' }}>
+                                        ওয়ার্ড ইন্সপেক্টর
                                     </Typography>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
-                                        <PhoneIcon sx={{ fontSize: 14, color: '#6b7280' }} />
-                                        <Typography variant="body2" sx={{ color: '#6b7280' }}>
-                                            ০১৭১২৩৪৫৬৭৮
+                                </Box>
+                                <Box sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+                                    <Avatar sx={{ width: 48, height: 48, bgcolor: '#eff6ff', color: '#2563eb', fontWeight: 600 }}>
+                                        {complaint.wards.inspectorName?.charAt(0) || 'WI'}
+                                    </Avatar>
+                                    <Box sx={{ flex: 1 }}>
+                                        <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1f2937' }}>
+                                            {complaint.wards.inspectorName || 'তথ্য নেই'}
+                                        </Typography>
+                                        <Typography variant="caption" sx={{ display: 'block', color: '#6b7280', mt: 0.5 }}>
+                                            Ward {complaint.wards.wardNumber || complaint.wards.number || complaint.wards.id}
+                                        </Typography>
+                                        {complaint.wards.inspectorPhone && (
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
+                                                <PhoneIcon sx={{ fontSize: 14, color: '#6b7280' }} />
+                                                <Typography
+                                                    variant="body2"
+                                                    component="a"
+                                                    href={`tel:${complaint.wards.inspectorPhone}`}
+                                                    sx={{
+                                                        color: '#6b7280',
+                                                        textDecoration: 'none',
+                                                        '&:hover': { color: '#3fa564' }
+                                                    }}
+                                                >
+                                                    {complaint.wards.inspectorPhone}
+                                                </Typography>
+                                            </Box>
+                                        )}
+                                    </Box>
+                                    {complaint.wards.inspectorPhone && (
+                                        <Button
+                                            variant="outlined"
+                                            size="small"
+                                            component="a"
+                                            href={`tel:${complaint.wards.inspectorPhone}`}
+                                            sx={{ borderColor: '#e5e7eb', color: '#374151' }}
+                                        >
+                                            যোগাযোগ
+                                        </Button>
+                                    )}
+                                </Box>
+                            </Card>
+                        )}
+
+                        {/* Zone Officer Card */}
+                        {complaint.zone?.officerName && (
+                            <Card sx={{
+                                mb: 3,
+                                borderRadius: 2,
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                                border: '1px solid #e5e7eb'
+                            }}>
+                                <Box sx={{ p: 2, borderBottom: '1px solid #f3f4f6', backgroundColor: '#f9fafb' }}>
+                                    <Typography variant="h6" sx={{ fontWeight: 700, color: '#1e2939' }}>
+                                        জোন অফিসার
+                                    </Typography>
+                                </Box>
+                                <Box sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+                                    <Avatar sx={{ width: 48, height: 48, bgcolor: '#fff7ed', color: '#f97316', fontWeight: 600 }}>
+                                        {complaint.zone.officerName?.charAt(0) || 'ZO'}
+                                    </Avatar>
+                                    <Box sx={{ flex: 1 }}>
+                                        <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1f2937' }}>
+                                            {complaint.zone.officerName || 'তথ্য নেই'}
+                                        </Typography>
+                                        <Typography variant="caption" sx={{ color: '#6b7280' }}>
+                                            জোন অফিসার
                                         </Typography>
                                     </Box>
                                 </Box>
-                                <Button variant="outlined" size="small" sx={{ borderColor: '#e5e7eb', color: '#374151' }}>
-                                    যোগাযোগ
-                                </Button>
-                            </Box>
-                        </Card>
+                            </Card>
+                        )}
 
                         {/* Admin Report Card */}
                         <Card sx={{
@@ -871,14 +1044,14 @@ const ComplaintDetails: React.FC = () => {
                                 </Typography>
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
                                     <Avatar sx={{ width: 40, height: 40, bgcolor: '#fff7ed', color: '#f97316' }}>
-                                        A
+                                        {complaint.assignedAdmin?.firstName?.charAt(0) || <PersonIcon />}
                                     </Avatar>
                                     <Box>
                                         <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1f2937' }}>
-                                            অ্যাডমিন নাম (Mock)
+                                            {complaint.assignedAdmin ? `${complaint.assignedAdmin.firstName} ${complaint.assignedAdmin.lastName}` : 'এখনও নিযুক্ত করা হয়নি'}
                                         </Typography>
                                         <Typography variant="body2" sx={{ color: '#6b7280' }}>
-                                            ওয়ার্ড অ্যাডমিন
+                                            {complaint.assignedAdmin ? 'ওয়ার্ড অ্যাডমিন' : 'অপেক্ষমাণ'}
                                         </Typography>
                                     </Box>
                                 </Box>
@@ -1026,7 +1199,7 @@ const ComplaintDetails: React.FC = () => {
                                                 <Box sx={{ p: 1.5, bgcolor: msg.senderId === 0 ? '#3fa564' : '#fff', color: msg.senderId === 0 ? '#fff' : '#1f2937', borderRadius: 2, borderTopLeftRadius: msg.senderId === 0 ? 8 : 0, borderTopRightRadius: msg.senderId === 0 ? 0 : 8, boxShadow: '0 1px 2px rgba(0,0,0,0.05)', position: 'relative' }}>
                                                     {msg.imageUrl && (
                                                         <Box sx={{ mb: 1, borderRadius: 1, overflow: 'hidden' }}>
-                                                            <img src={msg.imageUrl} alt="Attachment" style={{ maxWidth: '100%', maxHeight: 150, objectFit: 'cover', cursor: 'pointer' }} onClick={() => setSelectedImage(msg.imageUrl)} />
+                                                            <img src={msg.imageUrl} alt="Attachment" style={{ maxWidth: '100%', maxHeight: 150, objectFit: 'cover', cursor: 'pointer' }} onClick={() => setSelectedImage(msg.imageUrl || null)} />
                                                         </Box>
                                                     )}
                                                     <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: '0.9rem' }}>{msg.message}</Typography>

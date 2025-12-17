@@ -9,6 +9,8 @@ interface CreateWardDto {
 }
 
 interface UpdateWardDto {
+    wardNumber?: number;
+    zoneId?: number;
     inspectorName?: string;
     inspectorSerialNumber?: string;
     inspectorPhone?: string;
@@ -326,11 +328,83 @@ class WardService {
      */
     async updateWard(id: number, data: UpdateWardDto) {
         // Check if ward exists
-        await this.getWardById(id);
+        const existingWard = await this.getWardById(id);
+
+        let targetZoneId = existingWard.zoneId;
+        const targetWardNumber = data.wardNumber ?? existingWard.wardNumber; // Valid since existingWard.wardNumber is Int
+        let isMovingZone = false;
+
+        // If updating zone, validate new zone
+        if (data.zoneId && data.zoneId !== existingWard.zoneId) {
+            isMovingZone = true;
+            targetZoneId = data.zoneId;
+
+            // Validate new zone exists
+            const newZone = await prisma.zone.findUnique({
+                where: { id: data.zoneId },
+                include: { _count: { select: { wards: true } } }
+            });
+
+            if (!newZone) {
+                throw new Error(`Zone with ID ${data.zoneId} not found`);
+            }
+
+            // Check ward limits in new zone
+            if (newZone._count.wards >= 12) {
+                throw new Error(`Cannot move ward to Zone ${newZone.zoneNumber}. It already has the maximum of 12 wards.`);
+            }
+        }
+
+        // If ward number OR zone is changing, validate uniqueness in the TARGET City Corporation
+        if (isMovingZone || (data.wardNumber && data.wardNumber !== existingWard.wardNumber)) {
+            // Get City Corp of target zone
+            const targetZone = await prisma.zone.findUnique({
+                where: { id: targetZoneId },
+                select: { cityCorporationId: true, cityCorporation: true, zoneNumber: true, name: true }
+            });
+
+            if (!targetZone) throw new Error("Target zone not found");
+
+            // Check uniqueness in target City Corp
+            const conflict = await prisma.ward.findFirst({
+                where: {
+                    wardNumber: targetWardNumber,
+                    cityCorporationId: targetZone.cityCorporationId,
+                    id: { not: id } // Exclude self
+                },
+                include: { zone: true }
+            });
+
+            if (conflict) {
+                throw new Error(`Ward number ${targetWardNumber} is already used in ${conflict.zone.name || 'Zone ' + conflict.zone.zoneNumber} (City Corp: ${targetZone.cityCorporation.name})`);
+            }
+
+            // Also validate range for target city corp
+            const min = targetZone.cityCorporation.minWard || 1;
+            const max = targetZone.cityCorporation.maxWard || 100;
+
+            // Should not happen as wardNumber is required, but TS needs assurance
+            if (targetWardNumber === undefined || targetWardNumber === null) {
+                throw new Error("Ward number is missing");
+            }
+
+            if (targetWardNumber < min || targetWardNumber > max) {
+                throw new Error(`Ward number ${targetWardNumber} is invalid for ${targetZone.cityCorporation.name} (Range: ${min}-${max})`);
+            }
+        }
 
         const ward = await prisma.ward.update({
             where: { id },
-            data,
+            data: {
+                wardNumber: data.wardNumber,
+                number: data.wardNumber, // Sync 'number' field
+                zoneId: data.zoneId, // Update Zone if provided
+                cityCorporationId: isMovingZone ? (await prisma.zone.findUnique({ where: { id: targetZoneId } }))?.cityCorporationId : undefined, // Update CityCorp if moving zone
+                inspectorName: data.inspectorName,
+                inspectorSerialNumber: data.inspectorSerialNumber,
+                inspectorPhone: data.inspectorPhone,
+                status: data.status,
+            },
             include: {
                 zone: {
                     select: {

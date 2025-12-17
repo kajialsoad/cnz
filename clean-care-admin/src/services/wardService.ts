@@ -39,6 +39,8 @@ export interface CreateWardDto {
 }
 
 export interface UpdateWardDto {
+    wardNumber?: number;
+    zoneId?: number;
     inspectorName?: string;
     inspectorSerialNumber?: string;
     inspectorPhone?: string;

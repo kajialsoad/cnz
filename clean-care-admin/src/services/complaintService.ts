@@ -173,30 +173,64 @@ class ComplaintService {
         let imageUrls: string[] = [];
         let audioUrls: string[] = [];
 
+
+
         try {
             if (complaint.imageUrl) {
-                const parsed = JSON.parse(complaint.imageUrl);
-                // Process each URL: Cloudinary URLs stay as-is, local URLs get fixed
-                imageUrls = Array.isArray(parsed)
-                    ? parsed.map((url: string) => this.fixLocalMediaUrl(url))
-                    : [];
+                let parsed;
+                const rawUrl = complaint.imageUrl;
+
+                // Check if it's likely a JSON array
+                if (typeof rawUrl === 'string' && rawUrl.trim().startsWith('[')) {
+                    try {
+                        parsed = JSON.parse(rawUrl);
+                    } catch (e) {
+                        // If parse fails but it looks like JSON, it might be malformed.
+                        // But also could be a weird string. Fallback to treating as single URL.
+                        parsed = [rawUrl];
+                    }
+                } else if (Array.isArray(rawUrl)) {
+                    parsed = rawUrl;
+                } else {
+                    // Treat as single string URL
+                    parsed = [rawUrl];
+                }
+
+                // Process each URL
+                if (Array.isArray(parsed)) {
+                    imageUrls = parsed.map((url: string) => this.fixLocalMediaUrl(url));
+                }
             }
         } catch (e) {
-            console.error('Error parsing imageUrl:', e);
+            console.error('Error processing imageUrl:', e);
         }
 
         try {
             if (complaint.audioUrl) {
-                const parsed = JSON.parse(complaint.audioUrl);
-                // Process each URL: Cloudinary URLs stay as-is, local URLs get fixed
-                audioUrls = Array.isArray(parsed)
-                    ? parsed.map((url: string) => this.fixLocalMediaUrl(url))
-                    : [];
+                let parsed;
+                const rawUrl = complaint.audioUrl;
+
+                if (typeof rawUrl === 'string' && rawUrl.trim().startsWith('[')) {
+                    try {
+                        parsed = JSON.parse(rawUrl);
+                    } catch (e) {
+                        parsed = [rawUrl];
+                    }
+                } else if (Array.isArray(rawUrl)) {
+                    parsed = rawUrl;
+                } else {
+                    parsed = [rawUrl];
+                }
+
+                if (Array.isArray(parsed)) {
+                    audioUrls = parsed.map((url: string) => this.fixLocalMediaUrl(url));
+                }
             }
         } catch (e) {
-            console.error('Error parsing audioUrl:', e);
+            console.error('Error processing audioUrl:', e);
         }
 
+        // Ensure we preserve the original object's location data structure
         return {
             ...complaint,
             imageUrls,

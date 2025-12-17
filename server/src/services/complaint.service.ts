@@ -241,21 +241,58 @@ export class ComplaintService {
         finalAudioUrls.push(input.voiceNoteUrl);
       }
 
-      // Auto-generate title from description if not provided
-      const title = input.title || this.generateTitleFromDescription(input.description);
+      // Determine Location and Assigned Admin
+      let locationString = (typeof input.location === 'object' && input.location.address) ? input.location.address : String(input.location); // Fallback
+      let assignedAdminId: number | null = null;
 
-      // Handle location formatting
-      let locationString: string;
-      if (typeof input.location === 'string') {
-        locationString = input.location;
-      } else {
+      // New: Improve location string and auto-assign admin based on Ward
+      const targetWardId = input.wardId || user?.wardId;
+
+      if (targetWardId) {
+        // Fetch Ward details for accurate location
+        const ward = await prisma.ward.findUnique({
+          where: { id: targetWardId },
+          include: {
+            zone: {
+              include: {
+                cityCorporation: true
+              }
+            }
+          }
+        });
+
+        if (ward) {
+          // Construct rich location string: "Ward 46, Zone 5, DSCC" + User Address
+          const parts = [];
+          if (typeof input.location === 'object' && input.location.address) parts.push(input.location.address);
+          parts.push(`Ward ${ward.wardNumber}`);
+          if (ward.zone) parts.push(ward.zone.name || `Zone ${ward.zone.zoneNumber}`);
+          if (ward.zone && ward.zone.cityCorporation) parts.push(ward.zone.cityCorporation.name);
+
+          locationString = parts.join(', ');
+
+          // Find an ADMIN assigned to this Ward
+          const assignedAdmin = await prisma.user.findFirst({
+            where: {
+              wardId: targetWardId,
+              role: 'ADMIN', // Assuming 'ADMIN' role handles ward complaints
+              status: 'ACTIVE'
+            }
+          });
+
+          if (assignedAdmin) {
+            assignedAdminId = assignedAdmin.id;
+          }
+        }
+      } else if (typeof input.location === 'object') {
+        // Legacy/Fallback construction
         locationString = `${input.location.address}, ${input.location.district}, ${input.location.thana}, Ward: ${input.location.ward}`;
       }
 
       // Create complaint
       const complaint = await prisma.complaint.create({
         data: {
-          title: title,
+          title: input.title || this.generateTitleFromDescription(input.description), // Use generated title if missing
           description: input.description,
           category: input.category,
           subcategory: input.subcategory,
@@ -264,7 +301,8 @@ export class ComplaintService {
           imageUrl: finalImageUrls.length > 0 ? JSON.stringify(finalImageUrls) : null,
           audioUrl: finalAudioUrls.length > 0 ? JSON.stringify(finalAudioUrls) : null,
           userId: input.forSomeoneElse ? undefined : (input.userId ?? undefined),
-          location: locationString,
+          location: typeof locationString === 'string' ? locationString : 'Unknown Location',
+          assignedAdminId: assignedAdminId, // NEW: Auto-assign admin
           // NEW: Store geographical IDs for dynamic system
           cityCorporationCode: input.cityCorporationCode || user?.cityCorporationCode || null,
           zoneId: input.zoneId || user?.zoneId || null,
@@ -278,6 +316,7 @@ export class ComplaintService {
               ward: true
             }
           },
+          assignedAdmin: true, // NEW: Include assigned admin in response
           cityCorporation: true,
           zone: true,
           wards: true
@@ -379,7 +418,11 @@ export class ComplaintService {
               zone: true,
               ward: true
             }
-          }
+          },
+          // Include complaint's direct relations (has inspector/officer info)
+          cityCorporation: true,
+          zone: true,
+          wards: true // This has inspectorName, inspectorPhone
         }
       });
 
@@ -701,10 +744,11 @@ export class ComplaintService {
     const parsedImages = this.parseFileUrls(complaint.imageUrl || '');
     const parsedAudio = this.parseFileUrls(complaint.audioUrl || '');
 
-    // Extract city corporation, zone, and ward from user if available
-    const cityCorporation = complaint.user?.cityCorporation || null;
-    const zone = complaint.user?.zone || null;
-    const ward = complaint.user?.ward || null;
+    // Prioritize complaint's direct relations (complaint.wards has inspector info)
+    // Fall back to user's relations if complaint relations are not available
+    const cityCorporation = complaint.cityCorporation || complaint.user?.cityCorporation || null;
+    const zone = complaint.zone || complaint.user?.zone || null;
+    const ward = complaint.wards || complaint.user?.ward || null; // complaint.wards has inspectorName, inspectorPhone
 
     return {
       ...complaint,
@@ -717,7 +761,7 @@ export class ComplaintService {
       // Include city corporation, zone, and ward information
       cityCorporation: cityCorporation,
       zone: zone,
-      ward: ward
+      wards: ward // Use 'wards' to match Prisma relation name and frontend expectations
     };
   }
 
@@ -817,7 +861,11 @@ export class ComplaintService {
               zone: true,
               ward: true
             }
-          }
+          },
+          // Include complaint's direct relations
+          cityCorporation: true,
+          zone: true,
+          wards: true
         }
       }),
       prisma.complaint.count({ where })

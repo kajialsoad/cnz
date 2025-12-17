@@ -112,7 +112,7 @@ export function getActionColor(action: string): string {
     if (action.startsWith('UPDATE')) return 'info';
     if (action.startsWith('DELETE')) return 'error';
     if (action === 'LOGIN') return 'success';
-    if (action === 'LOGOUT') return 'default';
+    if (action === 'LOGOUT') return 'grey';
     if (action === 'FAILED_LOGIN') return 'error';
-    return 'default';
+    return 'grey';
 }

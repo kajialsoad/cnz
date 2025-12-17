@@ -16,6 +16,7 @@ import {
 } from '@mui/material';
 import {
     Edit as EditIcon,
+    Delete as DeleteIcon,
 } from '@mui/icons-material';
 import { type Ward } from '../../services/wardService';
 
@@ -23,12 +24,14 @@ interface WardListProps {
     wards: Ward[];
     loading: boolean;
     onEdit: (ward: Ward) => void;
+    onDelete: (wardId: number) => void;
 }
 
 const WardList: React.FC<WardListProps> = ({
     wards,
     loading,
     onEdit,
+    onDelete,
 }) => {
     if (loading) {
         return (
@@ -214,9 +217,24 @@ const WardList: React.FC<WardListProps> = ({
                                                 '&:hover': {
                                                     backgroundColor: '#e3f2fd',
                                                 },
+                                                mr: 1,
                                             }}
                                         >
                                             <EditIcon fontSize="small" />
+                                        </IconButton>
+                                    </Tooltip>
+                                    <Tooltip title="Delete Ward">
+                                        <IconButton
+                                            size="small"
+                                            onClick={() => onDelete(ward.id)}
+                                            sx={{
+                                                color: '#d32f2f',
+                                                '&:hover': {
+                                                    backgroundColor: '#ffebee',
+                                                },
+                                            }}
+                                        >
+                                            <DeleteIcon fontSize="small" />
                                         </IconButton>
                                     </Tooltip>
                                 </TableCell>

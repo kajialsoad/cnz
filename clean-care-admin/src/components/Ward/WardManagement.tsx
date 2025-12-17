@@ -45,13 +45,13 @@ const WardManagement: React.FC<WardManagementProps> = ({ zone }) => {
             setLoading(true);
             setError(null);
             const response = await wardService.getWardsByZone(zone.id, 'ALL');
-            
+
             // Handle different response formats
             // Sometimes it returns { success: true, wards: [...] }
             // Sometimes it returns { success: true, data: [...] }
             // Sometimes it returns just [...]
             let wardsData: Ward[] = [];
-            
+
             if (Array.isArray(response)) {
                 wardsData = response;
             } else if (response && typeof response === 'object') {
@@ -61,7 +61,7 @@ const WardManagement: React.FC<WardManagementProps> = ({ zone }) => {
                     wardsData = (response as any).data;
                 }
             }
-            
+
             setWards(wardsData);
         } catch (err: any) {
             console.error('Error fetching wards:', err);
@@ -109,6 +109,21 @@ const WardManagement: React.FC<WardManagementProps> = ({ zone }) => {
         } catch (err: any) {
             console.error('Error updating ward:', err);
             throw err; // Re-throw to let the form handle it
+        }
+    };
+
+    // Handle delete ward
+    const handleDeleteWard = async (wardId: number) => {
+        if (!window.confirm('Are you sure you want to delete this ward?')) {
+            return;
+        }
+
+        try {
+            await wardService.deleteWard(wardId);
+            await fetchWards();
+        } catch (err: any) {
+            console.error('Error deleting ward:', err);
+            setError(err.response?.data?.message || err.message || 'Failed to delete ward');
         }
     };
 
@@ -177,6 +192,7 @@ const WardManagement: React.FC<WardManagementProps> = ({ zone }) => {
                     wards={wards}
                     loading={loading}
                     onEdit={handleEditWard}
+                    onDelete={handleDeleteWard}
                 />
             </CardContent>
 

@@ -43,6 +43,36 @@ export interface Complaint {
         } | null;
         avatar?: string | null;
     };
+    // Complaint's direct relations (from backend)
+    wards?: {
+        id: number;
+        number?: number;
+        wardNumber?: number;
+        displayName?: string;
+        inspectorName?: string | null;
+        inspectorPhone?: string | null;
+    } | null;
+    zone?: {
+        id: number;
+        zoneNumber?: number;
+        name?: string;
+        displayName?: string;
+        officerName?: string | null;
+        officerPhone?: string | null;
+    } | null;
+    cityCorporation?: {
+        id: number;
+        code: string;
+        name: string;
+        nameBangla?: string;
+    } | null;
+    assignedAdmin?: {
+        id: number;
+        firstName: string;
+        lastName: string;
+        phone: string;
+        email: string;
+    } | null;
     trackingNumber?: string;
     createdAt: string;
     updatedAt: string;

@@ -307,6 +307,41 @@ export class AdminComplaintService {
                                 }
                             }
                         }
+                    },
+                    // Include direct location relations
+                    wards: {
+                        select: {
+                            id: true,
+                            wardNumber: true,
+                            inspectorName: true,
+                            inspectorPhone: true,
+                            inspectorSerialNumber: true
+                        }
+                    },
+                    zone: {
+                        select: {
+                            id: true,
+                            zoneNumber: true,
+                            name: true,
+                            officerName: true,
+                            officerPhone: true,
+                            officerDesignation: true
+                        }
+                    },
+                    cityCorporation: {
+                        select: {
+                            code: true,
+                            name: true
+                        }
+                    },
+                    assignedAdmin: {
+                        select: {
+                            id: true,
+                            firstName: true,
+                            lastName: true,
+                            phone: true,
+                            email: true
+                        }
                     }
                 }
             });

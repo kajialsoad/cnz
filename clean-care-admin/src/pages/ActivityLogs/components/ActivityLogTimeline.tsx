@@ -112,9 +112,11 @@ const ActivityLogTimeline: React.FC<ActivityLogTimelineProps> = ({ logs, onLogCl
                                     />
                                 </Box>
                                 <Tooltip title="View Details">
-                                    <IconButton size="small">
-                                        <InfoIcon fontSize="small" />
-                                    </IconButton>
+                                    <span>
+                                        <IconButton size="small">
+                                            <InfoIcon fontSize="small" />
+                                        </IconButton>
+                                    </span>
                                 </Tooltip>
                             </Box>
 

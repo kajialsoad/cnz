@@ -9,8 +9,13 @@ import {
     Box,
     Alert,
     CircularProgress,
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem,
 } from '@mui/material';
 import { type Ward, type UpdateWardDto } from '../../services/wardService';
+import { zoneService, type Zone } from '../../services/zoneService';
 
 interface WardFormProps {
     open: boolean;
@@ -25,21 +30,44 @@ const WardForm: React.FC<WardFormProps> = ({
     onSave,
     ward,
 }) => {
+    const [wardNumber, setWardNumber] = useState<string>('');
+    const [selectedZoneId, setSelectedZoneId] = useState<number | string>('');
+    const [availableZones, setAvailableZones] = useState<Zone[]>([]);
     const [inspectorName, setInspectorName] = useState<string>('');
     const [inspectorSerialNumber, setInspectorSerialNumber] = useState<string>('');
     const [inspectorPhone, setInspectorPhone] = useState<string>('');
     const [loading, setLoading] = useState(false);
+    const [loadingZones, setLoadingZones] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // Initialize form with ward data
+    // Initialize form with ward data and fetch zones
     useEffect(() => {
         if (ward) {
+            setWardNumber(ward.wardNumber?.toString() || '');
+            setSelectedZoneId(ward.zoneId || '');
             setInspectorName(ward.inspectorName || '');
             setInspectorSerialNumber(ward.inspectorSerialNumber || '');
             setInspectorPhone(ward.inspectorPhone || '');
+
+            // Fetch available zones for the city corporation
+            if (ward.zone?.cityCorporation?.id) {
+                fetchZones(ward.zone.cityCorporation.id);
+            }
         }
         setError(null);
     }, [ward, open]);
+
+    const fetchZones = async (cityCorporationId: number) => {
+        try {
+            setLoadingZones(true);
+            const response = await zoneService.getZonesByCityCorporation(cityCorporationId, 'ACTIVE');
+            setAvailableZones(response);
+        } catch (error) {
+            console.error('Error fetching zones:', error);
+        } finally {
+            setLoadingZones(false);
+        }
+    };
 
     // Handle form submission
     const handleSubmit = async () => {
@@ -48,6 +76,8 @@ const WardForm: React.FC<WardFormProps> = ({
             setError(null);
 
             const data: UpdateWardDto = {
+                wardNumber: parseInt(wardNumber),
+                zoneId: selectedZoneId ? Number(selectedZoneId) : undefined,
                 inspectorName: inspectorName.trim() || undefined,
                 inspectorSerialNumber: inspectorSerialNumber.trim() || undefined,
                 inspectorPhone: inspectorPhone.trim() || undefined,
@@ -95,25 +125,35 @@ const WardForm: React.FC<WardFormProps> = ({
                 )}
 
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-                    {/* Ward Number (Read-only) */}
+                    {/* Ward Number (Editable) */}
                     <TextField
                         fullWidth
                         label="Ward Number"
-                        value={`Ward ${ward.wardNumber}`}
-                        disabled
+                        value={wardNumber}
+                        onChange={(e) => setWardNumber(e.target.value)}
+                        disabled={loading}
                         variant="outlined"
+                        type="number"
+                        helperText="Ensure this Ward Number is unique within the City Corporation"
                     />
 
-                    {/* Zone Information (Read-only) */}
-                    {ward.zone && (
-                        <TextField
-                            fullWidth
+                    {/* Zone Selection (Editable) */}
+                    <FormControl fullWidth variant="outlined">
+                        <InputLabel id="zone-select-label">Zone</InputLabel>
+                        <Select
+                            labelId="zone-select-label"
+                            value={selectedZoneId}
+                            onChange={(e) => setSelectedZoneId(e.target.value)}
                             label="Zone"
-                            value={`Zone ${ward.zone.zoneNumber} - ${ward.zone.name || `Zone ${ward.zone.zoneNumber}`}`}
-                            disabled
-                            variant="outlined"
-                        />
-                    )}
+                            disabled={loading || loadingZones}
+                        >
+                            {availableZones.map((zone) => (
+                                <MenuItem key={zone.id} value={zone.id}>
+                                    {`Zone ${zone.zoneNumber}${zone.name ? ` - ${zone.name}` : ''}`}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
 
                     {/* Inspector Information Section */}
                     <Box sx={{ mt: 1 }}>

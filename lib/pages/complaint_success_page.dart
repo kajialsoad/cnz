@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import '../models/complaint.dart';
 
 class ComplaintSuccessPage extends StatefulWidget {
   const ComplaintSuccessPage({super.key});
@@ -120,6 +121,9 @@ class _ComplaintSuccessPageState extends State<ComplaintSuccessPage> {
   }
 
   Widget _buildOfficerCard() {
+    // Get complaint from arguments
+    final complaint = ModalRoute.of(context)!.settings.arguments as Complaint?;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -136,9 +140,9 @@ class _ComplaintSuccessPageState extends State<ComplaintSuccessPage> {
       ),
       child: Column(
         children: [
-          // Assigned Officer Title
+          // Ward Inspector Title
           Text(
-            'Assigned Officer',
+            'Ward Inspector',
             style: TextStyle(
               color: Colors.grey[600],
               fontSize: 14,
@@ -173,9 +177,9 @@ class _ComplaintSuccessPageState extends State<ComplaintSuccessPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Md. Kamal Hossain',
-                      style: TextStyle(
+                    Text(
+                      complaint?.ward?['inspectorName'] ?? 'Ward Inspector',
+                      style: const TextStyle(
                         color: Colors.black87,
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
@@ -183,7 +187,9 @@ class _ComplaintSuccessPageState extends State<ComplaintSuccessPage> {
                     ),
                     const SizedBox(height: 1),
                     Text(
-                      'Waste Management Officer',
+                      complaint?.ward != null
+                          ? 'Ward ${complaint!.ward!['wardNumber'] ?? complaint!.ward!['number'] ?? ''}'
+                          : 'Ward Inspector',
                       style: TextStyle(
                         color: Colors.grey[600],
                         fontSize: 12,
@@ -199,10 +205,76 @@ class _ComplaintSuccessPageState extends State<ComplaintSuccessPage> {
           const SizedBox(height: 16),
           
           // Contact Information
-          Column(
-            children: [
-              // Phone Number
-              Row(
+          if (complaint?.ward != null) ...[ 
+            Column(
+              children: [
+                // Phone Number
+                if (complaint!.ward!['inspectorPhone'] != null)
+                  Row(
+                    children: [
+                      Container(
+                        width: 22,
+                        height: 22,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF4CAF50).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                        child: const Icon(
+                          Icons.phone,
+                          color: Color(0xFF4CAF50),
+                          size: 13,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        complaint!.ward!['inspectorPhone'] ?? 'N/A',
+                        style: TextStyle(
+                          color: Colors.grey[700],
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                
+                const SizedBox(height: 10),
+                
+                // Location
+                Row(
+                  children: [
+                    Container(
+                      width: 22,
+                      height: 22,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF4CAF50).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                      child: const Icon(
+                        Icons.location_on,
+                        color: Color(0xFF4CAF50),
+                        size: 13,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        complaint!.geographicalInfo.isNotEmpty
+                            ? complaint!.geographicalInfo
+                            : complaint!.location,
+                        style: TextStyle(
+                          color: Colors.grey[700],
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ] else ...[ 
+             Row(
                 children: [
                   Container(
                     width: 22,
@@ -212,54 +284,23 @@ class _ComplaintSuccessPageState extends State<ComplaintSuccessPage> {
                       borderRadius: BorderRadius.circular(5),
                     ),
                     child: const Icon(
-                      Icons.phone,
-                      color: Color(0xFF4CAF50),
+                      Icons.info_outline,
+                       color: Colors.orange,
                       size: 13,
                     ),
                   ),
                   const SizedBox(width: 10),
-                  Text(
-                    '+880 1712-345678',
+                  const Text(
+                    'Ward information not available',
                     style: TextStyle(
-                      color: Colors.grey[700],
+                      color: Colors.grey,
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
               ),
-              
-              const SizedBox(height: 10),
-              
-              // Location
-              Row(
-                children: [
-                  Container(
-                    width: 22,
-                    height: 22,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF4CAF50).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(5),
-                    ),
-                    child: const Icon(
-                      Icons.location_on,
-                      color: Color(0xFF4CAF50),
-                      size: 13,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    'Ward 12, DSCC',
-                    style: TextStyle(
-                      color: Colors.grey[700],
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+          ],
           
           const SizedBox(height: 18),
           
@@ -336,10 +377,11 @@ class _ComplaintSuccessPageState extends State<ComplaintSuccessPage> {
   }
 
   Widget _buildComplaintId() {
+    final complaint = ModalRoute.of(context)!.settings.arguments as Complaint?;
     return Column(
       children: [
         Text(
-          'Complaint ID: #DSCC20241035',
+          complaint != null ? 'Complaint ID: #${complaint.id}' : 'Complaint ID: #...',
           style: TextStyle(
             color: Colors.white.withOpacity(0.9),
             fontSize: 14,

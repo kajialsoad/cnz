@@ -1,0 +1,113 @@
+VERIFICATION RESULTS:
+Found 10 matching Zones (1-10) in DSCC.
+
+Zone 1:
+  Officer Phone: ✅ 01711340046
+  Wards: 6/7 have Inspector Phone.
+    - Ward 15: 01675466878
+    - Ward 16: ❌ MISSING
+    - Ward 17: 01611554250
+    - Ward 18: 01772138537
+    - Ward 19: 01977713344
+    - Ward 20: 01681733689
+    - Ward 21: 01517024440
+
+Zone 2:
+  Officer Phone: ✅ 01709943638
+  Wards: 11/12 have Inspector Phone.
+    - Ward 1: 01869012646
+    - Ward 2: 01709946243
+    - Ward 3: 01778406605
+    - Ward 4: 01918120519
+    - Ward 5: 01677498983
+    - Ward 6: 01748883902
+    - Ward 7: ❌ MISSING
+    - Ward 8: 01709946253
+    - Ward 9: 01620883092
+    - Ward 10: 01671088408
+    - Ward 11: 01676086838
+    - Ward 12: 01787257075
+
+Zone 3:
+  Officer Phone: ✅ 01711697574
+  Wards: 7/12 have Inspector Phone.
+    - Ward 22: ❌ MISSING
+    - Ward 23: 01711227299
+    - Ward 24: 01911499623
+    - Ward 25: 01964274709
+    - Ward 26: 01860316903
+    - Ward 27: 01876481822
+    - Ward 28: 01685020006
+    - Ward 29: 01865067172
+    - Ward 30: ❌ MISSING
+    - Ward 33: ❌ MISSING
+    - Ward 34: ❌ MISSING
+    - Ward 37: ❌ MISSING
+
+Zone 4:
+  Officer Phone: ✅ 01817096005
+  Wards: 6/8 have Inspector Phone.
+    - Ward 31: 01758064332
+    - Ward 32: 01515240470
+    - Ward 35: 01787131546
+    - Ward 36: 01670730894
+    - Ward 38: ❌ MISSING
+    - Ward 39: ❌ MISSING
+    - Ward 42: 01993855628
+    - Ward 43: 01919456437
+
+Zone 5:
+  Officer Phone: ✅ 01709946275
+  Wards: 13/13 have Inspector Phone.
+    - Ward 40: 01521220924
+    - Ward 41: 01727103305
+    - Ward 44: 01581845056
+    - Ward 45: 01709946254
+    - Ward 46: 01515655915
+    - Ward 47: 01629766454
+    - Ward 48: 01685731204
+    - Ward 49: 01981344522
+    - Ward 50: 01777900104
+    - Ward 51: 01685678153
+    - Ward 52: 01720348939
+    - Ward 53: 01720348939
+    - Ward 54: 01968569958
+
+Zone 6:
+  Officer Phone: ✅ 01709946276
+  Wards: 2/3 have Inspector Phone.
+    - Ward 70: 01568354599
+    - Ward 74: 01677-455802
+    - Ward 78: ❌ MISSING
+
+Zone 7:
+  Officer Phone: ✅ 01709-946244
+  Wards: 0/3 have Inspector Phone.
+    - Ward 76: ❌ MISSING
+    - Ward 77: ❌ MISSING
+    - Ward 80: ❌ MISSING
+
+Zone 8:
+  Officer Phone: ✅ 01709-946244
+  Wards: 3/5 have Inspector Phone.
+    - Ward 13: ❌ MISSING
+    - Ward 66: 01688061933
+    - Ward 67: 01568631116
+    - Ward 68: 01843674399
+    - Ward 69: ❌ MISSING
+
+Zone 9:
+  Officer Phone: ✅ 01709946275
+  Wards: 1/4 have Inspector Phone.
+    - Ward 62: ❌ MISSING
+    - Ward 63: ❌ MISSING
+    - Ward 64: 01624062140
+    - Ward 65: ❌ MISSING
+
+Zone 10:
+  Officer Phone: ✅ 01709946275
+  Wards: 2/4 have Inspector Phone.
+    - Ward 55: ❌ MISSING
+    - Ward 56: ❌ MISSING
+    - Ward 60: 01675488074
+    - Ward 61: 01631313725
