@@ -174,6 +174,7 @@ export interface UpdateUserDto {
     role?: UserRole;
     status?: UserStatus;
     password?: string;
+    permissions?: any;
 }
 
 // Update status DTO

@@ -57,6 +57,10 @@ const updateStatusSchema = z.object({
     reason: z.string().optional(),
 });
 
+const bulkDeleteUserSchema = z.object({
+    userIds: z.array(z.number().int().positive()).min(1, 'At least one user ID is required'),
+});
+
 // Get all users with pagination and filters
 export async function getUsers(req: AuthRequest, res: Response) {
     try {
@@ -207,7 +211,8 @@ export async function createUser(req: AuthRequest, res: Response) {
         console.log('➕ Creating new user:', { ...req.body, password: '***' });
 
         // Validate request body
-        const data = createUserSchema.parse(req.body);
+        const rawData = createUserSchema.parse(req.body);
+        const data = { ...rawData, email: rawData.email?.toLowerCase() };
 
         // Get IP address and user agent for activity logging
         const ipAddress = req.ip || req.socket.remoteAddress;
@@ -267,7 +272,8 @@ export async function updateUser(req: AuthRequest, res: Response) {
         console.log('✏️ Updating user:', userId, req.body);
 
         // Validate request body
-        const data = updateUserSchema.parse(req.body);
+        const rawData = updateUserSchema.parse(req.body);
+        const data = { ...rawData, email: rawData.email?.toLowerCase() };
 
         // Get IP address and user agent for activity logging
         const ipAddress = req.ip || req.socket.remoteAddress;
@@ -471,6 +477,42 @@ export async function deleteUser(req: AuthRequest, res: Response) {
         return res.status(500).json({
             success: false,
             message: err?.message ?? 'Failed to delete user',
+        });
+    }
+}
+
+// Bulk delete users
+export async function bulkDeleteUsers(req: AuthRequest, res: Response) {
+    try {
+        console.log('🗑️ Bulk deleting users:', req.body);
+
+        const { userIds } = bulkDeleteUserSchema.parse(req.body);
+        const deletedBy = req.user?.id || 0;
+
+        // Get IP address and user agent for activity logging
+        const ipAddress = req.ip || req.socket.remoteAddress;
+        const userAgent = req.get('user-agent');
+
+        await adminUserService.bulkDeleteUsers(userIds, deletedBy, ipAddress, userAgent);
+
+        return res.status(200).json({
+            success: true,
+            message: 'Users deleted successfully',
+        });
+    } catch (err: any) {
+        console.error('❌ Error bulk deleting users:', err);
+
+        if (err instanceof z.ZodError) {
+            return res.status(400).json({
+                success: false,
+                message: 'Validation error',
+                errors: err.errors,
+            });
+        }
+
+        return res.status(500).json({
+            success: false,
+            message: err?.message ?? 'Failed to delete users',
         });
     }
 }

@@ -251,6 +251,14 @@ class SuperAdminService {
     }
 
     /**
+     * Bulk delete super admins (soft delete)
+     */
+    async bulkDeleteSuperAdmins(ids: number[]): Promise<void> {
+        await this.apiClient.post('/api/admin/users/bulk-delete', { userIds: ids });
+    }
+
+
+    /**
      * Assign zones to super admin
      */
 

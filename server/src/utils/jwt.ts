@@ -7,7 +7,7 @@ const prisma = new PrismaClient();
 export interface JwtPayload {
   id: number;
   sub: number;
-  role: 'ADMIN' | 'SUPER_ADMIN' | 'MASTER_ADMIN';
+  role: 'CUSTOMER' | 'SERVICE_PROVIDER' | 'ADMIN' | 'SUPER_ADMIN' | 'MASTER_ADMIN';
   email?: string;
   phone?: string;
   zoneId?: number | null;

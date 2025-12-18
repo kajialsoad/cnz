@@ -19,6 +19,11 @@ import {
   Divider,
   CircularProgress,
   Pagination,
+  Checkbox,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import MainLayout from '../../components/common/Layout/MainLayout';
 import SearchIcon from '@mui/icons-material/Search';
@@ -58,6 +63,8 @@ const StatCardSkeleton: React.FC<{ bg: string }> = ({ bg }) => (
 const SuperAdminManagement: React.FC = () => {
   const [openAdd, setOpenAdd] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [statusFilter, setStatusFilter] = useState<UserStatus | 'ALL'>(UserStatus.ACTIVE);
   const [selectedSuperAdmin, setSelectedSuperAdmin] = useState<SuperAdmin | null>(null);
   const [superAdmins, setSuperAdmins] = useState<SuperAdmin[]>([]);
   const [statistics, setStatistics] = useState<SuperAdminStatistics | null>(null);
@@ -76,6 +83,7 @@ const SuperAdminManagement: React.FC = () => {
         page,
         limit,
         search: query || undefined,
+        status: statusFilter === 'ALL' ? undefined : statusFilter,
       });
       setSuperAdmins(response.users);
       setTotalPages(response.pagination.totalPages);
@@ -85,7 +93,7 @@ const SuperAdminManagement: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, query]);
+  }, [page, query, statusFilter]);
 
   // Load statistics
   const loadStatistics = useCallback(async () => {
@@ -129,6 +137,55 @@ const SuperAdminManagement: React.FC = () => {
       toast.error(error.response?.data?.message || 'সুপার এডমিন মুছে ফেলতে ব্যর্থ');
     }
   };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+
+    if (!window.confirm(`আপনি কি নিশ্চিত যে আপনি নির্বাচিত ${selectedIds.length} জন সুপার এডমিনকে মুছে ফেলতে চান?`)) {
+      return;
+    }
+
+    try {
+      await superAdminService.bulkDeleteSuperAdmins(selectedIds);
+      toast.success('সুপার এডমিন সফলভাবে মুছে ফেলা হয়েছে');
+      setSelectedIds([]);
+      loadSuperAdmins();
+      loadStatistics();
+    } catch (error: any) {
+      console.error('Error deleting super admins:', error);
+      toast.error(error.response?.data?.message || 'সুপার এডমিন মুছে ফেলতে ব্যর্থ');
+    }
+  };
+
+  const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.checked) {
+      const newSelecteds = superAdmins.map((n) => n.id);
+      setSelectedIds(newSelecteds);
+      return;
+    }
+    setSelectedIds([]);
+  };
+
+  const handleSelectOne = (id: number) => {
+    const selectedIndex = selectedIds.indexOf(id);
+    let newSelected: number[] = [];
+
+    if (selectedIndex === -1) {
+      newSelected = newSelected.concat(selectedIds, id);
+    } else if (selectedIndex === 0) {
+      newSelected = newSelected.concat(selectedIds.slice(1));
+    } else if (selectedIndex === selectedIds.length - 1) {
+      newSelected = newSelected.concat(selectedIds.slice(0, -1));
+    } else if (selectedIndex > 0) {
+      newSelected = newSelected.concat(
+        selectedIds.slice(0, selectedIndex),
+        selectedIds.slice(selectedIndex + 1),
+      );
+    }
+
+    setSelectedIds(newSelected);
+  };
+
 
   const handleAddSuccess = () => {
     loadSuperAdmins();
@@ -215,6 +272,23 @@ const SuperAdminManagement: React.FC = () => {
                 }}
                 sx={{ maxWidth: 700 }}
               />
+              <FormControl size="small" sx={{ minWidth: 150 }}>
+                <InputLabel>স্ট্যাটাস</InputLabel>
+                <Select
+                  value={statusFilter}
+                  label="স্ট্যাটাস"
+                  onChange={(e) => {
+                    setStatusFilter(e.target.value as UserStatus | 'ALL');
+                    setPage(1);
+                  }}
+                >
+                  <MenuItem value="ALL">সকল</MenuItem>
+                  <MenuItem value={UserStatus.ACTIVE}>সক্রিয়</MenuItem>
+                  <MenuItem value={UserStatus.INACTIVE}>নিষ্ক্রিয়</MenuItem>
+                  <MenuItem value={UserStatus.PENDING}>অপেক্ষমান</MenuItem>
+                  <MenuItem value={UserStatus.SUSPENDED}>স্থগিত</MenuItem>
+                </Select>
+              </FormControl>
               <Button
                 variant="contained"
                 sx={{ bgcolor: '#3fa564', whiteSpace: 'nowrap' }}
@@ -223,6 +297,16 @@ const SuperAdminManagement: React.FC = () => {
               >
                 নতুন সুপার এডমিন যোগ করুন
               </Button>
+              {selectedIds.length > 0 && (
+                <Button
+                  variant="outlined"
+                  color="error"
+                  startIcon={<DeleteOutline />}
+                  onClick={handleBulkDelete}
+                >
+                  মুছে ফেলুন ({selectedIds.length})
+                </Button>
+              )}
             </CardContent>
           </Card>
 
@@ -245,7 +329,12 @@ const SuperAdminManagement: React.FC = () => {
             <>
               <Card sx={{ borderRadius: 2, boxShadow: '0px 1px 3px 0px #0000001a, 0px 1px 2px -1px #0000001a' }}>
                 <Box sx={{ bgcolor: '#f9fafb', borderBottom: '1px solid #e5e7eb', px: 3, py: 1.5 }}>
-                  <Box sx={{ display: 'grid', gridTemplateColumns: '30% 20% 15% 15% 20%', gap: 2 }}>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: '50px 30% 20% 15% 15% 1fr', gap: 2, alignItems: 'center' }}>
+                    <Checkbox
+                      indeterminate={selectedIds.length > 0 && selectedIds.length < superAdmins.length}
+                      checked={superAdmins.length > 0 && selectedIds.length === superAdmins.length}
+                      onChange={handleSelectAll}
+                    />
                     <Typography sx={{ color: '#364153', fontWeight: 700, fontSize: 14 }}>সুপার এডমিন</Typography>
                     <Typography sx={{ color: '#364153', fontWeight: 700, fontSize: 14 }}>এলাকা ও জোন</Typography>
                     <Typography sx={{ color: '#364153', fontWeight: 700, fontSize: 14 }}>নিয়ন্ত্রণ</Typography>
@@ -256,118 +345,131 @@ const SuperAdminManagement: React.FC = () => {
                 <CardContent sx={{ px: 0 }}>
                   <Table>
                     <TableBody>
-                      {superAdmins.map((admin) => (
-                        <TableRow key={admin.id} hover>
-                          <TableCell sx={{ width: '30%' }}>
-                            <Stack direction="row" spacing={1.5} alignItems="center">
-                              <Avatar sx={{ bgcolor: '#2b7fff' }}>
-                                {admin.avatar ? (
-                                  <img src={admin.avatar} alt={admin.firstName} style={{ width: '100%', height: '100%' }} />
-                                ) : (
-                                  admin.firstName.charAt(0).toUpperCase()
-                                )}
-                              </Avatar>
-                              <Box>
-                                <Typography sx={{ fontSize: 16, fontWeight: 700 }}>
-                                  {admin.firstName} {admin.lastName}
-                                </Typography>
-                                <Typography sx={{ fontSize: 14, color: '#4a5565' }}>{admin.phone}</Typography>
-                              </Box>
-                            </Stack>
-                          </TableCell>
-                          <TableCell sx={{ width: '20%' }}>
-                            <Typography sx={{ fontSize: 14, color: '#1e2939', fontWeight: 600 }}>
-                              {admin.cityCorporation?.name || 'N/A'}
-                            </Typography>
-                            {admin.assignedZones && admin.assignedZones.length > 0 ? (
-                              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
-                                {admin.assignedZones.map((az) => (
-                                  <Chip
-                                    key={az.zone.id}
-                                    label={az.zone.name}
-                                    size="small"
-                                    sx={{ fontSize: '0.7rem', height: 20 }}
-                                  />
-                                ))}
-                              </Box>
-                            ) : (
-                              <Box>
-                                <Typography sx={{ fontSize: 13, color: '#4a5565', fontWeight: 600 }}>
-                                  {admin.zone ? `🏢 ${admin.zone.name}` : '⚠️ জোন নির্ধারিত নেই'}
-                                </Typography>
-                                {admin.zone && (
-                                  <Typography sx={{ fontSize: 12, color: '#6b7280' }}>
-                                    জোন নং: {admin.zone.zoneNumber || 'N/A'}
-                                  </Typography>
-                                )}
-                              </Box>
-                            )}
-                          </TableCell>
-                          <TableCell sx={{ width: '15%' }}>
-                            <Stack spacing={0.5}>
-                              {admin.zone || (admin.assignedZones && admin.assignedZones.length > 0) ? (
-                                <>
-                                  <Typography sx={{ fontSize: 13, color: '#059669', fontWeight: 600 }}>
-                                    ✓ জোন অফিসার
-                                  </Typography>
-                                  <Typography sx={{ fontSize: 12, color: '#4a5565' }}>
-                                    👥 এডমিন ম্যানেজ করে
-                                  </Typography>
-                                  <Typography sx={{ fontSize: 12, color: '#4a5565' }}>
-                                    📍 ওয়ার্ড দেখতে পারে
-                                  </Typography>
-                                </>
-                              ) : (
-                                <Typography sx={{ fontSize: 13, color: '#dc2626' }}>
-                                  ⚠️ জোন assign করুন
-                                </Typography>
-                              )}
-                            </Stack>
-                          </TableCell>
-                          <TableCell sx={{ width: '15%' }}>
-                            <Stack direction="row" spacing={1} alignItems="center">
-                              <Chip
-                                label={admin.status === UserStatus.ACTIVE ? 'সক্রিয়' : 'নিষ্ক্রিয়'}
-                                size="small"
-                                sx={{
-                                  bgcolor: admin.status === UserStatus.ACTIVE ? '#dcfce7' : '#fef2f2',
-                                  color: admin.status === UserStatus.ACTIVE ? '#008236' : '#e7000b',
-                                }}
+                      {superAdmins.map((admin) => {
+                        const isItemSelected = selectedIds.indexOf(admin.id) !== -1;
+                        return (
+                          <TableRow
+                            key={admin.id}
+                            hover
+                            selected={isItemSelected}
+                          >
+                            <TableCell padding="checkbox" sx={{ width: '50px' }}>
+                              <Checkbox
+                                checked={isItemSelected}
+                                onChange={() => handleSelectOne(admin.id)}
                               />
-                            </Stack>
-                          </TableCell>
-                          <TableCell sx={{ width: '20%' }}>
-                            <Stack direction="row" spacing={2} alignItems="center">
-                              <Stack>
-                                <Typography sx={{ fontSize: 14, color: '#1e2939', fontWeight: 700 }}>
-                                  মোট: {admin.statistics.totalComplaints}
-                                </Typography>
-                                <Stack direction="row" spacing={2}>
-                                  <Typography sx={{ fontSize: 12, color: '#00a63e' }}>
-                                    সমাধান: {admin.statistics.resolvedComplaints}
+                            </TableCell>
+                            <TableCell sx={{ width: '30%' }}>
+                              <Stack direction="row" spacing={1.5} alignItems="center">
+                                <Avatar sx={{ bgcolor: '#2b7fff' }}>
+                                  {admin.avatar ? (
+                                    <img src={admin.avatar} alt={admin.firstName} style={{ width: '100%', height: '100%' }} />
+                                  ) : (
+                                    admin.firstName.charAt(0).toUpperCase()
+                                  )}
+                                </Avatar>
+                                <Box>
+                                  <Typography sx={{ fontSize: 16, fontWeight: 700 }}>
+                                    {admin.firstName} {admin.lastName}
                                   </Typography>
-                                  <Typography sx={{ fontSize: 12, color: '#d08700' }}>
-                                    পেন্ডিং: {admin.statistics.pendingComplaints}
+                                  <Typography sx={{ fontSize: 14, color: '#4a5565' }}>{admin.phone}</Typography>
+                                </Box>
+                              </Stack>
+                            </TableCell>
+                            <TableCell sx={{ width: '20%' }}>
+                              <Typography sx={{ fontSize: 14, color: '#1e2939', fontWeight: 600 }}>
+                                {admin.cityCorporation?.name || 'N/A'}
+                              </Typography>
+                              {admin.assignedZones && admin.assignedZones.length > 0 ? (
+                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
+                                  {admin.assignedZones.map((az) => (
+                                    <Chip
+                                      key={az.zone.id}
+                                      label={az.zone.name}
+                                      size="small"
+                                      sx={{ fontSize: '0.7rem', height: 20 }}
+                                    />
+                                  ))}
+                                </Box>
+                              ) : (
+                                <Box>
+                                  <Typography sx={{ fontSize: 13, color: '#4a5565', fontWeight: 600 }}>
+                                    {admin.zone ? `🏢 ${admin.zone.name}` : '⚠️ জোন নির্ধারিত নেই'}
                                   </Typography>
+                                  {admin.zone && (
+                                    <Typography sx={{ fontSize: 12, color: '#6b7280' }}>
+                                      জোন নং: {admin.zone.zoneNumber || 'N/A'}
+                                    </Typography>
+                                  )}
+                                </Box>
+                              )}
+                            </TableCell>
+                            <TableCell sx={{ width: '15%' }}>
+                              <Stack spacing={0.5}>
+                                {admin.zone || (admin.assignedZones && admin.assignedZones.length > 0) ? (
+                                  <>
+                                    <Typography sx={{ fontSize: 13, color: '#059669', fontWeight: 600 }}>
+                                      ✓ জোন অফিসার
+                                    </Typography>
+                                    <Typography sx={{ fontSize: 12, color: '#4a5565' }}>
+                                      👥 এডমিন ম্যানেজ করে
+                                    </Typography>
+                                    <Typography sx={{ fontSize: 12, color: '#4a5565' }}>
+                                      📍 ওয়ার্ড দেখতে পারে
+                                    </Typography>
+                                  </>
+                                ) : (
+                                  <Typography sx={{ fontSize: 13, color: '#dc2626' }}>
+                                    ⚠️ জোন assign করুন
+                                  </Typography>
+                                )}
+                              </Stack>
+                            </TableCell>
+                            <TableCell sx={{ width: '15%' }}>
+                              <Stack direction="row" spacing={1} alignItems="center">
+                                <Chip
+                                  label={admin.status === UserStatus.ACTIVE ? 'সক্রিয়' : 'নিষ্ক্রিয়'}
+                                  size="small"
+                                  sx={{
+                                    bgcolor: admin.status === UserStatus.ACTIVE ? '#dcfce7' : '#fef2f2',
+                                    color: admin.status === UserStatus.ACTIVE ? '#008236' : '#e7000b',
+                                  }}
+                                />
+                              </Stack>
+                            </TableCell>
+                            <TableCell sx={{ width: '20%' }}>
+                              <Stack direction="row" spacing={2} alignItems="center">
+                                <Stack>
+                                  <Typography sx={{ fontSize: 14, color: '#1e2939', fontWeight: 700 }}>
+                                    মোট: {admin.statistics.totalComplaints}
+                                  </Typography>
+                                  <Stack direction="row" spacing={2}>
+                                    <Typography sx={{ fontSize: 12, color: '#00a63e' }}>
+                                      সমাধান: {admin.statistics.resolvedComplaints}
+                                    </Typography>
+                                    <Typography sx={{ fontSize: 12, color: '#d08700' }}>
+                                      পেন্ডিং: {admin.statistics.pendingComplaints}
+                                    </Typography>
+                                  </Stack>
+                                </Stack>
+                                <Divider orientation="vertical" flexItem />
+                                <Stack direction="row" spacing={1}>
+                                  <IconButton size="small" onClick={() => handleEdit(admin)}>
+                                    <EditOutlined />
+                                  </IconButton>
+                                  <IconButton
+                                    size="small"
+                                    color="error"
+                                    onClick={() => handleDelete(admin.id, `${admin.firstName} ${admin.lastName}`)}
+                                  >
+                                    <DeleteOutline />
+                                  </IconButton>
                                 </Stack>
                               </Stack>
-                              <Divider orientation="vertical" flexItem />
-                              <Stack direction="row" spacing={1}>
-                                <IconButton size="small" onClick={() => handleEdit(admin)}>
-                                  <EditOutlined />
-                                </IconButton>
-                                <IconButton
-                                  size="small"
-                                  color="error"
-                                  onClick={() => handleDelete(admin.id, `${admin.firstName} ${admin.lastName}`)}
-                                >
-                                  <DeleteOutline />
-                                </IconButton>
-                              </Stack>
-                            </Stack>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                     <TableHead sx={{ display: 'none' }}>
                       <TableRow>

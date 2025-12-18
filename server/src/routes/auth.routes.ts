@@ -24,7 +24,31 @@ router.post('/register', registrationRateLimiter, async (req, res) => {
   try {
     console.log('Register endpoint hit with body:', req.body);
     const value = validateInput(registerSchema, req.body);
-    console.log('Validation passed, value object:', value);
+    console.log('Validation passed. resolving names for logging...');
+
+    // Helper to fetch names for better logging
+    if (value.zoneId || value.wardId) {
+      try {
+        const { PrismaClient } = require('@prisma/client');
+        // Note: In a real app we might reuse the global prisma instance, 
+        // but here we just want a quick lookup for logging without refactoring imports significantly if not needed.
+        // Better to use req.prisma if available.
+        const prisma = req.prisma;
+        if (prisma) {
+          const zone = value.zoneId ? await prisma.zone.findUnique({ where: { id: value.zoneId } }) : null;
+          const ward = value.wardId ? await prisma.ward.findUnique({ where: { id: value.wardId } }) : null;
+          console.log('------------------------------------------------');
+          console.log('Registration Request Details:');
+          console.log(`User: ${value.firstName} ${value.lastName} (${value.phone})`);
+          console.log(`Zone: ${zone ? `${zone.name} (ID: ${zone.id})` : value.zoneId}`);
+          console.log(`Ward: ${ward ? `Ward ${ward.wardNumber} (ID: ${ward.id})` : value.wardId}`);
+          console.log('------------------------------------------------');
+        }
+      } catch (e) {
+        console.log('Error resolving names for log:', e);
+      }
+    }
+
     console.log('Calling authService.register');
     const result = await authService.register(value);
     console.log('Registration result:', result);

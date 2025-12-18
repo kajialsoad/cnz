@@ -8,7 +8,7 @@ class ApiConfig {
   
   // Local development URLs
   static String get localWebUrl => 
-    dotenv.env['LOCAL_WEB_URL'] ?? 'http://localhost:4000';
+    dotenv.env['LOCAL_WEB_URL'] ?? 'http://127.0.0.1:4000';
   static String get localAndroidUrl => 
     dotenv.env['LOCAL_ANDROID_URL'] ?? 'http://192.168.0.100:4000';
   static String get localIosUrl => 

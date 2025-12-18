@@ -58,6 +58,12 @@ app.use(securityHeaders); // Additional security headers
 app.use(noSqlInjectionPrevention); // NoSQL injection prevention
 app.use(parameterPollutionPrevention); // HTTP parameter pollution prevention
 
+// Debug logging
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} | Origin: ${req.headers.origin}`);
+  next();
+});
+
 // Global IP-based rate limiting - 1000 requests per minute per IP
 // Requirements: 12.18
 app.use('/api', ipRateLimit(1000, 60 * 1000));

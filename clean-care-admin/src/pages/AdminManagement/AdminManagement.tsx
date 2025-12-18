@@ -31,6 +31,7 @@ import {
   CircularProgress,
   TableContainer,
   Paper,
+  Checkbox,
 } from '@mui/material';
 import MainLayout from '../../components/common/Layout/MainLayout';
 import SearchIcon from '@mui/icons-material/Search';
@@ -48,6 +49,7 @@ import { cityCorporationService } from '../../services/cityCorporationService';
 import { zoneService } from '../../services/zoneService';
 import { wardService } from '../../services/wardService';
 import type { UserWithStats, GetUsersQuery } from '../../types/userManagement.types';
+import { UserStatus } from '../../types/userManagement.types';
 import AdminAddModal from '../../components/AdminManagement/AdminAddModal';
 import AdminEditModal from '../../components/AdminManagement/AdminEditModal';
 import AdminDetailsModal from '../../components/AdminManagement/AdminDetailsModal';
@@ -123,6 +125,8 @@ const AdminManagement: React.FC = () => {
   const [openDelete, setOpenDelete] = useState(false);
   const [openDetails, setOpenDetails] = useState(false);
   const [selectedAdmin, setSelectedAdmin] = useState<UserWithStats | null>(null);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [statusFilter, setStatusFilter] = useState<UserStatus | 'ALL'>(UserStatus.ACTIVE);
 
   // Dropdowns data
   const [cityCorporations, setCityCorporations] = useState<CityCorporation[]>([]);
@@ -200,6 +204,7 @@ const AdminManagement: React.FC = () => {
         search: searchQuery || undefined,
         cityCorporationCode: cityCorporationFilter || undefined,
         zoneId: zoneFilter || undefined,
+        status: statusFilter === 'ALL' ? undefined : statusFilter,
       };
 
       console.log('🔍 Admin Management Query:', query);
@@ -215,7 +220,7 @@ const AdminManagement: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, searchQuery, cityCorporationFilter, zoneFilter]);
+  }, [page, searchQuery, cityCorporationFilter, zoneFilter, statusFilter]);
 
   // Fetch statistics
   const fetchStatistics = useCallback(async () => {
@@ -285,6 +290,54 @@ const AdminManagement: React.FC = () => {
       toast.error(error.message || 'Failed to delete admin');
     }
   };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+
+    if (!window.confirm(`Are you sure you want to delete ${selectedIds.length} users?`)) {
+      return;
+    }
+
+    try {
+      await userManagementService.bulkDeleteUsers(selectedIds);
+      toast.success('Users deleted successfully');
+      setSelectedIds([]);
+      fetchAdmins();
+      fetchStatistics();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to delete users');
+    }
+  };
+
+  const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.checked) {
+      const newSelecteds = admins.map((n) => n.id);
+      setSelectedIds(newSelecteds);
+      return;
+    }
+    setSelectedIds([]);
+  };
+
+  const handleSelectOne = (id: number) => {
+    const selectedIndex = selectedIds.indexOf(id);
+    let newSelected: number[] = [];
+
+    if (selectedIndex === -1) {
+      newSelected = newSelected.concat(selectedIds, id);
+    } else if (selectedIndex === 0) {
+      newSelected = newSelected.concat(selectedIds.slice(1));
+    } else if (selectedIndex === selectedIds.length - 1) {
+      newSelected = newSelected.concat(selectedIds.slice(0, -1));
+    } else if (selectedIndex > 0) {
+      newSelected = newSelected.concat(
+        selectedIds.slice(0, selectedIndex),
+        selectedIds.slice(selectedIndex + 1),
+      );
+    }
+
+    setSelectedIds(newSelected);
+  };
+
 
   // Check if user has access to this page
   const hasAccess = userRole === 'MASTER_ADMIN' || userRole === 'SUPER_ADMIN';
@@ -396,6 +449,24 @@ const AdminManagement: React.FC = () => {
               />
             </Box>
 
+            <FormControl sx={{ minWidth: 150 }} size="small">
+              <InputLabel>Status</InputLabel>
+              <Select
+                value={statusFilter}
+                label="Status"
+                onChange={(e) => {
+                  setStatusFilter(e.target.value as UserStatus | 'ALL');
+                  setPage(1);
+                }}
+              >
+                <MenuItem value="ALL">All</MenuItem>
+                <MenuItem value={UserStatus.ACTIVE}>Active</MenuItem>
+                <MenuItem value={UserStatus.INACTIVE}>Inactive</MenuItem>
+                <MenuItem value={UserStatus.PENDING}>Pending</MenuItem>
+                <MenuItem value={UserStatus.SUSPENDED}>Suspended</MenuItem>
+              </Select>
+            </FormControl>
+
             <TextField
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -424,9 +495,28 @@ const AdminManagement: React.FC = () => {
 
         {/* Admin Table */}
         <Card sx={{ borderRadius: 2, boxShadow: '0px 1px 3px 0px #0000001a, 0px 1px 2px -1px #0000001a' }}>
+          <Box sx={{ width: '100%', p: 2, display: 'flex', justifyContent: 'flex-end' }}>
+            {selectedIds.length > 0 && (
+              <Button
+                variant="outlined"
+                color="error"
+                onClick={handleBulkDelete}
+                startIcon={<DeleteOutline />}
+              >
+                Delete Selected ({selectedIds.length})
+              </Button>
+            )}
+          </Box>
           <Box sx={{ bgcolor: '#f9fafb', borderBottom: '1px solid #e5e7eb', px: 3, py: 1.5 }}>
-            <Grid container>
-              <Grid item xs={4}>
+            <Grid container alignItems="center">
+              <Grid item xs={1} sx={{ maxWidth: '50px', flexBasis: '50px' }}>
+                <Checkbox
+                  indeterminate={selectedIds.length > 0 && selectedIds.length < admins.length}
+                  checked={admins.length > 0 && selectedIds.length === admins.length}
+                  onChange={handleSelectAll}
+                />
+              </Grid>
+              <Grid item xs={3}>
                 <Typography sx={{ color: '#364153', fontWeight: 700, fontSize: 14 }}>
                   এডমিন
                 </Typography>
@@ -472,130 +562,140 @@ const AdminManagement: React.FC = () => {
               <TableContainer>
                 <Table>
                   <TableBody>
-                    {admins.map((admin) => (
-                      <TableRow key={admin.id} hover>
-                        <TableCell sx={{ width: '35%' }}>
-                          <Stack direction="row" spacing={1.5} alignItems="center">
-                            <Avatar sx={{ bgcolor: '#2b7fff' }}>
-                              {admin.firstName.charAt(0)}
-                            </Avatar>
-                            <Box>
-                              <Typography sx={{ fontSize: 16, fontWeight: 700 }}>
-                                {admin.firstName} {admin.lastName}
-                              </Typography>
-                              <Typography sx={{ fontSize: 14, color: '#4a5565' }}>
-                                {admin.phone}
-                              </Typography>
-                            </Box>
-                          </Stack>
-                        </TableCell>
-                        <TableCell sx={{ width: '25%' }}>
-                          <Stack spacing={0.5}>
-                            <Typography sx={{ fontSize: 16, color: '#1e2939' }}>
-                              {admin.cityCorporation?.name || 'N/A'}
-                            </Typography>
-                            <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap sx={{ mt: 0.5 }}>
-                              {admin.zone ? (
-                                <Chip
-                                  label={admin.zone.name}
-                                  size="small"
-                                  variant="outlined"
-                                  color="primary"
-                                  sx={{ height: 24 }}
-                                />
-                              ) : null}
-                              {admin.ward ? (
-                                <Chip
-                                  label={`Ward ${admin.ward.wardNumber}`}
-                                  size="small"
-                                  variant="outlined"
-                                  sx={{ height: 24 }}
-                                />
-                              ) : null}
-                              {!admin.zone && !admin.ward && (
-                                <Typography variant="caption" color="text.secondary">
-                                  N/A
-                                </Typography>
-                              )}
-                            </Stack>
-                          </Stack>
-                        </TableCell>
-                        <TableCell sx={{ width: '20%' }}>
-                          <Stack direction="row" spacing={1} alignItems="center">
-                            <Chip
-                              label={admin.status === 'ACTIVE' ? 'সক্রিয়' : 'নিষ্ক্রিয়'}
-                              size="small"
-                              sx={{
-                                bgcolor: admin.status === 'ACTIVE' ? '#dcfce7' : '#fee2e2',
-                                color: admin.status === 'ACTIVE' ? '#008236' : '#dc2626'
-                              }}
+                    {admins.map((admin) => {
+                      const isItemSelected = selectedIds.indexOf(admin.id) !== -1;
+                      return (
+                        <TableRow key={admin.id} hover selected={isItemSelected}>
+                          <TableCell padding="checkbox" sx={{ width: '50px' }}>
+                            <Checkbox
+                              checked={isItemSelected}
+                              onChange={() => handleSelectOne(admin.id)}
                             />
-                            <Typography sx={{ fontSize: 12, color: '#6a7282' }}>
-                              অফলাইন
-                            </Typography>
-                          </Stack>
-                        </TableCell>
-                        <TableCell sx={{ width: '20%' }}>
-                          <Stack direction="row" spacing={2} alignItems="center">
-                            <Stack>
-                              <Typography sx={{ fontSize: 14, color: '#1e2939', fontWeight: 700 }}>
-                                মোট: {admin.statistics.totalComplaints}
+                          </TableCell>
+                          <TableCell sx={{ width: '35%' }}>
+                            <Stack direction="row" spacing={1.5} alignItems="center">
+                              <Avatar sx={{ bgcolor: '#2b7fff' }}>
+                                {admin.firstName.charAt(0)}
+                              </Avatar>
+                              <Box>
+                                <Typography sx={{ fontSize: 16, fontWeight: 700 }}>
+                                  {admin.firstName} {admin.lastName}
+                                </Typography>
+                                <Typography sx={{ fontSize: 14, color: '#4a5565' }}>
+                                  {admin.phone}
+                                </Typography>
+                              </Box>
+                            </Stack>
+                          </TableCell>
+                          <TableCell sx={{ width: '25%' }}>
+                            <Stack spacing={0.5}>
+                              <Typography sx={{ fontSize: 16, color: '#1e2939' }}>
+                                {admin.cityCorporation?.name || 'N/A'}
                               </Typography>
-                              <Stack direction="row" spacing={2}>
-                                <Typography sx={{ fontSize: 12, color: '#00a63e' }}>
-                                  সমাধান: {admin.statistics.resolvedComplaints}
-                                </Typography>
-                                <Typography sx={{ fontSize: 12, color: '#d08700' }}>
-                                  পেন্ডিং: {admin.statistics.pendingComplaints}
-                                </Typography>
+                              <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap sx={{ mt: 0.5 }}>
+                                {admin.zone ? (
+                                  <Chip
+                                    label={admin.zone.name}
+                                    size="small"
+                                    variant="outlined"
+                                    color="primary"
+                                    sx={{ height: 24 }}
+                                  />
+                                ) : null}
+                                {admin.ward ? (
+                                  <Chip
+                                    label={`Ward ${admin.ward.wardNumber}`}
+                                    size="small"
+                                    variant="outlined"
+                                    sx={{ height: 24 }}
+                                  />
+                                ) : null}
+                                {!admin.zone && !admin.ward && (
+                                  <Typography variant="caption" color="text.secondary">
+                                    N/A
+                                  </Typography>
+                                )}
                               </Stack>
                             </Stack>
-                            <Divider orientation="vertical" flexItem />
-                            <Stack direction="row" spacing={1}>
-                              <IconButton
+                          </TableCell>
+                          <TableCell sx={{ width: '20%' }}>
+                            <Stack direction="row" spacing={1} alignItems="center">
+                              <Chip
+                                label={admin.status === 'ACTIVE' ? 'সক্রিয়' : 'নিষ্ক্রিয়'}
                                 size="small"
-                                color="primary"
-                                onClick={() => {
-                                  toast('Direct messaging coming soon!', {
-                                    icon: '💬',
-                                  });
+                                sx={{
+                                  bgcolor: admin.status === 'ACTIVE' ? '#dcfce7' : '#fee2e2',
+                                  color: admin.status === 'ACTIVE' ? '#008236' : '#dc2626'
                                 }}
-                              >
-                                <ChatBubbleOutline />
-                              </IconButton>
-                              <IconButton
-                                size="small"
-                                onClick={() => {
-                                  setSelectedAdmin(admin);
-                                  setOpenDetails(true);
-                                }}
-                              >
-                                <VisibilityOutlined />
-                              </IconButton>
-                              <IconButton
-                                size="small"
-                                onClick={() => {
-                                  setSelectedAdmin(admin);
-                                  setOpenEdit(true);
-                                }}
-                              >
-                                <EditOutlined />
-                              </IconButton>
-                              <IconButton
-                                size="small"
-                                color="error"
-                                onClick={() => {
-                                  setSelectedAdmin(admin);
-                                  setOpenDelete(true);
-                                }}
-                              >
-                                <DeleteOutline />
-                              </IconButton>
+                              />
+                              <Typography sx={{ fontSize: 12, color: '#6a7282' }}>
+                                অফলাইন
+                              </Typography>
                             </Stack>
-                          </Stack>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                          </TableCell>
+                          <TableCell sx={{ width: '20%' }}>
+                            <Stack direction="row" spacing={2} alignItems="center">
+                              <Stack>
+                                <Typography sx={{ fontSize: 14, color: '#1e2939', fontWeight: 700 }}>
+                                  মোট: {admin.statistics.totalComplaints}
+                                </Typography>
+                                <Stack direction="row" spacing={2}>
+                                  <Typography sx={{ fontSize: 12, color: '#00a63e' }}>
+                                    সমাধান: {admin.statistics.resolvedComplaints}
+                                  </Typography>
+                                  <Typography sx={{ fontSize: 12, color: '#d08700' }}>
+                                    পেন্ডিং: {admin.statistics.pendingComplaints}
+                                  </Typography>
+                                </Stack>
+                              </Stack>
+                              <Divider orientation="vertical" flexItem />
+                              <Stack direction="row" spacing={1}>
+                                <IconButton
+                                  size="small"
+                                  color="primary"
+                                  onClick={() => {
+                                    toast('Direct messaging coming soon!', {
+                                      icon: '💬',
+                                    });
+                                  }}
+                                >
+                                  <ChatBubbleOutline />
+                                </IconButton>
+                                <IconButton
+                                  size="small"
+                                  onClick={() => {
+                                    setSelectedAdmin(admin);
+                                    setOpenDetails(true);
+                                  }}
+                                >
+                                  <VisibilityOutlined />
+                                </IconButton>
+                                <IconButton
+                                  size="small"
+                                  onClick={() => {
+                                    setSelectedAdmin(admin);
+                                    setOpenEdit(true);
+                                  }}
+                                >
+                                  <EditOutlined />
+                                </IconButton>
+                                <IconButton
+                                  size="small"
+                                  color="error"
+                                  onClick={() => {
+                                    setSelectedAdmin(admin);
+                                    setOpenDelete(true);
+                                  }}
+                                >
+                                  <DeleteOutline />
+                                </IconButton>
+                              </Stack>
+                            </Stack>
+                          </TableCell>
+
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </TableContainer>
@@ -667,7 +767,7 @@ const AdminManagement: React.FC = () => {
           </DialogActions>
         </Dialog>
       </Stack>
-    </MainLayout>
+    </MainLayout >
   );
 };
 

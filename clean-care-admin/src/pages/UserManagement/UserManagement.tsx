@@ -24,6 +24,7 @@ import {
   FormControl,
   InputLabel,
   CircularProgress,
+  Checkbox,
 } from '@mui/material';
 import {
   PersonAdd as PersonAddIcon,
@@ -57,9 +58,9 @@ import type {
   UserWithStats,
   UserStatisticsResponse,
   CreateUserDto,
-  UpdateUserDto,
-  UserStatus
+  UpdateUserDto
 } from '../../types/userManagement.types';
+import { UserStatus } from '../../types/userManagement.types';
 
 interface ToastState {
   open: boolean;
@@ -76,7 +77,6 @@ const UserManagement: React.FC = () => {
   // State for search and filters
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<UserStatus | 'ALL'>('ALL');
 
   // State for city corporation filters
   const [cityCorporations, setCityCorporations] = useState<CityCorporation[]>([]);
@@ -101,6 +101,8 @@ const UserManagement: React.FC = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
   const [isChatModalOpen, setIsChatModalOpen] = useState<boolean>(false);
   const [selectedChatUser, setSelectedChatUser] = useState<UserWithStats | null>(null);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [statusFilter, setStatusFilter] = useState<UserStatus | 'ALL'>(UserStatus.ACTIVE);
 
   // State for pagination
   const [pagination, setPagination] = useState({
@@ -360,6 +362,54 @@ const UserManagement: React.FC = () => {
     setSelectedChatUser(null);
   };
 
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+
+    if (!window.confirm(`Are you sure you want to delete ${selectedIds.length} users?`)) {
+      return;
+    }
+
+    try {
+      await userManagementService.bulkDeleteUsers(selectedIds);
+      showToast('Users deleted successfully', 'success');
+      setSelectedIds([]);
+      fetchUsers();
+      fetchStatistics();
+    } catch (error: any) {
+      showToast(error.message || 'Failed to delete users', 'error');
+    }
+  };
+
+  const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.checked) {
+      const newSelecteds = users.map((n) => n.id);
+      setSelectedIds(newSelecteds);
+      return;
+    }
+    setSelectedIds([]);
+  };
+
+  const handleSelectOne = (id: number) => {
+    const selectedIndex = selectedIds.indexOf(id);
+    let newSelected: number[] = [];
+
+    if (selectedIndex === -1) {
+      newSelected = newSelected.concat(selectedIds, id);
+    } else if (selectedIndex === 0) {
+      newSelected = newSelected.concat(selectedIds.slice(1));
+    } else if (selectedIndex === selectedIds.length - 1) {
+      newSelected = newSelected.concat(selectedIds.slice(0, -1));
+    } else if (selectedIndex > 0) {
+      newSelected = newSelected.concat(
+        selectedIds.slice(0, selectedIndex),
+        selectedIds.slice(selectedIndex + 1),
+      );
+    }
+
+    setSelectedIds(newSelected);
+  };
+
+
 
 
   // Show toast notification
@@ -573,6 +623,16 @@ const UserManagement: React.FC = () => {
                       },
                     }}
                   />
+                  {selectedIds.length > 0 && (
+                    <Button
+                      variant="outlined"
+                      color="error"
+                      onClick={handleBulkDelete}
+                      sx={{ ml: 2, height: 40 }}
+                    >
+                      Delete Selected ({selectedIds.length})
+                    </Button>
+                  )}
                 </Box>
               </Box>
 
@@ -694,6 +754,13 @@ const UserManagement: React.FC = () => {
                 <Table sx={{ minWidth: 650 }}>
                   <TableHead>
                     <TableRow sx={{ backgroundColor: '#f8f9fa' }}>
+                      <TableCell padding="checkbox">
+                        <Checkbox
+                          indeterminate={selectedIds.length > 0 && selectedIds.length < users.length}
+                          checked={users.length > 0 && selectedIds.length === users.length}
+                          onChange={handleSelectAll}
+                        />
+                      </TableCell>
                       <TableCell sx={{ fontWeight: 600 }}>Citizen</TableCell>
                       <TableCell sx={{ fontWeight: 600 }}>Contact</TableCell>
                       <TableCell sx={{ fontWeight: 600 }}>City Corporation</TableCell>
@@ -765,179 +832,190 @@ const UserManagement: React.FC = () => {
                       </TableRow>
                     ) : (
                       // User rows
-                      users.map((user) => (
-                        <TableRow
-                          key={user.id}
-                          sx={{
-                            '&:hover': {
-                              backgroundColor: '#f8f9fa'
-                            }
-                          }}
-                        >
-                          <TableCell>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                              {user.avatar ? (
-                                <Avatar src={user.avatar} sx={{ width: 40, height: 40 }} />
-                              ) : (
-                                <Avatar sx={{ width: 40, height: 40, bgcolor: '#4CAF50' }}>
-                                  {getUserInitials(user.firstName, user.lastName)}
-                                </Avatar>
-                              )}
-                              <Box>
-                                <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                                  {`${user.firstName} ${user.lastName}`}
-                                </Typography>
-                                <Typography variant="body2" color="text.secondary">
-                                  #{user.id.toString().padStart(6, '0')}
-                                </Typography>
+                      users.map((user) => {
+                        const isItemSelected = selectedIds.indexOf(user.id) !== -1;
+                        return (
+                          <TableRow
+                            key={user.id}
+                            hover
+                            selected={isItemSelected}
+                            sx={{
+                              '&:hover': {
+                                backgroundColor: '#f8f9fa'
+                              }
+                            }}
+                          >
+                            <TableCell padding="checkbox">
+                              <Checkbox
+                                checked={isItemSelected}
+                                onChange={() => handleSelectOne(user.id)}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                {user.avatar ? (
+                                  <Avatar src={user.avatar} sx={{ width: 40, height: 40 }} />
+                                ) : (
+                                  <Avatar sx={{ width: 40, height: 40, bgcolor: '#4CAF50' }}>
+                                    {getUserInitials(user.firstName, user.lastName)}
+                                  </Avatar>
+                                )}
+                                <Box>
+                                  <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                                    {`${user.firstName} ${user.lastName}`}
+                                  </Typography>
+                                  <Typography variant="body2" color="text.secondary">
+                                    #{user.id.toString().padStart(6, '0')}
+                                  </Typography>
+                                </Box>
                               </Box>
-                            </Box>
-                          </TableCell>
-                          <TableCell>
-                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                            </TableCell>
+                            <TableCell>
+                              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <EmailIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                                  <Typography variant="body2">{user.email || 'N/A'}</Typography>
+                                </Box>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <PhoneIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                                  <Typography variant="body2">{formatPhoneNumber(user.phone)}</Typography>
+                                </Box>
+                              </Box>
+                            </TableCell>
+                            <TableCell>
+                              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                  {user.cityCorporation?.name || 'N/A'}
+                                </Typography>
+                                {user.cityCorporation && (
+                                  <Typography variant="caption" color="text.secondary">
+                                    {user.cityCorporation.code}
+                                  </Typography>
+                                )}
+                              </Box>
+                            </TableCell>
+                            <TableCell>
+                              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                {user.zone ? (
+                                  <Chip
+                                    label={`Zone ${user.zone.zoneNumber}${user.zone.name ? ` - ${user.zone.name}` : ''}`}
+                                    size="small"
+                                    variant="outlined"
+                                    color="primary"
+                                    sx={{ height: 24, justifyContent: 'flex-start' }}
+                                  />
+                                ) : null}
+                                {user.ward ? (
+                                  <Chip
+                                    label={`Ward ${user.ward.wardNumber}`}
+                                    size="small"
+                                    variant="outlined"
+                                    sx={{ height: 24, justifyContent: 'flex-start' }}
+                                  />
+                                ) : null}
+                                {!user.zone && !user.ward && (
+                                  <Typography variant="caption" color="text.secondary">
+                                    N/A
+                                  </Typography>
+                                )}
+                              </Box>
+                            </TableCell>
+                            <TableCell>
+                              <Chip
+                                label={user.statistics.totalComplaints}
+                                sx={{
+                                  backgroundColor: '#e3f2fd',
+                                  color: '#1976d2',
+                                  fontWeight: 500,
+                                }}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Chip
+                                label={user.statistics.resolvedComplaints}
+                                sx={{
+                                  backgroundColor: '#e8f5e8',
+                                  color: '#2e7d2e',
+                                  fontWeight: 500,
+                                }}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Chip
+                                label={user.statistics.unresolvedComplaints}
+                                sx={{
+                                  backgroundColor: '#ffebee',
+                                  color: '#c62828',
+                                  fontWeight: 500,
+                                }}
+                              />
+                            </TableCell>
+                            <TableCell>
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <EmailIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                                <Typography variant="body2">{user.email || 'N/A'}</Typography>
+                                <CalendarIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                                <Typography variant="body2">{formatDate(user.createdAt)}</Typography>
                               </Box>
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <PhoneIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                                <Typography variant="body2">{formatPhoneNumber(user.phone)}</Typography>
-                              </Box>
-                            </Box>
-                          </TableCell>
-                          <TableCell>
-                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                              <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                {user.cityCorporation?.name || 'N/A'}
-                              </Typography>
-                              {user.cityCorporation && (
-                                <Typography variant="caption" color="text.secondary">
-                                  {user.cityCorporation.code}
-                                </Typography>
-                              )}
-                            </Box>
-                          </TableCell>
-                          <TableCell>
-                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                              {user.zone ? (
-                                <Chip
-                                  label={`Zone ${user.zone.zoneNumber}${user.zone.name ? ` - ${user.zone.name}` : ''}`}
-                                  size="small"
+                            </TableCell>
+                            <TableCell>
+                              <Box sx={{ display: 'flex', gap: 1 }}>
+                                <Button
                                   variant="outlined"
+                                  size="small"
+                                  startIcon={actionLoading.viewUser === user.id ? <CircularProgress size={16} /> : <VisibilityIcon />}
+                                  onClick={() => handleViewUser(user.id)}
+                                  disabled={actionLoading.viewUser === user.id}
+                                  sx={{
+                                    textTransform: 'none',
+                                    borderColor: '#e0e0e0',
+                                    color: 'text.primary',
+                                    '&:hover': {
+                                      borderColor: '#4CAF50',
+                                      color: '#4CAF50',
+                                    },
+                                  }}
+                                >
+                                  {actionLoading.viewUser === user.id ? 'Loading...' : 'View'}
+                                </Button>
+                                <Button
+                                  variant="outlined"
+                                  size="small"
                                   color="primary"
-                                  sx={{ height: 24, justifyContent: 'flex-start' }}
-                                />
-                              ) : null}
-                              {user.ward ? (
-                                <Chip
-                                  label={`Ward ${user.ward.wardNumber}`}
-                                  size="small"
+                                  onClick={() => handleOpenChat(user)}
+                                  sx={{
+                                    textTransform: 'none',
+                                    borderColor: '#e0e0e0',
+                                    minWidth: '40px',
+                                    color: 'text.primary',
+                                    '&:hover': {
+                                      borderColor: '#2196F3',
+                                      color: '#2196F3',
+                                    },
+                                  }}
+                                >
+                                  <ChatBubbleOutline fontSize="small" />
+                                </Button>
+                                <Button
                                   variant="outlined"
-                                  sx={{ height: 24, justifyContent: 'flex-start' }}
-                                />
-                              ) : null}
-                              {!user.zone && !user.ward && (
-                                <Typography variant="caption" color="text.secondary">
-                                  N/A
-                                </Typography>
-                              )}
-                            </Box>
-                          </TableCell>
-                          <TableCell>
-                            <Chip
-                              label={user.statistics.totalComplaints}
-                              sx={{
-                                backgroundColor: '#e3f2fd',
-                                color: '#1976d2',
-                                fontWeight: 500,
-                              }}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Chip
-                              label={user.statistics.resolvedComplaints}
-                              sx={{
-                                backgroundColor: '#e8f5e8',
-                                color: '#2e7d2e',
-                                fontWeight: 500,
-                              }}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Chip
-                              label={user.statistics.unresolvedComplaints}
-                              sx={{
-                                backgroundColor: '#ffebee',
-                                color: '#c62828',
-                                fontWeight: 500,
-                              }}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <CalendarIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                              <Typography variant="body2">{formatDate(user.createdAt)}</Typography>
-                            </Box>
-                          </TableCell>
-                          <TableCell>
-                            <Box sx={{ display: 'flex', gap: 1 }}>
-                              <Button
-                                variant="outlined"
-                                size="small"
-                                startIcon={actionLoading.viewUser === user.id ? <CircularProgress size={16} /> : <VisibilityIcon />}
-                                onClick={() => handleViewUser(user.id)}
-                                disabled={actionLoading.viewUser === user.id}
-                                sx={{
-                                  textTransform: 'none',
-                                  borderColor: '#e0e0e0',
-                                  color: 'text.primary',
-                                  '&:hover': {
-                                    borderColor: '#4CAF50',
-                                    color: '#4CAF50',
-                                  },
-                                }}
-                              >
-                                {actionLoading.viewUser === user.id ? 'Loading...' : 'View'}
-                              </Button>
-                              <Button
-                                variant="outlined"
-                                size="small"
-                                color="primary"
-                                onClick={() => handleOpenChat(user)}
-                                sx={{
-                                  textTransform: 'none',
-                                  borderColor: '#e0e0e0',
-                                  minWidth: '40px',
-                                  color: 'text.primary',
-                                  '&:hover': {
-                                    borderColor: '#2196F3',
-                                    color: '#2196F3',
-                                  },
-                                }}
-                              >
-                                <ChatBubbleOutline fontSize="small" />
-                              </Button>
-                              <Button
-                                variant="outlined"
-                                size="small"
-                                startIcon={<EditIcon />}
-                                onClick={() => handleEditUser(user)}
-                                sx={{
-                                  textTransform: 'none',
-                                  borderColor: '#e0e0e0',
-                                  color: 'text.primary',
-                                  '&:hover': {
-                                    borderColor: '#4CAF50',
-                                    color: '#4CAF50',
-                                  },
-                                }}
-                              >
-                                Edit
-                              </Button>
-                            </Box>
-                          </TableCell>
-                        </TableRow>
-                      ))
+                                  size="small"
+                                  startIcon={<EditIcon />}
+                                  onClick={() => handleEditUser(user)}
+                                  sx={{
+                                    textTransform: 'none',
+                                    borderColor: '#e0e0e0',
+                                    color: 'text.primary',
+                                    '&:hover': {
+                                      borderColor: '#4CAF50',
+                                      color: '#4CAF50',
+                                    },
+                                  }}
+                                >
+                                  Edit
+                                </Button>
+                              </Box>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
                     )}
                   </TableBody>
                 </Table>

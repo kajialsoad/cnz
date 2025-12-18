@@ -213,6 +213,20 @@ class UserManagementService {
             throw error;
         }
     }
+
+    // Bulk delete users
+    async bulkDeleteUsers(userIds: number[]): Promise<void> {
+        try {
+            await this.apiClient.post('/api/admin/users/bulk-delete', { userIds });
+        } catch (error) {
+            if (axios.isAxiosError(error)) {
+                throw new Error(
+                    error.response?.data?.message || 'Failed to bulk delete users'
+                );
+            }
+            throw error;
+        }
+    }
 }
 
 export const userManagementService = new UserManagementService();

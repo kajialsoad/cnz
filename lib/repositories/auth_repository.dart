@@ -68,6 +68,7 @@ class AuthRepository {
       final data = await api.post('/api/auth/login', {
         if (isEmail) 'email': phoneOrEmail else 'phone': phoneOrEmail,
         'password': password,
+        'portal': 'APP',
       });
 
       // Backend returns: { success: true, message: "...", data: { accessToken, refreshToken, ... } }

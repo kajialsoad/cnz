@@ -23,6 +23,7 @@ const loginSchema = z
     email: z.string().email().optional(),
     phone: z.string().min(6).optional(),
     password: z.string(),
+    portal: z.enum(['ADMIN', 'APP']).optional(),
   })
   .refine((data) => !!(data.email || data.phone), {
     message: 'Provide email or phone',
@@ -35,7 +36,7 @@ export async function register(req: AuthRequest, res: Response) {
     const result = await authService.register({
       firstName: body.firstName,
       lastName: body.lastName,
-      email: body.email,
+      email: body.email.toLowerCase(),
       password: body.password,
       phone: body.phone,
       ward: body.ward,
@@ -59,9 +60,10 @@ export async function login(req: AuthRequest, res: Response) {
     const body = loginSchema.parse(req.body);
     const ip = req.ip || req.socket.remoteAddress;
     const result = await authService.login({
-      email: body.email,
+      email: body.email?.toLowerCase(),
       phone: body.phone,
       password: body.password,
+      portal: body.portal,
     }, ip);
     return res.status(200).json(result);
   } catch (err: any) {

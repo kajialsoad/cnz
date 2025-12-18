@@ -37,6 +37,7 @@ export interface LoginCredentials {
   email: string;
   password: string;
   rememberMe?: boolean;
+  portal?: 'ADMIN' | 'APP';
 }
 
 export interface AuthResponse {

@@ -55,6 +55,11 @@ console.log('🔧 Admin user route registered: PUT /:id/permissions (with strict
 router.delete('/:id', strictRateLimit, deleteUser);
 console.log('🔧 Admin user route registered: DELETE /:id');
 
+// Bulk delete users - strict rate limiting
+import { bulkDeleteUsers } from '../controllers/admin.user.controller';
+router.post('/bulk-delete', strictRateLimit, bulkDeleteUsers);
+console.log('🔧 Admin user route registered: POST /bulk-delete');
+
 // Get user complaints
 import { getUserComplaints } from '../controllers/admin.user.controller';
 router.get('/:id/complaints', getUserComplaints);

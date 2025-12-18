@@ -45,13 +45,15 @@ export const registerSchema = Joi.object({
     .messages({
       'number.base': 'বৈধ থানা আইডি প্রয়োজন',
     }),
+  zoneId: Joi.number().integer().positive().optional(),
+  wardId: Joi.number().integer().positive().optional(),
   address: Joi.string().max(255).optional()
     .messages({
       'string.max': 'ঠিকানা সর্বোচ্চ ২৫৫ অক্ষরের হতে হবে',
     }),
-  role: Joi.string().valid('ADMIN', 'SUPER_ADMIN', 'MASTER_ADMIN').optional()
+  role: Joi.string().valid('CUSTOMER', 'SERVICE_PROVIDER').optional()
     .messages({
-      'any.only': 'রোল ADMIN, SUPER_ADMIN অথবা MASTER_ADMIN হতে হবে',
+      'any.only': 'রোল CUSTOMER অথবা SERVICE_PROVIDER হতে হবে',
     }),
 }).rename('CityCorporationCode', 'cityCorporationCode', { ignoreUndefined: true });
 
@@ -67,6 +69,11 @@ export const loginSchema = Joi.object({
   password: Joi.string().required()
     .messages({
       'string.empty': 'পাসওয়ার্ড প্রয়োজন',
+    }),
+  portal: Joi.string().valid('ADMIN', 'APP').required()
+    .messages({
+      'any.only': 'পোর্টাল ADMIN অথবা APP হতে হবে',
+      'any.required': 'পোর্টাল তথ্য প্রয়োজন',
     }),
 }).or('phone', 'email')
   .messages({

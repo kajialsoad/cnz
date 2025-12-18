@@ -3,8 +3,8 @@ import { hash, compare } from 'bcrypt';
 import { signAccessToken, signRefreshToken, verifyRefreshToken, generateSecureToken, generateOTP } from '../utils/jwt';
 import emailService from '../utils/email';
 import env from '../config/env';
-// Prisma v6 enum exports use $Enums; এখানে আমরা অ্যাডমিন টোকেনের জন্য নিজস্ব টাইপ রাখছি
-type AdminRole = 'ADMIN' | 'SUPER_ADMIN' | 'MASTER_ADMIN';
+// Prisma v6 enum exports use $Enums; এখানে আমরা টোকেনের জন্য নিজস্ব টাইপ রাখছি
+type UserRole = 'CUSTOMER' | 'SERVICE_PROVIDER' | 'ADMIN' | 'SUPER_ADMIN' | 'MASTER_ADMIN';
 import cityCorporationService from './city-corporation.service';
 // import thanaService from './thana.service'; // Thana service disabled - using Zone/Ward now
 import zoneService from './zone.service';
@@ -17,7 +17,7 @@ export interface RegisterInput {
   firstName: string;
   lastName: string;
   phone: string;
-  role?: AdminRole;
+  role?: UserRole;
   ward?: string;
   zone?: string;
   address?: string;
@@ -32,6 +32,7 @@ export interface LoginInput {
   phone?: string;
   password: string;
   rememberMe?: boolean;
+  portal?: 'ADMIN' | 'APP';
 }
 
 export interface TokenResponse {
@@ -169,7 +170,7 @@ export class AuthService {
         zoneId: input.zoneId,
         wardId: input.wardId,
         wardImageCount: 0, // Initialize to 0 for new users
-        role: input.role || 'ADMIN',
+        role: input.role || 'CUSTOMER',
         status: emailVerificationEnabled ? 'PENDING' : 'ACTIVE',
         emailVerified: !emailVerificationEnabled, // Mark as verified if verification is disabled
         phoneVerified: false,
@@ -259,6 +260,17 @@ export class AuthService {
       throw new Error('Account is suspended');
     }
 
+    // Role-based Portal Validation
+    if (input.portal === 'ADMIN') {
+      if (user.role === 'CUSTOMER' || user.role === 'SERVICE_PROVIDER') {
+        throw new Error('Access denied. Citizens cannot access the Admin Panel.');
+      }
+    } else if (input.portal === 'APP') {
+      if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN' || user.role === 'MASTER_ADMIN') {
+        throw new Error('Access denied. Admins cannot access the User App. Please use the Admin Panel.');
+      }
+    }
+
     // Check if email verification is enabled and if email is verified for pending accounts
     const emailVerificationEnabled = env.EMAIL_VERIFICATION_ENABLED;
     console.log('Login - Email verification enabled:', emailVerificationEnabled);
@@ -277,10 +289,10 @@ export class AuthService {
     // Track successful login attempt (clears failed attempts)
     await trackLoginAttempt(identifier, true, ip);
 
-    // Admin রোল ন্যারো করা
-    const toAdminRole = (r: any): AdminRole => {
-      if (r === 'ADMIN' || r === 'SUPER_ADMIN' || r === 'MASTER_ADMIN') return r;
-      throw new Error('Access denied. Admin privileges required.');
+    // রোল যাচাই করা (ADMIN বা CUSTOMER সবার জন্যই লগইন এলাউড)
+    const toUserRole = (r: any): UserRole => {
+      if (['CUSTOMER', 'SERVICE_PROVIDER', 'ADMIN', 'SUPER_ADMIN', 'MASTER_ADMIN'].includes(r)) return r;
+      throw new Error('Access denied. Invalid role.');
     };
 
     // Generate tokens
@@ -288,7 +300,7 @@ export class AuthService {
       const accessToken = signAccessToken({
         id: parseInt(user.id.toString()),
         sub: parseInt(user.id.toString()),
-        role: toAdminRole(user.role),
+        role: toUserRole(user.role),
         email: user.email ?? undefined,
         phone: user.phone ?? undefined,
         zoneId: user.zoneId,
@@ -298,7 +310,7 @@ export class AuthService {
       const refreshToken = signRefreshToken({
         id: parseInt(user.id.toString()),
         sub: parseInt(user.id.toString()),
-        role: toAdminRole(user.role),
+        role: toUserRole(user.role),
         email: user.email ?? undefined,
         phone: user.phone ?? undefined,
         zoneId: user.zoneId,
@@ -385,7 +397,7 @@ export class AuthService {
     const newAccessToken = signAccessToken({
       id: parseInt(user.id.toString()),
       sub: parseInt(user.id.toString()),
-      role: user.role as AdminRole,
+      role: user.role as UserRole,
       email: user.email ?? undefined,
       phone: user.phone ?? undefined,
       zoneId: user.zoneId,
@@ -396,7 +408,7 @@ export class AuthService {
     const newRefreshToken = signRefreshToken({
       id: parseInt(user.id.toString()),
       sub: parseInt(user.id.toString()),
-      role: user.role as AdminRole,
+      role: user.role as UserRole,
       email: user.email ?? undefined,
       phone: user.phone ?? undefined,
       zoneId: user.zoneId,

@@ -105,7 +105,7 @@ class AuthService {
                 accessExpiresIn: number;
                 refreshToken?: string;
                 refreshExpiresIn?: number;
-            }>(API_CONFIG.ENDPOINTS.AUTH.LOGIN, credentials);
+            }>(API_CONFIG.ENDPOINTS.AUTH.LOGIN, { ...credentials, portal: 'ADMIN' });
 
             // Persist tokens and set Authorization header
             this.setAccessToken(loginResponse.data.accessToken);
@@ -123,7 +123,7 @@ class AuthService {
             console.log('Login profile response:', profileResponse.data);
 
             const userData = profileResponse.data.data || profileResponse.data.user;
-            
+
             if (!userData) {
                 console.error('No user data in profile response');
                 // Don't throw here if we have tokens, but user will be undefined

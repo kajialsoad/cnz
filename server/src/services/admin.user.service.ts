@@ -1,7 +1,7 @@
 import prisma from '../utils/prisma';
 import { hash } from 'bcrypt';
 import { users_role, UserStatus, ComplaintStatus, Prisma } from '@prisma/client';
-import { activityLogService } from './activity-log.service';
+import { activityLogService, ActivityActions, EntityTypes } from './activity-log.service';
 import { redisCache, RedisCacheKeys, RedisCacheTTL, withRedisCache, invalidateRedisCache } from '../utils/redis-cache';
 import { multiZoneService } from './multi-zone.service';
 
@@ -651,6 +651,38 @@ export class AdminUserService {
         return withRedisCache(cacheKey, RedisCacheTTL.USER_STATS, async () => {
             return this.fetchUserStatistics(cityCorporationCode, zoneId, wardId, role, requestingUser);
         });
+    }
+
+    // Bulk delete users (soft delete)
+    async bulkDeleteUsers(userIds: number[], deletedBy: number, ipAddress?: string, userAgent?: string): Promise<void> {
+        // Filter out invalid IDs
+        if (!userIds || userIds.length === 0) return;
+
+        // Soft delete users by setting status to INACTIVE
+        await prisma.user.updateMany({
+            where: {
+                id: { in: userIds },
+                status: { not: UserStatus.INACTIVE }, // Only update if not already inactive
+            },
+            data: {
+                status: UserStatus.INACTIVE,
+            },
+        });
+
+        // Log activity for each user
+        for (const userId of userIds) {
+            await activityLogService.logActivity({
+                userId: deletedBy,
+                action: ActivityActions.DELETE_USER,
+                entityType: EntityTypes.USER,
+                entityId: userId,
+                ipAddress,
+                userAgent,
+            });
+
+            // Invalidate cache
+            await invalidateRedisCache.user(userId);
+        }
     }
 
     // Fetch user statistics (internal method)
