@@ -115,7 +115,7 @@ const ZoneFilter: React.FC<ZoneFilterProps> = ({
                 )}
                 {zones.map((zone) => (
                     <MenuItem key={zone.id} value={zone.id}>
-                        {zone.name || `Zone ${zone.zoneNumber || zone.id}`}
+                        {typeof zone.name === 'object' ? JSON.stringify(zone.name) : (zone.name || `Zone ${String(zone.zoneNumber || zone.id)}`)}
                     </MenuItem>
                 ))}
             </Select>

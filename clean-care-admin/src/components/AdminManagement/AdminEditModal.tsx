@@ -13,15 +13,20 @@ import {
     CircularProgress,
     Alert,
     InputAdornment,
+    Switch,
+    Avatar,
+    Grid,
+    Autocomplete,
+    Chip,
 } from '@mui/material';
 import {
     Close as CloseIcon,
-    Save as SaveIcon,
     Visibility as VisibilityIcon,
     VisibilityOff as VisibilityOffIcon,
+    CloudUpload as CloudUploadIcon,
+    Edit as EditIcon,
 } from '@mui/icons-material';
-import ConfirmDialog from '../common/ConfirmDialog';
-import type { UserWithStats, UpdateUserDto, UserRole, UserStatus } from '../../types/userManagement.types';
+import type { UserWithStats, UpdateUserDto, UserRole, UserStatus, Permissions } from '../../types/userManagement.types';
 import { cityCorporationService } from '../../services/cityCorporationService';
 import { zoneService } from '../../services/zoneService';
 import { wardService } from '../../services/wardService';
@@ -40,8 +45,12 @@ interface AdminEditModalProps {
 interface FormData {
     firstName: string;
     lastName: string;
+    designation: string;
     email: string;
     phone: string;
+    whatsapp: string;
+    joiningDate: string;
+    address: string;
     cityCorporationCode: string;
     zoneId: string;
     wardId: string;
@@ -49,6 +58,7 @@ interface FormData {
     status: UserStatus;
     newPassword: string;
     confirmPassword: string;
+    permissions: Permissions;
 }
 
 interface FormErrors {
@@ -64,6 +74,39 @@ interface FormErrors {
     confirmPassword?: string;
 }
 
+const DEFAULT_PERMISSIONS: Permissions = {
+    zones: [],
+    wards: [],
+    categories: [],
+    features: {
+        canViewComplaints: true,
+        canApproveComplaints: false,
+        canRejectComplaints: false,
+        canMarkComplaintsPending: false,
+        canEditComplaints: false,
+        canDeleteComplaints: false,
+        canViewUsers: true,
+        canEditUsers: false,
+        canDeleteUsers: false,
+        canAddUsers: false,
+        canViewAdmins: false,
+        canEditAdmins: false,
+        canDeleteAdmins: false,
+        canAddAdmins: false,
+        canViewMessages: true,
+        canSendMessagesToUsers: false,
+        canSendMessagesToAdmins: false,
+        canViewAnalytics: false,
+        canExportData: false,
+        canDownloadReports: false,
+        viewOnlyMode: false,
+        canViewComplainantProfile: false,
+        canViewAreaStats: false,
+        canViewOwnPerformance: false,
+        canShowReviews: false,
+    },
+};
+
 const AdminEditModal: React.FC<AdminEditModalProps> = ({
     admin,
     open,
@@ -73,67 +116,113 @@ const AdminEditModal: React.FC<AdminEditModalProps> = ({
     const [formData, setFormData] = useState<FormData>({
         firstName: '',
         lastName: '',
+        designation: '',
         email: '',
         phone: '',
+        whatsapp: '',
+        joiningDate: '',
+        address: '',
         cityCorporationCode: '',
         zoneId: '',
         wardId: '',
-        role: 'ADMIN' as UserRole,
-        status: 'ACTIVE' as UserStatus,
+        role: 'ADMIN',
+        status: 'ACTIVE',
         newPassword: '',
         confirmPassword: '',
+        permissions: JSON.parse(JSON.stringify(DEFAULT_PERMISSIONS)),
     });
 
-    // City Corporation, Zone, and Ward state
     const [cityCorporations, setCityCorporations] = useState<CityCorporation[]>([]);
     const [zones, setZones] = useState<Zone[]>([]);
     const [wards, setWards] = useState<Ward[]>([]);
+    const [allWards, setAllWards] = useState<Ward[]>([]);
     const [cityCorporationsLoading, setCityCorporationsLoading] = useState(false);
     const [zonesLoading, setZonesLoading] = useState(false);
     const [wardsLoading, setWardsLoading] = useState(false);
 
     const [showPassword, setShowPassword] = useState(false);
-    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
     const [errors, setErrors] = useState<FormErrors>({});
     const [loading, setLoading] = useState(false);
     const [submitError, setSubmitError] = useState<string | null>(null);
-    const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
-    // Fetch city corporations on mount
+    // Initialize data
     useEffect(() => {
-        fetchCityCorporations();
-    }, []);
+        if (open && admin) {
+            let parsedPermissions = JSON.parse(JSON.stringify(DEFAULT_PERMISSIONS));
 
-    // Fetch zones when city corporation changes
-    useEffect(() => {
-        if (formData.cityCorporationCode) {
-            fetchZones(formData.cityCorporationCode);
-        } else {
-            setZones([]);
-            setWards([]);
-            setFormData(prev => ({ ...prev, zoneId: '', wardId: '' }));
+            // Try to parse permissions from admin data
+            if (admin.permissions) {
+                if (typeof admin.permissions === 'string') {
+                    try {
+                        const parsed = JSON.parse(admin.permissions);
+                        // Merge with default ensuring all keys exist
+                        parsedPermissions = {
+                            ...DEFAULT_PERMISSIONS,
+                            ...parsed,
+                            features: {
+                                ...DEFAULT_PERMISSIONS.features,
+                                ...parsed.features
+                            }
+                        };
+                    } catch (e) {
+                        console.error("Failed to parse permissions string", e);
+                    }
+                } else {
+                    parsedPermissions = {
+                        ...DEFAULT_PERMISSIONS,
+                        ...admin.permissions,
+                        features: {
+                            ...DEFAULT_PERMISSIONS.features,
+                            ...admin.permissions.features
+                        }
+                    };
+                }
+            }
+
+            setFormData({
+                firstName: admin.firstName || '',
+                lastName: admin.lastName || '',
+                designation: admin.designation || '',
+                email: admin.email || '',
+                phone: admin.phone || '',
+                whatsapp: admin.whatsapp || '',
+                joiningDate: admin.joiningDate ? new Date(admin.joiningDate).toISOString().split('T')[0] : '',
+                address: admin.address || '',
+                cityCorporationCode: admin.cityCorporation?.code || admin.cityCorporationCode || '',
+                zoneId: admin.zone?.id?.toString() || admin.zoneId?.toString() || '',
+                wardId: admin.ward?.id?.toString() || admin.wardId?.toString() || '',
+                role: admin.role,
+                status: admin.status,
+                newPassword: '',
+                confirmPassword: '',
+                permissions: parsedPermissions,
+            });
+
+            fetchCityCorporations();
+
+            // Trigger cascading fetches
+            const ccCode = admin.cityCorporation?.code || admin.cityCorporationCode;
+            if (ccCode) {
+                fetchZones(ccCode);
+                fetchAllWards(ccCode);
+                const zId = admin.zone?.id || admin.zoneId;
+                if (zId) {
+                    fetchWards(zId);
+                }
+            }
+
+            setErrors({});
+            setSubmitError(null);
         }
-    }, [formData.cityCorporationCode]);
-
-    // Fetch wards when zone changes
-    useEffect(() => {
-        if (formData.zoneId) {
-            fetchWards(parseInt(formData.zoneId));
-        } else {
-            setWards([]);
-            setFormData(prev => ({ ...prev, wardId: '' }));
-        }
-    }, [formData.zoneId]);
+    }, [open, admin]);
 
     const fetchCityCorporations = async () => {
         try {
             setCityCorporationsLoading(true);
             const response = await cityCorporationService.getCityCorporations('ACTIVE');
             setCityCorporations(response.cityCorporations || []);
-        } catch (err: any) {
+        } catch (err) {
             console.error('Error fetching city corporations:', err);
-            setCityCorporations([]);
         } finally {
             setCityCorporationsLoading(false);
         }
@@ -144,9 +233,8 @@ const AdminEditModal: React.FC<AdminEditModalProps> = ({
             setZonesLoading(true);
             const response = await zoneService.getZones({ cityCorporationCode, status: 'ACTIVE' });
             setZones(response.zones || []);
-        } catch (err: any) {
+        } catch (err) {
             console.error('Error fetching zones:', err);
-            setZones([]);
         } finally {
             setZonesLoading(false);
         }
@@ -157,185 +245,150 @@ const AdminEditModal: React.FC<AdminEditModalProps> = ({
             setWardsLoading(true);
             const response = await wardService.getWards({ zoneId, status: 'ACTIVE' });
             setWards(response.wards || []);
-        } catch (err: any) {
+        } catch (err) {
             console.error('Error fetching wards:', err);
-            setWards([]);
         } finally {
             setWardsLoading(false);
         }
     };
 
-    // Initialize form data when admin changes
-    useEffect(() => {
-        if (admin) {
-            setFormData({
-                firstName: admin.firstName,
-                lastName: admin.lastName,
-                email: admin.email || '',
-                phone: admin.phone,
-                cityCorporationCode: admin.cityCorporation?.code || '',
-                zoneId: admin.zone?.id?.toString() || '',
-                wardId: admin.ward?.id?.toString() || '',
-                role: admin.role,
-                status: admin.status,
-                newPassword: '',
-                confirmPassword: '',
-            });
-            setErrors({});
-            setSubmitError(null);
-
-            // Trigger fetches if data exists
-            if (admin.cityCorporation?.code) {
-                fetchZones(admin.cityCorporation.code);
-            }
-            if (admin.zone?.id) {
-                fetchWards(admin.zone.id);
-            }
+    const fetchAllWards = async (cityCorporationCode: string) => {
+        try {
+            const response = await wardService.getWards({ cityCorporationCode, status: 'ACTIVE' });
+            setAllWards(response.wards || []);
+        } catch (err) {
+            console.error('Error fetching all wards:', err);
         }
-    }, [admin]);
-
-    const validateEmail = (email: string): boolean => {
-        if (!email) return true; // Email is optional
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return emailRegex.test(email);
     };
 
-    const validatePhone = (phone: string): boolean => {
-        // Bangladesh phone format: 11 digits starting with 01
-        const phoneRegex = /^01[0-9]{9}$/;
-        return phoneRegex.test(phone.replace(/\s+/g, ''));
+    const handleChange = (field: keyof FormData) => (event: React.ChangeEvent<HTMLInputElement>) => {
+        const value = event.target.value;
+        setFormData(prev => ({ ...prev, [field]: value }));
+
+        if (field === 'cityCorporationCode') {
+            setFormData(prev => ({
+                ...prev,
+                cityCorporationCode: value,
+                zoneId: '',
+                wardId: '',
+                permissions: {
+                    ...prev.permissions,
+                    wards: []
+                }
+            }));
+            fetchZones(value);
+            fetchAllWards(value);
+        } else if (field === 'zoneId') {
+            setFormData(prev => ({ ...prev, zoneId: value, wardId: '' }));
+            fetchWards(parseInt(value));
+        }
+
+        if (errors[field as keyof FormErrors]) {
+            setErrors(prev => ({ ...prev, [field]: undefined }));
+        }
     };
+
+    // Multi-Ward Selection Handler
+    const handleWardSelection = (_: any, selectedWards: Ward[]) => {
+        const wardIds = selectedWards.map(w => w.id);
+        setFormData(prev => ({
+            ...prev,
+            permissions: {
+                ...prev.permissions,
+                wards: wardIds
+            }
+        }));
+    };
+
+    // Permission toggle handler with logic
+    const handlePermissionToggle = (feature: keyof typeof DEFAULT_PERMISSIONS.features | 'actionApproval' | 'reportDownload') => {
+        setFormData(prev => {
+            const currentFeatures = { ...prev.permissions.features };
+
+            if (feature === 'viewOnlyMode') {
+                const newViewOnly = !currentFeatures.viewOnlyMode;
+                if (newViewOnly) {
+                    Object.keys(currentFeatures).forEach(k => {
+                        if (k !== 'viewOnlyMode') (currentFeatures as any)[k] = false;
+                    });
+                }
+                currentFeatures.viewOnlyMode = newViewOnly;
+            }
+            else if (feature === 'actionApproval') {
+                const isCurrentlyOn = currentFeatures.canApproveComplaints;
+                const newState = !isCurrentlyOn;
+                currentFeatures.canApproveComplaints = newState;
+                currentFeatures.canRejectComplaints = newState;
+                currentFeatures.canMarkComplaintsPending = newState;
+                currentFeatures.canEditComplaints = newState;
+                currentFeatures.canEditUsers = newState;
+                currentFeatures.canDeleteUsers = newState;
+                if (newState) currentFeatures.viewOnlyMode = false;
+            }
+            else if (feature === 'reportDownload') {
+                const newState = !currentFeatures.canDownloadReports;
+                currentFeatures.canDownloadReports = newState;
+                currentFeatures.canExportData = newState;
+                currentFeatures.canViewAnalytics = newState;
+                if (newState) currentFeatures.viewOnlyMode = false;
+            }
+            else {
+                (currentFeatures as any)[feature] = !(currentFeatures as any)[feature];
+                if ((currentFeatures as any)[feature]) currentFeatures.viewOnlyMode = false;
+            }
+
+            return {
+                ...prev,
+                permissions: {
+                    ...prev.permissions,
+                    features: currentFeatures
+                }
+            };
+        });
+    };
+
 
     const validateForm = (): boolean => {
         const newErrors: FormErrors = {};
-
-        // Required fields
-        if (!formData.firstName.trim()) {
-            newErrors.firstName = 'First name is required';
+        if (!formData.firstName.trim()) newErrors.firstName = 'Name is required';
+        if (!formData.phone.trim()) newErrors.phone = 'Phone is required';
+        if (!formData.cityCorporationCode) newErrors.cityCorporationCode = 'City Corporation is required';
+        if (!formData.zoneId) newErrors.zoneId = 'Zone is required';
+        if (formData.newPassword && formData.newPassword.length < 8) {
+            newErrors.newPassword = 'Password must be at least 8 characters';
         }
-
-        if (!formData.lastName.trim()) {
-            newErrors.lastName = 'Last name is required';
-        }
-
-        if (!formData.phone.trim()) {
-            newErrors.phone = 'Phone number is required';
-        } else if (!validatePhone(formData.phone)) {
-            newErrors.phone = 'Invalid phone format (must be 11 digits starting with 01)';
-        }
-
-        // Optional email validation
-        if (formData.email && !validateEmail(formData.email)) {
-            newErrors.email = 'Invalid email format';
-        }
-
-        // City Corporation is required
-        if (!formData.cityCorporationCode) {
-            newErrors.cityCorporationCode = 'City Corporation is required';
-        }
-
-        // Zone is required
-        if (!formData.zoneId) {
-            newErrors.zoneId = 'Zone is required';
-        }
-
-        // Ward is required
-        if (!formData.wardId) {
-            newErrors.wardId = 'Ward is required';
-        }
-
-        // Role is required
-        if (!formData.role) {
-            newErrors.role = 'Role is required';
-        }
-
-        // Password validation (optional - only if user wants to change password)
-        if (formData.newPassword || formData.confirmPassword) {
-            if (formData.newPassword.length < 8) {
-                newErrors.newPassword = 'Password must be at least 8 characters';
-            }
-            if (formData.newPassword !== formData.confirmPassword) {
-                newErrors.confirmPassword = 'Passwords do not match';
-            }
+        if (formData.newPassword !== formData.confirmPassword) {
+            newErrors.confirmPassword = 'Passwords do not match';
         }
 
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
 
-    const handleChange = (field: keyof FormData) => (
-        event: React.ChangeEvent<HTMLInputElement>
-    ) => {
-        const value = event.target.value;
-        setFormData((prev) => ({
-            ...prev,
-            [field]: value,
-        }));
-
-        // Clear error for this field when user starts typing
-        if (errors[field as keyof FormErrors]) {
-            setErrors((prev) => ({
-                ...prev,
-                [field]: undefined,
-            }));
-        }
-
-        // Clear submit error
-        if (submitError) {
-            setSubmitError(null);
-        }
-    };
-
-    const handleSubmit = async (skipConfirmation = false) => {
-        if (!validateForm() || !admin) {
-            return;
-        }
-
-        // Check if status is being changed to a destructive state
-        const isStatusChanging = formData.status !== admin.status;
-        const isDestructiveStatus = formData.status === 'SUSPENDED' || formData.status === 'INACTIVE';
-
-        if (isStatusChanging && isDestructiveStatus && !skipConfirmation) {
-            setShowConfirmDialog(true);
-            return;
-        }
+    const handleSubmit = async () => {
+        if (!validateForm() || !admin) return;
 
         setLoading(true);
         setSubmitError(null);
 
         try {
-            // Prepare update data (only include changed fields)
-            const updateData: UpdateUserDto = {};
+            const updateData: UpdateUserDto = {
+                firstName: formData.firstName,
+                lastName: formData.lastName,
+                designation: formData.designation,
+                email: formData.email,
+                phone: formData.phone,
+                whatsapp: formData.whatsapp,
+                joiningDate: formData.joiningDate,
+                address: formData.address,
+                role: formData.role,
+                status: formData.status,
+                cityCorporationCode: formData.cityCorporationCode,
+                zoneId: parseInt(formData.zoneId) as any,
+                wardId: formData.wardId ? parseInt(formData.wardId) as any : undefined,
+                permissions: formData.permissions,
+            };
 
-            if (formData.firstName !== admin.firstName) {
-                updateData.firstName = formData.firstName;
-            }
-            if (formData.lastName !== admin.lastName) {
-                updateData.lastName = formData.lastName;
-            }
-            if (formData.email !== (admin.email || '')) {
-                updateData.email = formData.email || undefined;
-            }
-            if (formData.phone !== admin.phone) {
-                updateData.phone = formData.phone;
-            }
-            if (formData.cityCorporationCode !== admin.cityCorporation?.code) {
-                updateData.cityCorporationCode = formData.cityCorporationCode;
-            }
-            // Use zoneId and wardId for updates logic
-            if (formData.zoneId !== admin.zone?.id?.toString()) {
-                (updateData as any).zoneId = parseInt(formData.zoneId);
-            }
-            if (formData.wardId !== admin.ward?.id?.toString()) {
-                (updateData as any).wardId = parseInt(formData.wardId);
-            }
-            if (formData.role !== admin.role) {
-                updateData.role = formData.role;
-            }
-            if (formData.status !== admin.status) {
-                updateData.status = formData.status;
-            }
-            // Add password if provided
             if (formData.newPassword) {
                 updateData.password = formData.newPassword;
             }
@@ -345,369 +398,342 @@ const AdminEditModal: React.FC<AdminEditModalProps> = ({
             onClose();
         } catch (error: any) {
             console.error('Error updating admin:', error);
-            setSubmitError(
-                error.response?.data?.error?.message ||
-                error.message ||
-                'Failed to update admin. Please try again.'
-            );
+            setSubmitError(error.response?.data?.error?.message || 'Failed to update admin');
         } finally {
             setLoading(false);
         }
     };
 
-    const handleConfirmStatusChange = () => {
-        setShowConfirmDialog(false);
-        handleSubmit(true);
-    };
-
-    const handleCancelStatusChange = () => {
-        setShowConfirmDialog(false);
-    };
-
-    const handleCancel = () => {
-        if (!loading) {
-            onClose();
-        }
-    };
-
-    if (!admin) return null;
-
     return (
         <Dialog
             open={open}
-            onClose={handleCancel}
+            onClose={onClose}
             maxWidth="md"
             fullWidth
-            slotProps={{
-                paper: {
-                    sx: {
-                        borderRadius: 2,
-                    },
-                },
+            PaperProps={{
+                sx: { borderRadius: 2 }
             }}
         >
-            <DialogTitle sx={{ pb: 2 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="h5" sx={{ fontWeight: 600 }}>
-                        Edit Admin
-                    </Typography>
-                    <IconButton onClick={handleCancel} size="small" disabled={loading}>
-                        <CloseIcon />
-                    </IconButton>
-                </Box>
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                    Update admin information and account settings
+            <DialogTitle component="div" sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1 }}>
+                <Typography variant="h6" fontWeight="bold">
+                    এডিট এডমিন
                 </Typography>
+                <IconButton onClick={onClose} size="small">
+                    <CloseIcon />
+                </IconButton>
             </DialogTitle>
 
-            <DialogContent dividers>
+            <DialogContent dividers sx={{ p: 3 }}>
                 {submitError && (
-                    <Alert severity="error" sx={{ mb: 3 }} onClose={() => setSubmitError(null)}>
-                        {submitError}
-                    </Alert>
+                    <Alert severity="error" sx={{ mb: 2 }}>{submitError}</Alert>
                 )}
 
-                <Box>
-                    {/* Personal Information */}
-                    <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
-                        Personal Information
-                    </Typography>
-
-                    <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
-                        <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
-                            <TextField
-                                fullWidth
-                                label="First Name"
-                                value={formData.firstName}
-                                onChange={handleChange('firstName')}
-                                error={!!errors.firstName}
-                                helperText={errors.firstName}
-                                disabled={loading}
-                                required
-                            />
-                        </Box>
-
-                        <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
-                            <TextField
-                                fullWidth
-                                label="Last Name"
-                                value={formData.lastName}
-                                onChange={handleChange('lastName')}
-                                error={!!errors.lastName}
-                                helperText={errors.lastName}
-                                disabled={loading}
-                                required
-                            />
-                        </Box>
-                    </Box>
-
-                    <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
-                        <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
-                            <TextField
-                                fullWidth
-                                label="Email"
-                                type="email"
-                                value={formData.email}
-                                onChange={handleChange('email')}
-                                error={!!errors.email}
-                                helperText={errors.email}
-                                disabled={loading}
-                            />
-                        </Box>
-
-                        <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
-                            <TextField
-                                fullWidth
-                                label="Phone"
-                                value={formData.phone}
-                                onChange={handleChange('phone')}
-                                error={!!errors.phone}
-                                helperText={errors.phone}
-                                disabled={loading}
-                                required
-                            />
-                        </Box>
-                    </Box>
-
-                    {/* Location Information */}
-                    <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2, mt: 3 }}>
-                        Location Information
-                    </Typography>
-
-                    <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
-                        <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
-                            <TextField
-                                fullWidth
-                                select
-                                label="City Corporation"
-                                value={formData.cityCorporationCode}
-                                onChange={handleChange('cityCorporationCode')}
-                                disabled={loading || cityCorporationsLoading}
-                                error={!!errors.cityCorporationCode}
-                                helperText={errors.cityCorporationCode}
-                                required
+                <Grid container spacing={2}>
+                    {/* Left Column - Profile Image */}
+                    <Grid size={{ xs: 12, md: 3 }} display="flex" flexDirection="column" alignItems="center">
+                        <Box sx={{ position: 'relative', mb: 2 }}>
+                            <Avatar
+                                src={admin?.avatar || undefined}
+                                sx={{ width: 120, height: 120, bgcolor: '#f0f0f0' }}
                             >
-                                <MenuItem value="">
-                                    <em>Select City Corporation</em>
-                                </MenuItem>
-                                {cityCorporations.map((cc) => (
-                                    <MenuItem key={cc.code} value={cc.code}>
-                                        {cc.name}
-                                    </MenuItem>
-                                ))}
-                            </TextField>
-                        </Box>
-
-                        <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
-                            <TextField
-                                fullWidth
-                                select
-                                label="Zone"
-                                value={formData.zoneId}
-                                onChange={handleChange('zoneId')}
-                                disabled={loading || zonesLoading || !formData.cityCorporationCode}
-                                error={!!errors.zoneId}
-                                helperText={
-                                    errors.zoneId ||
-                                    (!formData.cityCorporationCode
-                                        ? "Select City Corporation first"
-                                        : zonesLoading
-                                            ? "Loading zones..."
-                                            : zones.length === 0
-                                                ? "No zones available"
-                                                : "Required")
-                                }
-                                required
+                                <CloudUploadIcon sx={{ fontSize: 50, color: '#bdbdbd' }} />
+                            </Avatar>
+                            <IconButton
+                                sx={{
+                                    position: 'absolute',
+                                    bottom: 0,
+                                    right: 0,
+                                    bgcolor: '#4caf50',
+                                    color: 'white',
+                                    '&:hover': { bgcolor: '#45a049' },
+                                    padding: '4px'
+                                }}
+                                size="small"
                             >
-                                <MenuItem value="">
-                                    <em>Select Zone</em>
-                                </MenuItem>
-                                {zones.map((zone) => (
-                                    <MenuItem key={zone.id} value={zone.id.toString()}>
-                                        {zone.name || `Zone ${zone.zoneNumber}`}
-                                    </MenuItem>
-                                ))}
-                            </TextField>
+                                <EditIcon fontSize="small" />
+                            </IconButton>
                         </Box>
-                    </Box>
+                        <Typography variant="caption" color="text.secondary">প্রোফাইল ছবি</Typography>
+                    </Grid>
 
-                    <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
-                        <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
-                            <TextField
-                                fullWidth
-                                select
-                                label="Ward"
-                                value={formData.wardId}
-                                onChange={handleChange('wardId')}
-                                disabled={loading || wardsLoading || !formData.zoneId}
-                                error={!!errors.wardId}
-                                helperText={
-                                    errors.wardId ||
-                                    (!formData.zoneId
-                                        ? "Select Zone first"
-                                        : wardsLoading
-                                            ? "Loading wards..."
-                                            : wards.length === 0
-                                                ? "No wards available"
-                                                : "Required")
-                                }
-                                required
-                            >
-                                <MenuItem value="">
-                                    <em>Select Ward</em>
-                                </MenuItem>
-                                {wards.map((ward) => (
-                                    <MenuItem key={ward.id} value={ward.id.toString()}>
-                                        Ward {ward.wardNumber}
-                                    </MenuItem>
-                                ))}
-                            </TextField>
-                        </Box>
-                    </Box>
+                    {/* Right Column - Form Fields */}
+                    <Grid size={{ xs: 12, md: 9 }}>
+                        <Grid container spacing={2}>
+                            <Grid size={{ xs: 12, md: 6 }}>
+                                <Typography variant="body2" fontWeight="500" mb={0.5}>নাম</Typography>
+                                <TextField
+                                    fullWidth
+                                    placeholder="নাম লিখুন..."
+                                    value={formData.firstName}
+                                    onChange={handleChange('firstName')}
+                                    error={!!errors.firstName}
+                                    size="small"
+                                />
+                            </Grid>
+                            <Grid size={{ xs: 12, md: 6 }}>
+                                <Typography variant="body2" fontWeight="500" mb={0.5}>পদবী</Typography>
+                                <TextField
+                                    fullWidth
+                                    placeholder="পদবী..."
+                                    value={formData.designation}
+                                    onChange={handleChange('designation')}
+                                    size="small"
+                                />
+                            </Grid>
 
-                    {/* Change Password (Optional) */}
-                    <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2, mt: 3 }}>
-                        Change Password (Optional)
-                    </Typography>
+                            <Grid size={{ xs: 12, md: 6 }}>
+                                <Typography variant="body2" fontWeight="500" mb={0.5}>ফোন</Typography>
+                                <TextField
+                                    fullWidth
+                                    placeholder="01XXXXXXXXX"
+                                    value={formData.phone}
+                                    onChange={handleChange('phone')}
+                                    error={!!errors.phone}
+                                    size="small"
+                                />
+                            </Grid>
+                            <Grid size={{ xs: 12, md: 6 }}>
+                                <Typography variant="body2" fontWeight="500" mb={0.5}>হোয়াটসঅ্যাপ</Typography>
+                                <TextField
+                                    fullWidth
+                                    placeholder="01XXXXXXXXX"
+                                    value={formData.whatsapp}
+                                    onChange={handleChange('whatsapp')}
+                                    size="small"
+                                />
+                            </Grid>
 
-                    <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
-                        <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
-                            <TextField
-                                fullWidth
-                                label="New Password"
-                                type={showPassword ? 'text' : 'password'}
-                                value={formData.newPassword}
-                                onChange={handleChange('newPassword')}
-                                error={!!errors.newPassword}
-                                helperText={errors.newPassword || 'Leave blank to keep current password'}
-                                disabled={loading}
-                                slotProps={{
-                                    input: {
+                            <Grid size={{ xs: 12, md: 6 }}>
+                                <Typography variant="body2" fontWeight="500" mb={0.5}>ইমেইল</Typography>
+                                <TextField
+                                    fullWidth
+                                    placeholder="example@email.com"
+                                    value={formData.email}
+                                    onChange={handleChange('email')}
+                                    size="small"
+                                />
+                            </Grid>
+                            <Grid size={{ xs: 12, md: 6 }}>
+                                <Typography variant="body2" fontWeight="500" mb={0.5}>জয়েনিং ডেট</Typography>
+                                <TextField
+                                    fullWidth
+                                    type="date"
+                                    value={formData.joiningDate}
+                                    onChange={handleChange('joiningDate')}
+                                    size="small"
+                                    InputLabelProps={{ shrink: true }}
+                                />
+                            </Grid>
+
+                            <Grid size={12}>
+                                <Typography variant="body2" fontWeight="500" mb={0.5}>ঠিকানা</Typography>
+                                <TextField
+                                    fullWidth
+                                    placeholder="পূর্ণ ঠিকানা..."
+                                    value={formData.address}
+                                    onChange={handleChange('address')}
+                                    size="small"
+                                    multiline
+                                    rows={2}
+                                />
+                            </Grid>
+
+
+                            <Grid size={{ xs: 12, md: 6 }}>
+                                <Typography variant="body2" fontWeight="500" mb={0.5}>সিটি কর্পোরেশন</Typography>
+                                <TextField
+                                    select
+                                    fullWidth
+                                    value={formData.cityCorporationCode}
+                                    onChange={handleChange('cityCorporationCode')}
+                                    error={!!errors.cityCorporationCode}
+                                    size="small"
+                                    SelectProps={{ displayEmpty: true }}
+                                >
+                                    <MenuItem value="" disabled>সিটি কর্পোরেশন সিলেক্ট করুন...</MenuItem>
+                                    {/* Fallback for initial load to prevent out-of-range warning */}
+                                    {formData.cityCorporationCode && !cityCorporations.find(c => c.code === formData.cityCorporationCode) && (
+                                        <MenuItem value={formData.cityCorporationCode} sx={{ display: 'none' }}>
+                                            {admin?.cityCorporation?.name || formData.cityCorporationCode}
+                                        </MenuItem>
+                                    )}
+                                    {cityCorporations.map(cc => (
+                                        <MenuItem key={cc.code} value={cc.code}>{cc.name}</MenuItem>
+                                    ))}
+                                </TextField>
+                            </Grid>
+                            <Grid size={{ xs: 12, md: 6 }}>
+                                <Typography variant="body2" fontWeight="500" mb={0.5}>জোন</Typography>
+                                <TextField
+                                    select
+                                    fullWidth
+                                    value={formData.zoneId}
+                                    onChange={handleChange('zoneId')}
+                                    error={!!errors.zoneId}
+                                    disabled={!formData.cityCorporationCode}
+                                    size="small"
+                                    SelectProps={{ displayEmpty: true }}
+                                >
+                                    <MenuItem value="" disabled>জোন সিলেক্ট করুন...</MenuItem>
+                                    {/* Fallback for initial load to prevent out-of-range warning */}
+                                    {formData.zoneId && !zones.find(z => z.id.toString() === formData.zoneId) && (
+                                        <MenuItem value={formData.zoneId} sx={{ display: 'none' }}>
+                                            {admin?.zone?.name || `Zone ${admin?.zone?.zoneNumber}` || formData.zoneId}
+                                        </MenuItem>
+                                    )}
+                                    {zones.map(zone => (
+                                        <MenuItem key={zone.id} value={zone.id.toString()}>
+                                            {zone.name || `Zone ${zone.zoneNumber}`}
+                                        </MenuItem>
+                                    ))}
+                                </TextField>
+                            </Grid>
+
+                            {/* Additional Ward Access */}
+                            <Grid size={12}>
+                                <Typography variant="body2" fontWeight="500" mb={0.5}>অ্যাক্সেস এরিয়া (ওয়ার্ড)</Typography>
+                                <Autocomplete
+                                    multiple
+                                    options={allWards}
+                                    getOptionLabel={(option) => `Ward ${option.wardNumber}${option.zone ? ` (Zone ${option.zone.zoneNumber})` : ''}`}
+                                    value={allWards.filter(w => formData.permissions.wards.includes(w.id))}
+                                    onChange={handleWardSelection}
+                                    disabled={!formData.cityCorporationCode}
+                                    size="small"
+                                    renderTags={(value, getTagProps) =>
+                                        value.map((option, index) => {
+                                            const { key, ...tagProps } = getTagProps({ index });
+                                            return (
+                                                <Chip
+                                                    key={key}
+                                                    label={`Ward ${option.wardNumber}`}
+                                                    size="small"
+                                                    {...tagProps}
+                                                />
+                                            );
+                                        })
+                                    }
+                                    renderInput={(params) => (
+                                        <TextField
+                                            {...params}
+                                            placeholder={formData.permissions.wards.length > 0 ? "" : "অতিরিক্ত ওয়ার্ড সিলেক্ট করুন..."}
+                                        />
+                                    )}
+                                />
+                                <Typography variant="caption" color="text.secondary">
+                                    নোট: প্রাইমারি জোনের বাইরের ওয়ার্ড বা অতিরিক্ত ওয়ার্ড সিলেক্ট করা যাবে।
+                                </Typography>
+                            </Grid>
+
+                            <Grid size={{ xs: 12, md: 6 }}>
+                                <Typography variant="body2" fontWeight="500" mb={0.5}>স্ট্যাটাস</Typography>
+                                <TextField
+                                    select
+                                    fullWidth
+                                    value={formData.status}
+                                    onChange={handleChange('status')}
+                                    size="small"
+                                >
+                                    <MenuItem value="ACTIVE">Active</MenuItem>
+                                    <MenuItem value="INACTIVE">Inactive</MenuItem>
+                                    <MenuItem value="SUSPENDED">Suspended</MenuItem>
+                                    <MenuItem value="PENDING">Pending</MenuItem>
+                                </TextField>
+                            </Grid>
+
+                            <Grid size={12}>
+                                <Typography variant="body2" fontWeight="500" mb={0.5}>নতুন পাসওয়ার্ড (অপশনাল)</Typography>
+                                <TextField
+                                    fullWidth
+                                    type={showPassword ? 'text' : 'password'}
+                                    value={formData.newPassword}
+                                    onChange={handleChange('newPassword')}
+                                    error={!!errors.newPassword}
+                                    helperText={errors.newPassword}
+                                    size="small"
+                                    InputProps={{
                                         endAdornment: (
                                             <InputAdornment position="end">
-                                                <IconButton
-                                                    onClick={() => setShowPassword(!showPassword)}
-                                                    edge="end"
-                                                    size="small"
-                                                >
+                                                <IconButton onClick={() => setShowPassword(!showPassword)} edge="end" size="small">
                                                     {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
                                                 </IconButton>
                                             </InputAdornment>
-                                        ),
-                                    },
-                                }}
-                            />
-                        </Box>
+                                        )
+                                    }}
+                                />
+                            </Grid>
+                        </Grid>
+                    </Grid>
 
-                        <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
-                            <TextField
-                                fullWidth
-                                label="Confirm New Password"
-                                type={showConfirmPassword ? 'text' : 'password'}
-                                value={formData.confirmPassword}
-                                onChange={handleChange('confirmPassword')}
-                                error={!!errors.confirmPassword}
-                                helperText={errors.confirmPassword}
-                                disabled={loading}
-                                slotProps={{
-                                    input: {
-                                        endAdornment: (
-                                            <InputAdornment position="end">
-                                                <IconButton
-                                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                                    edge="end"
+                    {/* Permissions Section */}
+                    <Grid size={12}>
+                        <Box sx={{ bgcolor: '#f5f5f5', p: 2, borderRadius: 2, mt: 2 }}>
+                            <Typography variant="subtitle2" fontWeight="bold" mb={2}>পারমিশন ও এক্সেস কন্ট্রোল</Typography>
+                            <Grid container spacing={2}>
+                                {[
+                                    { label: 'মেসেজ টু ইউজার', key: 'canSendMessagesToUsers' },
+                                    { label: 'মেসেজ টু সুপার এডমিন', key: 'canSendMessagesToAdmins' },
+                                    { label: 'অভিযোগকারীর প্রোফাইল', key: 'canViewComplainantProfile' },
+                                    { label: 'এরিয়া স্ট্যাটাস', key: 'canViewAreaStats' },
+                                    { label: 'নিজের পারফরমেন্স', key: 'canViewOwnPerformance' },
+                                    { label: 'কাস্টমার রিভিউ', key: 'canShowReviews' },
+                                    { label: 'রিপোর্ট ডাউনলোড', key: 'reportDownload' },
+                                    { label: 'একশন এপ্রুভাল', key: 'actionApproval' },
+                                    { label: 'ভিউ অনলি', key: 'viewOnlyMode' },
+                                ].map((item) => {
+                                    let isChecked = false;
+                                    if (item.key === 'actionApproval') {
+                                        isChecked = formData.permissions.features.canApproveComplaints;
+                                    } else if (item.key === 'reportDownload') {
+                                        isChecked = formData.permissions.features.canDownloadReports;
+                                    } else {
+                                        isChecked = !!formData.permissions.features[item.key as keyof typeof DEFAULT_PERMISSIONS.features];
+                                    }
+
+                                    const isDisabled = formData.permissions.features.viewOnlyMode && item.key !== 'viewOnlyMode';
+
+                                    return (
+                                        <Grid size={{ xs: 12, sm: 6, md: 4 }} key={item.key}>
+                                            <Box display="flex" justifyContent="space-between" alignItems="center" p={1} bgcolor="white" borderRadius={1} border="1px solid #eee">
+                                                <Typography variant="body2" color={isDisabled ? 'text.disabled' : 'text.primary'}>{item.label}</Typography>
+                                                <Switch
+                                                    checked={isChecked}
+                                                    onChange={() => handlePermissionToggle(item.key as any)}
+                                                    color="success"
                                                     size="small"
-                                                >
-                                                    {showConfirmPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                                                </IconButton>
-                                            </InputAdornment>
-                                        ),
-                                    },
-                                }}
-                            />
+                                                    disabled={isDisabled}
+                                                />
+                                            </Box>
+                                        </Grid>
+                                    );
+                                })}
+                            </Grid>
                         </Box>
-                    </Box>
-
-                    {/* Account Settings */}
-                    <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2, mt: 3 }}>
-                        Account Settings
-                    </Typography>
-
-                    <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
-                        <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
-                            <TextField
-                                fullWidth
-                                select
-                                label="Status"
-                                value={formData.status}
-                                onChange={handleChange('status')}
-                                disabled={loading}
-                            >
-                                <MenuItem value="ACTIVE">Active</MenuItem>
-                                <MenuItem value="INACTIVE">Inactive</MenuItem>
-                                <MenuItem value="SUSPENDED">Suspended</MenuItem>
-                                <MenuItem value="PENDING">Pending</MenuItem>
-                            </TextField>
-                        </Box>
-
-                        <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
-                            <TextField
-                                fullWidth
-                                select
-                                label="Role"
-                                value={formData.role}
-                                onChange={handleChange('role')}
-                                disabled={loading}
-                                helperText="Select the user's role in the system"
-                            >
-                                <MenuItem value="ADMIN">Admin</MenuItem>
-                                <MenuItem value="SUPER_ADMIN">Super Admin</MenuItem>
-                                <MenuItem value="MASTER_ADMIN">Master Admin</MenuItem>
-                            </TextField>
-                        </Box>
-                    </Box>
-                </Box>
+                    </Grid>
+                </Grid>
             </DialogContent>
 
-            <DialogActions sx={{ px: 3, py: 2 }}>
+            <DialogActions sx={{ p: 2, display: 'flex', gap: 1 }}>
                 <Button
-                    onClick={handleCancel}
+                    onClick={onClose}
                     variant="outlined"
-                    disabled={loading}
-                    sx={{ textTransform: 'none' }}
+                    color="inherit"
+                    fullWidth
+                    sx={{ borderColor: '#ddd', color: '#666' }}
                 >
-                    Cancel
+                    বাতিল
                 </Button>
                 <Button
-                    onClick={() => handleSubmit()}
+                    onClick={handleSubmit}
                     variant="contained"
+                    color="success"
+                    fullWidth
                     disabled={loading}
-                    startIcon={loading ? <CircularProgress size={20} /> : <SaveIcon />}
-                    sx={{
-                        backgroundColor: '#4CAF50',
-                        '&:hover': { backgroundColor: '#45a049' },
-                        textTransform: 'none',
-                    }}
+                    sx={{ bgcolor: '#4caf50', '&:hover': { bgcolor: '#45a049' } }}
                 >
-                    {loading ? 'Saving...' : 'Save Changes'}
+                    {loading ? <CircularProgress size={24} color="inherit" /> : 'সংরক্ষণ করুন'}
                 </Button>
             </DialogActions>
-
-            {/* Confirmation Dialog for Destructive Status Changes */}
-            <ConfirmDialog
-                open={showConfirmDialog}
-                title={formData.status === 'SUSPENDED' ? 'Suspend Admin' : 'Deactivate Admin'}
-                message={
-                    formData.status === 'SUSPENDED'
-                        ? `Are you sure you want to suspend ${admin?.firstName} ${admin?.lastName}? This will immediately block their access to the system.`
-                        : `Are you sure you want to deactivate ${admin?.firstName} ${admin?.lastName}? They will not be able to access the system.`
-                }
-                confirmText="Confirm"
-                cancelText="Cancel"
-                severity="warning"
-                onConfirm={handleConfirmStatusChange}
-                onCancel={handleCancelStatusChange}
-            />
         </Dialog>
     );
 };

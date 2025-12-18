@@ -76,6 +76,13 @@ export interface UserWithStats {
         };
     }[];
     wardImageCount: number;
+    permissions?: any;
+    extraWards?: {
+        id: number;
+        wardNumber: number;
+        inspectorName?: string | null;
+        inspectorPhone?: string | null;
+    }[];
     statistics: UserStatistics;
 }
 
@@ -124,6 +131,9 @@ export interface CreateUserDto {
     lastName: string;
     phone: string;
     email?: string;
+    whatsapp?: string;
+    joiningDate?: Date;
+    address?: string;
     password: string;
     cityCorporationCode?: string;
     zoneId?: number;
@@ -137,12 +147,16 @@ export interface UpdateUserDto {
     lastName?: string;
     email?: string;
     phone?: string;
+    whatsapp?: string;
+    joiningDate?: Date;
+    address?: string;
     cityCorporationCode?: string;
     zoneId?: number;
     wardId?: number;
     role?: users_role;
     status?: UserStatus;
     password?: string;
+    permissions?: any;
 }
 
 export interface UpdateStatusDto {
@@ -236,6 +250,7 @@ export class AdminUserService {
                         officerName: true,
                         officerDesignation: true,
                         officerSerialNumber: true,
+                        officerPhone: true,
                         status: true,
                     },
                 },
@@ -246,6 +261,7 @@ export class AdminUserService {
                         wardNumber: true,
                         inspectorName: true,
                         inspectorSerialNumber: true,
+                        inspectorPhone: true,
                         status: true,
                     },
                 },
@@ -268,6 +284,7 @@ export class AdminUserService {
                     }
                 },
                 wardImageCount: true,
+                permissions: true,
                 _count: {
                     select: {
                         complaints: true,
@@ -475,6 +492,7 @@ export class AdminUserService {
                     }
                 },
                 wardImageCount: true,
+                permissions: true,
                 _count: {
                     select: {
                         complaints: true,
@@ -482,6 +500,40 @@ export class AdminUserService {
                 },
             },
         });
+
+        // Fetch extra wards in bulk
+        let allExtraWardIds: number[] = [];
+        users.forEach(user => {
+            let perms = user.permissions as any;
+            if (typeof perms === 'string') {
+                try {
+                    perms = JSON.parse(perms);
+                } catch (e) {
+                    console.error('Error parsing permissions:', e);
+                    perms = {};
+                }
+            }
+
+            if (perms && perms.wards && Array.isArray(perms.wards)) {
+                allExtraWardIds.push(...perms.wards);
+            }
+        });
+        allExtraWardIds = [...new Set(allExtraWardIds)];
+
+        let extraWardsMap = new Map<number, any>();
+        if (allExtraWardIds.length > 0) {
+            const extraWards = await prisma.ward.findMany({
+                where: { id: { in: allExtraWardIds } },
+                select: {
+                    id: true,
+                    wardNumber: true,
+                    inspectorName: true,
+                    inspectorPhone: true,
+                    zoneId: true,
+                }
+            });
+            extraWards.forEach(w => extraWardsMap.set(w.id, w));
+        }
 
         // Get all user IDs for batch statistics query
         const userIds = users.map(u => u.id);
@@ -535,10 +587,26 @@ export class AdminUserService {
         });
 
         // Map users with their statistics
-        const usersWithStats: UserWithStats[] = users.map(user => ({
-            ...user,
-            statistics: statsMap.get(user.id)!,
-        }));
+        const usersWithStats: UserWithStats[] = users.map(user => {
+            let perms = user.permissions as any;
+            if (typeof perms === 'string') {
+                try {
+                    perms = JSON.parse(perms);
+                } catch (e) {
+                    perms = {};
+                }
+            }
+
+            const userExtraWards = (perms && perms.wards && Array.isArray(perms.wards))
+                ? perms.wards.map((id: number) => extraWardsMap.get(id)).filter(Boolean)
+                : [];
+
+            return {
+                ...user,
+                statistics: statsMap.get(user.id)!,
+                extraWards: userExtraWards,
+            };
+        });
 
         return {
             users: usersWithStats,
@@ -588,6 +656,7 @@ export class AdminUserService {
                         officerName: true,
                         officerDesignation: true,
                         officerSerialNumber: true,
+                        officerPhone: true,
                         status: true,
                     },
                 },
@@ -598,15 +667,45 @@ export class AdminUserService {
                         wardNumber: true,
                         inspectorName: true,
                         inspectorSerialNumber: true,
+                        inspectorPhone: true,
                         status: true,
                     },
                 },
                 wardImageCount: true,
+                permissions: true,
             },
         });
 
         if (!user) {
             throw new Error('User not found');
+        }
+
+        // Fetch extra wards if present in permissions
+        let extraWards: any[] = [];
+        let perms = user.permissions as any;
+
+        if (typeof perms === 'string') {
+            try {
+                perms = JSON.parse(perms);
+            } catch (e) {
+                console.error('Error parsing permissions in getUserById:', e);
+                perms = {};
+            }
+        }
+
+        console.log('📋 getUserById - permissions:', JSON.stringify(perms));
+        if (perms && perms.wards && Array.isArray(perms.wards) && perms.wards.length > 0) {
+            console.log('📋 getUserById - perms.wards IDs:', perms.wards);
+            extraWards = await prisma.ward.findMany({
+                where: { id: { in: perms.wards } },
+                select: {
+                    id: true,
+                    wardNumber: true,
+                    inspectorName: true,
+                    inspectorPhone: true,
+                }
+            });
+            console.log('📋 getUserById - fetched extraWards:', extraWards);
         }
 
         // Get user statistics
@@ -631,6 +730,7 @@ export class AdminUserService {
             user: {
                 ...user,
                 statistics,
+                extraWards,
             },
             recentComplaints,
         };
@@ -871,6 +971,9 @@ export class AdminUserService {
             data: {
                 email: data.email,
                 phone: data.phone,
+                whatsapp: data.whatsapp,
+                joiningDate: data.joiningDate,
+                address: data.address,
                 passwordHash: hashedPassword,
                 firstName: data.firstName,
                 lastName: data.lastName,
@@ -999,12 +1102,16 @@ export class AdminUserService {
                 lastName: data.lastName,
                 email: data.email,
                 phone: data.phone,
+                whatsapp: data.whatsapp,
+                joiningDate: data.joiningDate,
+                address: data.address,
                 cityCorporationCode: data.cityCorporationCode,
                 zoneId: data.zoneId,
                 wardId: data.wardId,
                 role: data.role,
                 status: data.status,
                 ...(hashedPassword && { passwordHash: hashedPassword }),
+                ...(data.permissions && { permissions: JSON.stringify(data.permissions) }),
             },
             select: {
                 id: true,

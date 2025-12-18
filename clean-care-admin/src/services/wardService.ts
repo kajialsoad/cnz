@@ -85,13 +85,14 @@ class WardService {
         status?: 'ACTIVE' | 'INACTIVE' | 'ALL';
     }): Promise<{ wards: Ward[] }> {
         try {
-            if (!params?.zoneId) {
-                console.warn('⚠️ No zoneId provided');
+            if (!params?.zoneId && !params?.cityCorporationCode) {
+                console.warn('⚠️ No zoneId or cityCorporationCode provided');
                 return { wards: [] };
             }
 
             const queryParams = new URLSearchParams();
-            queryParams.append('zoneId', params.zoneId.toString());
+            if (params.zoneId) queryParams.append('zoneId', params.zoneId.toString());
+            if (params.cityCorporationCode) queryParams.append('cityCorporationCode', params.cityCorporationCode);
 
             if (params?.status && params.status !== 'ALL') {
                 queryParams.append('status', params.status);

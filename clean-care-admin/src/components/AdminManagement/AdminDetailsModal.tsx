@@ -143,7 +143,7 @@ const AdminDetailsModal: React.FC<AdminDetailsModalProps> = ({ open, onClose, ad
                             যোগাযোগের তথ্য
                         </Typography>
                         <Grid container spacing={2}>
-                            <Grid item xs={12} sm={6}>
+                            <Grid size={{ xs: 12, sm: 6 }}>
                                 <Stack direction="row" spacing={1} alignItems="center">
                                     <PhoneOutlined sx={{ color: '#4a5565' }} />
                                     <Box>
@@ -157,7 +157,7 @@ const AdminDetailsModal: React.FC<AdminDetailsModalProps> = ({ open, onClose, ad
                                 </Stack>
                             </Grid>
                             {displayAdmin.email && (
-                                <Grid item xs={12} sm={6}>
+                                <Grid size={{ xs: 12, sm: 6 }}>
                                     <Stack direction="row" spacing={1} alignItems="center">
                                         <EmailOutlined sx={{ color: '#4a5565' }} />
                                         <Box>
@@ -182,7 +182,7 @@ const AdminDetailsModal: React.FC<AdminDetailsModalProps> = ({ open, onClose, ad
                             এলাকার তথ্য
                         </Typography>
                         <Grid container spacing={2}>
-                            <Grid item xs={12} sm={4}>
+                            <Grid size={{ xs: 12, sm: 4 }}>
                                 <Stack direction="row" spacing={1} alignItems="center">
                                     <LocationOnOutlined sx={{ color: '#4a5565' }} />
                                     <Box>
@@ -195,27 +195,48 @@ const AdminDetailsModal: React.FC<AdminDetailsModalProps> = ({ open, onClose, ad
                                     </Box>
                                 </Stack>
                             </Grid>
-                            <Grid item xs={12} sm={4}>
+                            <Grid size={{ xs: 12, sm: 4 }}>
                                 <Box>
                                     <Typography variant="caption" color="text.secondary">
                                         জোন
                                     </Typography>
                                     <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                                        {displayAdmin.zone?.name || 'N/A'}
+                                        {displayAdmin.zone?.name || 'প্রযোজ্য নয়'}
                                     </Typography>
                                 </Box>
                             </Grid>
-                            <Grid item xs={12} sm={4}>
+                            <Grid size={{ xs: 12, sm: 4 }}>
                                 <Box>
                                     <Typography variant="caption" color="text.secondary">
                                         ওয়ার্ড
                                     </Typography>
                                     <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                                        {displayAdmin.ward ? `Ward ${displayAdmin.ward.wardNumber}` : 'N/A'}
+                                        {displayAdmin.ward ? `ওয়ার্ড ${displayAdmin.ward.wardNumber}` : 'প্রযোজ্য নয়'}
                                     </Typography>
                                 </Box>
+
                             </Grid>
                         </Grid>
+                        {
+                            displayAdmin.extraWards && displayAdmin.extraWards.length > 0 && (
+                                <Box sx={{ mt: 2 }}>
+                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                                        অতিরিক্ত ওয়ার্ড
+                                    </Typography>
+                                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                                        {displayAdmin.extraWards.map((w: any) => (
+                                            <Chip
+                                                key={w.id}
+                                                label={`ওয়ার্ড ${w.wardNumber}`}
+                                                size="small"
+                                                variant="outlined"
+                                                sx={{ mb: 0.5 }}
+                                            />
+                                        ))}
+                                    </Stack>
+                                </Box>
+                            )
+                        }
                     </Box>
 
                     <Divider />
@@ -227,7 +248,7 @@ const AdminDetailsModal: React.FC<AdminDetailsModalProps> = ({ open, onClose, ad
                                 অভিযোগ পরিসংখ্যান
                             </Typography>
                             <Grid container spacing={2}>
-                                <Grid item xs={6} sm={3}>
+                                <Grid size={{ xs: 6, sm: 3 }}>
                                     <Box sx={{ textAlign: 'center', p: 2, bgcolor: '#f9fafb', borderRadius: 2 }}>
                                         <Typography variant="h4" sx={{ fontWeight: 700, color: '#155dfc' }}>
                                             {displayAdmin.statistics.totalComplaints || 0}
@@ -237,7 +258,7 @@ const AdminDetailsModal: React.FC<AdminDetailsModalProps> = ({ open, onClose, ad
                                         </Typography>
                                     </Box>
                                 </Grid>
-                                <Grid item xs={6} sm={3}>
+                                <Grid size={{ xs: 6, sm: 3 }}>
                                     <Box sx={{ textAlign: 'center', p: 2, bgcolor: '#f0fdf4', borderRadius: 2 }}>
                                         <Typography variant="h4" sx={{ fontWeight: 700, color: '#00a63e' }}>
                                             {displayAdmin.statistics.resolvedComplaints || 0}
@@ -247,7 +268,7 @@ const AdminDetailsModal: React.FC<AdminDetailsModalProps> = ({ open, onClose, ad
                                         </Typography>
                                     </Box>
                                 </Grid>
-                                <Grid item xs={6} sm={3}>
+                                <Grid size={{ xs: 6, sm: 3 }}>
                                     <Box sx={{ textAlign: 'center', p: 2, bgcolor: '#fff7ed', borderRadius: 2 }}>
                                         <Typography variant="h4" sx={{ fontWeight: 700, color: '#d08700' }}>
                                             {displayAdmin.statistics.pendingComplaints || 0}
@@ -257,7 +278,7 @@ const AdminDetailsModal: React.FC<AdminDetailsModalProps> = ({ open, onClose, ad
                                         </Typography>
                                     </Box>
                                 </Grid>
-                                <Grid item xs={6} sm={3}>
+                                <Grid size={{ xs: 6, sm: 3 }}>
                                     <Box sx={{ textAlign: 'center', p: 2, bgcolor: '#eff6ff', borderRadius: 2 }}>
                                         <Typography variant="h4" sx={{ fontWeight: 700, color: '#155dfc' }}>
                                             {displayAdmin.statistics.inProgressComplaints || 0}
@@ -279,7 +300,7 @@ const AdminDetailsModal: React.FC<AdminDetailsModalProps> = ({ open, onClose, ad
                             অ্যাকাউন্ট তথ্য
                         </Typography>
                         <Grid container spacing={2}>
-                            <Grid item xs={12} sm={6}>
+                            <Grid size={{ xs: 12, sm: 6 }}>
                                 <Stack direction="row" spacing={1} alignItems="center">
                                     <CalendarTodayOutlined sx={{ color: '#4a5565' }} />
                                     <Box>
@@ -293,7 +314,7 @@ const AdminDetailsModal: React.FC<AdminDetailsModalProps> = ({ open, onClose, ad
                                 </Stack>
                             </Grid>
                             {displayAdmin.lastLoginAt && (
-                                <Grid item xs={12} sm={6}>
+                                <Grid size={{ xs: 12, sm: 6 }}>
                                     <Stack direction="row" spacing={1} alignItems="center">
                                         <CalendarTodayOutlined sx={{ color: '#4a5565' }} />
                                         <Box>
@@ -310,14 +331,14 @@ const AdminDetailsModal: React.FC<AdminDetailsModalProps> = ({ open, onClose, ad
                         </Grid>
                     </Box>
                 </Stack>
-            </DialogContent>
+            </DialogContent >
 
             <DialogActions>
                 <Button variant="contained" onClick={onClose} sx={{ bgcolor: '#3fa564' }}>
                     বন্ধ করুন
                 </Button>
             </DialogActions>
-        </Dialog>
+        </Dialog >
     );
 };
 

@@ -123,7 +123,7 @@ class UserManagementService {
     }
 
     // Get user statistics
-    async getUserStatistics(cityCorporationCode?: string, role?: string): Promise<UserStatisticsResponse> {
+    async getUserStatistics(cityCorporationCode?: string, role?: string, zoneId?: number, wardId?: number): Promise<UserStatisticsResponse> {
         try {
             const params: any = {};
             if (cityCorporationCode) {
@@ -131,6 +131,12 @@ class UserManagementService {
             }
             if (role) {
                 params.role = role;
+            }
+            if (zoneId) {
+                params.zoneId = zoneId;
+            }
+            if (wardId) {
+                params.wardId = wardId;
             }
 
             const response = await this.apiClient.get<{

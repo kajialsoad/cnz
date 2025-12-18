@@ -25,6 +25,62 @@ interface WardStats {
 
 class WardService {
     /**
+     * Get wards with flexible filtering
+     */
+    async getWards(params: {
+        zoneId?: number;
+        cityCorporationCode?: string;
+        status?: 'ACTIVE' | 'INACTIVE' | 'ALL';
+    }) {
+        const where: any = {};
+
+        if (params.zoneId) {
+            where.zoneId = params.zoneId;
+        }
+
+        if (params.cityCorporationCode && !params.zoneId) {
+            where.zone = {
+                cityCorporation: {
+                    code: params.cityCorporationCode
+                }
+            };
+        }
+
+        if (params.status && params.status !== 'ALL') {
+            where.status = params.status;
+        }
+
+        const wards = await prisma.ward.findMany({
+            where,
+            include: {
+                zone: {
+                    select: {
+                        id: true,
+                        zoneNumber: true,
+                        name: true,
+                        cityCorporation: {
+                            select: {
+                                id: true,
+                                code: true,
+                                name: true,
+                            },
+                        },
+                    },
+                },
+                _count: {
+                    select: {
+                        users: true,
+                    },
+                },
+            },
+            orderBy: {
+                wardNumber: 'asc',
+            },
+        });
+
+        return wards;
+    }
+    /**
      * Get wards by zone with optional status filter
      */
     async getWardsByZone(

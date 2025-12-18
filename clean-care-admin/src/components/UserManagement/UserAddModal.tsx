@@ -584,7 +584,7 @@ const UserAddModal: React.FC<UserAddModalProps> = ({
                                 </MenuItem>
                                 {wards.map((ward) => (
                                     <MenuItem key={ward.id} value={ward.id.toString()}>
-                                        Ward {ward.wardNumber}
+                                        Ward {typeof ward.wardNumber === 'object' ? JSON.stringify(ward.wardNumber) : ward.wardNumber}
                                     </MenuItem>
                                 ))}
                             </TextField>

@@ -48,12 +48,16 @@ export interface ZoneInfo {
     id: number;
     zoneNumber: number;
     name?: string;
+    officerName?: string | null;
+    officerPhone?: string | null;
 }
 
 // Ward info
 export interface WardInfo {
     id: number;
     wardNumber: number;
+    inspectorName?: string | null;
+    inspectorPhone?: string | null;
 }
 
 // User with statistics
@@ -64,7 +68,10 @@ export interface UserWithStats {
     firstName: string;
     lastName: string;
     avatar: string | null;
+    designation?: string | null;
     address: string | null;
+    joiningDate?: string | null;
+    whatsapp?: string | null;
     role: UserRole;
     status: UserStatus;
     emailVerified: boolean;
@@ -79,6 +86,8 @@ export interface UserWithStats {
     cityCorporationCode?: string | null;
     zoneId?: number | null;
     wardId?: number | null;
+    permissions?: Permissions | null;
+    extraWards?: WardInfo[];
 }
 
 // Pagination
@@ -146,8 +155,11 @@ export interface UserStatisticsResponse {
 export interface CreateUserDto {
     firstName: string;
     lastName: string;
+    designation?: string;
     phone: string;
     email?: string;
+    whatsapp?: string;
+    joiningDate?: string;
     password: string;
     cityCorporationCode?: string;
     thanaId?: number;
@@ -164,8 +176,11 @@ export interface CreateUserDto {
 export interface UpdateUserDto {
     firstName?: string;
     lastName?: string;
+    designation?: string;
     email?: string;
     phone?: string;
+    whatsapp?: string;
+    joiningDate?: string;
     cityCorporationCode?: string;
     thanaId?: number;
     ward?: string;
@@ -174,7 +189,9 @@ export interface UpdateUserDto {
     role?: UserRole;
     status?: UserStatus;
     password?: string;
-    permissions?: any;
+    zoneId?: number;
+    wardId?: number;
+    permissions?: Permissions;
 }
 
 // Update status DTO
@@ -241,4 +258,53 @@ export interface UserFilters {
     search: string;
     status: UserStatus | 'ALL';
     role: UserRole | 'ALL';
+}
+
+// Permissions Interface
+export interface PermissionFeatures {
+    // Complaint Management
+    canViewComplaints: boolean;
+    canApproveComplaints: boolean;
+    canRejectComplaints: boolean;
+    canMarkComplaintsPending: boolean;
+    canEditComplaints: boolean;
+    canDeleteComplaints: boolean;
+
+    // User Management
+    canViewUsers: boolean;
+    canEditUsers: boolean;
+    canDeleteUsers: boolean;
+    canAddUsers: boolean;
+
+    // Admin Management
+    canViewAdmins: boolean;
+    canEditAdmins: boolean;
+    canDeleteAdmins: boolean;
+    canAddAdmins: boolean;
+
+    // Messaging
+    canViewMessages: boolean;
+    canSendMessagesToUsers: boolean;
+    canSendMessagesToAdmins: boolean;
+
+    // Analytics & Reports
+    canViewAnalytics: boolean;
+    canExportData: boolean;
+    canDownloadReports: boolean;
+
+    // View Only Mode
+    viewOnlyMode: boolean;
+
+    // Granular Access
+    canViewComplainantProfile: boolean;
+    canViewAreaStats: boolean;
+    canViewOwnPerformance: boolean;
+    canShowReviews: boolean;
+}
+
+export interface Permissions {
+    zones: number[];
+    wards: number[];
+    categories: string[];
+    features: PermissionFeatures;
 }

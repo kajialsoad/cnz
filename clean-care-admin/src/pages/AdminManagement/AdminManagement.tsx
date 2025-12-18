@@ -362,7 +362,7 @@ const AdminManagement: React.FC = () => {
               এডমিন ম্যানেজমেন্ট
             </Typography>
             <Grid container spacing={2}>
-              <Grid item xs={12} md={2}>
+              <Grid size={{ xs: 12, md: 2 }}>
                 <StatCard
                   title="মোট এডমিন"
                   value={stats.total}
@@ -371,7 +371,7 @@ const AdminManagement: React.FC = () => {
                   loading={statsLoading}
                 />
               </Grid>
-              <Grid item xs={12} md={2}>
+              <Grid size={{ xs: 12, md: 2 }}>
                 <StatCard
                   title="সক্রিয়"
                   value={stats.active}
@@ -380,7 +380,7 @@ const AdminManagement: React.FC = () => {
                   loading={statsLoading}
                 />
               </Grid>
-              <Grid item xs={12} md={2}>
+              <Grid size={{ xs: 12, md: 2 }}>
                 <StatCard
                   title="নিষ্ক্রিয়"
                   value={stats.inactive}
@@ -389,7 +389,7 @@ const AdminManagement: React.FC = () => {
                   loading={statsLoading}
                 />
               </Grid>
-              <Grid item xs={12} md={2}>
+              <Grid size={{ xs: 12, md: 2 }}>
                 <StatCard
                   title="অনলাইন"
                   value={stats.online}
@@ -610,7 +610,16 @@ const AdminManagement: React.FC = () => {
                                     sx={{ height: 24 }}
                                   />
                                 ) : null}
-                                {!admin.zone && !admin.ward && (
+                                {admin.extraWards && admin.extraWards.length > 0 && (
+                                  <Chip
+                                    label={`+${admin.extraWards.length} Wards`}
+                                    size="small"
+                                    variant="outlined"
+                                    color="info"
+                                    sx={{ height: 24 }}
+                                  />
+                                )}
+                                {!admin.zone && !admin.ward && (!admin.extraWards || admin.extraWards.length === 0) && (
                                   <Typography variant="caption" color="text.secondary">
                                     N/A
                                   </Typography>

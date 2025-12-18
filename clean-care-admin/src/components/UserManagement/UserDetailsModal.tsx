@@ -257,8 +257,18 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                                         </Typography>
                                     )}
                                     <Typography variant="body2" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                                        Ward {user.ward || 'N/A'} • Zone {user.zone || 'N/A'}
+                                        Ward {user.ward?.wardNumber ?? 'N/A'} • Zone {user.zone?.zoneNumber ?? 'N/A'}
                                     </Typography>
+                                    {user.ward?.inspectorName && (
+                                        <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 0.5 }}>
+                                            Inspector: {user.ward.inspectorName} {user.ward.inspectorPhone ? `(${user.ward.inspectorPhone})` : ''}
+                                        </Typography>
+                                    )}
+                                    {user.zone?.officerName && (
+                                        <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 0.5 }}>
+                                            Zonal Officer: {user.zone.officerName} {user.zone.officerPhone ? `(${user.zone.officerPhone})` : ''}
+                                        </Typography>
+                                    )}
                                     {user.address && (
                                         <Typography
                                             variant="body2"

@@ -9,22 +9,25 @@ class WardController {
      */
     async getWards(req: Request, res: Response) {
         try {
-            const { zoneId, status } = req.query;
+            const { zoneId, status, cityCorporationCode } = req.query;
 
-            // Validate required zoneId parameter
-            if (!zoneId || typeof zoneId !== 'string') {
+            // Validate zoneId or cityCorporationCode presence
+            if (!zoneId && !cityCorporationCode) {
                 return res.status(400).json({
                     success: false,
-                    message: 'zoneId query parameter is required',
+                    message: 'Either zoneId or cityCorporationCode query parameter is required',
                 });
             }
 
-            const zoneIdNum = parseInt(zoneId);
-            if (isNaN(zoneIdNum)) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Invalid zoneId format',
-                });
+            let zoneIdNum: number | undefined;
+            if (zoneId) {
+                zoneIdNum = parseInt(zoneId as string);
+                if (isNaN(zoneIdNum)) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Invalid zoneId format',
+                    });
+                }
             }
 
             // Validate zone access for Super Admins
@@ -44,9 +47,12 @@ class WardController {
 
             const validStatus = status as WardStatus | 'ALL' | undefined;
 
-            const wards = await wardService.getWardsByZone(
-                zoneIdNum,
-                validStatus || 'ALL'
+            const wards = await wardService.getWards(
+                {
+                    zoneId: zoneIdNum,
+                    cityCorporationCode: cityCorporationCode as string,
+                    status: validStatus || 'ALL'
+                }
             );
 
             res.json({

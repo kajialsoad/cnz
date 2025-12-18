@@ -173,10 +173,10 @@ const UserManagement: React.FC = () => {
     fetchUsers();
   }, [debouncedSearchTerm, statusFilter, selectedCityCorporation, selectedZone, selectedWard, pagination.page]);
 
-  // Fetch statistics when city corporation filter changes
+  // Fetch statistics when filters change
   useEffect(() => {
     fetchStatistics();
-  }, [selectedCityCorporation]);
+  }, [selectedCityCorporation, selectedZone, selectedWard]);
 
   // Auto-refresh statistics every 30 seconds
   useEffect(() => {
@@ -185,7 +185,7 @@ const UserManagement: React.FC = () => {
     }, 30000); // 30 seconds
 
     return () => clearInterval(intervalId);
-  }, [selectedCityCorporation]);
+  }, [selectedCityCorporation, selectedZone, selectedWard]);
 
   // Fetch city corporations function
   const fetchCityCorporations = async () => {
@@ -257,7 +257,9 @@ const UserManagement: React.FC = () => {
       setStatsLoading(true);
       const stats = await userManagementService.getUserStatistics(
         selectedCityCorporation !== 'ALL' ? selectedCityCorporation : undefined,
-        'CUSTOMER' // Only count app users (citizens), not admins or super admins
+        'CUSTOMER', // Only count app users (citizens), not admins or super admins
+        selectedZone ? Number(selectedZone) : undefined,
+        selectedWard ? Number(selectedWard) : undefined
       );
       setStatistics(stats);
     } catch (err: any) {
@@ -450,7 +452,9 @@ const UserManagement: React.FC = () => {
 
   // Get user initials
   const getUserInitials = (firstName: string, lastName: string): string => {
-    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+    const f = typeof firstName === 'string' ? firstName : String(firstName || '');
+    const l = typeof lastName === 'string' ? lastName : String(lastName || '');
+    return `${f.charAt(0)}${l.charAt(0)}`.toUpperCase();
   };
 
   // Calculate success rate
@@ -463,17 +467,17 @@ const UserManagement: React.FC = () => {
   const stats = [
     {
       title: 'Total Citizens',
-      value: statsLoading ? '...' : (statistics?.totalCitizens || 0).toString(),
+      value: statsLoading ? '...' : String(statistics?.totalCitizens || 0),
       color: '#2196F3',
     },
     {
       title: 'Total Complaints',
-      value: statsLoading ? '...' : (statistics?.totalComplaints || 0).toString(),
+      value: statsLoading ? '...' : String(statistics?.totalComplaints || 0),
       color: '#FF9800',
     },
     {
       title: 'Resolved',
-      value: statsLoading ? '...' : (statistics?.resolvedComplaints || 0).toString(),
+      value: statsLoading ? '...' : String(statistics?.resolvedComplaints || 0),
       color: '#4CAF50',
     },
     {
@@ -663,7 +667,7 @@ const UserManagement: React.FC = () => {
                     <MenuItem value="ALL">All City Corporations</MenuItem>
                     {cityCorporations && cityCorporations.map((cc) => (
                       <MenuItem key={cc.code} value={cc.code}>
-                        {cc.name}
+                        {typeof cc.name === 'object' ? JSON.stringify(cc.name) : cc.name}
                       </MenuItem>
                     ))}
                   </Select>
@@ -696,7 +700,7 @@ const UserManagement: React.FC = () => {
                     <MenuItem value="">All Wards</MenuItem>
                     {wards && wards.map((ward) => (
                       <MenuItem key={ward.id} value={ward.id}>
-                        Ward {ward.wardNumber}
+                        Ward {typeof ward.wardNumber === 'object' ? JSON.stringify(ward.wardNumber) : ward.wardNumber}
                       </MenuItem>
                     ))}
                   </Select>
@@ -834,6 +838,13 @@ const UserManagement: React.FC = () => {
                       // User rows
                       users.map((user) => {
                         const isItemSelected = selectedIds.indexOf(user.id) !== -1;
+                        // Debug logging for object rendering crash
+                        if (typeof user.ward === 'object' && user.ward !== null && !('wardNumber' in user.ward)) {
+                          console.error('Suspicious Ward object found:', user.ward);
+                        }
+                        if (typeof user.zone === 'object' && user.zone !== null && !('zoneNumber' in user.zone)) {
+                          console.error('Suspicious Zone object found:', user.zone);
+                        }
                         return (
                           <TableRow
                             key={user.id}
@@ -862,10 +873,10 @@ const UserManagement: React.FC = () => {
                                 )}
                                 <Box>
                                   <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                                    {`${user.firstName} ${user.lastName}`}
+                                    {`${typeof user.firstName === 'object' ? JSON.stringify(user.firstName) : user.firstName} ${typeof user.lastName === 'object' ? JSON.stringify(user.lastName) : user.lastName}`}
                                   </Typography>
                                   <Typography variant="body2" color="text.secondary">
-                                    #{user.id.toString().padStart(6, '0')}
+                                    #{String(user.id).padStart(6, '0')}
                                   </Typography>
                                 </Box>
                               </Box>
@@ -874,22 +885,22 @@ const UserManagement: React.FC = () => {
                               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                   <EmailIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                                  <Typography variant="body2">{user.email || 'N/A'}</Typography>
+                                  <Typography variant="body2">{typeof user.email === 'object' ? JSON.stringify(user.email) : (user.email || 'N/A')}</Typography>
                                 </Box>
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                   <PhoneIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                                  <Typography variant="body2">{formatPhoneNumber(user.phone)}</Typography>
+                                  <Typography variant="body2">{typeof user.phone === 'object' ? JSON.stringify(user.phone) : formatPhoneNumber(user.phone)}</Typography>
                                 </Box>
                               </Box>
                             </TableCell>
                             <TableCell>
                               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                                 <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                  {user.cityCorporation?.name || 'N/A'}
+                                  {typeof user.cityCorporation?.name === 'object' ? JSON.stringify(user.cityCorporation.name) : (user.cityCorporation?.name || 'N/A')}
                                 </Typography>
                                 {user.cityCorporation && (
                                   <Typography variant="caption" color="text.secondary">
-                                    {user.cityCorporation.code}
+                                    {typeof user.cityCorporation.code === 'object' ? JSON.stringify(user.cityCorporation.code) : user.cityCorporation.code}
                                   </Typography>
                                 )}
                               </Box>
@@ -898,7 +909,7 @@ const UserManagement: React.FC = () => {
                               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                                 {user.zone ? (
                                   <Chip
-                                    label={`Zone ${user.zone.zoneNumber}${user.zone.name ? ` - ${user.zone.name}` : ''}`}
+                                    label={`Zone ${typeof user.zone.zoneNumber === 'object' ? JSON.stringify(user.zone.zoneNumber) : user.zone.zoneNumber}${user.zone.name ? ` - ${typeof user.zone.name === 'object' ? JSON.stringify(user.zone.name) : user.zone.name}` : ''}`}
                                     size="small"
                                     variant="outlined"
                                     color="primary"
@@ -907,7 +918,7 @@ const UserManagement: React.FC = () => {
                                 ) : null}
                                 {user.ward ? (
                                   <Chip
-                                    label={`Ward ${user.ward.wardNumber}`}
+                                    label={`Ward ${typeof user.ward.wardNumber === 'object' ? JSON.stringify(user.ward.wardNumber) : user.ward.wardNumber}`}
                                     size="small"
                                     variant="outlined"
                                     sx={{ height: 24, justifyContent: 'flex-start' }}
@@ -922,7 +933,7 @@ const UserManagement: React.FC = () => {
                             </TableCell>
                             <TableCell>
                               <Chip
-                                label={user.statistics.totalComplaints}
+                                label={String(user.statistics.totalComplaints)}
                                 sx={{
                                   backgroundColor: '#e3f2fd',
                                   color: '#1976d2',
@@ -932,7 +943,7 @@ const UserManagement: React.FC = () => {
                             </TableCell>
                             <TableCell>
                               <Chip
-                                label={user.statistics.resolvedComplaints}
+                                label={String(user.statistics.resolvedComplaints)}
                                 sx={{
                                   backgroundColor: '#e8f5e8',
                                   color: '#2e7d2e',
@@ -942,7 +953,7 @@ const UserManagement: React.FC = () => {
                             </TableCell>
                             <TableCell>
                               <Chip
-                                label={user.statistics.unresolvedComplaints}
+                                label={String(user.statistics.unresolvedComplaints)}
                                 sx={{
                                   backgroundColor: '#ffebee',
                                   color: '#c62828',
