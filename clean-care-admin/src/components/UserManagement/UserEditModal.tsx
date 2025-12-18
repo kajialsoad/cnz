@@ -22,6 +22,12 @@ import {
 } from '@mui/icons-material';
 import ConfirmDialog from '../common/ConfirmDialog';
 import type { UserWithStats, UpdateUserDto, UserRole, UserStatus } from '../../types/userManagement.types';
+import { cityCorporationService } from '../../services/cityCorporationService';
+import { zoneService } from '../../services/zoneService';
+import { wardService } from '../../services/wardService';
+import type { CityCorporation } from '../../services/cityCorporationService';
+import type { Zone } from '../../services/zoneService';
+import type { Ward } from '../../services/wardService';
 
 interface UserEditModalProps {
     user: UserWithStats | null;
@@ -35,9 +41,9 @@ interface FormData {
     lastName: string;
     email: string;
     phone: string;
-    ward: string;
-    zone: string;
-    role: UserRole;
+    cityCorporationCode: string;
+    zoneId: string;
+    wardId: string;
     status: UserStatus;
     newPassword: string;
     confirmPassword: string;
@@ -48,8 +54,9 @@ interface FormErrors {
     lastName?: string;
     email?: string;
     phone?: string;
-    ward?: string;
-    zone?: string;
+    cityCorporationCode?: string;
+    wardId?: string;
+    zoneId?: string;
     newPassword?: string;
     confirmPassword?: string;
 }
@@ -65,13 +72,21 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
         lastName: '',
         email: '',
         phone: '',
-        ward: '',
-        zone: '',
-        role: 'ADMIN' as UserRole,
+        cityCorporationCode: '',
+        zoneId: '',
+        wardId: '',
         status: 'ACTIVE' as UserStatus,
         newPassword: '',
         confirmPassword: '',
     });
+
+    // City Corporation, Zone, and Ward state
+    const [cityCorporations, setCityCorporations] = useState<CityCorporation[]>([]);
+    const [zones, setZones] = useState<Zone[]>([]);
+    const [wards, setWards] = useState<Ward[]>([]);
+    const [cityCorporationsLoading, setCityCorporationsLoading] = useState(false);
+    const [zonesLoading, setZonesLoading] = useState(false);
+    const [wardsLoading, setWardsLoading] = useState(false);
 
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -81,6 +96,71 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
     const [submitError, setSubmitError] = useState<string | null>(null);
     const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
+    // Fetch city corporations on mount
+    useEffect(() => {
+        fetchCityCorporations();
+    }, []);
+
+    // Fetch zones when city corporation changes
+    useEffect(() => {
+        if (formData.cityCorporationCode) {
+            fetchZones(formData.cityCorporationCode);
+        } else {
+            setZones([]);
+            setWards([]);
+            setFormData(prev => ({ ...prev, zoneId: '', wardId: '' }));
+        }
+    }, [formData.cityCorporationCode]);
+
+    // Fetch wards when zone changes
+    useEffect(() => {
+        if (formData.zoneId) {
+            fetchWards(parseInt(formData.zoneId));
+        } else {
+            setWards([]);
+            setFormData(prev => ({ ...prev, wardId: '' }));
+        }
+    }, [formData.zoneId]);
+
+    const fetchCityCorporations = async () => {
+        try {
+            setCityCorporationsLoading(true);
+            const response = await cityCorporationService.getCityCorporations('ACTIVE');
+            setCityCorporations(response.cityCorporations || []);
+        } catch (err: any) {
+            console.error('Error fetching city corporations:', err);
+            setCityCorporations([]);
+        } finally {
+            setCityCorporationsLoading(false);
+        }
+    };
+
+    const fetchZones = async (cityCorporationCode: string) => {
+        try {
+            setZonesLoading(true);
+            const response = await zoneService.getZones({ cityCorporationCode, status: 'ACTIVE' });
+            setZones(response.zones || []);
+        } catch (err: any) {
+            console.error('Error fetching zones:', err);
+            setZones([]);
+        } finally {
+            setZonesLoading(false);
+        }
+    };
+
+    const fetchWards = async (zoneId: number) => {
+        try {
+            setWardsLoading(true);
+            const response = await wardService.getWards({ zoneId, status: 'ACTIVE' });
+            setWards(response.wards || []);
+        } catch (err: any) {
+            console.error('Error fetching wards:', err);
+            setWards([]);
+        } finally {
+            setWardsLoading(false);
+        }
+    };
+
     // Initialize form data when user changes
     useEffect(() => {
         if (user) {
@@ -89,15 +169,23 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
                 lastName: user.lastName,
                 email: user.email || '',
                 phone: user.phone,
-                ward: user.ward || '',
-                zone: user.zone || '',
-                role: user.role,
+                cityCorporationCode: user.cityCorporation?.code || '',
+                zoneId: user.zone?.id?.toString() || '',
+                wardId: user.ward?.id?.toString() || '',
                 status: user.status,
                 newPassword: '',
                 confirmPassword: '',
             });
             setErrors({});
             setSubmitError(null);
+
+            // Trigger fetches if data exists
+            if (user.cityCorporation?.code) {
+                fetchZones(user.cityCorporation.code);
+            }
+            if (user.zone?.id) {
+                fetchWards(user.zone.id);
+            }
         }
     }, [user]);
 
@@ -134,6 +222,21 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
         // Optional email validation
         if (formData.email && !validateEmail(formData.email)) {
             newErrors.email = 'Invalid email format';
+        }
+
+        // City Corporation is required
+        if (!formData.cityCorporationCode) {
+            newErrors.cityCorporationCode = 'City Corporation is required';
+        }
+
+        // Zone is required
+        if (!formData.zoneId) {
+            newErrors.zoneId = 'Zone is required';
+        }
+
+        // Ward is required
+        if (!formData.wardId) {
+            newErrors.wardId = 'Ward is required';
         }
 
         // Password validation (optional - only if user wants to change password)
@@ -206,15 +309,17 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
             if (formData.phone !== user?.phone) {
                 updateData.phone = formData.phone;
             }
-            if (formData.ward !== (user?.ward || '')) {
-                updateData.ward = formData.ward || undefined;
+            if (formData.cityCorporationCode !== user?.cityCorporation?.code) {
+                updateData.cityCorporationCode = formData.cityCorporationCode;
             }
-            if (formData.zone !== (user?.zone || '')) {
-                updateData.zone = formData.zone || undefined;
+            // Use zoneId and wardId for updates logic
+            if (formData.zoneId !== user?.zone?.id?.toString()) {
+                (updateData as any).zoneId = parseInt(formData.zoneId);
             }
-            if (formData.role !== user?.role) {
-                updateData.role = formData.role;
+            if (formData.wardId !== user?.ward?.id?.toString()) {
+                (updateData as any).wardId = parseInt(formData.wardId);
             }
+
             if (formData.status !== user?.status) {
                 updateData.status = formData.status;
             }
@@ -356,64 +461,94 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
                         Location Information
                     </Typography>
 
-                    {/* City Corporation and Thana - Read Only */}
-                    {(user?.cityCorporation || user?.thana) && (
-                        <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
-                            {user?.cityCorporation && (
-                                <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
-                                    <TextField
-                                        fullWidth
-                                        label="City Corporation"
-                                        value={user.cityCorporation.name}
-                                        disabled
-                                        InputProps={{
-                                            readOnly: true,
-                                        }}
-                                        helperText="Cannot be changed"
-                                    />
-                                </Box>
-                            )}
-
-                            {user?.thana && (
-                                <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
-                                    <TextField
-                                        fullWidth
-                                        label="Thana"
-                                        value={user.thana.name}
-                                        disabled
-                                        InputProps={{
-                                            readOnly: true,
-                                        }}
-                                        helperText="Cannot be changed"
-                                    />
-                                </Box>
-                            )}
+                    <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+                        <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
+                            <TextField
+                                fullWidth
+                                select
+                                label="City Corporation"
+                                value={formData.cityCorporationCode}
+                                onChange={handleChange('cityCorporationCode')}
+                                disabled={loading || cityCorporationsLoading}
+                                error={!!errors.cityCorporationCode}
+                                helperText={errors.cityCorporationCode}
+                                required
+                            >
+                                <MenuItem value="">
+                                    <em>Select City Corporation</em>
+                                </MenuItem>
+                                {cityCorporations.map((cc) => (
+                                    <MenuItem key={cc.code} value={cc.code}>
+                                        {cc.name}
+                                    </MenuItem>
+                                ))}
+                            </TextField>
                         </Box>
-                    )}
+
+                        <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
+                            <TextField
+                                fullWidth
+                                select
+                                label="Zone"
+                                value={formData.zoneId}
+                                onChange={handleChange('zoneId')}
+                                disabled={loading || zonesLoading || !formData.cityCorporationCode}
+                                error={!!errors.zoneId}
+                                helperText={
+                                    errors.zoneId ||
+                                    (!formData.cityCorporationCode
+                                        ? "Select City Corporation first"
+                                        : zonesLoading
+                                            ? "Loading zones..."
+                                            : zones.length === 0
+                                                ? "No zones available"
+                                                : "Required")
+                                }
+                                required
+                            >
+                                <MenuItem value="">
+                                    <em>Select Zone</em>
+                                </MenuItem>
+                                {zones.map((zone) => (
+                                    <MenuItem key={zone.id} value={zone.id.toString()}>
+                                        {zone.name || `Zone ${zone.zoneNumber}`}
+                                    </MenuItem>
+                                ))}
+                            </TextField>
+                        </Box>
+                    </Box>
 
                     <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
                         <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
                             <TextField
                                 fullWidth
+                                select
                                 label="Ward"
-                                value={formData.ward}
-                                onChange={handleChange('ward')}
-                                error={!!errors.ward}
-                                helperText={errors.ward}
-                                disabled={loading}
-                            />
-                        </Box>
-
-                        <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
-                            <TextField
-                                fullWidth
-                                label="Zone"
-                                value={formData.zone}
-                                onChange={handleChange('zone')}
-                                error={!!errors.zone}
-                                helperText={errors.zone}
-                                disabled={loading}
-                            />
+                                value={formData.wardId}
+                                onChange={handleChange('wardId')}
+                                disabled={loading || wardsLoading || !formData.zoneId}
+                                error={!!errors.wardId}
+                                helperText={
+                                    errors.wardId ||
+                                    (!formData.zoneId
+                                        ? "Select Zone first"
+                                        : wardsLoading
+                                            ? "Loading wards..."
+                                            : wards.length === 0
+                                                ? "No wards available"
+                                                : "Required")
+                                }
+                                required
+                            >
+                                <MenuItem value="">
+                                    <em>Select Ward</em>
+                                </MenuItem>
+                                {wards.map((ward) => (
+                                    <MenuItem key={ward.id} value={ward.id.toString()}>
+                                        Ward {ward.wardNumber}
+                                    </MenuItem>
+                                ))}
+                            </TextField>
                         </Box>
                     </Box>
 
@@ -499,21 +634,6 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
                                 <MenuItem value="INACTIVE">Inactive</MenuItem>
                                 <MenuItem value="SUSPENDED">Suspended</MenuItem>
                                 <MenuItem value="PENDING">Pending</MenuItem>
-                            </TextField>
-                        </Box>
-
-                        <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
-                            <TextField
-                                fullWidth
-                                select
-                                label="Role"
-                                value={formData.role}
-                                onChange={handleChange('role')}
-                                disabled={loading}
-                            >
-                                <MenuItem value="ADMIN">Admin</MenuItem>
-                                <MenuItem value="SUPER_ADMIN">Super Admin</MenuItem>
-                                <MenuItem value="MASTER_ADMIN">Master Admin</MenuItem>
                             </TextField>
                         </Box>
                     </Box>

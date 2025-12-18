@@ -4,31 +4,33 @@ import {
     DialogTitle,
     DialogContent,
     DialogActions,
+    Box,
+    Typography,
     Button,
     TextField,
-    Stack,
+    MenuItem,
     IconButton,
-    Typography,
+    CircularProgress,
+    Alert,
+    InputAdornment,
     FormControl,
     InputLabel,
     Select,
-    MenuItem,
-    Chip,
-    Box,
-    CircularProgress,
-    Alert,
-    FormControlLabel,
-    Switch,
-    Divider,
-    Paper,
 } from '@mui/material';
-import Close from '@mui/icons-material/Close';
-import { useForm, Controller } from 'react-hook-form';
-import { toast } from 'react-hot-toast';
-import { userManagementService } from '../../services/userManagementService';
+import {
+    Close as CloseIcon,
+    PersonAdd as PersonAddIcon,
+    Visibility as VisibilityIcon,
+    VisibilityOff as VisibilityOffIcon,
+} from '@mui/icons-material';
+import type { CreateUserDto, UserRole } from '../../types/userManagement.types';
 import { cityCorporationService } from '../../services/cityCorporationService';
 import { zoneService } from '../../services/zoneService';
 import { wardService } from '../../services/wardService';
+import { userManagementService } from '../../services/userManagementService';
+import type { CityCorporation } from '../../services/cityCorporationService';
+import type { Zone } from '../../services/zoneService';
+import type { Ward } from '../../services/wardService';
 
 interface AdminAddModalProps {
     open: boolean;
@@ -36,679 +38,618 @@ interface AdminAddModalProps {
     onSuccess: () => void;
 }
 
-interface AdminPermissions {
-    canSendMessagesToUsers: boolean;
-    canSendMessagesToAdmins: boolean;
-    canViewComplaints: boolean;
-    canEditComplaints: boolean;
-    canExportReports: boolean;
-    canExportExcel: boolean;
-    canEditAdmins: boolean;
-    canAddAdmins: boolean;
-}
-
-interface AdminFormData {
+interface FormData {
     firstName: string;
     lastName: string;
+    email: string;
     phone: string;
-    email?: string;
     password: string;
+    confirmPassword: string;
     cityCorporationCode: string;
-    zoneId: number;
-    wardIds: number[];
-    permissions: AdminPermissions;
+    zoneId: string;
+    wardId: string;
+    role: UserRole;
 }
 
-interface CityCorporation {
-    code: string;
-    name: string;
+interface FormErrors {
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    phone?: string;
+    password?: string;
+    confirmPassword?: string;
+    cityCorporationCode?: string;
+    wardId?: string;
+    zoneId?: string;
+    role?: string;
 }
 
-interface Zone {
-    id: number;
-    name: string;
-    zoneNumber: number | null;
-}
+const AdminAddModal: React.FC<AdminAddModalProps> = ({
+    open,
+    onClose,
+    onSuccess,
+}) => {
+    const [formData, setFormData] = useState<FormData>({
+        firstName: '',
+        lastName: '',
+        email: '',
+        phone: '',
+        password: '',
+        confirmPassword: '',
+        cityCorporationCode: '',
+        zoneId: '',
+        wardId: '',
+        role: 'ADMIN' as UserRole,
+    });
 
-interface Ward {
-    id: number;
-    wardNumber: number | null;
-}
-
-const AdminAddModal: React.FC<AdminAddModalProps> = ({ open, onClose, onSuccess }) => {
+    const [errors, setErrors] = useState<FormErrors>({});
     const [loading, setLoading] = useState(false);
+    const [submitError, setSubmitError] = useState<string | null>(null);
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+    // City Corporation, Zone, and Ward state
     const [cityCorporations, setCityCorporations] = useState<CityCorporation[]>([]);
     const [zones, setZones] = useState<Zone[]>([]);
     const [wards, setWards] = useState<Ward[]>([]);
-    const [loadingZones, setLoadingZones] = useState(false);
-    const [loadingWards, setLoadingWards] = useState(false);
-
-    const { control, handleSubmit, watch, reset, formState: { errors } } = useForm<AdminFormData>({
-        defaultValues: {
-            firstName: '',
-            lastName: '',
-            phone: '',
-            email: '',
-            password: '',
-            cityCorporationCode: '',
-            zoneId: 0,
-            wardIds: [],
-            permissions: {
-                canSendMessagesToUsers: true,
-                canSendMessagesToAdmins: true,
-                canViewComplaints: true,
-                canEditComplaints: true,
-                canExportReports: true,
-                canExportExcel: true,
-                canEditAdmins: false,
-                canAddAdmins: false,
-            },
-        },
-    });
-
-    const selectedCityCorporation = watch('cityCorporationCode');
-    const selectedZone = watch('zoneId');
+    const [cityCorporationsLoading, setCityCorporationsLoading] = useState(false);
+    const [zonesLoading, setZonesLoading] = useState(false);
+    const [wardsLoading, setWardsLoading] = useState(false);
 
     // Fetch city corporations on mount
     useEffect(() => {
-        const fetchCityCorporations = async () => {
-            try {
-                const response = await cityCorporationService.getCityCorporations();
-                setCityCorporations(response.cityCorporations || []);
-            } catch (error) {
-                console.error('Error fetching city corporations:', error);
-                toast.error('Failed to load city corporations');
-            }
-        };
-
-        if (open) {
-            fetchCityCorporations();
-        }
-    }, [open]);
+        fetchCityCorporations();
+    }, []);
 
     // Fetch zones when city corporation changes
     useEffect(() => {
-        const fetchZones = async () => {
-            if (!selectedCityCorporation) {
-                setZones([]);
-                return;
-            }
-
-            try {
-                setLoadingZones(true);
-                const response = await zoneService.getZones({ cityCorporationCode: selectedCityCorporation });
-                setZones(response.zones || []);
-            } catch (error) {
-                console.error('Error fetching zones:', error);
-                toast.error('Failed to load zones');
-                setZones([]);
-            } finally {
-                setLoadingZones(false);
-            }
-        };
-
-        fetchZones();
-    }, [selectedCityCorporation]);
+        if (formData.cityCorporationCode) {
+            fetchZones(formData.cityCorporationCode);
+        } else {
+            setZones([]);
+            setWards([]);
+            setFormData(prev => ({ ...prev, zoneId: '', wardId: '' }));
+        }
+    }, [formData.cityCorporationCode]);
 
     // Fetch wards when zone changes
     useEffect(() => {
-        const fetchWards = async () => {
-            if (!selectedZone) {
-                setWards([]);
-                return;
-            }
+        if (formData.zoneId) {
+            fetchWards(parseInt(formData.zoneId));
+        } else {
+            setWards([]);
+            setFormData(prev => ({ ...prev, wardId: '' }));
+        }
+    }, [formData.zoneId]);
 
-            try {
-                setLoadingWards(true);
-                const response = await wardService.getWards({ zoneId: selectedZone });
-                setWards(response.wards || []);
-            } catch (error) {
-                console.error('Error fetching wards:', error);
-                toast.error('Failed to load wards');
-                setWards([]);
-            } finally {
-                setLoadingWards(false);
-            }
-        };
-
-        fetchWards();
-    }, [selectedZone]);
-
-    const onSubmit = async (data: AdminFormData) => {
+    const fetchCityCorporations = async () => {
         try {
-            setLoading(true);
+            setCityCorporationsLoading(true);
+            const response = await cityCorporationService.getCityCorporations('ACTIVE');
+            setCityCorporations(response.cityCorporations || []);
+        } catch (err: any) {
+            console.error('Error fetching city corporations:', err);
+            setCityCorporations([]);
+            setSubmitError('Failed to load city corporations. Please try again.');
+        } finally {
+            setCityCorporationsLoading(false);
+        }
+    };
 
-            // Validate ward selection
-            if (!data.wardIds || data.wardIds.length === 0) {
-                toast.error('Please select at least one ward');
-                return;
-            }
+    const fetchZones = async (cityCorporationCode: string) => {
+        try {
+            setZonesLoading(true);
+            const response = await zoneService.getZones({ cityCorporationCode, status: 'ACTIVE' });
+            setZones(response.zones || []);
+        } catch (err: any) {
+            console.error('Error fetching zones:', err);
+            setZones([]);
+        } finally {
+            setZonesLoading(false);
+        }
+    };
 
-            // Build permissions object for backend
-            const permissions = {
-                zones: data.zoneId ? [data.zoneId] : [],
-                wards: data.wardIds || [],
-                categories: [], // Empty means all categories
-                features: {
-                    canViewComplaints: data.permissions.canViewComplaints,
-                    canEditComplaints: data.permissions.canEditComplaints,
-                    canDeleteComplaints: false, // Not exposed in UI
-                    canViewUsers: data.permissions.canSendMessagesToUsers,
-                    canEditUsers: false, // Not exposed in UI
-                    canDeleteUsers: false, // Not exposed in UI
-                    canViewMessages: data.permissions.canSendMessagesToUsers || data.permissions.canSendMessagesToAdmins,
-                    canSendMessages: data.permissions.canSendMessagesToUsers || data.permissions.canSendMessagesToAdmins,
-                    canViewAnalytics: data.permissions.canExportReports,
-                    canExportData: data.permissions.canExportExcel || data.permissions.canExportReports,
-                },
+    const fetchWards = async (zoneId: number) => {
+        try {
+            setWardsLoading(true);
+            const response = await wardService.getWards({ zoneId, status: 'ACTIVE' });
+            setWards(response.wards || []);
+        } catch (err: any) {
+            console.error('Error fetching wards:', err);
+            setWards([]);
+        } finally {
+            setWardsLoading(false);
+        }
+    };
+
+    const validateEmail = (email: string): boolean => {
+        if (!email) return true; // Email is optional
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+    };
+
+    const validatePhone = (phone: string): boolean => {
+        // Bangladesh phone format: 11 digits starting with 01
+        const phoneRegex = /^01[0-9]{9}$/;
+        return phoneRegex.test(phone.replace(/\s+/g, ''));
+    };
+
+    const validatePassword = (password: string): boolean => {
+        // Password must be at least 8 characters
+        return password.length >= 8;
+    };
+
+    const validateForm = (): boolean => {
+        const newErrors: FormErrors = {};
+
+        // Required fields
+        if (!formData.firstName.trim()) {
+            newErrors.firstName = 'First name is required';
+        }
+
+        if (!formData.lastName.trim()) {
+            newErrors.lastName = 'Last name is required';
+        }
+
+        if (!formData.phone.trim()) {
+            newErrors.phone = 'Phone number is required';
+        } else if (!validatePhone(formData.phone)) {
+            newErrors.phone = 'Invalid phone format (must be 11 digits starting with 01)';
+        }
+
+        if (!formData.password) {
+            newErrors.password = 'Password is required';
+        } else if (!validatePassword(formData.password)) {
+            newErrors.password = 'Password must be at least 8 characters';
+        }
+
+        if (!formData.confirmPassword) {
+            newErrors.confirmPassword = 'Please confirm your password';
+        } else if (formData.password !== formData.confirmPassword) {
+            newErrors.confirmPassword = 'Passwords do not match';
+        }
+
+        // City Corporation is required
+        if (!formData.cityCorporationCode) {
+            newErrors.cityCorporationCode = 'City Corporation is required';
+        }
+
+        // Zone is required
+        if (!formData.zoneId) {
+            newErrors.zoneId = 'Zone is required';
+        }
+
+        // Ward is required
+        if (!formData.wardId) {
+            newErrors.wardId = 'Ward is required';
+        }
+
+        // Optional email validation
+        if (formData.email && !validateEmail(formData.email)) {
+            newErrors.email = 'Invalid email format';
+        }
+
+        // Role is required
+        if (!formData.role) {
+            newErrors.role = 'Role is required';
+        }
+
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
+    const handleChange = (field: keyof FormData) => (
+        event: React.ChangeEvent<HTMLInputElement>
+    ) => {
+        const value = event.target.value;
+        setFormData((prev) => ({
+            ...prev,
+            [field]: value,
+        }));
+
+        // Clear error for this field when user starts typing
+        if (errors[field as keyof FormErrors]) {
+            setErrors((prev) => ({
+                ...prev,
+                [field]: undefined,
+            }));
+        }
+
+        // Clear submit error
+        if (submitError) {
+            setSubmitError(null);
+        }
+    };
+
+    const handleSubmit = async () => {
+        if (!validateForm()) {
+            return;
+        }
+
+        setLoading(true);
+        setSubmitError(null);
+
+        try {
+            // Prepare create data
+            const createData: CreateUserDto = {
+                firstName: formData.firstName,
+                lastName: formData.lastName,
+                phone: formData.phone,
+                password: formData.password,
+                role: formData.role,
             };
 
-            await userManagementService.createUser({
-                firstName: data.firstName,
-                lastName: data.lastName,
-                phone: data.phone,
-                email: data.email,
-                password: data.password,
-                cityCorporationCode: data.cityCorporationCode,
-                zoneId: data.zoneId,
-                wardId: data.wardIds[0], // For now, use first ward
-                role: 'ADMIN',
-                permissions: permissions,
+            // Add optional fields
+            if (formData.email) {
+                createData.email = formData.email;
+            }
+            if (formData.cityCorporationCode) {
+                createData.cityCorporationCode = formData.cityCorporationCode;
+            }
+            if (formData.zoneId) {
+                createData.zoneId = parseInt(formData.zoneId);
+            }
+            if (formData.wardId) {
+                createData.wardId = parseInt(formData.wardId);
+            }
+
+            await userManagementService.createUser(createData);
+
+            // Reset form
+            setFormData({
+                firstName: '',
+                lastName: '',
+                email: '',
+                phone: '',
+                password: '',
+                confirmPassword: '',
+                cityCorporationCode: '',
+                zoneId: '',
+                wardId: '',
+                role: 'ADMIN' as UserRole,
             });
 
-            toast.success('Admin created successfully');
-            reset();
             onSuccess();
             onClose();
         } catch (error: any) {
             console.error('Error creating admin:', error);
-            toast.error(error.message || 'Failed to create admin');
+            setSubmitError(
+                error.response?.data?.error?.message ||
+                error.message ||
+                'Failed to create admin. Please try again.'
+            );
         } finally {
             setLoading(false);
         }
     };
 
-    const handleClose = () => {
+    const handleCancel = () => {
         if (!loading) {
-            reset();
+            // Reset form
+            setFormData({
+                firstName: '',
+                lastName: '',
+                email: '',
+                phone: '',
+                password: '',
+                confirmPassword: '',
+                cityCorporationCode: '',
+                zoneId: '',
+                wardId: '',
+                role: 'ADMIN' as UserRole,
+            });
+            setErrors({});
+            setSubmitError(null);
             onClose();
         }
     };
 
     return (
-        <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-            <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Typography sx={{ fontWeight: 700 }}>নতুন এডমিন যোগ করুন</Typography>
-                <IconButton onClick={handleClose} disabled={loading}>
-                    <Close />
-                </IconButton>
+        <Dialog
+            open={open}
+            onClose={handleCancel}
+            maxWidth="md"
+            fullWidth
+            slotProps={{
+                paper: {
+                    sx: {
+                        borderRadius: 2,
+                    },
+                },
+            }}
+        >
+            <DialogTitle sx={{ pb: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="h5" sx={{ fontWeight: 600 }}>
+                        Add New Admin
+                    </Typography>
+                    <IconButton onClick={handleCancel} size="small" disabled={loading}>
+                        <CloseIcon />
+                    </IconButton>
+                </Box>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                    Create a new admin account
+                </Typography>
             </DialogTitle>
 
-            <form onSubmit={handleSubmit(onSubmit)}>
-                <DialogContent dividers>
-                    <Stack spacing={2}>
-                        <Controller
-                            name="firstName"
-                            control={control}
-                            rules={{ required: 'First name is required' }}
-                            render={({ field }) => (
-                                <TextField
-                                    {...field}
-                                    label="প্রথম নাম *"
-                                    placeholder="প্রথম নাম লিখুন..."
-                                    error={!!errors.firstName}
-                                    helperText={errors.firstName?.message}
-                                    disabled={loading}
-                                    fullWidth
-                                />
-                            )}
-                        />
+            <DialogContent dividers>
+                {submitError && (
+                    <Alert severity="error" sx={{ mb: 3 }} onClose={() => setSubmitError(null)}>
+                        {submitError}
+                    </Alert>
+                )}
 
-                        <Controller
-                            name="lastName"
-                            control={control}
-                            rules={{ required: 'Last name is required' }}
-                            render={({ field }) => (
-                                <TextField
-                                    {...field}
-                                    label="শেষ নাম *"
-                                    placeholder="শেষ নাম লিখুন..."
-                                    error={!!errors.lastName}
-                                    helperText={errors.lastName?.message}
-                                    disabled={loading}
-                                    fullWidth
-                                />
-                            )}
-                        />
+                <Box>
+                    {/* Personal Information */}
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
+                        Personal Information
+                    </Typography>
 
-                        <Controller
-                            name="phone"
-                            control={control}
-                            rules={{
-                                required: 'Phone number is required',
-                                pattern: {
-                                    value: /^01[3-9]\d{8}$/,
-                                    message: 'Invalid Bangladesh phone number',
-                                },
-                            }}
-                            render={({ field }) => (
-                                <TextField
-                                    {...field}
-                                    label="ফোন নম্বর *"
-                                    placeholder="01XXXXXXXXX"
-                                    error={!!errors.phone}
-                                    helperText={errors.phone?.message}
-                                    disabled={loading}
-                                    fullWidth
-                                />
-                            )}
-                        />
+                    <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+                        <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
+                            <TextField
+                                fullWidth
+                                label="First Name"
+                                value={formData.firstName}
+                                onChange={handleChange('firstName')}
+                                error={!!errors.firstName}
+                                helperText={errors.firstName}
+                                disabled={loading}
+                                required
+                            />
+                        </Box>
 
-                        <Controller
-                            name="email"
-                            control={control}
-                            rules={{
-                                pattern: {
-                                    value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                                    message: 'Invalid email address',
-                                },
-                            }}
-                            render={({ field }) => (
-                                <TextField
-                                    {...field}
-                                    label="ইমেইল (ঐচ্ছিক)"
-                                    placeholder="email@example.com"
-                                    error={!!errors.email}
-                                    helperText={errors.email?.message}
-                                    disabled={loading}
-                                    fullWidth
-                                />
-                            )}
-                        />
+                        <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
+                            <TextField
+                                fullWidth
+                                label="Last Name"
+                                value={formData.lastName}
+                                onChange={handleChange('lastName')}
+                                error={!!errors.lastName}
+                                helperText={errors.lastName}
+                                disabled={loading}
+                                required
+                            />
+                        </Box>
+                    </Box>
 
-                        <Controller
-                            name="password"
-                            control={control}
-                            rules={{
-                                required: 'Password is required',
-                                minLength: {
-                                    value: 8,
-                                    message: 'Password must be at least 8 characters',
-                                },
-                            }}
-                            render={({ field }) => (
-                                <TextField
-                                    {...field}
-                                    type="password"
-                                    label="পাসওয়ার্ড *"
-                                    placeholder="********"
-                                    error={!!errors.password}
-                                    helperText={errors.password?.message}
-                                    disabled={loading}
-                                    fullWidth
-                                />
-                            )}
-                        />
+                    <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+                        <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
+                            <TextField
+                                fullWidth
+                                label="Email"
+                                type="email"
+                                value={formData.email}
+                                onChange={handleChange('email')}
+                                error={!!errors.email}
+                                helperText={errors.email || 'Optional'}
+                                disabled={loading}
+                            />
+                        </Box>
 
-                        <Controller
-                            name="cityCorporationCode"
-                            control={control}
-                            rules={{ required: 'City Corporation is required' }}
-                            render={({ field }) => (
-                                <FormControl fullWidth error={!!errors.cityCorporationCode} disabled={loading}>
-                                    <InputLabel>সিটি কর্পোরেশন *</InputLabel>
-                                    <Select {...field} label="সিটি কর্পোরেশন *">
-                                        <MenuItem value="">
-                                            <em>নির্বাচন করুন</em>
-                                        </MenuItem>
-                                        {cityCorporations.map((cc) => (
-                                            <MenuItem key={cc.code} value={cc.code}>
-                                                {cc.name}
-                                            </MenuItem>
-                                        ))}
-                                    </Select>
-                                    {errors.cityCorporationCode && (
-                                        <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 2 }}>
-                                            {errors.cityCorporationCode.message}
-                                        </Typography>
-                                    )}
-                                </FormControl>
-                            )}
-                        />
+                        <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
+                            <TextField
+                                fullWidth
+                                label="Phone"
+                                value={formData.phone}
+                                onChange={handleChange('phone')}
+                                error={!!errors.phone}
+                                helperText={errors.phone}
+                                disabled={loading}
+                                required
+                            />
+                        </Box>
+                    </Box>
 
-                        <Controller
-                            name="zoneId"
-                            control={control}
-                            rules={{ required: 'Zone is required' }}
-                            render={({ field }) => (
-                                <FormControl
-                                    fullWidth
-                                    error={!!errors.zoneId}
-                                    disabled={loading || !selectedCityCorporation || loadingZones}
-                                >
-                                    <InputLabel>জোন *</InputLabel>
-                                    <Select {...field} label="জোন *">
-                                        <MenuItem value={0}>
-                                            <em>নির্বাচন করুন</em>
-                                        </MenuItem>
-                                        {zones.map((zone) => (
-                                            <MenuItem key={zone.id} value={zone.id}>
-                                                {zone.name}
-                                            </MenuItem>
-                                        ))}
-                                    </Select>
-                                    {errors.zoneId && (
-                                        <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 2 }}>
-                                            {errors.zoneId.message}
-                                        </Typography>
-                                    )}
-                                    {loadingZones && (
-                                        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
-                                            <CircularProgress size={20} />
-                                        </Box>
-                                    )}
-                                </FormControl>
-                            )}
-                        />
+                    {/* Account Credentials */}
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2, mt: 3 }}>
+                        Account Credentials
+                    </Typography>
 
-                        <Controller
-                            name="wardIds"
-                            control={control}
-                            rules={{ required: 'At least one ward is required' }}
-                            render={({ field }) => (
-                                <FormControl
-                                    fullWidth
-                                    error={!!errors.wardIds}
-                                    disabled={loading || !selectedZone || loadingWards}
-                                >
-                                    <InputLabel>ওয়ার্ড *</InputLabel>
-                                    <Select
-                                        {...field}
-                                        multiple
-                                        label="ওয়ার্ড *"
-                                        renderValue={(selected) => (
-                                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                                                {(selected as number[]).map((value) => {
-                                                    const ward = wards.find((w) => w.id === value);
-                                                    return (
-                                                        <Chip
-                                                            key={value}
-                                                            label={ward ? `Ward ${ward.wardNumber}` : value}
-                                                            size="small"
-                                                        />
-                                                    );
-                                                })}
-                                            </Box>
-                                        )}
-                                    >
-                                        {wards.map((ward) => (
-                                            <MenuItem key={ward.id} value={ward.id}>
-                                                Ward {ward.wardNumber}
-                                            </MenuItem>
-                                        ))}
-                                    </Select>
-                                    {errors.wardIds && (
-                                        <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 2 }}>
-                                            {errors.wardIds.message}
-                                        </Typography>
-                                    )}
-                                    {loadingWards && (
-                                        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
-                                            <CircularProgress size={20} />
-                                        </Box>
-                                    )}
-                                </FormControl>
-                            )}
-                        />
+                    <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+                        <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
+                            <TextField
+                                fullWidth
+                                label="Password"
+                                type={showPassword ? 'text' : 'password'}
+                                value={formData.password}
+                                onChange={handleChange('password')}
+                                error={!!errors.password}
+                                helperText={errors.password || 'Minimum 8 characters'}
+                                disabled={loading}
+                                required
+                                slotProps={{
+                                    input: {
+                                        endAdornment: (
+                                            <InputAdornment position="end">
+                                                <IconButton
+                                                    onClick={() => setShowPassword(!showPassword)}
+                                                    edge="end"
+                                                    size="small"
+                                                >
+                                                    {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                                                </IconButton>
+                                            </InputAdornment>
+                                        ),
+                                    },
+                                }}
+                            />
+                        </Box>
 
-                        <Divider sx={{ my: 3 }}>
-                            <Typography variant="body2" color="text.secondary">
-                                অনুমতি সেটিংস (Permissions)
-                            </Typography>
-                        </Divider>
+                        <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
+                            <TextField
+                                fullWidth
+                                label="Confirm Password"
+                                type={showConfirmPassword ? 'text' : 'password'}
+                                value={formData.confirmPassword}
+                                onChange={handleChange('confirmPassword')}
+                                error={!!errors.confirmPassword}
+                                helperText={errors.confirmPassword}
+                                disabled={loading}
+                                required
+                                slotProps={{
+                                    input: {
+                                        endAdornment: (
+                                            <InputAdornment position="end">
+                                                <IconButton
+                                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                                    edge="end"
+                                                    size="small"
+                                                >
+                                                    {showConfirmPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                                                </IconButton>
+                                            </InputAdornment>
+                                        ),
+                                    },
+                                }}
+                            />
+                        </Box>
+                    </Box>
 
-                        <Paper elevation={0} sx={{ p: 2, bgcolor: '#f5f5f5', borderRadius: 2 }}>
-                            <Stack spacing={1.5}>
-                                <Controller
-                                    name="permissions.canSendMessagesToUsers"
-                                    control={control}
-                                    render={({ field }) => (
-                                        <FormControlLabel
-                                            control={
-                                                <Switch
-                                                    {...field}
-                                                    checked={field.value}
-                                                    disabled={loading}
-                                                    color="success"
-                                                />
-                                            }
-                                            label={
-                                                <Box>
-                                                    <Typography variant="body2" fontWeight={500}>
-                                                        মেসেজ টু ইউজার
-                                                    </Typography>
-                                                    <Typography variant="caption" color="text.secondary">
-                                                        Can send messages to app users
-                                                    </Typography>
-                                                </Box>
-                                            }
-                                        />
-                                    )}
-                                />
+                    {/* Location Information */}
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2, mt: 3 }}>
+                        Location Information
+                    </Typography>
 
-                                <Controller
-                                    name="permissions.canSendMessagesToAdmins"
-                                    control={control}
-                                    render={({ field }) => (
-                                        <FormControlLabel
-                                            control={
-                                                <Switch
-                                                    {...field}
-                                                    checked={field.value}
-                                                    disabled={loading}
-                                                    color="success"
-                                                />
-                                            }
-                                            label={
-                                                <Box>
-                                                    <Typography variant="body2" fontWeight={500}>
-                                                        মেসেজ টু এডমিন
-                                                    </Typography>
-                                                    <Typography variant="caption" color="text.secondary">
-                                                        Can send messages to other admins
-                                                    </Typography>
-                                                </Box>
-                                            }
-                                        />
-                                    )}
-                                />
+                    <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+                        <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
+                            <TextField
+                                fullWidth
+                                select
+                                label="City Corporation"
+                                value={formData.cityCorporationCode}
+                                onChange={handleChange('cityCorporationCode')}
+                                disabled={loading || cityCorporationsLoading}
+                                error={!!errors.cityCorporationCode}
+                                helperText={errors.cityCorporationCode || 'Required'}
+                                required
+                            >
+                                <MenuItem value="">
+                                    <em>Select City Corporation</em>
+                                </MenuItem>
+                                {cityCorporations.map((cc) => (
+                                    <MenuItem key={cc.code} value={cc.code}>
+                                        {cc.name}
+                                    </MenuItem>
+                                ))}
+                            </TextField>
+                        </Box>
 
-                                <Controller
-                                    name="permissions.canViewComplaints"
-                                    control={control}
-                                    render={({ field }) => (
-                                        <FormControlLabel
-                                            control={
-                                                <Switch
-                                                    {...field}
-                                                    checked={field.value}
-                                                    disabled={loading}
-                                                    color="success"
-                                                />
-                                            }
-                                            label={
-                                                <Box>
-                                                    <Typography variant="body2" fontWeight={500}>
-                                                        ভিউ অনলি
-                                                    </Typography>
-                                                    <Typography variant="caption" color="text.secondary">
-                                                        View only mode (cannot approve/reject complaints)
-                                                    </Typography>
-                                                </Box>
-                                            }
-                                        />
-                                    )}
-                                />
+                        <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
+                            <TextField
+                                fullWidth
+                                select
+                                label="Zone"
+                                value={formData.zoneId}
+                                onChange={handleChange('zoneId')}
+                                disabled={loading || zonesLoading || !formData.cityCorporationCode}
+                                error={!!errors.zoneId}
+                                helperText={
+                                    errors.zoneId ||
+                                    (!formData.cityCorporationCode
+                                        ? "Select City Corporation first"
+                                        : zonesLoading
+                                            ? "Loading zones..."
+                                            : zones.length === 0
+                                                ? "No zones available"
+                                                : "Required")
+                                }
+                                required
+                            >
+                                <MenuItem value="">
+                                    <em>Select Zone</em>
+                                </MenuItem>
+                                {zones.map((zone) => (
+                                    <MenuItem key={zone.id} value={zone.id.toString()}>
+                                        {zone.name || `Zone ${zone.zoneNumber}`}
+                                    </MenuItem>
+                                ))}
+                            </TextField>
+                        </Box>
+                    </Box>
 
-                                <Controller
-                                    name="permissions.canEditComplaints"
-                                    control={control}
-                                    render={({ field }) => (
-                                        <FormControlLabel
-                                            control={
-                                                <Switch
-                                                    {...field}
-                                                    checked={field.value}
-                                                    disabled={loading || !watch('permissions.canViewComplaints')}
-                                                    color="success"
-                                                />
-                                            }
-                                            label={
-                                                <Box>
-                                                    <Typography variant="body2" fontWeight={500}>
-                                                        কমপ্লেইন ম্যানেজমেন্ট
-                                                    </Typography>
-                                                    <Typography variant="caption" color="text.secondary">
-                                                        Can approve/pending/reject complaints
-                                                    </Typography>
-                                                </Box>
-                                            }
-                                        />
-                                    )}
-                                />
+                    <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+                        <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
+                            <TextField
+                                fullWidth
+                                select
+                                label="Ward"
+                                value={formData.wardId}
+                                onChange={handleChange('wardId')}
+                                disabled={loading || wardsLoading || !formData.zoneId}
+                                error={!!errors.wardId}
+                                helperText={
+                                    errors.wardId ||
+                                    (!formData.zoneId
+                                        ? "Select Zone first"
+                                        : wardsLoading
+                                            ? "Loading wards..."
+                                            : wards.length === 0
+                                                ? "No wards available"
+                                                : "Required")
+                                }
+                                required
+                            >
+                                <MenuItem value="">
+                                    <em>Select Ward</em>
+                                </MenuItem>
+                                {wards.map((ward) => (
+                                    <MenuItem key={ward.id} value={ward.id.toString()}>
+                                        Ward {ward.wardNumber}
+                                    </MenuItem>
+                                ))}
+                            </TextField>
+                        </Box>
+                    </Box>
 
-                                <Controller
-                                    name="permissions.canExportReports"
-                                    control={control}
-                                    render={({ field }) => (
-                                        <FormControlLabel
-                                            control={
-                                                <Switch
-                                                    {...field}
-                                                    checked={field.value}
-                                                    disabled={loading}
-                                                    color="success"
-                                                />
-                                            }
-                                            label={
-                                                <Box>
-                                                    <Typography variant="body2" fontWeight={500}>
-                                                        রিপোর্ট ডাউনলোড
-                                                    </Typography>
-                                                    <Typography variant="caption" color="text.secondary">
-                                                        Can download reports
-                                                    </Typography>
-                                                </Box>
-                                            }
-                                        />
-                                    )}
-                                />
+                    {/* Account Settings */}
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2, mt: 3 }}>
+                        Account Settings
+                    </Typography>
 
-                                <Controller
-                                    name="permissions.canExportExcel"
-                                    control={control}
-                                    render={({ field }) => (
-                                        <FormControlLabel
-                                            control={
-                                                <Switch
-                                                    {...field}
-                                                    checked={field.value}
-                                                    disabled={loading}
-                                                    color="success"
-                                                />
-                                            }
-                                            label={
-                                                <Box>
-                                                    <Typography variant="body2" fontWeight={500}>
-                                                        এক্সপোর্ট এক্সেলশিট
-                                                    </Typography>
-                                                    <Typography variant="caption" color="text.secondary">
-                                                        Can export data to Excel
-                                                    </Typography>
-                                                </Box>
-                                            }
-                                        />
-                                    )}
-                                />
+                    <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+                        <Box sx={{ flex: '1 1 100%', minWidth: '200px' }}>
+                            <TextField
+                                fullWidth
+                                select
+                                label="Role"
+                                value={formData.role}
+                                onChange={handleChange('role')}
+                                disabled={loading}
+                                helperText="Select the user's role in the system"
+                            >
+                                <MenuItem value="ADMIN">Admin</MenuItem>
+                                <MenuItem value="SUPER_ADMIN">Super Admin</MenuItem>
+                                <MenuItem value="MASTER_ADMIN">Master Admin</MenuItem>
+                            </TextField>
+                        </Box>
+                    </Box>
+                </Box>
+            </DialogContent>
 
-                                <Controller
-                                    name="permissions.canEditAdmins"
-                                    control={control}
-                                    render={({ field }) => (
-                                        <FormControlLabel
-                                            control={
-                                                <Switch
-                                                    {...field}
-                                                    checked={field.value}
-                                                    disabled={loading}
-                                                    color="warning"
-                                                />
-                                            }
-                                            label={
-                                                <Box>
-                                                    <Typography variant="body2" fontWeight={500}>
-                                                        এডিট এডমিন
-                                                    </Typography>
-                                                    <Typography variant="caption" color="text.secondary">
-                                                        Can edit other admins
-                                                    </Typography>
-                                                </Box>
-                                            }
-                                        />
-                                    )}
-                                />
-
-                                <Controller
-                                    name="permissions.canAddAdmins"
-                                    control={control}
-                                    render={({ field }) => (
-                                        <FormControlLabel
-                                            control={
-                                                <Switch
-                                                    {...field}
-                                                    checked={field.value}
-                                                    disabled={loading}
-                                                    color="warning"
-                                                />
-                                            }
-                                            label={
-                                                <Box>
-                                                    <Typography variant="body2" fontWeight={500}>
-                                                        এড এডমিন
-                                                    </Typography>
-                                                    <Typography variant="caption" color="text.secondary">
-                                                        Can add new admins
-                                                    </Typography>
-                                                </Box>
-                                            }
-                                        />
-                                    )}
-                                />
-                            </Stack>
-                        </Paper>
-
-                        <Alert severity="info" sx={{ mt: 2 }}>
-                            <Typography variant="caption">
-                                এই অনুমতিগুলি Master Admin বা Super Admin দ্বারা নিয়ন্ত্রিত হয়। পরে পরিবর্তন করা যাবে।
-                            </Typography>
-                        </Alert>
-                    </Stack>
-                </DialogContent>
-
-                <DialogActions>
-                    <Button variant="outlined" onClick={handleClose} disabled={loading}>
-                        বাতিল
-                    </Button>
-                    <Button
-                        type="submit"
-                        variant="contained"
-                        sx={{ bgcolor: '#3fa564' }}
-                        disabled={loading}
-                    >
-                        {loading ? <CircularProgress size={24} /> : 'সংরক্ষণ করুন'}
-                    </Button>
-                </DialogActions>
-            </form>
+            <DialogActions sx={{ px: 3, py: 2 }}>
+                <Button
+                    onClick={handleCancel}
+                    variant="outlined"
+                    disabled={loading}
+                    sx={{ textTransform: 'none' }}
+                >
+                    Cancel
+                </Button>
+                <Button
+                    onClick={handleSubmit}
+                    variant="contained"
+                    disabled={loading}
+                    startIcon={loading ? <CircularProgress size={20} /> : <PersonAddIcon />}
+                    sx={{
+                        backgroundColor: '#4CAF50',
+                        '&:hover': { backgroundColor: '#45a049' },
+                        textTransform: 'none',
+                    }}
+                >
+                    {loading ? 'Creating...' : 'Create Admin'}
+                </Button>
+            </DialogActions>
         </Dialog>
     );
 };

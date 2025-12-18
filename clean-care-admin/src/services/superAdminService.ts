@@ -127,6 +127,7 @@ export interface UpdateSuperAdminDto {
     zoneId?: number;
     status?: UserStatus;
     permissions?: SuperAdminPermissions;
+    role?: UserRole;
 }
 
 export interface ZoneAssignment {

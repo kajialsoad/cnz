@@ -31,7 +31,7 @@ import type { SuperAdmin, UpdateSuperAdminDto, SuperAdminPermissions } from '../
 import { cityCorporationService } from '../../services/cityCorporationService';
 import { zoneService } from '../../services/zoneService';
 import { MultiZoneSelector } from '../common';
-import { UserStatus } from '../../types/userManagement.types';
+import { UserStatus, UserRole } from '../../types/userManagement.types';
 
 interface SuperAdminEditModalProps {
     open: boolean;
@@ -50,6 +50,7 @@ interface FormData {
     zoneIds: number[];
     status: UserStatus;
     permissions: SuperAdminPermissions;
+    role: UserRole;
 }
 
 const steps = ['প্রোফাইল তথ্য', 'এক্সেস কন্ট্রোল', 'পারমিশন'];
@@ -72,6 +73,7 @@ const SuperAdminEditModal: React.FC<SuperAdminEditModalProps> = ({ open, onClose
             cityCorporationCode: '',
             zoneIds: [],
             status: UserStatus.ACTIVE,
+            role: 'SUPER_ADMIN' as UserRole,
             permissions: {
                 zones: [],
                 categories: [],
@@ -102,6 +104,7 @@ const SuperAdminEditModal: React.FC<SuperAdminEditModalProps> = ({ open, onClose
                 setValue('email', superAdmin.email || '');
                 setValue('cityCorporationCode', superAdmin.cityCorporationCode || '');
                 setValue('status', superAdmin.status);
+                setValue('role', superAdmin.role);
                 setAvatarUrl(superAdmin.avatar || undefined);
 
                 // Set permissions
@@ -313,6 +316,21 @@ const SuperAdminEditModal: React.FC<SuperAdminEditModalProps> = ({ open, onClose
                                         <MenuItem value={UserStatus.ACTIVE}>সক্রিয়</MenuItem>
                                         <MenuItem value={UserStatus.INACTIVE}>নিষ্ক্রিয়</MenuItem>
                                         <MenuItem value={UserStatus.SUSPENDED}>স্থগিত</MenuItem>
+                                    </Select>
+                                </FormControl>
+                            )}
+                        />
+
+                        <Controller
+                            name="role"
+                            control={control}
+                            render={({ field }) => (
+                                <FormControl fullWidth disabled={loading}>
+                                    <InputLabel>রোল</InputLabel>
+                                    <Select {...field} label="রোল">
+                                        <MenuItem value="ADMIN">এডমিন (Admin)</MenuItem>
+                                        <MenuItem value="SUPER_ADMIN">সুপার এডমিন</MenuItem>
+                                        <MenuItem value="MASTER_ADMIN">মাস্টার এডমিন</MenuItem>
                                     </Select>
                                 </FormControl>
                             )}

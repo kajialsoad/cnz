@@ -4,217 +4,368 @@ import {
     DialogTitle,
     DialogContent,
     DialogActions,
+    Box,
+    Typography,
     Button,
     TextField,
-    Stack,
-    IconButton,
-    Typography,
-    FormControl,
-    InputLabel,
-    Select,
     MenuItem,
-    Chip,
-    Box,
+    IconButton,
     CircularProgress,
     Alert,
-    Switch,
-    FormControlLabel,
+    InputAdornment,
 } from '@mui/material';
-import Close from '@mui/icons-material/Close';
-import { useForm, Controller } from 'react-hook-form';
-import { toast } from 'react-hot-toast';
-import { userManagementService } from '../../services/userManagementService';
+import {
+    Close as CloseIcon,
+    Save as SaveIcon,
+    Visibility as VisibilityIcon,
+    VisibilityOff as VisibilityOffIcon,
+} from '@mui/icons-material';
+import ConfirmDialog from '../common/ConfirmDialog';
+import type { UserWithStats, UpdateUserDto, UserRole, UserStatus } from '../../types/userManagement.types';
 import { cityCorporationService } from '../../services/cityCorporationService';
 import { zoneService } from '../../services/zoneService';
 import { wardService } from '../../services/wardService';
-import type { UserWithStats } from '../../types/userManagement.types';
+import { userManagementService } from '../../services/userManagementService';
+import type { CityCorporation } from '../../services/cityCorporationService';
+import type { Zone } from '../../services/zoneService';
+import type { Ward } from '../../services/wardService';
 
 interface AdminEditModalProps {
+    admin: UserWithStats | null;
     open: boolean;
     onClose: () => void;
     onSuccess: () => void;
-    admin: UserWithStats | null;
 }
 
-interface AdminFormData {
+interface FormData {
     firstName: string;
     lastName: string;
+    email: string;
     phone: string;
-    email?: string;
-    password?: string;
     cityCorporationCode: string;
-    zoneId: number;
-    wardIds: number[];
-    status: string;
+    zoneId: string;
+    wardId: string;
+    role: UserRole;
+    status: UserStatus;
+    newPassword: string;
+    confirmPassword: string;
 }
 
-interface CityCorporation {
-    code: string;
-    name: string;
+interface FormErrors {
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    phone?: string;
+    cityCorporationCode?: string;
+    wardId?: string;
+    zoneId?: string;
+    role?: string;
+    newPassword?: string;
+    confirmPassword?: string;
 }
 
-interface Zone {
-    id: number;
-    name: string;
-    zoneNumber: number | null;
-}
+const AdminEditModal: React.FC<AdminEditModalProps> = ({
+    admin,
+    open,
+    onClose,
+    onSuccess,
+}) => {
+    const [formData, setFormData] = useState<FormData>({
+        firstName: '',
+        lastName: '',
+        email: '',
+        phone: '',
+        cityCorporationCode: '',
+        zoneId: '',
+        wardId: '',
+        role: 'ADMIN' as UserRole,
+        status: 'ACTIVE' as UserStatus,
+        newPassword: '',
+        confirmPassword: '',
+    });
 
-interface Ward {
-    id: number;
-    wardNumber: number | null;
-}
-
-const AdminEditModal: React.FC<AdminEditModalProps> = ({ open, onClose, onSuccess, admin }) => {
-    const [loading, setLoading] = useState(false);
+    // City Corporation, Zone, and Ward state
     const [cityCorporations, setCityCorporations] = useState<CityCorporation[]>([]);
     const [zones, setZones] = useState<Zone[]>([]);
     const [wards, setWards] = useState<Ward[]>([]);
-    const [loadingZones, setLoadingZones] = useState(false);
-    const [loadingWards, setLoadingWards] = useState(false);
-    const [changePassword, setChangePassword] = useState(false);
+    const [cityCorporationsLoading, setCityCorporationsLoading] = useState(false);
+    const [zonesLoading, setZonesLoading] = useState(false);
+    const [wardsLoading, setWardsLoading] = useState(false);
 
-    const { control, handleSubmit, watch, reset, setValue, formState: { errors } } = useForm<AdminFormData>({
-        defaultValues: {
-            firstName: '',
-            lastName: '',
-            phone: '',
-            email: '',
-            password: '',
-            cityCorporationCode: '',
-            zoneId: 0,
-            wardIds: [],
-            status: 'ACTIVE',
-        },
-    });
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-    const selectedCityCorporation = watch('cityCorporationCode');
-    const selectedZone = watch('zoneId');
-
-    // Load admin data when modal opens
-    useEffect(() => {
-        if (open && admin) {
-            setValue('firstName', admin.firstName);
-            setValue('lastName', admin.lastName);
-            setValue('phone', admin.phone);
-            setValue('email', admin.email || '');
-            setValue('cityCorporationCode', admin.cityCorporationCode || '');
-            setValue('zoneId', admin.zoneId || 0);
-            setValue('wardIds', admin.wardId ? [admin.wardId] : []);
-            setValue('status', admin.status);
-        }
-    }, [open, admin, setValue]);
+    const [errors, setErrors] = useState<FormErrors>({});
+    const [loading, setLoading] = useState(false);
+    const [submitError, setSubmitError] = useState<string | null>(null);
+    const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
     // Fetch city corporations on mount
     useEffect(() => {
-        const fetchCityCorporations = async () => {
-            try {
-                const response = await cityCorporationService.getCityCorporations();
-                setCityCorporations(response.cityCorporations || []);
-            } catch (error) {
-                console.error('Error fetching city corporations:', error);
-                toast.error('Failed to load city corporations');
-            }
-        };
-
-        if (open) {
-            fetchCityCorporations();
-        }
-    }, [open]);
+        fetchCityCorporations();
+    }, []);
 
     // Fetch zones when city corporation changes
     useEffect(() => {
-        const fetchZones = async () => {
-            if (!selectedCityCorporation) {
-                setZones([]);
-                return;
-            }
-
-            try {
-                setLoadingZones(true);
-                const response = await zoneService.getZones({ cityCorporationCode: selectedCityCorporation });
-                setZones(response.zones || []);
-            } catch (error) {
-                console.error('Error fetching zones:', error);
-                toast.error('Failed to load zones');
-                setZones([]);
-            } finally {
-                setLoadingZones(false);
-            }
-        };
-
-        fetchZones();
-    }, [selectedCityCorporation]);
+        if (formData.cityCorporationCode) {
+            fetchZones(formData.cityCorporationCode);
+        } else {
+            setZones([]);
+            setWards([]);
+            setFormData(prev => ({ ...prev, zoneId: '', wardId: '' }));
+        }
+    }, [formData.cityCorporationCode]);
 
     // Fetch wards when zone changes
     useEffect(() => {
-        const fetchWards = async () => {
-            if (!selectedZone) {
-                setWards([]);
-                return;
+        if (formData.zoneId) {
+            fetchWards(parseInt(formData.zoneId));
+        } else {
+            setWards([]);
+            setFormData(prev => ({ ...prev, wardId: '' }));
+        }
+    }, [formData.zoneId]);
+
+    const fetchCityCorporations = async () => {
+        try {
+            setCityCorporationsLoading(true);
+            const response = await cityCorporationService.getCityCorporations('ACTIVE');
+            setCityCorporations(response.cityCorporations || []);
+        } catch (err: any) {
+            console.error('Error fetching city corporations:', err);
+            setCityCorporations([]);
+        } finally {
+            setCityCorporationsLoading(false);
+        }
+    };
+
+    const fetchZones = async (cityCorporationCode: string) => {
+        try {
+            setZonesLoading(true);
+            const response = await zoneService.getZones({ cityCorporationCode, status: 'ACTIVE' });
+            setZones(response.zones || []);
+        } catch (err: any) {
+            console.error('Error fetching zones:', err);
+            setZones([]);
+        } finally {
+            setZonesLoading(false);
+        }
+    };
+
+    const fetchWards = async (zoneId: number) => {
+        try {
+            setWardsLoading(true);
+            const response = await wardService.getWards({ zoneId, status: 'ACTIVE' });
+            setWards(response.wards || []);
+        } catch (err: any) {
+            console.error('Error fetching wards:', err);
+            setWards([]);
+        } finally {
+            setWardsLoading(false);
+        }
+    };
+
+    // Initialize form data when admin changes
+    useEffect(() => {
+        if (admin) {
+            setFormData({
+                firstName: admin.firstName,
+                lastName: admin.lastName,
+                email: admin.email || '',
+                phone: admin.phone,
+                cityCorporationCode: admin.cityCorporation?.code || '',
+                zoneId: admin.zone?.id?.toString() || '',
+                wardId: admin.ward?.id?.toString() || '',
+                role: admin.role,
+                status: admin.status,
+                newPassword: '',
+                confirmPassword: '',
+            });
+            setErrors({});
+            setSubmitError(null);
+
+            // Trigger fetches if data exists
+            if (admin.cityCorporation?.code) {
+                fetchZones(admin.cityCorporation.code);
             }
-
-            try {
-                setLoadingWards(true);
-                const response = await wardService.getWards({ zoneId: selectedZone });
-                setWards(response.wards || []);
-            } catch (error) {
-                console.error('Error fetching wards:', error);
-                toast.error('Failed to load wards');
-                setWards([]);
-            } finally {
-                setLoadingWards(false);
+            if (admin.zone?.id) {
+                fetchWards(admin.zone.id);
             }
-        };
+        }
+    }, [admin]);
 
-        fetchWards();
-    }, [selectedZone]);
+    const validateEmail = (email: string): boolean => {
+        if (!email) return true; // Email is optional
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+    };
 
-    const onSubmit = async (data: AdminFormData) => {
-        if (!admin) return;
+    const validatePhone = (phone: string): boolean => {
+        // Bangladesh phone format: 11 digits starting with 01
+        const phoneRegex = /^01[0-9]{9}$/;
+        return phoneRegex.test(phone.replace(/\s+/g, ''));
+    };
+
+    const validateForm = (): boolean => {
+        const newErrors: FormErrors = {};
+
+        // Required fields
+        if (!formData.firstName.trim()) {
+            newErrors.firstName = 'First name is required';
+        }
+
+        if (!formData.lastName.trim()) {
+            newErrors.lastName = 'Last name is required';
+        }
+
+        if (!formData.phone.trim()) {
+            newErrors.phone = 'Phone number is required';
+        } else if (!validatePhone(formData.phone)) {
+            newErrors.phone = 'Invalid phone format (must be 11 digits starting with 01)';
+        }
+
+        // Optional email validation
+        if (formData.email && !validateEmail(formData.email)) {
+            newErrors.email = 'Invalid email format';
+        }
+
+        // City Corporation is required
+        if (!formData.cityCorporationCode) {
+            newErrors.cityCorporationCode = 'City Corporation is required';
+        }
+
+        // Zone is required
+        if (!formData.zoneId) {
+            newErrors.zoneId = 'Zone is required';
+        }
+
+        // Ward is required
+        if (!formData.wardId) {
+            newErrors.wardId = 'Ward is required';
+        }
+
+        // Role is required
+        if (!formData.role) {
+            newErrors.role = 'Role is required';
+        }
+
+        // Password validation (optional - only if user wants to change password)
+        if (formData.newPassword || formData.confirmPassword) {
+            if (formData.newPassword.length < 8) {
+                newErrors.newPassword = 'Password must be at least 8 characters';
+            }
+            if (formData.newPassword !== formData.confirmPassword) {
+                newErrors.confirmPassword = 'Passwords do not match';
+            }
+        }
+
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
+    const handleChange = (field: keyof FormData) => (
+        event: React.ChangeEvent<HTMLInputElement>
+    ) => {
+        const value = event.target.value;
+        setFormData((prev) => ({
+            ...prev,
+            [field]: value,
+        }));
+
+        // Clear error for this field when user starts typing
+        if (errors[field as keyof FormErrors]) {
+            setErrors((prev) => ({
+                ...prev,
+                [field]: undefined,
+            }));
+        }
+
+        // Clear submit error
+        if (submitError) {
+            setSubmitError(null);
+        }
+    };
+
+    const handleSubmit = async (skipConfirmation = false) => {
+        if (!validateForm() || !admin) {
+            return;
+        }
+
+        // Check if status is being changed to a destructive state
+        const isStatusChanging = formData.status !== admin.status;
+        const isDestructiveStatus = formData.status === 'SUSPENDED' || formData.status === 'INACTIVE';
+
+        if (isStatusChanging && isDestructiveStatus && !skipConfirmation) {
+            setShowConfirmDialog(true);
+            return;
+        }
+
+        setLoading(true);
+        setSubmitError(null);
 
         try {
-            setLoading(true);
+            // Prepare update data (only include changed fields)
+            const updateData: UpdateUserDto = {};
 
-            // Validate ward selection
-            if (!data.wardIds || data.wardIds.length === 0) {
-                toast.error('Please select at least one ward');
-                return;
+            if (formData.firstName !== admin.firstName) {
+                updateData.firstName = formData.firstName;
             }
-
-            const updateData: any = {
-                firstName: data.firstName,
-                lastName: data.lastName,
-                phone: data.phone,
-                email: data.email,
-                cityCorporationCode: data.cityCorporationCode,
-                zoneId: data.zoneId,
-                wardId: data.wardIds[0], // For now, use first ward
-                status: data.status,
-            };
-
-            // Only include password if changing
-            if (changePassword && data.password) {
-                updateData.password = data.password;
+            if (formData.lastName !== admin.lastName) {
+                updateData.lastName = formData.lastName;
+            }
+            if (formData.email !== (admin.email || '')) {
+                updateData.email = formData.email || undefined;
+            }
+            if (formData.phone !== admin.phone) {
+                updateData.phone = formData.phone;
+            }
+            if (formData.cityCorporationCode !== admin.cityCorporation?.code) {
+                updateData.cityCorporationCode = formData.cityCorporationCode;
+            }
+            // Use zoneId and wardId for updates logic
+            if (formData.zoneId !== admin.zone?.id?.toString()) {
+                (updateData as any).zoneId = parseInt(formData.zoneId);
+            }
+            if (formData.wardId !== admin.ward?.id?.toString()) {
+                (updateData as any).wardId = parseInt(formData.wardId);
+            }
+            if (formData.role !== admin.role) {
+                updateData.role = formData.role;
+            }
+            if (formData.status !== admin.status) {
+                updateData.status = formData.status;
+            }
+            // Add password if provided
+            if (formData.newPassword) {
+                updateData.password = formData.newPassword;
             }
 
             await userManagementService.updateUser(admin.id, updateData);
-
-            toast.success('Admin updated successfully');
-            reset();
             onSuccess();
             onClose();
         } catch (error: any) {
             console.error('Error updating admin:', error);
-            toast.error(error.message || 'Failed to update admin');
+            setSubmitError(
+                error.response?.data?.error?.message ||
+                error.message ||
+                'Failed to update admin. Please try again.'
+            );
         } finally {
             setLoading(false);
         }
     };
 
-    const handleClose = () => {
+    const handleConfirmStatusChange = () => {
+        setShowConfirmDialog(false);
+        handleSubmit(true);
+    };
+
+    const handleCancelStatusChange = () => {
+        setShowConfirmDialog(false);
+    };
+
+    const handleCancel = () => {
         if (!loading) {
-            reset();
-            setChangePassword(false);
             onClose();
         }
     };
@@ -222,281 +373,341 @@ const AdminEditModal: React.FC<AdminEditModalProps> = ({ open, onClose, onSucces
     if (!admin) return null;
 
     return (
-        <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-            <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Typography sx={{ fontWeight: 700 }}>এডমিন সম্পাদনা করুন</Typography>
-                <IconButton onClick={handleClose} disabled={loading}>
-                    <Close />
-                </IconButton>
+        <Dialog
+            open={open}
+            onClose={handleCancel}
+            maxWidth="md"
+            fullWidth
+            slotProps={{
+                paper: {
+                    sx: {
+                        borderRadius: 2,
+                    },
+                },
+            }}
+        >
+            <DialogTitle sx={{ pb: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="h5" sx={{ fontWeight: 600 }}>
+                        Edit Admin
+                    </Typography>
+                    <IconButton onClick={handleCancel} size="small" disabled={loading}>
+                        <CloseIcon />
+                    </IconButton>
+                </Box>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                    Update admin information and account settings
+                </Typography>
             </DialogTitle>
 
-            <form onSubmit={handleSubmit(onSubmit)}>
-                <DialogContent dividers>
-                    <Stack spacing={2}>
-                        <Controller
-                            name="firstName"
-                            control={control}
-                            rules={{ required: 'First name is required' }}
-                            render={({ field }) => (
-                                <TextField
-                                    {...field}
-                                    label="প্রথম নাম *"
-                                    placeholder="প্রথম নাম লিখুন..."
-                                    error={!!errors.firstName}
-                                    helperText={errors.firstName?.message}
-                                    disabled={loading}
-                                    fullWidth
-                                />
-                            )}
-                        />
+            <DialogContent dividers>
+                {submitError && (
+                    <Alert severity="error" sx={{ mb: 3 }} onClose={() => setSubmitError(null)}>
+                        {submitError}
+                    </Alert>
+                )}
 
-                        <Controller
-                            name="lastName"
-                            control={control}
-                            rules={{ required: 'Last name is required' }}
-                            render={({ field }) => (
-                                <TextField
-                                    {...field}
-                                    label="শেষ নাম *"
-                                    placeholder="শেষ নাম লিখুন..."
-                                    error={!!errors.lastName}
-                                    helperText={errors.lastName?.message}
-                                    disabled={loading}
-                                    fullWidth
-                                />
-                            )}
-                        />
+                <Box>
+                    {/* Personal Information */}
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
+                        Personal Information
+                    </Typography>
 
-                        <Controller
-                            name="phone"
-                            control={control}
-                            rules={{
-                                required: 'Phone number is required',
-                                pattern: {
-                                    value: /^01[3-9]\d{8}$/,
-                                    message: 'Invalid Bangladesh phone number',
-                                },
-                            }}
-                            render={({ field }) => (
-                                <TextField
-                                    {...field}
-                                    label="ফোন নম্বর *"
-                                    placeholder="01XXXXXXXXX"
-                                    error={!!errors.phone}
-                                    helperText={errors.phone?.message}
-                                    disabled={loading}
-                                    fullWidth
-                                />
-                            )}
-                        />
+                    <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+                        <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
+                            <TextField
+                                fullWidth
+                                label="First Name"
+                                value={formData.firstName}
+                                onChange={handleChange('firstName')}
+                                error={!!errors.firstName}
+                                helperText={errors.firstName}
+                                disabled={loading}
+                                required
+                            />
+                        </Box>
 
-                        <Controller
-                            name="email"
-                            control={control}
-                            rules={{
-                                pattern: {
-                                    value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                                    message: 'Invalid email address',
-                                },
-                            }}
-                            render={({ field }) => (
-                                <TextField
-                                    {...field}
-                                    label="ইমেইল (ঐচ্ছিক)"
-                                    placeholder="email@example.com"
-                                    error={!!errors.email}
-                                    helperText={errors.email?.message}
-                                    disabled={loading}
-                                    fullWidth
-                                />
-                            )}
-                        />
+                        <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
+                            <TextField
+                                fullWidth
+                                label="Last Name"
+                                value={formData.lastName}
+                                onChange={handleChange('lastName')}
+                                error={!!errors.lastName}
+                                helperText={errors.lastName}
+                                disabled={loading}
+                                required
+                            />
+                        </Box>
+                    </Box>
 
-                        <FormControlLabel
-                            control={
-                                <Switch
-                                    checked={changePassword}
-                                    onChange={(e) => setChangePassword(e.target.checked)}
-                                    disabled={loading}
-                                />
-                            }
-                            label="পাসওয়ার্ড পরিবর্তন করুন"
-                        />
+                    <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+                        <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
+                            <TextField
+                                fullWidth
+                                label="Email"
+                                type="email"
+                                value={formData.email}
+                                onChange={handleChange('email')}
+                                error={!!errors.email}
+                                helperText={errors.email}
+                                disabled={loading}
+                            />
+                        </Box>
 
-                        {changePassword && (
-                            <Controller
-                                name="password"
-                                control={control}
-                                rules={{
-                                    required: changePassword ? 'Password is required' : false,
-                                    minLength: {
-                                        value: 8,
-                                        message: 'Password must be at least 8 characters',
+                        <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
+                            <TextField
+                                fullWidth
+                                label="Phone"
+                                value={formData.phone}
+                                onChange={handleChange('phone')}
+                                error={!!errors.phone}
+                                helperText={errors.phone}
+                                disabled={loading}
+                                required
+                            />
+                        </Box>
+                    </Box>
+
+                    {/* Location Information */}
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2, mt: 3 }}>
+                        Location Information
+                    </Typography>
+
+                    <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+                        <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
+                            <TextField
+                                fullWidth
+                                select
+                                label="City Corporation"
+                                value={formData.cityCorporationCode}
+                                onChange={handleChange('cityCorporationCode')}
+                                disabled={loading || cityCorporationsLoading}
+                                error={!!errors.cityCorporationCode}
+                                helperText={errors.cityCorporationCode}
+                                required
+                            >
+                                <MenuItem value="">
+                                    <em>Select City Corporation</em>
+                                </MenuItem>
+                                {cityCorporations.map((cc) => (
+                                    <MenuItem key={cc.code} value={cc.code}>
+                                        {cc.name}
+                                    </MenuItem>
+                                ))}
+                            </TextField>
+                        </Box>
+
+                        <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
+                            <TextField
+                                fullWidth
+                                select
+                                label="Zone"
+                                value={formData.zoneId}
+                                onChange={handleChange('zoneId')}
+                                disabled={loading || zonesLoading || !formData.cityCorporationCode}
+                                error={!!errors.zoneId}
+                                helperText={
+                                    errors.zoneId ||
+                                    (!formData.cityCorporationCode
+                                        ? "Select City Corporation first"
+                                        : zonesLoading
+                                            ? "Loading zones..."
+                                            : zones.length === 0
+                                                ? "No zones available"
+                                                : "Required")
+                                }
+                                required
+                            >
+                                <MenuItem value="">
+                                    <em>Select Zone</em>
+                                </MenuItem>
+                                {zones.map((zone) => (
+                                    <MenuItem key={zone.id} value={zone.id.toString()}>
+                                        {zone.name || `Zone ${zone.zoneNumber}`}
+                                    </MenuItem>
+                                ))}
+                            </TextField>
+                        </Box>
+                    </Box>
+
+                    <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+                        <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
+                            <TextField
+                                fullWidth
+                                select
+                                label="Ward"
+                                value={formData.wardId}
+                                onChange={handleChange('wardId')}
+                                disabled={loading || wardsLoading || !formData.zoneId}
+                                error={!!errors.wardId}
+                                helperText={
+                                    errors.wardId ||
+                                    (!formData.zoneId
+                                        ? "Select Zone first"
+                                        : wardsLoading
+                                            ? "Loading wards..."
+                                            : wards.length === 0
+                                                ? "No wards available"
+                                                : "Required")
+                                }
+                                required
+                            >
+                                <MenuItem value="">
+                                    <em>Select Ward</em>
+                                </MenuItem>
+                                {wards.map((ward) => (
+                                    <MenuItem key={ward.id} value={ward.id.toString()}>
+                                        Ward {ward.wardNumber}
+                                    </MenuItem>
+                                ))}
+                            </TextField>
+                        </Box>
+                    </Box>
+
+                    {/* Change Password (Optional) */}
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2, mt: 3 }}>
+                        Change Password (Optional)
+                    </Typography>
+
+                    <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+                        <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
+                            <TextField
+                                fullWidth
+                                label="New Password"
+                                type={showPassword ? 'text' : 'password'}
+                                value={formData.newPassword}
+                                onChange={handleChange('newPassword')}
+                                error={!!errors.newPassword}
+                                helperText={errors.newPassword || 'Leave blank to keep current password'}
+                                disabled={loading}
+                                slotProps={{
+                                    input: {
+                                        endAdornment: (
+                                            <InputAdornment position="end">
+                                                <IconButton
+                                                    onClick={() => setShowPassword(!showPassword)}
+                                                    edge="end"
+                                                    size="small"
+                                                >
+                                                    {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                                                </IconButton>
+                                            </InputAdornment>
+                                        ),
                                     },
                                 }}
-                                render={({ field }) => (
-                                    <TextField
-                                        {...field}
-                                        type="password"
-                                        label="নতুন পাসওয়ার্ড *"
-                                        placeholder="********"
-                                        error={!!errors.password}
-                                        helperText={errors.password?.message}
-                                        disabled={loading}
-                                        fullWidth
-                                    />
-                                )}
                             />
-                        )}
+                        </Box>
 
-                        <Controller
-                            name="cityCorporationCode"
-                            control={control}
-                            rules={{ required: 'City Corporation is required' }}
-                            render={({ field }) => (
-                                <FormControl fullWidth error={!!errors.cityCorporationCode} disabled={loading}>
-                                    <InputLabel>সিটি কর্পোরেশন *</InputLabel>
-                                    <Select {...field} label="সিটি কর্পোরেশন *">
-                                        <MenuItem value="">
-                                            <em>নির্বাচন করুন</em>
-                                        </MenuItem>
-                                        {cityCorporations.map((cc) => (
-                                            <MenuItem key={cc.code} value={cc.code}>
-                                                {cc.name}
-                                            </MenuItem>
-                                        ))}
-                                    </Select>
-                                    {errors.cityCorporationCode && (
-                                        <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 2 }}>
-                                            {errors.cityCorporationCode.message}
-                                        </Typography>
-                                    )}
-                                </FormControl>
-                            )}
-                        />
+                        <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
+                            <TextField
+                                fullWidth
+                                label="Confirm New Password"
+                                type={showConfirmPassword ? 'text' : 'password'}
+                                value={formData.confirmPassword}
+                                onChange={handleChange('confirmPassword')}
+                                error={!!errors.confirmPassword}
+                                helperText={errors.confirmPassword}
+                                disabled={loading}
+                                slotProps={{
+                                    input: {
+                                        endAdornment: (
+                                            <InputAdornment position="end">
+                                                <IconButton
+                                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                                    edge="end"
+                                                    size="small"
+                                                >
+                                                    {showConfirmPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                                                </IconButton>
+                                            </InputAdornment>
+                                        ),
+                                    },
+                                }}
+                            />
+                        </Box>
+                    </Box>
 
-                        <Controller
-                            name="zoneId"
-                            control={control}
-                            rules={{ required: 'Zone is required' }}
-                            render={({ field }) => (
-                                <FormControl
-                                    fullWidth
-                                    error={!!errors.zoneId}
-                                    disabled={loading || !selectedCityCorporation || loadingZones}
-                                >
-                                    <InputLabel>জোন *</InputLabel>
-                                    <Select {...field} label="জোন *">
-                                        <MenuItem value={0}>
-                                            <em>নির্বাচন করুন</em>
-                                        </MenuItem>
-                                        {zones.map((zone) => (
-                                            <MenuItem key={zone.id} value={zone.id}>
-                                                {zone.name}
-                                            </MenuItem>
-                                        ))}
-                                    </Select>
-                                    {errors.zoneId && (
-                                        <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 2 }}>
-                                            {errors.zoneId.message}
-                                        </Typography>
-                                    )}
-                                    {loadingZones && (
-                                        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
-                                            <CircularProgress size={20} />
-                                        </Box>
-                                    )}
-                                </FormControl>
-                            )}
-                        />
+                    {/* Account Settings */}
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2, mt: 3 }}>
+                        Account Settings
+                    </Typography>
 
-                        <Controller
-                            name="wardIds"
-                            control={control}
-                            rules={{ required: 'At least one ward is required' }}
-                            render={({ field }) => (
-                                <FormControl
-                                    fullWidth
-                                    error={!!errors.wardIds}
-                                    disabled={loading || !selectedZone || loadingWards}
-                                >
-                                    <InputLabel>ওয়ার্ড *</InputLabel>
-                                    <Select
-                                        {...field}
-                                        multiple
-                                        label="ওয়ার্ড *"
-                                        renderValue={(selected) => (
-                                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                                                {(selected as number[]).map((value) => {
-                                                    const ward = wards.find((w) => w.id === value);
-                                                    return (
-                                                        <Chip
-                                                            key={value}
-                                                            label={ward ? `Ward ${ward.wardNumber}` : value}
-                                                            size="small"
-                                                        />
-                                                    );
-                                                })}
-                                            </Box>
-                                        )}
-                                    >
-                                        {wards.map((ward) => (
-                                            <MenuItem key={ward.id} value={ward.id}>
-                                                Ward {ward.wardNumber}
-                                            </MenuItem>
-                                        ))}
-                                    </Select>
-                                    {errors.wardIds && (
-                                        <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 2 }}>
-                                            {errors.wardIds.message}
-                                        </Typography>
-                                    )}
-                                    {loadingWards && (
-                                        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
-                                            <CircularProgress size={20} />
-                                        </Box>
-                                    )}
-                                </FormControl>
-                            )}
-                        />
+                    <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+                        <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
+                            <TextField
+                                fullWidth
+                                select
+                                label="Status"
+                                value={formData.status}
+                                onChange={handleChange('status')}
+                                disabled={loading}
+                            >
+                                <MenuItem value="ACTIVE">Active</MenuItem>
+                                <MenuItem value="INACTIVE">Inactive</MenuItem>
+                                <MenuItem value="SUSPENDED">Suspended</MenuItem>
+                                <MenuItem value="PENDING">Pending</MenuItem>
+                            </TextField>
+                        </Box>
 
-                        <Controller
-                            name="status"
-                            control={control}
-                            rules={{ required: 'Status is required' }}
-                            render={({ field }) => (
-                                <FormControl fullWidth error={!!errors.status} disabled={loading}>
-                                    <InputLabel>স্ট্যাটাস *</InputLabel>
-                                    <Select {...field} label="স্ট্যাটাস *">
-                                        <MenuItem value="ACTIVE">সক্রিয়</MenuItem>
-                                        <MenuItem value="INACTIVE">নিষ্ক্রিয়</MenuItem>
-                                        <MenuItem value="SUSPENDED">স্থগিত</MenuItem>
-                                    </Select>
-                                    {errors.status && (
-                                        <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 2 }}>
-                                            {errors.status.message}
-                                        </Typography>
-                                    )}
-                                </FormControl>
-                            )}
-                        />
-                    </Stack>
-                </DialogContent>
+                        <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
+                            <TextField
+                                fullWidth
+                                select
+                                label="Role"
+                                value={formData.role}
+                                onChange={handleChange('role')}
+                                disabled={loading}
+                                helperText="Select the user's role in the system"
+                            >
+                                <MenuItem value="ADMIN">Admin</MenuItem>
+                                <MenuItem value="SUPER_ADMIN">Super Admin</MenuItem>
+                                <MenuItem value="MASTER_ADMIN">Master Admin</MenuItem>
+                            </TextField>
+                        </Box>
+                    </Box>
+                </Box>
+            </DialogContent>
 
-                <DialogActions>
-                    <Button variant="outlined" onClick={handleClose} disabled={loading}>
-                        বাতিল
-                    </Button>
-                    <Button
-                        type="submit"
-                        variant="contained"
-                        sx={{ bgcolor: '#3fa564' }}
-                        disabled={loading}
-                    >
-                        {loading ? <CircularProgress size={24} /> : 'আপডেট করুন'}
-                    </Button>
-                </DialogActions>
-            </form>
+            <DialogActions sx={{ px: 3, py: 2 }}>
+                <Button
+                    onClick={handleCancel}
+                    variant="outlined"
+                    disabled={loading}
+                    sx={{ textTransform: 'none' }}
+                >
+                    Cancel
+                </Button>
+                <Button
+                    onClick={() => handleSubmit()}
+                    variant="contained"
+                    disabled={loading}
+                    startIcon={loading ? <CircularProgress size={20} /> : <SaveIcon />}
+                    sx={{
+                        backgroundColor: '#4CAF50',
+                        '&:hover': { backgroundColor: '#45a049' },
+                        textTransform: 'none',
+                    }}
+                >
+                    {loading ? 'Saving...' : 'Save Changes'}
+                </Button>
+            </DialogActions>
+
+            {/* Confirmation Dialog for Destructive Status Changes */}
+            <ConfirmDialog
+                open={showConfirmDialog}
+                title={formData.status === 'SUSPENDED' ? 'Suspend Admin' : 'Deactivate Admin'}
+                message={
+                    formData.status === 'SUSPENDED'
+                        ? `Are you sure you want to suspend ${admin?.firstName} ${admin?.lastName}? This will immediately block their access to the system.`
+                        : `Are you sure you want to deactivate ${admin?.firstName} ${admin?.lastName}? They will not be able to access the system.`
+                }
+                confirmText="Confirm"
+                cancelText="Cancel"
+                severity="warning"
+                onConfirm={handleConfirmStatusChange}
+                onCancel={handleCancelStatusChange}
+            />
         </Dialog>
     );
 };

@@ -591,29 +591,7 @@ const UserAddModal: React.FC<UserAddModalProps> = ({
                         </Box>
                     </Box>
 
-                    {/* Account Settings */}
-                    <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2, mt: 3 }}>
-                        Account Settings
-                    </Typography>
 
-                    <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
-                        <Box sx={{ flex: '1 1 100%', minWidth: '200px' }}>
-                            <TextField
-                                fullWidth
-                                select
-                                label="Role"
-                                value={formData.role}
-                                onChange={handleChange('role')}
-                                disabled={loading}
-                                helperText="Select the user's role in the system"
-                            >
-                                <MenuItem value="CUSTOMER">Customer (App User)</MenuItem>
-                                <MenuItem value="ADMIN">Admin</MenuItem>
-                                <MenuItem value="SUPER_ADMIN">Super Admin</MenuItem>
-                                <MenuItem value="MASTER_ADMIN">Master Admin</MenuItem>
-                            </TextField>
-                        </Box>
-                    </Box>
                 </Box>
             </DialogContent>
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     Dialog,
     DialogTitle,
@@ -13,6 +13,8 @@ import {
     Divider,
     Grid,
     Avatar,
+    CircularProgress,
+    Alert,
 } from '@mui/material';
 import Close from '@mui/icons-material/Close';
 import EmailOutlined from '@mui/icons-material/EmailOutlined';
@@ -20,6 +22,7 @@ import PhoneOutlined from '@mui/icons-material/PhoneOutlined';
 import LocationOnOutlined from '@mui/icons-material/LocationOnOutlined';
 import CalendarTodayOutlined from '@mui/icons-material/CalendarTodayOutlined';
 import type { UserWithStats } from '../../types/userManagement.types';
+import { userManagementService } from '../../services/userManagementService';
 
 interface AdminDetailsModalProps {
     open: boolean;
@@ -28,9 +31,45 @@ interface AdminDetailsModalProps {
 }
 
 const AdminDetailsModal: React.FC<AdminDetailsModalProps> = ({ open, onClose, admin }) => {
+    const [adminDetails, setAdminDetails] = useState<UserWithStats | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (open && admin?.id) {
+            fetchAdminDetails(admin.id);
+        } else {
+            setAdminDetails(null);
+            setError(null);
+        }
+    }, [open, admin]);
+
+    const fetchAdminDetails = async (id: number) => {
+        try {
+            setLoading(true);
+            setError(null);
+            // Use the service to fetch fresh details
+            const response = await userManagementService.getUserById(id);
+            setAdminDetails(response.user); // Assuming response structure conforms to GetUserResponse
+        } catch (err: any) {
+            console.error('Error fetching admin details:', err);
+            setError('Failed to load latest details');
+            // Fallback to the passed prop if fetch fails
+            setAdminDetails(admin);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     if (!admin) return null;
 
+    // Use adminDetails if available, otherwise fallback to admin prop (though we usually wait for load)
+    // We can show the 'admin' prop immediately while loading 'adminDetails' to avoid layout shift,
+    // but showing a spinner is explicit. Let's show admin prop data initially and update it.
+    const displayAdmin = adminDetails || admin;
+
     const formatDate = (date: Date | string) => {
+        if (!date) return 'N/A';
         return new Date(date).toLocaleDateString('bn-BD', {
             year: 'numeric',
             month: 'long',
@@ -48,7 +87,19 @@ const AdminDetailsModal: React.FC<AdminDetailsModalProps> = ({ open, onClose, ad
             </DialogTitle>
 
             <DialogContent dividers>
-                <Stack spacing={3}>
+                {loading && (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+                        <CircularProgress size={24} />
+                    </Box>
+                )}
+
+                {error && (
+                    <Alert severity="warning" sx={{ mb: 2 }}>
+                        {error} - Showing cached data
+                    </Alert>
+                )}
+
+                <Stack spacing={3} sx={{ opacity: loading ? 0.6 : 1, transition: 'opacity 0.2s' }}>
                     {/* Admin Info */}
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                         <Avatar
@@ -60,24 +111,24 @@ const AdminDetailsModal: React.FC<AdminDetailsModalProps> = ({ open, onClose, ad
                                 fontWeight: 700,
                             }}
                         >
-                            {admin.firstName.charAt(0)}
+                            {displayAdmin.firstName?.charAt(0)}
                         </Avatar>
                         <Box sx={{ flex: 1 }}>
                             <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5 }}>
-                                {admin.firstName} {admin.lastName}
+                                {displayAdmin.firstName} {displayAdmin.lastName}
                             </Typography>
                             <Stack direction="row" spacing={1} alignItems="center">
                                 <Chip
-                                    label={admin.role}
+                                    label={displayAdmin.role}
                                     size="small"
                                     sx={{ bgcolor: '#eff6ff', color: '#155dfc' }}
                                 />
                                 <Chip
-                                    label={admin.status === 'ACTIVE' ? 'সক্রিয়' : 'নিষ্ক্রিয়'}
+                                    label={displayAdmin.status === 'ACTIVE' ? 'সক্রিয়' : 'নিষ্ক্রিয়'}
                                     size="small"
                                     sx={{
-                                        bgcolor: admin.status === 'ACTIVE' ? '#dcfce7' : '#fee2e2',
-                                        color: admin.status === 'ACTIVE' ? '#008236' : '#dc2626'
+                                        bgcolor: displayAdmin.status === 'ACTIVE' ? '#dcfce7' : '#fee2e2',
+                                        color: displayAdmin.status === 'ACTIVE' ? '#008236' : '#dc2626'
                                     }}
                                 />
                             </Stack>
@@ -100,12 +151,12 @@ const AdminDetailsModal: React.FC<AdminDetailsModalProps> = ({ open, onClose, ad
                                             ফোন নম্বর
                                         </Typography>
                                         <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                                            {admin.phone}
+                                            {displayAdmin.phone}
                                         </Typography>
                                     </Box>
                                 </Stack>
                             </Grid>
-                            {admin.email && (
+                            {displayAdmin.email && (
                                 <Grid item xs={12} sm={6}>
                                     <Stack direction="row" spacing={1} alignItems="center">
                                         <EmailOutlined sx={{ color: '#4a5565' }} />
@@ -114,7 +165,7 @@ const AdminDetailsModal: React.FC<AdminDetailsModalProps> = ({ open, onClose, ad
                                                 ইমেইল
                                             </Typography>
                                             <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                                                {admin.email}
+                                                {displayAdmin.email}
                                             </Typography>
                                         </Box>
                                     </Stack>
@@ -139,7 +190,7 @@ const AdminDetailsModal: React.FC<AdminDetailsModalProps> = ({ open, onClose, ad
                                             সিটি কর্পোরেশন
                                         </Typography>
                                         <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                                            {admin.cityCorporation?.name || 'N/A'}
+                                            {displayAdmin.cityCorporation?.name || 'N/A'}
                                         </Typography>
                                     </Box>
                                 </Stack>
@@ -150,7 +201,7 @@ const AdminDetailsModal: React.FC<AdminDetailsModalProps> = ({ open, onClose, ad
                                         জোন
                                     </Typography>
                                     <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                                        {admin.zone?.name || 'N/A'}
+                                        {displayAdmin.zone?.name || 'N/A'}
                                     </Typography>
                                 </Box>
                             </Grid>
@@ -160,7 +211,7 @@ const AdminDetailsModal: React.FC<AdminDetailsModalProps> = ({ open, onClose, ad
                                         ওয়ার্ড
                                     </Typography>
                                     <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                                        {admin.ward ? `Ward ${admin.ward.wardNumber}` : 'N/A'}
+                                        {displayAdmin.ward ? `Ward ${displayAdmin.ward.wardNumber}` : 'N/A'}
                                     </Typography>
                                 </Box>
                             </Grid>
@@ -170,53 +221,55 @@ const AdminDetailsModal: React.FC<AdminDetailsModalProps> = ({ open, onClose, ad
                     <Divider />
 
                     {/* Complaint Statistics */}
-                    <Box>
-                        <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
-                            অভিযোগ পরিসংখ্যান
-                        </Typography>
-                        <Grid container spacing={2}>
-                            <Grid item xs={6} sm={3}>
-                                <Box sx={{ textAlign: 'center', p: 2, bgcolor: '#f9fafb', borderRadius: 2 }}>
-                                    <Typography variant="h4" sx={{ fontWeight: 700, color: '#155dfc' }}>
-                                        {admin.statistics.totalComplaints}
-                                    </Typography>
-                                    <Typography variant="caption" color="text.secondary">
-                                        মোট অভিযোগ
-                                    </Typography>
-                                </Box>
+                    {displayAdmin.statistics && (
+                        <Box>
+                            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
+                                অভিযোগ পরিসংখ্যান
+                            </Typography>
+                            <Grid container spacing={2}>
+                                <Grid item xs={6} sm={3}>
+                                    <Box sx={{ textAlign: 'center', p: 2, bgcolor: '#f9fafb', borderRadius: 2 }}>
+                                        <Typography variant="h4" sx={{ fontWeight: 700, color: '#155dfc' }}>
+                                            {displayAdmin.statistics.totalComplaints || 0}
+                                        </Typography>
+                                        <Typography variant="caption" color="text.secondary">
+                                            মোট অভিযোগ
+                                        </Typography>
+                                    </Box>
+                                </Grid>
+                                <Grid item xs={6} sm={3}>
+                                    <Box sx={{ textAlign: 'center', p: 2, bgcolor: '#f0fdf4', borderRadius: 2 }}>
+                                        <Typography variant="h4" sx={{ fontWeight: 700, color: '#00a63e' }}>
+                                            {displayAdmin.statistics.resolvedComplaints || 0}
+                                        </Typography>
+                                        <Typography variant="caption" color="text.secondary">
+                                            সমাধান হয়েছে
+                                        </Typography>
+                                    </Box>
+                                </Grid>
+                                <Grid item xs={6} sm={3}>
+                                    <Box sx={{ textAlign: 'center', p: 2, bgcolor: '#fff7ed', borderRadius: 2 }}>
+                                        <Typography variant="h4" sx={{ fontWeight: 700, color: '#d08700' }}>
+                                            {displayAdmin.statistics.pendingComplaints || 0}
+                                        </Typography>
+                                        <Typography variant="caption" color="text.secondary">
+                                            পেন্ডিং
+                                        </Typography>
+                                    </Box>
+                                </Grid>
+                                <Grid item xs={6} sm={3}>
+                                    <Box sx={{ textAlign: 'center', p: 2, bgcolor: '#eff6ff', borderRadius: 2 }}>
+                                        <Typography variant="h4" sx={{ fontWeight: 700, color: '#155dfc' }}>
+                                            {displayAdmin.statistics.inProgressComplaints || 0}
+                                        </Typography>
+                                        <Typography variant="caption" color="text.secondary">
+                                            চলমান
+                                        </Typography>
+                                    </Box>
+                                </Grid>
                             </Grid>
-                            <Grid item xs={6} sm={3}>
-                                <Box sx={{ textAlign: 'center', p: 2, bgcolor: '#f0fdf4', borderRadius: 2 }}>
-                                    <Typography variant="h4" sx={{ fontWeight: 700, color: '#00a63e' }}>
-                                        {admin.statistics.resolvedComplaints}
-                                    </Typography>
-                                    <Typography variant="caption" color="text.secondary">
-                                        সমাধান হয়েছে
-                                    </Typography>
-                                </Box>
-                            </Grid>
-                            <Grid item xs={6} sm={3}>
-                                <Box sx={{ textAlign: 'center', p: 2, bgcolor: '#fff7ed', borderRadius: 2 }}>
-                                    <Typography variant="h4" sx={{ fontWeight: 700, color: '#d08700' }}>
-                                        {admin.statistics.pendingComplaints}
-                                    </Typography>
-                                    <Typography variant="caption" color="text.secondary">
-                                        পেন্ডিং
-                                    </Typography>
-                                </Box>
-                            </Grid>
-                            <Grid item xs={6} sm={3}>
-                                <Box sx={{ textAlign: 'center', p: 2, bgcolor: '#eff6ff', borderRadius: 2 }}>
-                                    <Typography variant="h4" sx={{ fontWeight: 700, color: '#155dfc' }}>
-                                        {admin.statistics.inProgressComplaints}
-                                    </Typography>
-                                    <Typography variant="caption" color="text.secondary">
-                                        চলমান
-                                    </Typography>
-                                </Box>
-                            </Grid>
-                        </Grid>
-                    </Box>
+                        </Box>
+                    )}
 
                     <Divider />
 
@@ -234,12 +287,12 @@ const AdminDetailsModal: React.FC<AdminDetailsModalProps> = ({ open, onClose, ad
                                             তৈরি হয়েছে
                                         </Typography>
                                         <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                                            {formatDate(admin.createdAt)}
+                                            {formatDate(displayAdmin.createdAt)}
                                         </Typography>
                                     </Box>
                                 </Stack>
                             </Grid>
-                            {admin.lastLoginAt && (
+                            {displayAdmin.lastLoginAt && (
                                 <Grid item xs={12} sm={6}>
                                     <Stack direction="row" spacing={1} alignItems="center">
                                         <CalendarTodayOutlined sx={{ color: '#4a5565' }} />
@@ -248,7 +301,7 @@ const AdminDetailsModal: React.FC<AdminDetailsModalProps> = ({ open, onClose, ad
                                                 শেষ লগইন
                                             </Typography>
                                             <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                                                {formatDate(admin.lastLoginAt)}
+                                                {formatDate(displayAdmin.lastLoginAt)}
                                             </Typography>
                                         </Box>
                                     </Stack>
