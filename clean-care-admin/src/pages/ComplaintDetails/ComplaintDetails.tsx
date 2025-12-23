@@ -18,6 +18,17 @@ import {
     TextField,
     Paper,
     InputAdornment,
+    Menu,
+    MenuItem,
+    Tooltip,
+    List,
+    ListItem,
+    ListItemAvatar,
+    ListItemText,
+    Rating,
+    Stack,
+    useTheme,
+    Container,
 } from '@mui/material';
 import {
     ArrowBack as ArrowBackIcon,
@@ -33,6 +44,17 @@ import {
     AccessTime as AccessTimeIcon,
     Image as ImageIcon,
     AdminPanelSettings as AdminIcon,
+    Edit as EditIcon,
+    Delete as DeleteIcon,
+    // Keep these if used directly without alias, or remove if unused
+    Warning,
+    ZoomOutMap,
+    AttachFile,
+    Mic,
+    Stop,
+    PlayArrow,
+    Pause,
+    MoreVert,
 } from '@mui/icons-material';
 import toast from 'react-hot-toast';
 import MainLayout from '../../components/common/Layout/MainLayout';
@@ -47,9 +69,18 @@ import { fadeIn, animationConfig } from '../../styles/animations';
 import type { Complaint, ComplaintStatus } from '../../types/complaint-service.types';
 import type { ChatMessage } from '../../types/chat-service.types';
 
+import MarkOthersModal from '../../components/Complaints/MarkOthersModal';
+import StatusUpdateModal from '../../components/Complaints/StatusUpdateModal';
+import ReviewDisplayCard from '../../components/Complaints/ReviewDisplayCard';
+import type { ReviewData } from '../../components/Complaints/ReviewDisplayCard';
+import { EditResolutionModal } from '../../components/Complaints/EditResolutionModal';
+import { useAuth } from '../../contexts/AuthContext';
+
+
 const ComplaintDetails: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const { user } = useAuth();
 
     const messageContainerRef = useRef<HTMLDivElement>(null);
 
@@ -58,6 +89,11 @@ const ComplaintDetails: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [updatingStatus, setUpdatingStatus] = useState(false);
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
+    const [markOthersOpen, setMarkOthersOpen] = useState(false);
+    const [statusUpdateOpen, setStatusUpdateOpen] = useState(false);
+    const [statusUpdateType, setStatusUpdateType] = useState<'IN_PROGRESS' | 'RESOLVED'>('IN_PROGRESS');
+    const [reviews, setReviews] = useState<ReviewData[]>([]);
+    const [loadingReviews, setLoadingReviews] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     // Chat state
@@ -68,6 +104,9 @@ const ComplaintDetails: React.FC = () => {
     const [imageFile, setImageFile] = useState<{ file: File; preview: string } | null>(null);
     const [uploadingImage, setUploadingImage] = useState(false);
 
+    const [editModalOpen, setEditModalOpen] = useState(false);
+    const [editModalType, setEditModalType] = useState<'RESOLVED' | 'OTHERS'>('RESOLVED');
+
     // Dynamic timeline based on complaint data
     const getTimeline = () => {
         const timeline = [];
@@ -75,21 +114,21 @@ const ComplaintDetails: React.FC = () => {
         // Complaint submitted
         timeline.push({
             id: 1,
-            action: 'অভিযোগ জমা',
-            date: new Date(complaint?.createdAt || '').toLocaleString('bn-BD'),
-            description: 'অভিযোগটি সফলভাবে জমা দেওয়া হয়েছে',
+            action: 'Complaint Submitted',
+            date: new Date(complaint?.createdAt || '').toLocaleString('en-US'),
+            description: 'The complaint has been successfully submitted',
         });
 
         // If status changed from PENDING
         if (complaint?.status && complaint.status !== 'PENDING') {
             timeline.push({
                 id: 2,
-                action: complaint.status === 'IN_PROGRESS' ? 'প্রক্রিয়াধীন' :
-                    complaint.status === 'RESOLVED' ? 'সমাধান' : 'প্রত্যাখ্যাত',
-                date: new Date(complaint?.updatedAt || '').toLocaleString('bn-BD'),
-                description: complaint.status === 'IN_PROGRESS' ? 'অভিযোগটি প্রক্রিয়াধীন করা হয়েছে' :
-                    complaint.status === 'RESOLVED' ? 'অভিযোগটি সমাধান করা হয়েছে' :
-                        'অভিযোগটি প্রত্যাখ্যাত হয়েছে',
+                action: complaint.status === 'IN_PROGRESS' ? 'In Progress' :
+                    complaint.status === 'RESOLVED' ? 'Resolved' : 'Rejected',
+                date: new Date(complaint?.updatedAt || '').toLocaleString('en-US'),
+                description: complaint.status === 'IN_PROGRESS' ? 'The complaint is now in progress' :
+                    complaint.status === 'RESOLVED' ? 'The complaint has been resolved' :
+                        'The complaint has been rejected',
             });
         }
 
@@ -112,8 +151,55 @@ const ComplaintDetails: React.FC = () => {
         if (id) {
             fetchComplaintDetails();
             fetchChatMessages();
+            fetchReviews();
         }
     }, [id]);
+
+    const handleOpenEditModal = (type: 'RESOLVED' | 'OTHERS') => {
+        setEditModalType(type);
+        setEditModalOpen(true);
+    };
+
+    const handleDeleteResolution = async () => {
+        if (!complaint || !window.confirm('Are you sure you want to delete this resolution/report? This will revert the status to IN PROGRESS.')) {
+            return;
+        }
+
+        try {
+            await complaintService.updateComplaintStatus(complaint.id, {
+                status: 'IN_PROGRESS',
+                note: 'Resolution deleted by admin',
+                resolutionNote: '', // Clear note
+                resolutionImages: '' // Clear images
+            });
+            fetchComplaintDetails();
+            showSuccessToast('Resolution deleted successfully. Status reverted to In Progress.');
+        } catch (error) {
+            console.error('Failed to delete resolution:', error);
+            showErrorToast('Failed to delete resolution.');
+        }
+    };
+
+    const handleEditSave = async (data: { status: ComplaintStatus; note: string; existingImages: string[]; newImages: File[]; category?: string; subcategory?: string }) => {
+        if (!complaint) return;
+        try {
+            await complaintService.updateComplaintStatus(complaint.id, {
+                status: data.status,
+                resolutionNote: data.note,
+                resolutionImages: data.existingImages.join(','), // Existing URLs string
+                resolutionImageFiles: data.newImages, // files
+                category: data.category,
+                subcategory: data.subcategory
+            });
+            setEditModalOpen(false);
+            fetchComplaintDetails();
+            showSuccessToast('Resolution updated successfully.');
+        } catch (error: any) {
+            console.error('Failed to save resolution changes:', error);
+            const errorMessage = error.response?.data?.message || error.message || 'Failed to save resolution changes.';
+            showErrorToast(errorMessage);
+        }
+    };
 
     const fetchComplaintDetails = async () => {
         try {
@@ -121,6 +207,10 @@ const ComplaintDetails: React.FC = () => {
             setError(null);
             const data = await complaintService.getComplaintById(Number(id));
             setComplaint(data);
+            // Reviews are now included in the complaint response
+            if (data.reviews) {
+                setReviews(data.reviews);
+            }
         } catch (err: any) {
             console.error('Error fetching complaint details:', err);
             setError('Failed to load complaint details');
@@ -130,13 +220,74 @@ const ComplaintDetails: React.FC = () => {
         }
     };
 
-    const handleStatusUpdate = async (newStatus: ComplaintStatus) => {
+    const fetchReviews = async () => {
+        if (!id) return;
+
+        try {
+            setLoadingReviews(true);
+            // Call the review API endpoint
+            const response = await fetch(`/api/complaints/${id}/reviews`, {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                },
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setReviews(data.data?.reviews || []);
+            }
+        } catch (err: any) {
+            console.error('Error fetching reviews:', err);
+            // Don't show error toast for reviews - it's not critical
+        } finally {
+            setLoadingReviews(false);
+        }
+    };
+
+    const handleMarkOthersConfirm = async (category: string, subCategory: string, note?: string, images?: File[]) => {
         if (!complaint) return;
 
         try {
             setUpdatingStatus(true);
+            await complaintService.markComplaintAsOthers(complaint.id, {
+                othersCategory: category,
+                othersSubcategory: subCategory,
+                note: note,
+                images: images
+            });
+            setMarkOthersOpen(false);
+            await fetchComplaintDetails();
+            showSuccessToast('Complaint marked as Others successfully');
+        } catch (err: any) {
+            console.error('Error marking as others:', err);
+            showErrorToast('Failed to mark as others');
+        } finally {
+            setUpdatingStatus(false);
+        }
+    };
+
+    const handleStatusUpdateSuccess = async () => {
+        // Refresh complaint details
+        await fetchComplaintDetails();
+        setStatusUpdateOpen(false);
+        showSuccessToast('Status updated successfully');
+    };
+
+    // Original handleStatusUpdate for simple status changes
+    const handleStatusUpdate = async (newStatus: ComplaintStatus) => {
+        if (!complaint) return;
+
+        // For RESOLVED and IN_PROGRESS with resolution docs, use the modal
+        if (newStatus === 'RESOLVED' || newStatus === 'IN_PROGRESS') {
+            setStatusUpdateType(newStatus);
+            setStatusUpdateOpen(true);
+            return;
+        }
+
+        try {
+            setUpdatingStatus(true);
             const updated = await complaintService.updateComplaintStatus(complaint.id, {
-                status: newStatus,
+                status: newStatus
             });
             setComplaint(updated);
             showSuccessToast('Status updated successfully');
@@ -353,13 +504,13 @@ const ComplaintDetails: React.FC = () => {
     const getStatusLabel = (status: ComplaintStatus): string => {
         switch (status) {
             case 'PENDING':
-                return 'অপেক্ষমাণ';
+                return 'Pending';
             case 'IN_PROGRESS':
-                return 'প্রক্রিয়াধীন';
+                return 'In Progress';
             case 'RESOLVED':
-                return 'সমাধান';
+                return 'Solved';
             case 'REJECTED':
-                return 'প্রত্যাখ্যাত';
+                return 'Others';
             default:
                 return status;
         }
@@ -527,6 +678,145 @@ const ComplaintDetails: React.FC = () => {
                             </Box>
                         </Card>
 
+                        {/* Resolution Details Card */}
+                        {(complaint.status === 'RESOLVED' || complaint.resolutionNote || complaint.resolutionImages) && (
+                            <Card sx={{
+                                mb: 3,
+                                borderRadius: 2,
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                                border: '1px solid #e5e7eb',
+                                overflow: 'hidden'
+                            }}>
+                                <Box sx={{ p: 2, borderBottom: '1px solid #f3f4f6', backgroundColor: '#f0fdf4' }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        <CheckCircleIcon sx={{ color: '#15803d' }} />
+                                        <Typography variant="h6" sx={{ fontWeight: 700, color: '#14532d' }}>
+                                            সমাধানের বিবরণ (Resolution Details)
+                                        </Typography>
+                                    </Box>
+                                </Box>
+                                <Box sx={{ p: 3 }}>
+                                    {complaint.status === 'OTHERS' && (
+                                        <Box sx={{ mb: 3, p: 2, bgcolor: '#fff7ed', borderRadius: 1, border: '1px solid #ffedd5' }}>
+                                            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#c2410c', mb: 1 }}>
+                                                অন্যান্য ক্যাটাগরি হিসেবে চিহ্নিত (Marked as Others):
+                                            </Typography>
+                                            <Typography variant="body2" sx={{ color: '#9a3412', display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                                <span><strong>Category:</strong> {complaint.othersCategory === 'CORPORATION_INTERNAL' ? 'Corp. Internal' :
+                                                    complaint.othersCategory === 'CORPORATION_EXTERNAL' ? 'Corp. External' :
+                                                        complaint.othersCategory}</span>
+                                                {complaint.othersSubcategory && (
+                                                    <span><strong>Sub-category:</strong> {complaint.othersSubcategory}</span>
+                                                )}
+                                            </Typography>
+                                        </Box>
+                                    )}
+                                    {complaint.resolutionNote && (
+                                        <Box sx={{ mb: 3 }}>
+                                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                                                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#374151' }}>
+                                                    {(() => {
+                                                        const historyEntry = (complaint as any).statusHistory?.find(
+                                                            (h: any) => h.newStatus === 'RESOLVED' || h.newStatus === 'OTHERS'
+                                                        );
+                                                        const role = historyEntry?.changer?.role;
+                                                        if (role === 'MASTER_ADMIN') return 'মাস্টার অ্যাডমিনের মন্তব্য (Master Admin Note):';
+                                                        if (role === 'SUPER_ADMIN') return 'সুপার অ্যাডমিনের মন্তব্য (Super Admin Note):';
+                                                        return 'ওয়ার্ড অ্যাডমিনের মন্তব্য (Ward Admin Note):';
+                                                    })()}
+                                                </Typography>
+                                                <Box>
+                                                    <IconButton size="small" onClick={() => handleOpenEditModal('RESOLVED')} color="primary">
+                                                        <EditIcon fontSize="small" />
+                                                    </IconButton>
+                                                    <IconButton size="small" onClick={handleDeleteResolution} color="error">
+                                                        <DeleteIcon fontSize="small" />
+                                                    </IconButton>
+                                                </Box>
+                                            </Box>
+                                            <Typography variant="body1" sx={{ color: '#1f2937', whiteSpace: 'pre-wrap', backgroundColor: '#ffffff', p: 2, borderRadius: 1, border: '1px solid #e5e7eb' }}>
+                                                {complaint.resolutionNote}
+                                            </Typography>
+                                        </Box>
+                                    )}
+
+                                    {complaint.resolutionImages && (
+                                        <Box>
+                                            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: '#374151' }}>
+                                                কাজের প্রমাণ (Proof of Work):
+                                            </Typography>
+                                            <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+                                                {complaint.resolutionImages.split(',').filter(url => url.trim()).map((imgUrl, i) => (
+                                                    <Box
+                                                        key={i}
+                                                        component="img"
+                                                        src={imgUrl.trim()}
+                                                        alt={`Resolution Proof ${i + 1}`}
+                                                        sx={{
+                                                            width: { xs: '100%', sm: 'calc(50% - 12px)', md: 'calc(33.333% - 12px)' },
+                                                            maxWidth: 300,
+                                                            height: 200,
+                                                            objectFit: 'cover',
+                                                            borderRadius: 2,
+                                                            border: '1px solid #e5e7eb',
+                                                            cursor: 'pointer',
+                                                            transition: 'all 0.2s',
+                                                            '&:hover': {
+                                                                transform: 'scale(1.02)',
+                                                                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+                                                            }
+                                                        }}
+                                                        onClick={() => setSelectedImage(imgUrl.trim())}
+                                                    />
+                                                ))}
+                                            </Box>
+                                        </Box>
+                                    )}
+                                </Box>
+                            </Card>
+                        )}
+
+                        {/* Reviews Section */}
+                        {(complaint.status === 'RESOLVED' || complaint.status === 'OTHERS') && (
+                            <Card sx={{
+                                mb: 3,
+                                borderRadius: 2,
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                                border: '1px solid #e5e7eb',
+                                overflow: 'hidden'
+                            }}>
+                                <Box sx={{ p: 2, borderBottom: '1px solid #f3f4f6', backgroundColor: '#f9fafb' }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                        <Typography variant="h6" sx={{ fontWeight: 700, color: '#1e2939' }}>
+                                            User Reviews ({reviews.length})
+                                        </Typography>
+                                        {loadingReviews && (
+                                            <CircularProgress size={20} sx={{ color: '#3fa564' }} />
+                                        )}
+                                    </Box>
+                                </Box>
+                                <Box sx={{ p: 3 }}>
+                                    {loadingReviews ? (
+                                        <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+                                            <CircularProgress size={30} sx={{ color: '#3fa564' }} />
+                                        </Box>
+                                    ) : reviews.length === 0 ? (
+                                        <Box sx={{ textAlign: 'center', py: 4 }}>
+                                            <Typography variant="body2" sx={{ color: '#6b7280' }}>
+                                                No reviews yet. User can submit a review after complaint is resolved or marked as others.
+                                            </Typography>
+                                        </Box>
+                                    ) : (
+                                        <Box>
+                                            {reviews.map((review) => (
+                                                <ReviewDisplayCard key={review.id} review={review} />
+                                            ))}
+                                        </Box>
+                                    )}
+                                </Box>
+                            </Card>
+                        )}
+
                         {/* Responsible Officers Card */}
                         {(complaint.wards?.inspectorName || complaint.zone?.officerName) && (
                             <Card sx={{
@@ -626,6 +916,95 @@ const ComplaintDetails: React.FC = () => {
                             </Card>
                         )}
 
+                        {/* Complainant Info Card */}
+                        <Card sx={{
+                            mb: 3,
+                            borderRadius: 2,
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                            border: '1px solid #e5e7eb'
+                        }}>
+                            <Box sx={{ p: 2, borderBottom: '1px solid #f3f4f6', backgroundColor: '#f9fafb' }}>
+                                <Typography variant="h6" sx={{ fontWeight: 700, color: '#1e2939' }}>
+                                    অভিযোগকারীর তথ্য (Complainant Info)
+                                </Typography>
+                            </Box>
+                            <Box sx={{ p: 3 }}>
+                                <Grid container spacing={3}>
+                                    {/* Name */}
+                                    <Grid size={{ xs: 12, sm: 6 }}>
+                                        <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
+                                            <Avatar sx={{ width: 36, height: 36, bgcolor: '#f0fdf4', color: '#3fa564' }}>
+                                                <PersonIcon fontSize="small" />
+                                            </Avatar>
+                                            <Box>
+                                                <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mb: 0.5 }}>
+                                                    নাম
+                                                </Typography>
+                                                <Typography variant="body1" sx={{ fontWeight: 600, color: '#1e2939' }}>
+                                                    {complaint.user.firstName} {complaint.user.lastName}
+                                                </Typography>
+                                            </Box>
+                                        </Box>
+                                    </Grid>
+
+                                    {/* Phone */}
+                                    <Grid size={{ xs: 12, sm: 6 }}>
+                                        <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
+                                            <Avatar sx={{ width: 36, height: 36, bgcolor: '#eff6ff', color: '#2563eb' }}>
+                                                <PhoneIcon fontSize="small" />
+                                            </Avatar>
+                                            <Box>
+                                                <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mb: 0.5 }}>
+                                                    ফোন নম্বর
+                                                </Typography>
+                                                <Typography variant="body1" sx={{ fontWeight: 600, color: '#1e2939' }}>
+                                                    {complaint.user.phone || 'তথ্য নেই'}
+                                                </Typography>
+                                            </Box>
+                                        </Box>
+                                    </Grid>
+
+                                    {/* Email */}
+                                    {complaint.user.email && (
+                                        <Grid size={{ xs: 12, sm: 6 }}>
+                                            <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
+                                                <Avatar sx={{ width: 36, height: 36, bgcolor: '#fef3c7', color: '#d97706' }}>
+                                                    <EmailIcon fontSize="small" />
+                                                </Avatar>
+                                                <Box>
+                                                    <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mb: 0.5 }}>
+                                                        ইমেইল
+                                                    </Typography>
+                                                    <Typography variant="body1" sx={{ fontWeight: 600, color: '#1e2939' }}>
+                                                        {complaint.user.email}
+                                                    </Typography>
+                                                </Box>
+                                            </Box>
+                                        </Grid>
+                                    )}
+
+                                    {/* Address */}
+                                    {complaint.user.address && (
+                                        <Grid size={{ xs: 12 }}>
+                                            <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
+                                                <Avatar sx={{ width: 36, height: 36, bgcolor: '#f3e8ff', color: '#7c3aed' }}>
+                                                    <LocationIcon fontSize="small" />
+                                                </Avatar>
+                                                <Box>
+                                                    <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mb: 0.5 }}>
+                                                        ঠিকানা
+                                                    </Typography>
+                                                    <Typography variant="body1" sx={{ fontWeight: 600, color: '#1e2939' }}>
+                                                        {complaint.user.address}
+                                                    </Typography>
+                                                </Box>
+                                            </Box>
+                                        </Grid>
+                                    )}
+                                </Grid>
+                            </Box>
+                        </Card>
+
                         {/* Location & Geographical Info Card */}
                         <Card sx={{
                             mb: 3,
@@ -663,11 +1042,12 @@ const ComplaintDetails: React.FC = () => {
                                                 ওয়ার্ড
                                             </Typography>
                                             <Typography variant="body2" sx={{ fontWeight: 600, color: '#1e2939' }}>
+
                                                 {/* Prioritize complaint.wards over complaint.user.ward */}
                                                 {complaint.wards?.displayName ||
                                                     (complaint.wards?.wardNumber ? `Ward ${complaint.wards.wardNumber}` : null) ||
                                                     (complaint.wards?.number ? `Ward ${complaint.wards.number}` : null) ||
-                                                    complaint.user.ward ||
+                                                    (typeof complaint.user?.ward === 'object' ? (complaint.user.ward as any)?.wardNumber || (complaint.user.ward as any)?.number : complaint.user?.ward) ||
                                                     'তথ্য নেই'}
                                             </Typography>
                                         </Box>
@@ -684,7 +1064,7 @@ const ComplaintDetails: React.FC = () => {
                                                 {complaint.zone?.displayName ||
                                                     complaint.zone?.name ||
                                                     (complaint.zone?.zoneNumber ? `Zone ${complaint.zone.zoneNumber}` : null) ||
-                                                    complaint.user.zone ||
+                                                    (typeof complaint.user?.zone === 'object' ? (complaint.user.zone as any)?.name || (complaint.user.zone as any)?.zoneNumber : complaint.user?.zone) ||
                                                     'তথ্য নেই'}
                                             </Typography>
                                         </Box>
@@ -1007,7 +1387,7 @@ const ComplaintDetails: React.FC = () => {
                             }}>
                                 <Box sx={{ p: 2, borderBottom: '1px solid #f3f4f6', backgroundColor: '#f9fafb' }}>
                                     <Typography variant="h6" sx={{ fontWeight: 700, color: '#1e2939' }}>
-                                        জোন অফিসার
+                                        Zone Officer
                                     </Typography>
                                 </Box>
                                 <Box sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -1016,10 +1396,10 @@ const ComplaintDetails: React.FC = () => {
                                     </Avatar>
                                     <Box sx={{ flex: 1 }}>
                                         <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1f2937' }}>
-                                            {complaint.zone.officerName || 'তথ্য নেই'}
+                                            {complaint.zone.officerName || 'No Info'}
                                         </Typography>
                                         <Typography variant="caption" sx={{ color: '#6b7280' }}>
-                                            জোন অফিসার
+                                            Zone Officer
                                         </Typography>
                                     </Box>
                                 </Box>
@@ -1035,12 +1415,12 @@ const ComplaintDetails: React.FC = () => {
                         }}>
                             <Box sx={{ p: 2, borderBottom: '1px solid #f3f4f6', backgroundColor: '#f9fafb' }}>
                                 <Typography variant="h6" sx={{ fontWeight: 700, color: '#1e2939' }}>
-                                    অ্যাডমিন রিপোর্ট
+                                    Admin Report
                                 </Typography>
                             </Box>
                             <Box sx={{ p: 3 }}>
                                 <Typography variant="body2" sx={{ color: '#6b7280', mb: 2 }}>
-                                    এই অভিযোগটি পরিচালনা করছেন
+                                    This complaint is managed by
                                 </Typography>
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
                                     <Avatar sx={{ width: 40, height: 40, bgcolor: '#fff7ed', color: '#f97316' }}>
@@ -1048,10 +1428,10 @@ const ComplaintDetails: React.FC = () => {
                                     </Avatar>
                                     <Box>
                                         <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1f2937' }}>
-                                            {complaint.assignedAdmin ? `${complaint.assignedAdmin.firstName} ${complaint.assignedAdmin.lastName}` : 'এখনও নিযুক্ত করা হয়নি'}
+                                            {complaint.assignedAdmin ? `${complaint.assignedAdmin.firstName} ${complaint.assignedAdmin.lastName}` : 'Not Assigned Yet'}
                                         </Typography>
                                         <Typography variant="body2" sx={{ color: '#6b7280' }}>
-                                            {complaint.assignedAdmin ? 'ওয়ার্ড অ্যাডমিন' : 'অপেক্ষমাণ'}
+                                            {complaint.assignedAdmin ? 'Ward Admin' : 'Pending'}
                                         </Typography>
                                     </Box>
                                 </Box>
@@ -1068,7 +1448,7 @@ const ComplaintDetails: React.FC = () => {
                                         },
                                     }}
                                 >
-                                    নতুন অ্যাডমিন নিয়োগ করুন
+                                    Assign New Admin
                                 </Button>
                             </Box>
                         </Card>
@@ -1081,42 +1461,42 @@ const ComplaintDetails: React.FC = () => {
                         }}>
                             <Box sx={{ p: 2, borderBottom: '1px solid #f3f4f6', backgroundColor: '#f9fafb' }}>
                                 <Typography variant="h6" sx={{ fontWeight: 700, color: '#1e2939' }}>
-                                    অ্যাকশন
+                                    Action
                                 </Typography>
                             </Box>
                             <Box sx={{ p: 3 }}>
-                                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 2 }}>
                                     {complaint.status === 'PENDING' && (
                                         <>
                                             <LoadingButton
                                                 variant="contained"
                                                 onClick={() => handleStatusUpdate('IN_PROGRESS')}
                                                 loading={updatingStatus}
+                                                startIcon={<CheckCircleIcon />}
                                                 sx={{
                                                     backgroundColor: '#3fa564',
                                                     '&:hover': { backgroundColor: '#15803d' },
                                                     textTransform: 'none',
-                                                    px: 3
+                                                    px: 3,
+                                                    flex: 1
                                                 }}
                                             >
-                                                প্রক্রিয়াধীন করুন
+                                                Mark In Progress
                                             </LoadingButton>
                                             <LoadingButton
-                                                variant="outlined"
-                                                onClick={() => handleStatusUpdate('REJECTED')}
+                                                variant="contained"
+                                                onClick={() => handleStatusUpdate('RESOLVED')}
                                                 loading={updatingStatus}
+                                                startIcon={<CheckCircleIcon />}
                                                 sx={{
-                                                    borderColor: '#ef4444',
-                                                    color: '#ef4444',
+                                                    backgroundColor: '#15803d',
+                                                    '&:hover': { backgroundColor: '#166534' },
                                                     textTransform: 'none',
                                                     px: 3,
-                                                    '&:hover': {
-                                                        backgroundColor: '#fef2f2',
-                                                        borderColor: '#ef4444',
-                                                    },
+                                                    flex: 1
                                                 }}
                                             >
-                                                প্রত্যাখ্যান করুন
+                                                Mark Solved
                                             </LoadingButton>
                                         </>
                                     )}
@@ -1126,14 +1506,16 @@ const ComplaintDetails: React.FC = () => {
                                                 variant="contained"
                                                 onClick={() => handleStatusUpdate('RESOLVED')}
                                                 loading={updatingStatus}
+                                                startIcon={<CheckCircleIcon />}
                                                 sx={{
                                                     backgroundColor: '#3fa564',
                                                     '&:hover': { backgroundColor: '#15803d' },
                                                     textTransform: 'none',
-                                                    px: 3
+                                                    px: 3,
+                                                    flex: 1
                                                 }}
                                             >
-                                                সমাধান করুন
+                                                Mark Solved
                                             </LoadingButton>
                                             <LoadingButton
                                                 variant="outlined"
@@ -1150,11 +1532,211 @@ const ComplaintDetails: React.FC = () => {
                                                     },
                                                 }}
                                             >
-                                                অপেক্ষমাণ করুন
+                                                Mark Pending
                                             </LoadingButton>
                                         </>
                                     )}
+                                    {complaint.status === 'RESOLVED' && (
+                                        <LoadingButton
+                                            variant="outlined"
+                                            onClick={() => handleStatusUpdate('IN_PROGRESS')}
+                                            loading={updatingStatus}
+                                            sx={{
+                                                borderColor: '#3b82f6',
+                                                color: '#2563eb',
+                                                textTransform: 'none',
+                                                px: 3,
+                                                flex: 1,
+                                                '&:hover': {
+                                                    backgroundColor: '#eff6ff',
+                                                    borderColor: '#3b82f6',
+                                                },
+                                            }}
+                                        >
+                                            Reopen (In Progress)
+                                        </LoadingButton>
+                                    )}
+                                    {complaint.status === 'REJECTED' && (
+                                        <LoadingButton
+                                            variant="outlined"
+                                            onClick={() => handleStatusUpdate('PENDING')}
+                                            loading={updatingStatus}
+                                            sx={{
+                                                borderColor: '#f59e0b',
+                                                color: '#d97706',
+                                                textTransform: 'none',
+                                                px: 3,
+                                                flex: 1,
+                                                '&:hover': {
+                                                    backgroundColor: '#fffbeb',
+                                                    borderColor: '#f59e0b',
+                                                },
+                                            }}
+                                        >
+                                            Reopen (Pending)
+                                        </LoadingButton>
+                                    )}
+                                    {complaint.status === 'OTHERS' && (
+                                        <LoadingButton
+                                            variant="outlined"
+                                            onClick={() => handleStatusUpdate('PENDING')}
+                                            loading={updatingStatus}
+                                            sx={{
+                                                borderColor: '#f59e0b',
+                                                color: '#d97706',
+                                                textTransform: 'none',
+                                                px: 3,
+                                                flex: 1,
+                                                '&:hover': {
+                                                    backgroundColor: '#fffbeb',
+                                                    borderColor: '#f59e0b',
+                                                },
+                                            }}
+                                        >
+                                            Reopen (Pending)
+                                        </LoadingButton>
+                                    )}
                                 </Box>
+
+                                {/* Mark as Others Action - Available for PENDING and IN_PROGRESS */}
+                                {(complaint.status === 'PENDING' || complaint.status === 'IN_PROGRESS') && (
+                                    <>
+                                        <Divider sx={{ my: 2 }}>
+                                            <Typography variant="caption" color="text.secondary">
+                                                Other Actions
+                                            </Typography>
+                                        </Divider>
+                                        <Box sx={{ display: 'flex', justifyContent: 'center', flexDirection: 'column', gap: 2 }}>
+                                            <LoadingButton
+                                                variant="outlined"
+                                                onClick={() => setMarkOthersOpen(true)}
+                                                loading={updatingStatus}
+                                                startIcon={<CloseIcon />}
+                                                sx={{
+                                                    borderColor: '#ef4444',
+                                                    color: '#ef4444',
+                                                    textTransform: 'none',
+                                                    width: '100%',
+                                                    '&:hover': {
+                                                        backgroundColor: '#fef2f2',
+                                                        borderColor: '#ef4444',
+                                                    },
+                                                }}
+                                            >
+                                                Mark as Others
+                                            </LoadingButton>
+                                        </Box>
+                                    </>
+                                )}
+
+                                {/* Show Others category info if already marked */}
+                                {(complaint.status === 'REJECTED' || complaint.status === 'OTHERS') && (
+                                    <>
+                                        <Divider sx={{ my: 2 }}>
+                                            <Typography variant="caption" color="text.secondary">
+                                                Other Actions
+                                            </Typography>
+                                        </Divider>
+                                        <Box sx={{ display: 'flex', justifyContent: 'center', flexDirection: 'column', gap: 2 }}>
+                                            <LoadingButton
+                                                variant="outlined"
+                                                onClick={() => setMarkOthersOpen(true)}
+                                                loading={updatingStatus}
+                                                startIcon={<CloseIcon />}
+                                                sx={{
+                                                    borderColor: '#ef4444',
+                                                    color: '#ef4444',
+                                                    textTransform: 'none',
+                                                    width: '100%',
+                                                    '&:hover': {
+                                                        backgroundColor: '#fef2f2',
+                                                        borderColor: '#ef4444',
+                                                    },
+                                                }}
+                                            >
+                                                Update Others Category
+                                            </LoadingButton>
+
+                                            {(complaint.othersCategory || complaint.category) && (
+                                                <Box sx={{ p: 2, bgcolor: '#fef2f2', borderRadius: 1, border: '1px solid #fee2e2' }}>
+                                                    <Typography variant="subtitle2" color="error.main" gutterBottom>
+                                                        Marked as Others
+                                                    </Typography>
+                                                    <Typography variant="body2" color="text.secondary">
+                                                        <strong>Category:</strong> {complaint.othersCategory || complaint.category}
+                                                    </Typography>
+                                                    {(complaint.othersSubcategory || complaint.subcategory) && (
+                                                        <Typography variant="body2" color="text.secondary">
+                                                            <strong>Sub-category:</strong> {complaint.othersSubcategory || complaint.subcategory}
+                                                        </Typography>
+                                                    )}
+
+                                                    {complaint.resolutionNote && (
+                                                        <Box sx={{ mt: 1.5 }}>
+                                                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                                <Typography variant="caption" sx={{ fontWeight: 600, color: '#ef4444' }}>
+                                                                    {(() => {
+                                                                        // Find the history entry that set this status
+                                                                        const historyEntry = (complaint as any).statusHistory?.find(
+                                                                            (h: any) => h.newStatus === 'OTHERS'
+                                                                        );
+                                                                        const role = historyEntry?.changer?.role;
+                                                                        return role === 'SUPER_ADMIN' || role === 'MASTER_ADMIN'
+                                                                            ? 'Super Admin Note:'
+                                                                            : 'Ward Admin Note:';
+                                                                    })()}
+                                                                </Typography>
+                                                                <Box>
+                                                                    <IconButton size="small" onClick={() => handleOpenEditModal('OTHERS')} sx={{ color: '#ef4444' }}>
+                                                                        <EditIcon fontSize="small" />
+                                                                    </IconButton>
+                                                                    <IconButton size="small" onClick={handleDeleteResolution} sx={{ color: '#ef4444' }}>
+                                                                        <DeleteIcon fontSize="small" />
+                                                                    </IconButton>
+                                                                </Box>
+                                                            </Box>
+                                                            <Typography variant="body2" sx={{ color: '#374151', bgcolor: '#fff', p: 1, borderRadius: 1, border: '1px solid #fee2e2', mt: 0.5, whiteSpace: 'pre-wrap' }}>
+                                                                {complaint.resolutionNote}
+                                                            </Typography>
+                                                        </Box>
+                                                    )}
+
+                                                    {complaint.resolutionImages && (
+                                                        <Box sx={{ mt: 1.5 }}>
+                                                            <Typography variant="caption" sx={{ fontWeight: 600, color: '#ef4444', display: 'block', mb: 0.5 }}>
+                                                                Attached Images:
+                                                            </Typography>
+                                                            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                                                                {complaint.resolutionImages.split(',').filter(url => url.trim()).map((imgUrl, i) => (
+                                                                    <Box
+                                                                        key={i}
+                                                                        component="img"
+                                                                        src={imgUrl.trim()}
+                                                                        alt={`Admin report ${i + 1}`}
+                                                                        sx={{
+                                                                            width: 60,
+                                                                            height: 60,
+                                                                            objectFit: 'cover',
+                                                                            borderRadius: 1,
+                                                                            cursor: 'pointer',
+                                                                            border: '1px solid #fee2e2'
+                                                                        }}
+                                                                        onClick={() => setSelectedImage(imgUrl.trim())}
+                                                                    />
+                                                                ))}
+                                                            </Box>
+                                                        </Box>
+                                                    )}
+                                                    {complaint.status === 'REJECTED' && (
+                                                        <Typography variant="body2" color="text.secondary" sx={{ mt: 1, fontStyle: 'italic' }}>
+                                                            Note: This complaint is marked as REJECTED but contains Others/External categorization.
+                                                        </Typography>
+                                                    )}
+                                                </Box>
+                                            )}
+                                        </Box>
+                                    </>
+                                )}
                             </Box>
                         </Card>
                     </Grid>
@@ -1169,10 +1751,10 @@ const ComplaintDetails: React.FC = () => {
                                     </Avatar>
                                     <Box>
                                         <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#1e2939', lineHeight: 1.2 }}>
-                                            বার্তা এবং আলোচনা
+                                            Messages & Discussion
                                         </Typography>
                                         <Typography variant="caption" sx={{ color: '#6b7280' }}>
-                                            নাগরিকের সাথে সরাসরি যোগাযোগ
+                                            Direct communication with citizen
                                         </Typography>
                                     </Box>
                                 </Box>
@@ -1187,16 +1769,30 @@ const ComplaintDetails: React.FC = () => {
                                 ) : messages.length === 0 ? (
                                     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', opacity: 0.6 }}>
                                         <SendIcon sx={{ fontSize: 48, color: '#cbd5e1', mb: 2 }} />
-                                        <Typography variant="body2" sx={{ color: '#6b7280' }}>কোন বার্তা নেই</Typography>
+                                        <Typography variant="body2" sx={{ color: '#6b7280' }}>No messages yet</Typography>
                                     </Box>
                                 ) : (
                                     messages.map((msg) => (
-                                        <Box key={msg.id} sx={{ display: 'flex', flexDirection: 'column', alignItems: msg.senderId === 0 ? 'flex-end' : 'flex-start', maxWidth: '85%', alignSelf: msg.senderId === 0 ? 'flex-end' : 'flex-start' }}>
-                                            <Box sx={{ display: 'flex', alignItems: 'end', gap: 1, flexDirection: msg.senderId === 0 ? 'row-reverse' : 'row' }}>
-                                                {msg.senderId !== 0 && (
-                                                    <Avatar sx={{ width: 24, height: 24, bgcolor: '#eff6ff', color: '#3b82f6', fontSize: '0.7rem' }}>N</Avatar>
+                                        <Box key={msg.id} sx={{ display: 'flex', flexDirection: 'column', alignItems: msg.senderType === 'ADMIN' ? 'flex-end' : 'flex-start', maxWidth: '85%', alignSelf: msg.senderType === 'ADMIN' ? 'flex-end' : 'flex-start' }}>
+                                            <Box sx={{ display: 'flex', alignItems: 'end', gap: 1, flexDirection: msg.senderType === 'ADMIN' ? 'row-reverse' : 'row' }}>
+                                                {msg.senderType === 'CITIZEN' && (
+                                                    <Avatar sx={{ width: 24, height: 24, bgcolor: '#eff6ff', color: '#3b82f6', fontSize: '0.7rem' }}>
+                                                        {msg.senderName ? msg.senderName.charAt(0) : complaint.user.firstName?.charAt(0) || 'U'}
+                                                    </Avatar>
                                                 )}
-                                                <Box sx={{ p: 1.5, bgcolor: msg.senderId === 0 ? '#3fa564' : '#fff', color: msg.senderId === 0 ? '#fff' : '#1f2937', borderRadius: 2, borderTopLeftRadius: msg.senderId === 0 ? 8 : 0, borderTopRightRadius: msg.senderId === 0 ? 0 : 8, boxShadow: '0 1px 2px rgba(0,0,0,0.05)', position: 'relative' }}>
+                                                <Box sx={{ p: 1.5, bgcolor: msg.senderType === 'ADMIN' ? '#3fa564' : '#fff', color: msg.senderType === 'ADMIN' ? '#fff' : '#1f2937', borderRadius: 2, borderTopLeftRadius: msg.senderType === 'ADMIN' ? 8 : 0, borderTopRightRadius: msg.senderType === 'ADMIN' ? 0 : 8, boxShadow: '0 1px 2px rgba(0,0,0,0.05)', position: 'relative' }}>
+                                                    {/* Show sender name/role */}
+                                                    {msg.senderType === 'CITIZEN' ? (
+                                                        <Typography variant="caption" sx={{ display: 'block', mb: 0.5, fontSize: '0.65rem', fontWeight: 700, color: '#3b82f6' }}>
+                                                            {msg.senderName || `${complaint.user.firstName} ${complaint.user.lastName}`}
+                                                        </Typography>
+                                                    ) : msg.senderRole && (
+                                                        <Typography variant="caption" sx={{ display: 'block', mb: 0.5, fontSize: '0.65rem', fontWeight: 700, opacity: 0.9, color: msg.senderType === 'ADMIN' ? '#e0f2fe' : 'inherit' }}>
+                                                            {msg.senderRole === 'MASTER_ADMIN' ? 'Master Admin' :
+                                                                msg.senderRole === 'SUPER_ADMIN' ? 'Super Admin' :
+                                                                    msg.senderRole === 'ADMIN' ? 'Ward Admin' : msg.senderRole}
+                                                        </Typography>
+                                                    )}
                                                     {msg.imageUrl && (
                                                         <Box sx={{ mb: 1, borderRadius: 1, overflow: 'hidden' }}>
                                                             <img src={msg.imageUrl} alt="Attachment" style={{ maxWidth: '100%', maxHeight: 150, objectFit: 'cover', cursor: 'pointer' }} onClick={() => setSelectedImage(msg.imageUrl || null)} />
@@ -1226,7 +1822,7 @@ const ComplaintDetails: React.FC = () => {
                                             <ImageIcon />
                                         </IconButton>
                                     </label>
-                                    <TextField fullWidth multiline maxRows={4} placeholder="আপনার বার্তা লিখুন..." value={messageText} onChange={(e) => setMessageText(e.target.value)} onKeyPress={handleKeyPress} disabled={sending} variant="outlined" size="small" sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3, bgcolor: '#f9fafb', '& fieldset': { borderColor: '#e5e7eb' }, '&:hover fieldset': { borderColor: '#d1d5db' }, '&.Mui-focused fieldset': { borderColor: '#3fa564', borderWidth: 1 } } }} />
+                                    <TextField fullWidth multiline maxRows={4} placeholder="Type your message..." value={messageText} onChange={(e) => setMessageText(e.target.value)} onKeyPress={handleKeyPress} disabled={sending} variant="outlined" size="small" sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3, bgcolor: '#f9fafb', '& fieldset': { borderColor: '#e5e7eb' }, '&:hover fieldset': { borderColor: '#d1d5db' }, '&.Mui-focused fieldset': { borderColor: '#3fa564', borderWidth: 1 } } }} />
                                     <IconButton onClick={handleSendMessage} disabled={sending || (!messageText.trim() && !imageFile)} sx={{ bgcolor: '#3fa564', color: 'white', width: 40, height: 40, '&:hover': { bgcolor: '#15803d' }, '&.Mui-disabled': { bgcolor: '#e5e7eb', color: '#9ca3af' } }}>
                                         {sending ? <CircularProgress size={20} color="inherit" /> : <SendIcon />}
                                     </IconButton>
@@ -1235,31 +1831,56 @@ const ComplaintDetails: React.FC = () => {
                         </Card>
                     </Grid>
                 </Grid>
-            </Box>
+            </Box >
 
-            {/* Image Preview Dialog */}
-            <Dialog
-                open={!!selectedImage}
-                onClose={() => setSelectedImage(null)}
-                maxWidth="lg"
-                fullWidth
-            >
-                <Box sx={{ position: 'relative', backgroundColor: '#000', display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}>
-                    <IconButton
-                        onClick={() => setSelectedImage(null)}
-                        sx={{
-                            position: 'absolute',
-                            top: 16,
-                            right: 16,
-                            color: 'white',
-                            backgroundColor: 'rgba(0,0,0,0.5)',
-                            '&:hover': { backgroundColor: 'rgba(0,0,0,0.7)' },
-                            zIndex: 1,
-                        }}
-                    >
-                        <CloseIcon />
-                    </IconButton>
-                    {selectedImage && (
+            {/* Mark Others Modal */}
+            <MarkOthersModal
+                open={markOthersOpen}
+                onClose={() => setMarkOthersOpen(false)}
+                onConfirm={handleMarkOthersConfirm}
+                loading={updatingStatus}
+            />
+
+            {/* Status Update Modal */}
+            <StatusUpdateModal
+                open={statusUpdateOpen}
+                complaintId={complaint?.id || 0}
+                status={statusUpdateType}
+                existingImages={complaint?.resolutionImages || ''}
+                onClose={() => setStatusUpdateOpen(false)}
+                onSuccess={handleStatusUpdateSuccess}
+            />
+
+            {/* Image Modal */}
+            {selectedImage && (
+                <Dialog
+                    open={Boolean(selectedImage)}
+                    onClose={() => setSelectedImage(null)}
+                    maxWidth="md"
+                    fullWidth
+                    PaperProps={{
+                        sx: {
+                            bgcolor: 'transparent',
+                            boxShadow: 'none',
+                            overflow: 'hidden'
+                        }
+                    }}
+                >
+                    <Box sx={{ position: 'relative', bgcolor: 'transparent', display: 'flex', justifyContent: 'center' }}>
+                        <IconButton
+                            onClick={() => setSelectedImage(null)}
+                            sx={{
+                                position: 'absolute',
+                                right: 0,
+                                top: 0,
+                                color: 'white',
+                                bgcolor: 'rgba(0,0,0,0.5)',
+                                '&:hover': { bgcolor: 'rgba(0,0,0,0.7)' },
+                                m: 1
+                            }}
+                        >
+                            <CloseIcon />
+                        </IconButton>
                         <img
                             src={selectedImage}
                             alt="Full size"
@@ -1267,12 +1888,23 @@ const ComplaintDetails: React.FC = () => {
                                 maxWidth: '100%',
                                 maxHeight: '90vh',
                                 objectFit: 'contain',
+                                borderRadius: 8
                             }}
                         />
-                    )}
-                </Box>
-            </Dialog>
-        </MainLayout>
+                    </Box>
+                </Dialog>
+            )}
+
+            {complaint && (
+                <EditResolutionModal
+                    open={editModalOpen}
+                    onClose={() => setEditModalOpen(false)}
+                    onSave={handleEditSave}
+                    complaint={complaint}
+                    type={editModalType}
+                />
+            )}
+        </MainLayout >
     );
 };
 

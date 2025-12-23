@@ -74,6 +74,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
       final apiClient = ApiClient(ApiConfig.baseUrl);
       final response = await apiClient.get('/api/city-corporations');
       
+      if (!mounted) return;
+
       if (response['success'] == true && response['cityCorporations'] != null) {
         setState(() {
           _cityCorporations = List<Map<String, dynamic>>.from(
@@ -88,7 +90,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
         }
       }
     } catch (e) {
-      setState(() => _isLoadingCityCorporations = false);
+      if (mounted) setState(() => _isLoadingCityCorporations = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -113,6 +115,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
         '/api/zones?cityCorporationId=$cityCorporationId'
       );
       
+      if (!mounted) return;
+
       if (response['success'] == true && response['data'] != null) {
         setState(() {
           _zones = List<Map<String, dynamic>>.from(response['data'] as List);
@@ -125,7 +129,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
         }
       }
     } catch (e) {
-      setState(() => _isLoadingZones = false);
+      if (mounted) setState(() => _isLoadingZones = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -147,6 +151,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
       final apiClient = ApiClient(ApiConfig.baseUrl);
       final response = await apiClient.get('/api/wards?zoneId=$zoneId');
       
+      if (!mounted) return;
+
       if (response['success'] == true && response['data'] != null) {
         setState(() {
           _wards = List<Map<String, dynamic>>.from(response['data'] as List);
@@ -154,7 +160,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
         });
       }
     } catch (e) {
-      setState(() => _isLoadingWards = false);
+      if (mounted) setState(() => _isLoadingWards = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

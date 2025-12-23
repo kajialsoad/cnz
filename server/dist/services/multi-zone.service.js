@@ -13,9 +13,9 @@ class MultiZoneService {
      * Validates: 2-5 zones, same city corporation, user is SUPER_ADMIN
      */
     async assignZonesToSuperAdmin(data, assignedBy, ipAddress, userAgent) {
-        // Validation 1: Check zone count (2-5)
-        if (data.zoneIds.length < 2 || data.zoneIds.length > 5) {
-            throw new Error('Super Admin must be assigned 2 to 5 zones');
+        // Validation 1: Check zone count (1-10)
+        if (data.zoneIds.length < 1 || data.zoneIds.length > 10) {
+            throw new Error('Super Admin must be assigned 1 to 10 zones');
         }
         // Validation 2: Check user exists and is SUPER_ADMIN
         const user = await prisma_1.default.user.findUnique({
@@ -198,8 +198,8 @@ class MultiZoneService {
         const remainingZones = await prisma_1.default.userZone.count({
             where: { userId },
         });
-        if (remainingZones <= 2) {
-            throw new Error('Cannot remove zone. Super Admin must have at least 2 zones assigned');
+        if (remainingZones <= 1) {
+            throw new Error('Cannot remove zone. Super Admin must have at least 1 zone assigned');
         }
         // Remove the zone
         await prisma_1.default.userZone.delete({

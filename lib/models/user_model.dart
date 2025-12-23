@@ -61,8 +61,8 @@ class UserModel {
       status: json['status'] as String? ?? 'ACTIVE',
       emailVerified: (json['emailVerified'] as bool?) ?? false,
       phoneVerified: (json['phoneVerified'] as bool?) ?? false,
-      zone: json['zone'] as String?,
-      ward: json['ward'] as String?,
+      zone: json['zone'] is String ? json['zone'] : null,
+      ward: json['ward'] is String ? json['ward'] : null,
       zoneId: json['zoneId'] as int?,
       wardId: json['wardId'] as int?,
       wardImageCount: (json['wardImageCount'] as int?) ?? 0,
@@ -76,9 +76,9 @@ class UserModel {
       lastLoginAt: json['lastLoginAt'] != null
           ? DateTime.parse(json['lastLoginAt'] as String)
           : null,
-      cityCorporation: json['cityCorporation'] as Map<String, dynamic>?,
-      zoneData: json['zone'] as Map<String, dynamic>?,
-      wardData: json['ward'] as Map<String, dynamic>?,
+      cityCorporation: json['cityCorporation'] is Map<String, dynamic> ? json['cityCorporation'] : null,
+      zoneData: json['zone'] is Map<String, dynamic> ? json['zone'] : null,
+      wardData: json['ward'] is Map<String, dynamic> ? json['ward'] : null,
     );
   }
 

@@ -51,6 +51,8 @@ exports.registerSchema = joi_1.default.object({
         .messages({
         'number.base': 'বৈধ থানা আইডি প্রয়োজন',
     }),
+    zoneId: joi_1.default.number().integer().positive().optional(),
+    wardId: joi_1.default.number().integer().positive().optional(),
     address: joi_1.default.string().max(255).optional()
         .messages({
         'string.max': 'ঠিকানা সর্বোচ্চ ২৫৫ অক্ষরের হতে হবে',
@@ -72,6 +74,11 @@ exports.loginSchema = joi_1.default.object({
     password: joi_1.default.string().required()
         .messages({
         'string.empty': 'পাসওয়ার্ড প্রয়োজন',
+    }),
+    portal: joi_1.default.string().valid('ADMIN', 'APP').required()
+        .messages({
+        'any.only': 'পোর্টাল ADMIN অথবা APP হতে হবে',
+        'any.required': 'পোর্টাল তথ্য প্রয়োজন',
     }),
 }).or('phone', 'email')
     .messages({

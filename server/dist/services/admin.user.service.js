@@ -90,6 +90,7 @@ class AdminUserService {
                         officerName: true,
                         officerDesignation: true,
                         officerSerialNumber: true,
+                        officerPhone: true,
                         status: true,
                     },
                 },
@@ -100,6 +101,7 @@ class AdminUserService {
                         wardNumber: true,
                         inspectorName: true,
                         inspectorSerialNumber: true,
+                        inspectorPhone: true,
                         status: true,
                     },
                 },
@@ -122,6 +124,7 @@ class AdminUserService {
                     }
                 },
                 wardImageCount: true,
+                permissions: true,
                 _count: {
                     select: {
                         complaints: true,
@@ -157,14 +160,14 @@ class AdminUserService {
                 return;
             const count = stat._count.id;
             userStat.totalComplaints += count;
-            if (stat.status === client_1.ComplaintStatus.RESOLVED) {
+            if (stat.status === client_1.Complaint_status.RESOLVED) {
                 userStat.resolvedComplaints += count;
             }
-            else if (stat.status === client_1.ComplaintStatus.PENDING) {
+            else if (stat.status === client_1.Complaint_status.PENDING) {
                 userStat.pendingComplaints += count;
                 userStat.unresolvedComplaints += count;
             }
-            else if (stat.status === client_1.ComplaintStatus.IN_PROGRESS) {
+            else if (stat.status === client_1.Complaint_status.IN_PROGRESS) {
                 userStat.inProgressComplaints += count;
                 userStat.unresolvedComplaints += count;
             }
@@ -313,6 +316,7 @@ class AdminUserService {
                     }
                 },
                 wardImageCount: true,
+                permissions: true,
                 _count: {
                     select: {
                         complaints: true,
@@ -320,6 +324,38 @@ class AdminUserService {
                 },
             },
         });
+        // Fetch extra wards in bulk
+        let allExtraWardIds = [];
+        users.forEach(user => {
+            let perms = user.permissions;
+            if (typeof perms === 'string') {
+                try {
+                    perms = JSON.parse(perms);
+                }
+                catch (e) {
+                    console.error('Error parsing permissions:', e);
+                    perms = {};
+                }
+            }
+            if (perms && perms.wards && Array.isArray(perms.wards)) {
+                allExtraWardIds.push(...perms.wards);
+            }
+        });
+        allExtraWardIds = [...new Set(allExtraWardIds)];
+        let extraWardsMap = new Map();
+        if (allExtraWardIds.length > 0) {
+            const extraWards = await prisma_1.default.ward.findMany({
+                where: { id: { in: allExtraWardIds } },
+                select: {
+                    id: true,
+                    wardNumber: true,
+                    inspectorName: true,
+                    inspectorPhone: true,
+                    zoneId: true,
+                }
+            });
+            extraWards.forEach(w => extraWardsMap.set(w.id, w));
+        }
         // Get all user IDs for batch statistics query
         const userIds = users.map(u => u.id);
         // Batch query for all complaint statistics at once
@@ -354,23 +390,38 @@ class AdminUserService {
                 return; // Skip if user not in our list
             const count = stat._count.id;
             userStat.totalComplaints += count;
-            if (stat.status === client_1.ComplaintStatus.RESOLVED) {
+            if (stat.status === client_1.Complaint_status.RESOLVED) {
                 userStat.resolvedComplaints += count;
             }
-            else if (stat.status === client_1.ComplaintStatus.PENDING) {
+            else if (stat.status === client_1.Complaint_status.PENDING) {
                 userStat.pendingComplaints += count;
                 userStat.unresolvedComplaints += count;
             }
-            else if (stat.status === client_1.ComplaintStatus.IN_PROGRESS) {
+            else if (stat.status === client_1.Complaint_status.IN_PROGRESS) {
                 userStat.inProgressComplaints += count;
                 userStat.unresolvedComplaints += count;
             }
         });
         // Map users with their statistics
-        const usersWithStats = users.map(user => ({
-            ...user,
-            statistics: statsMap.get(user.id),
-        }));
+        const usersWithStats = users.map(user => {
+            let perms = user.permissions;
+            if (typeof perms === 'string') {
+                try {
+                    perms = JSON.parse(perms);
+                }
+                catch (e) {
+                    perms = {};
+                }
+            }
+            const userExtraWards = (perms && perms.wards && Array.isArray(perms.wards))
+                ? perms.wards.map((id) => extraWardsMap.get(id)).filter(Boolean)
+                : [];
+            return {
+                ...user,
+                statistics: statsMap.get(user.id),
+                extraWards: userExtraWards,
+            };
+        });
         return {
             users: usersWithStats,
             pagination: {
@@ -418,6 +469,7 @@ class AdminUserService {
                         officerName: true,
                         officerDesignation: true,
                         officerSerialNumber: true,
+                        officerPhone: true,
                         status: true,
                     },
                 },
@@ -428,14 +480,42 @@ class AdminUserService {
                         wardNumber: true,
                         inspectorName: true,
                         inspectorSerialNumber: true,
+                        inspectorPhone: true,
                         status: true,
                     },
                 },
                 wardImageCount: true,
+                permissions: true,
             },
         });
         if (!user) {
             throw new Error('User not found');
+        }
+        // Fetch extra wards if present in permissions
+        let extraWards = [];
+        let perms = user.permissions;
+        if (typeof perms === 'string') {
+            try {
+                perms = JSON.parse(perms);
+            }
+            catch (e) {
+                console.error('Error parsing permissions in getUserById:', e);
+                perms = {};
+            }
+        }
+        console.log('📋 getUserById - permissions:', JSON.stringify(perms));
+        if (perms && perms.wards && Array.isArray(perms.wards) && perms.wards.length > 0) {
+            console.log('📋 getUserById - perms.wards IDs:', perms.wards);
+            extraWards = await prisma_1.default.ward.findMany({
+                where: { id: { in: perms.wards } },
+                select: {
+                    id: true,
+                    wardNumber: true,
+                    inspectorName: true,
+                    inspectorPhone: true,
+                }
+            });
+            console.log('📋 getUserById - fetched extraWards:', extraWards);
         }
         // Get user statistics
         const statistics = await this.calculateUserStats(userId);
@@ -457,6 +537,7 @@ class AdminUserService {
             user: {
                 ...user,
                 statistics,
+                extraWards,
             },
             recentComplaints,
         };
@@ -469,6 +550,35 @@ class AdminUserService {
         return (0, redis_cache_1.withRedisCache)(cacheKey, redis_cache_1.RedisCacheTTL.USER_STATS, async () => {
             return this.fetchUserStatistics(cityCorporationCode, zoneId, wardId, role, requestingUser);
         });
+    }
+    // Bulk delete users (soft delete)
+    async bulkDeleteUsers(userIds, deletedBy, ipAddress, userAgent) {
+        // Filter out invalid IDs
+        if (!userIds || userIds.length === 0)
+            return;
+        // Soft delete users by setting status to INACTIVE
+        await prisma_1.default.user.updateMany({
+            where: {
+                id: { in: userIds },
+                status: { not: client_1.UserStatus.INACTIVE }, // Only update if not already inactive
+            },
+            data: {
+                status: client_1.UserStatus.INACTIVE,
+            },
+        });
+        // Log activity for each user
+        for (const userId of userIds) {
+            await activity_log_service_1.activityLogService.logActivity({
+                userId: deletedBy,
+                action: activity_log_service_1.ActivityActions.DELETE_USER,
+                entityType: activity_log_service_1.EntityTypes.USER,
+                entityId: userId,
+                ipAddress,
+                userAgent,
+            });
+            // Invalidate cache
+            await redis_cache_1.invalidateRedisCache.user(userId);
+        }
     }
     // Fetch user statistics (internal method)
     async fetchUserStatistics(cityCorporationCode, zoneId, wardId, role, requestingUser) {
@@ -537,7 +647,7 @@ class AdminUserService {
         const resolvedComplaints = await prisma_1.default.complaint.count({
             where: {
                 ...complaintWhere,
-                status: client_1.ComplaintStatus.RESOLVED,
+                status: client_1.Complaint_status.RESOLVED,
             },
         });
         // Unresolved complaints
@@ -630,6 +740,9 @@ class AdminUserService {
             data: {
                 email: data.email,
                 phone: data.phone,
+                whatsapp: data.whatsapp,
+                joiningDate: data.joiningDate,
+                address: data.address,
                 passwordHash: hashedPassword,
                 firstName: data.firstName,
                 lastName: data.lastName,
@@ -746,12 +859,16 @@ class AdminUserService {
                 lastName: data.lastName,
                 email: data.email,
                 phone: data.phone,
+                whatsapp: data.whatsapp,
+                joiningDate: data.joiningDate,
+                address: data.address,
                 cityCorporationCode: data.cityCorporationCode,
                 zoneId: data.zoneId,
                 wardId: data.wardId,
                 role: data.role,
                 status: data.status,
                 ...(hashedPassword && { passwordHash: hashedPassword }),
+                ...(data.permissions && { permissions: JSON.stringify(data.permissions) }),
             },
             select: {
                 id: true,
@@ -1057,14 +1174,14 @@ class AdminUserService {
         stats.forEach(stat => {
             const count = stat._count.id;
             statistics.totalComplaints += count;
-            if (stat.status === client_1.ComplaintStatus.RESOLVED) {
+            if (stat.status === client_1.Complaint_status.RESOLVED) {
                 statistics.resolvedComplaints += count;
             }
-            else if (stat.status === client_1.ComplaintStatus.PENDING) {
+            else if (stat.status === client_1.Complaint_status.PENDING) {
                 statistics.pendingComplaints += count;
                 statistics.unresolvedComplaints += count;
             }
-            else if (stat.status === client_1.ComplaintStatus.IN_PROGRESS) {
+            else if (stat.status === client_1.Complaint_status.IN_PROGRESS) {
                 statistics.inProgressComplaints += count;
                 statistics.unresolvedComplaints += count;
             }

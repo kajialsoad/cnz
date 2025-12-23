@@ -8,6 +8,7 @@ import { queryClient } from './config/reactQuery';
 import { AuthProvider } from './contexts/AuthContext';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { ProfileProvider } from './contexts/ProfileContext';
+import { NotificationProvider } from './contexts/NotificationContext';
 import { ProtectedRoute, RoleBasedRoute } from './components/routing';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import PageLoadingBar from './components/common/PageLoadingBar';
@@ -66,142 +67,144 @@ function App() {
           <AuthProvider>
             <LanguageProvider>
               <ProfileProvider>
-                <Router
-                  basename={import.meta.env.BASE_URL}
-                  future={{
-                    v7_startTransition: true,
-                    v7_relativeSplatPath: true
-                  }}
-                >
-                  <Suspense fallback={<PageLoadingBar loading={true} />}>
-                    <Routes>
-                      {/* Public Route */}
-                      <Route path="/login" element={<Login />} />
+                <NotificationProvider>
+                  <Router
+                    basename={import.meta.env.BASE_URL}
+                    future={{
+                      v7_startTransition: true,
+                      v7_relativeSplatPath: true
+                    }}
+                  >
+                    <Suspense fallback={<PageLoadingBar loading={true} />}>
+                      <Routes>
+                        {/* Public Route */}
+                        <Route path="/login" element={<Login />} />
 
-                      {/* Protected Routes */}
-                      <Route
-                        path="/"
-                        element={
-                          <ProtectedRoute>
-                            <Dashboard />
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/complaints"
-                        element={
-                          <ProtectedRoute>
-                            <AllComplaints />
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/complaints/:id"
-                        element={
-                          <ProtectedRoute>
-                            <ComplaintDetails />
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/admins"
-                        element={
-                          <ProtectedRoute>
-                            <RoleBasedRoute allowedRoles={['MASTER_ADMIN', 'SUPER_ADMIN']}>
-                              <AdminManagement />
-                            </RoleBasedRoute>
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/super-admins"
-                        element={
-                          <ProtectedRoute>
-                            <RoleBasedRoute allowedRoles={['MASTER_ADMIN']}>
-                              <SuperAdminManagement />
-                            </RoleBasedRoute>
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/users"
-                        element={
-                          <ProtectedRoute>
-                            <UserManagement />
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/chats"
-                        element={
-                          <ProtectedRoute>
-                            <AdminChatPage />
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/chats/:complaintId"
-                        element={
-                          <ProtectedRoute>
-                            <AdminChatPage />
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/analytics/categories"
-                        element={
-                          <ProtectedRoute>
-                            <CategoryAnalytics />
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/city-corporations"
-                        element={
-                          <ProtectedRoute>
-                            <RoleBasedRoute allowedRoles={['MASTER_ADMIN', 'SUPER_ADMIN']}>
-                              <CityCorporationManagement />
-                            </RoleBasedRoute>
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/activity-logs"
-                        element={
-                          <ProtectedRoute>
-                            <RoleBasedRoute allowedRoles={['MASTER_ADMIN', 'SUPER_ADMIN']}>
-                              <ActivityLogs />
-                            </RoleBasedRoute>
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/reports"
-                        element={
-                          <ProtectedRoute>
-                            <Reports />
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/notifications"
-                        element={
-                          <ProtectedRoute>
-                            <Notifications />
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/settings"
-                        element={
-                          <ProtectedRoute>
-                            <Settings />
-                          </ProtectedRoute>
-                        }
-                      />
-                    </Routes>
-                  </Suspense>
-                </Router>
+                        {/* Protected Routes */}
+                        <Route
+                          path="/"
+                          element={
+                            <ProtectedRoute>
+                              <Dashboard />
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="/complaints"
+                          element={
+                            <ProtectedRoute>
+                              <AllComplaints />
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="/complaints/:id"
+                          element={
+                            <ProtectedRoute>
+                              <ComplaintDetails />
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="/admins"
+                          element={
+                            <ProtectedRoute>
+                              <RoleBasedRoute allowedRoles={['MASTER_ADMIN', 'SUPER_ADMIN']}>
+                                <AdminManagement />
+                              </RoleBasedRoute>
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="/super-admins"
+                          element={
+                            <ProtectedRoute>
+                              <RoleBasedRoute allowedRoles={['MASTER_ADMIN']}>
+                                <SuperAdminManagement />
+                              </RoleBasedRoute>
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="/users"
+                          element={
+                            <ProtectedRoute>
+                              <UserManagement />
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="/chats"
+                          element={
+                            <ProtectedRoute>
+                              <AdminChatPage />
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="/chats/:complaintId"
+                          element={
+                            <ProtectedRoute>
+                              <AdminChatPage />
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="/analytics/categories"
+                          element={
+                            <ProtectedRoute>
+                              <CategoryAnalytics />
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="/city-corporations"
+                          element={
+                            <ProtectedRoute>
+                              <RoleBasedRoute allowedRoles={['MASTER_ADMIN', 'SUPER_ADMIN']}>
+                                <CityCorporationManagement />
+                              </RoleBasedRoute>
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="/activity-logs"
+                          element={
+                            <ProtectedRoute>
+                              <RoleBasedRoute allowedRoles={['MASTER_ADMIN', 'SUPER_ADMIN']}>
+                                <ActivityLogs />
+                              </RoleBasedRoute>
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="/reports"
+                          element={
+                            <ProtectedRoute>
+                              <Reports />
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="/notifications"
+                          element={
+                            <ProtectedRoute>
+                              <Notifications />
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="/settings"
+                          element={
+                            <ProtectedRoute>
+                              <Settings />
+                            </ProtectedRoute>
+                          }
+                        />
+                      </Routes>
+                    </Suspense>
+                  </Router>
+                </NotificationProvider>
               </ProfileProvider>
             </LanguageProvider>
           </AuthProvider>

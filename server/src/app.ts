@@ -24,6 +24,9 @@ import zoneRoutes from './routes/zone.routes';
 import publicZoneRoutes from './routes/public-zone.routes';
 import wardRoutes from './routes/ward.routes';
 import publicWardRoutes from './routes/public-ward.routes';
+import notificationRoutes from './routes/notification.routes';
+import reviewRoutes from './routes/review.routes';
+import adminReviewRoutes from './routes/admin.review.routes';
 import { AuthRequest } from './middlewares/auth.middleware';
 import {
   helmetConfig,
@@ -33,13 +36,6 @@ import {
   securityHeaders,
 } from './middlewares/security.middleware';
 import { ipRateLimit, apiRateLimit } from './middlewares/rate-limit.middleware';
-
-console.log('🚀 Starting Clean Care API Server...');
-console.log('🔧 Importing admin auth routes...');
-console.log('🔧 Importing admin user routes...');
-console.log('🔧 Importing admin complaint routes...');
-console.log('🔧 Importing admin analytics routes...');
-console.log('🔧 Importing admin chat routes...');
 
 const app = express();
 
@@ -145,11 +141,19 @@ console.log('✅ Regular auth routes registered at /api/auth');
 app.use('/api/users', userRoutes);
 console.log('✅ User routes registered at /api/users');
 
+// Review routes MUST be registered BEFORE complaint routes
+// because complaint routes have authGuard on all routes
+app.use('/api/complaints', reviewRoutes); // Review routes (nested under complaints)
+console.log('✅ Review routes registered at /api/complaints/:complaintId/review(s)');
+
 app.use('/api/complaints', complaintRoutes);
 console.log('✅ Complaint routes registered at /api/complaints');
 
 app.use('/api/uploads', uploadRoutes);
 console.log('✅ Upload routes registered at /api/uploads');
+
+app.use('/api/notifications', notificationRoutes); // Notification routes
+console.log('✅ Notification routes registered at /api/notifications');
 
 app.use('/api/admin/auth', adminAuthRoutes); // Admin authentication routes
 console.log('✅ Admin auth routes registered at /api/admin/auth');
@@ -159,6 +163,9 @@ console.log('✅ Admin user routes registered at /api/admin/users');
 
 app.use('/api/admin/complaints', adminComplaintRoutes); // Admin complaint management routes
 console.log('✅ Admin complaint routes registered at /api/admin/complaints');
+
+app.use('/api/admin/complaints', adminReviewRoutes); // Admin review analytics routes
+console.log('✅ Admin review analytics routes registered at /api/admin/complaints/analytics/reviews');
 
 app.use('/api/admin/analytics', adminAnalyticsRoutes); // Admin analytics routes
 console.log('✅ Admin analytics routes registered at /api/admin/analytics');

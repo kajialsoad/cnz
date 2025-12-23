@@ -1,10 +1,10 @@
 import prisma from '../utils/prisma';
-import { ComplaintStatus } from '@prisma/client';
+import { Complaint_status } from '@prisma/client';
 
 export interface AdminComplaintQueryInput {
     page?: number;
     limit?: number;
-    status?: ComplaintStatus | 'ALL';
+    status?: Complaint_status | 'ALL';
     category?: string;
     ward?: string;
     search?: string;

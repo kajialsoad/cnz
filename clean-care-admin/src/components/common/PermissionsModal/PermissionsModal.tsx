@@ -254,7 +254,7 @@ const PermissionsModal: React.FC<PermissionsModalProps> = ({
                                 </Typography>
                                 <Divider sx={{ mb: 2 }} />
                                 <Grid container spacing={2}>
-                                    <Grid item xs={12} sm={6}>
+                                    <Grid xs={12} sm={6}>
                                         <FormControlLabel
                                             control={
                                                 <Switch
@@ -271,7 +271,7 @@ const PermissionsModal: React.FC<PermissionsModalProps> = ({
                                             }
                                         />
                                     </Grid>
-                                    <Grid item xs={12} sm={6}>
+                                    <Grid xs={12} sm={6}>
                                         <FormControlLabel
                                             control={
                                                 <Switch
@@ -288,7 +288,7 @@ const PermissionsModal: React.FC<PermissionsModalProps> = ({
                                             }
                                         />
                                     </Grid>
-                                    <Grid item xs={12} sm={6}>
+                                    <Grid xs={12} sm={6}>
                                         <FormControlLabel
                                             control={
                                                 <Switch
@@ -305,7 +305,7 @@ const PermissionsModal: React.FC<PermissionsModalProps> = ({
                                             }
                                         />
                                     </Grid>
-                                    <Grid item xs={12} sm={6}>
+                                    <Grid xs={12} sm={6}>
                                         <FormControlLabel
                                             control={
                                                 <Switch
@@ -322,7 +322,7 @@ const PermissionsModal: React.FC<PermissionsModalProps> = ({
                                             }
                                         />
                                     </Grid>
-                                    <Grid item xs={12} sm={6}>
+                                    <Grid xs={12} sm={6}>
                                         <FormControlLabel
                                             control={
                                                 <Switch
@@ -339,7 +339,7 @@ const PermissionsModal: React.FC<PermissionsModalProps> = ({
                                             }
                                         />
                                     </Grid>
-                                    <Grid item xs={12} sm={6}>
+                                    <Grid xs={12} sm={6}>
                                         <FormControlLabel
                                             control={
                                                 <Switch
@@ -367,7 +367,7 @@ const PermissionsModal: React.FC<PermissionsModalProps> = ({
                                 </Typography>
                                 <Divider sx={{ mb: 2 }} />
                                 <Grid container spacing={2}>
-                                    <Grid item xs={12} sm={6}>
+                                    <Grid xs={12} sm={6}>
                                         <FormControlLabel
                                             control={
                                                 <Switch
@@ -384,7 +384,7 @@ const PermissionsModal: React.FC<PermissionsModalProps> = ({
                                             }
                                         />
                                     </Grid>
-                                    <Grid item xs={12} sm={6}>
+                                    <Grid xs={12} sm={6}>
                                         <FormControlLabel
                                             control={
                                                 <Switch
@@ -401,7 +401,7 @@ const PermissionsModal: React.FC<PermissionsModalProps> = ({
                                             }
                                         />
                                     </Grid>
-                                    <Grid item xs={12} sm={6}>
+                                    <Grid xs={12} sm={6}>
                                         <FormControlLabel
                                             control={
                                                 <Switch
@@ -418,7 +418,7 @@ const PermissionsModal: React.FC<PermissionsModalProps> = ({
                                             }
                                         />
                                     </Grid>
-                                    <Grid item xs={12} sm={6}>
+                                    <Grid xs={12} sm={6}>
                                         <FormControlLabel
                                             control={
                                                 <Switch
@@ -447,7 +447,7 @@ const PermissionsModal: React.FC<PermissionsModalProps> = ({
                                     </Typography>
                                     <Divider sx={{ mb: 2 }} />
                                     <Grid container spacing={2}>
-                                        <Grid item xs={12} sm={6}>
+                                        <Grid xs={12} sm={6}>
                                             <FormControlLabel
                                                 control={
                                                     <Switch
@@ -464,7 +464,7 @@ const PermissionsModal: React.FC<PermissionsModalProps> = ({
                                                 }
                                             />
                                         </Grid>
-                                        <Grid item xs={12} sm={6}>
+                                        <Grid xs={12} sm={6}>
                                             <FormControlLabel
                                                 control={
                                                     <Switch
@@ -481,7 +481,7 @@ const PermissionsModal: React.FC<PermissionsModalProps> = ({
                                                 }
                                             />
                                         </Grid>
-                                        <Grid item xs={12} sm={6}>
+                                        <Grid xs={12} sm={6}>
                                             <FormControlLabel
                                                 control={
                                                     <Switch
@@ -498,7 +498,7 @@ const PermissionsModal: React.FC<PermissionsModalProps> = ({
                                                 }
                                             />
                                         </Grid>
-                                        <Grid item xs={12} sm={6}>
+                                        <Grid xs={12} sm={6}>
                                             <FormControlLabel
                                                 control={
                                                     <Switch
@@ -527,7 +527,7 @@ const PermissionsModal: React.FC<PermissionsModalProps> = ({
                                 </Typography>
                                 <Divider sx={{ mb: 2 }} />
                                 <Grid container spacing={2}>
-                                    <Grid item xs={12} sm={6}>
+                                    <Grid xs={12} sm={6}>
                                         <FormControlLabel
                                             control={
                                                 <Switch
@@ -544,7 +544,7 @@ const PermissionsModal: React.FC<PermissionsModalProps> = ({
                                             }
                                         />
                                     </Grid>
-                                    <Grid item xs={12} sm={6}>
+                                    <Grid xs={12} sm={6}>
                                         <FormControlLabel
                                             control={
                                                 <Switch
@@ -561,7 +561,7 @@ const PermissionsModal: React.FC<PermissionsModalProps> = ({
                                             }
                                         />
                                     </Grid>
-                                    <Grid item xs={12} sm={6}>
+                                    <Grid xs={12} sm={6}>
                                         <FormControlLabel
                                             control={
                                                 <Switch
@@ -589,7 +589,7 @@ const PermissionsModal: React.FC<PermissionsModalProps> = ({
                                 </Typography>
                                 <Divider sx={{ mb: 2 }} />
                                 <Grid container spacing={2}>
-                                    <Grid item xs={12} sm={6}>
+                                    <Grid xs={12} sm={6}>
                                         <FormControlLabel
                                             control={
                                                 <Switch
@@ -606,7 +606,7 @@ const PermissionsModal: React.FC<PermissionsModalProps> = ({
                                             }
                                         />
                                     </Grid>
-                                    <Grid item xs={12} sm={6}>
+                                    <Grid xs={12} sm={6}>
                                         <FormControlLabel
                                             control={
                                                 <Switch
@@ -623,7 +623,7 @@ const PermissionsModal: React.FC<PermissionsModalProps> = ({
                                             }
                                         />
                                     </Grid>
-                                    <Grid item xs={12} sm={6}>
+                                    <Grid xs={12} sm={6}>
                                         <FormControlLabel
                                             control={
                                                 <Switch

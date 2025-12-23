@@ -1,10 +1,11 @@
 import prisma from '../utils/prisma';
-import { ComplaintStatus } from '@prisma/client';
+import { Complaint_status } from '@prisma/client';
 import { uploadService } from './upload.service';
 import { getFileUrl } from '../config/upload.config';
 import { categoryService } from './category.service';
 import { cloudUploadService, CloudUploadError } from './cloud-upload.service';
 import { isCloudinaryEnabled } from '../config/cloudinary.config';
+import notificationService from './notification.service';
 
 // Custom error for ward image limit
 export class WardImageLimitError extends Error {
@@ -58,7 +59,7 @@ export interface UpdateComplaintInput {
   category?: string;
   subcategory?: string;
   priority?: number;
-  status?: ComplaintStatus;
+  status?: Complaint_status;
   location?: {
     address?: string;
     district?: string;
@@ -77,7 +78,7 @@ export interface UpdateComplaintInput {
 export interface ComplaintQueryInput {
   page?: number;
   limit?: number;
-  status?: ComplaintStatus;
+  status?: Complaint_status;
   category?: string;
   subcategory?: string;
   priority?: number;
@@ -297,7 +298,7 @@ export class ComplaintService {
           category: input.category,
           subcategory: input.subcategory,
           priority: input.priority || 1, // Default priority is 1
-          status: ComplaintStatus.PENDING,
+          status: Complaint_status.PENDING,
           imageUrl: finalImageUrls.length > 0 ? JSON.stringify(finalImageUrls) : null,
           audioUrl: finalAudioUrls.length > 0 ? JSON.stringify(finalAudioUrls) : null,
           userId: input.forSomeoneElse ? undefined : (input.userId ?? undefined),
@@ -334,6 +335,14 @@ export class ComplaintService {
           }
         });
       }
+
+      // Notify admins
+      await notificationService.notifyAdmins(
+        'New Complaint Submitted',
+        `A new complaint "${complaint.title}" has been submitted.`,
+        'INFO',
+        complaint.id
+      );
 
       return this.formatComplaintResponse(complaint);
     } catch (error) {
@@ -572,7 +581,7 @@ export class ComplaintService {
       const complaint = await prisma.complaint.update({
         where: { id },
         data: {
-          status: ComplaintStatus.REJECTED
+          status: Complaint_status.REJECTED
         }
       });
 
@@ -600,10 +609,10 @@ export class ComplaintService {
         rejected
       ] = await Promise.all([
         prisma.complaint.count({ where }),
-        prisma.complaint.count({ where: { ...where, status: ComplaintStatus.PENDING } }),
-        prisma.complaint.count({ where: { ...where, status: ComplaintStatus.IN_PROGRESS } }),
-        prisma.complaint.count({ where: { ...where, status: ComplaintStatus.RESOLVED } }),
-        prisma.complaint.count({ where: { ...where, status: ComplaintStatus.REJECTED } })
+        prisma.complaint.count({ where: { ...where, status: Complaint_status.PENDING } }),
+        prisma.complaint.count({ where: { ...where, status: Complaint_status.IN_PROGRESS } }),
+        prisma.complaint.count({ where: { ...where, status: Complaint_status.RESOLVED } }),
+        prisma.complaint.count({ where: { ...where, status: Complaint_status.REJECTED } })
       ]);
 
       return {
@@ -629,7 +638,7 @@ export class ComplaintService {
   }
 
   // Get complaints by status for user
-  async getComplaintsByStatus(userId: number, status: ComplaintStatus) {
+  async getComplaintsByStatus(userId: number, status: Complaint_status) {
     try {
       const complaints = await prisma.complaint.findMany({
         where: {

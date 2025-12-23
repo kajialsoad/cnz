@@ -1,5 +1,5 @@
 import prisma from '../utils/prisma';
-import { ComplaintStatus } from '@prisma/client';
+import { Complaint_status } from '@prisma/client';
 import { categoryService } from './category.service';
 
 export interface AnalyticsQueryInput {
@@ -171,7 +171,7 @@ export class AnalyticsService {
             const resolvedComplaints = await prisma.complaint.findMany({
                 where: {
                     ...dateFilter,
-                    status: ComplaintStatus.RESOLVED
+                    status: Complaint_status.RESOLVED
                 },
                 select: {
                     createdAt: true,
@@ -210,7 +210,7 @@ export class AnalyticsService {
                 prisma.complaint.count({
                     where: {
                         ...dateFilter,
-                        status: ComplaintStatus.RESOLVED
+                        status: Complaint_status.RESOLVED
                     }
                 })
             ]);
@@ -484,16 +484,16 @@ export class AnalyticsService {
     private async getStatusBreakdown(dateFilter: any = {}) {
         const [pending, inProgress, resolved, rejected] = await Promise.all([
             prisma.complaint.count({
-                where: { ...dateFilter, status: ComplaintStatus.PENDING }
+                where: { ...dateFilter, status: Complaint_status.PENDING }
             }),
             prisma.complaint.count({
-                where: { ...dateFilter, status: ComplaintStatus.IN_PROGRESS }
+                where: { ...dateFilter, status: Complaint_status.IN_PROGRESS }
             }),
             prisma.complaint.count({
-                where: { ...dateFilter, status: ComplaintStatus.RESOLVED }
+                where: { ...dateFilter, status: Complaint_status.RESOLVED }
             }),
             prisma.complaint.count({
-                where: { ...dateFilter, status: ComplaintStatus.REJECTED }
+                where: { ...dateFilter, status: Complaint_status.REJECTED }
             })
         ]);
 
@@ -590,7 +590,7 @@ export class AnalyticsService {
      * Group complaints by date based on period
      */
     private groupComplaintsByDate(
-        complaints: Array<{ createdAt: Date; status: ComplaintStatus }>,
+        complaints: Array<{ createdAt: Date; status: Complaint_status }>,
         period: 'day' | 'week' | 'month' | 'year',
         dateRange: { start: Date; end: Date }
     ): TrendDataPoint[] {
@@ -632,11 +632,11 @@ export class AnalyticsService {
 
             if (data) {
                 data.count++;
-                if (complaint.status === ComplaintStatus.RESOLVED) {
+                if (complaint.status === Complaint_status.RESOLVED) {
                     data.resolved++;
-                } else if (complaint.status === ComplaintStatus.PENDING) {
+                } else if (complaint.status === Complaint_status.PENDING) {
                     data.pending++;
-                } else if (complaint.status === ComplaintStatus.IN_PROGRESS) {
+                } else if (complaint.status === Complaint_status.IN_PROGRESS) {
                     data.inProgress++;
                 }
             }

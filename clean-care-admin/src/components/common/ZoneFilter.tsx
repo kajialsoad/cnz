@@ -80,7 +80,7 @@ const ZoneFilter: React.FC<ZoneFilterProps> = ({
 
     return (
         <FormControl fullWidth variant="outlined" size="small" disabled={disabled || loading}>
-            {!hideLabel && <InputLabel>{label}</InputLabel>}
+            {!hideLabel && <InputLabel shrink>{label}</InputLabel>}
             <Select
                 value={value}
                 onChange={handleChange}

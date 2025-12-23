@@ -73,17 +73,17 @@ class StatisticsService {
             },
         });
         const statusMap = new Map(statusCounts.map(s => [s.status, s._count.id]));
-        const pending = statusMap.get(client_1.ComplaintStatus.PENDING) || 0;
-        const inProgress = statusMap.get(client_1.ComplaintStatus.IN_PROGRESS) || 0;
-        const resolved = statusMap.get(client_1.ComplaintStatus.RESOLVED) || 0;
-        const rejected = statusMap.get(client_1.ComplaintStatus.REJECTED) || 0;
+        const pending = statusMap.get(client_1.Complaint_status.PENDING) || 0;
+        const inProgress = statusMap.get(client_1.Complaint_status.IN_PROGRESS) || 0;
+        const resolved = statusMap.get(client_1.Complaint_status.RESOLVED) || 0;
+        const rejected = statusMap.get(client_1.Complaint_status.REJECTED) || 0;
         // Success rate
         const successRate = total > 0 ? Math.round((resolved / total) * 100) : 0;
         // Average resolution time
         const resolvedComplaints = await prisma_1.default.complaint.findMany({
             where: {
                 ...where,
-                status: client_1.ComplaintStatus.RESOLVED,
+                status: client_1.Complaint_status.RESOLVED,
                 resolvedAt: { not: null },
             },
             select: {
@@ -313,7 +313,7 @@ class StatisticsService {
         const resolvedComplaints = await prisma_1.default.complaint.findMany({
             where: {
                 ...where,
-                status: client_1.ComplaintStatus.RESOLVED,
+                status: client_1.Complaint_status.RESOLVED,
                 resolvedAt: { not: null },
             },
             select: {
@@ -365,7 +365,7 @@ class StatisticsService {
             const resolvedByAdmin = await prisma_1.default.complaint.findMany({
                 where: {
                     assignedAdminId: adminData.assignedAdminId,
-                    status: client_1.ComplaintStatus.RESOLVED,
+                    status: client_1.Complaint_status.RESOLVED,
                     resolvedAt: { not: null },
                 },
                 select: {
@@ -424,16 +424,16 @@ class StatisticsService {
             },
         });
         const statusMap = new Map(statusCounts.map(s => [s.status, s._count.id]));
-        const totalResolved = statusMap.get(client_1.ComplaintStatus.RESOLVED) || 0;
-        const totalPending = statusMap.get(client_1.ComplaintStatus.PENDING) || 0;
-        const totalInProgress = statusMap.get(client_1.ComplaintStatus.IN_PROGRESS) || 0;
+        const totalResolved = statusMap.get(client_1.Complaint_status.RESOLVED) || 0;
+        const totalPending = statusMap.get(client_1.Complaint_status.PENDING) || 0;
+        const totalInProgress = statusMap.get(client_1.Complaint_status.IN_PROGRESS) || 0;
         // Resolution rate
         const resolutionRate = totalAssigned > 0 ? Math.round((totalResolved / totalAssigned) * 100) : 0;
         // Average resolution time
         const resolvedComplaints = await prisma_1.default.complaint.findMany({
             where: {
                 assignedAdminId: adminId,
-                status: client_1.ComplaintStatus.RESOLVED,
+                status: client_1.Complaint_status.RESOLVED,
                 resolvedAt: { not: null },
             },
             select: {

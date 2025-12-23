@@ -29,6 +29,7 @@ const zone_routes_1 = __importDefault(require("./routes/zone.routes"));
 const public_zone_routes_1 = __importDefault(require("./routes/public-zone.routes"));
 const ward_routes_1 = __importDefault(require("./routes/ward.routes"));
 const public_ward_routes_1 = __importDefault(require("./routes/public-ward.routes"));
+const notification_routes_1 = __importDefault(require("./routes/notification.routes"));
 const security_middleware_1 = require("./middlewares/security.middleware");
 const rate_limit_middleware_1 = require("./middlewares/rate-limit.middleware");
 console.log('🚀 Starting Clean Care API Server...');
@@ -43,6 +44,11 @@ app.use(security_middleware_1.helmetConfig); // Security headers
 app.use(security_middleware_1.securityHeaders); // Additional security headers
 app.use(security_middleware_1.noSqlInjectionPrevention); // NoSQL injection prevention
 app.use(security_middleware_1.parameterPollutionPrevention); // HTTP parameter pollution prevention
+// Debug logging
+app.use((req, res, next) => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} | Origin: ${req.headers.origin}`);
+    next();
+});
 // Global IP-based rate limiting - 1000 requests per minute per IP
 // Requirements: 12.18
 app.use('/api', (0, rate_limit_middleware_1.ipRateLimit)(1000, 60 * 1000));
@@ -123,6 +129,8 @@ app.use('/api/complaints', complaint_routes_1.default);
 console.log('✅ Complaint routes registered at /api/complaints');
 app.use('/api/uploads', upload_routes_1.default);
 console.log('✅ Upload routes registered at /api/uploads');
+app.use('/api/notifications', notification_routes_1.default); // Notification routes
+console.log('✅ Notification routes registered at /api/notifications');
 app.use('/api/admin/auth', admin_auth_routes_1.default); // Admin authentication routes
 console.log('✅ Admin auth routes registered at /api/admin/auth');
 app.use('/api/admin/users', admin_user_routes_1.default); // Admin user management routes

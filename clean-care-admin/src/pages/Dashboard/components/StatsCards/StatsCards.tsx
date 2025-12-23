@@ -48,7 +48,7 @@ const StatsCards: React.FC<StatsCardsProps> = ({ cityCorporationCode, zoneId }) 
     }
 
     if (zoneId) {
-      params.append('zoneId', zoneId.toString());
+      params.append('zone', zoneId.toString());
     }
 
     if (status) {
@@ -56,7 +56,7 @@ const StatsCards: React.FC<StatsCardsProps> = ({ cityCorporationCode, zoneId }) 
     }
 
     const queryString = params.toString();
-    navigate(`/all-complaints${queryString ? `?${queryString}` : ''}`);
+    navigate(`/complaints${queryString ? `?${queryString}` : ''}`);
   };
 
   if (loading) {

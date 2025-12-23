@@ -373,7 +373,7 @@ const ChatConversationPanel: React.FC<ChatConversationPanelProps> = ({
                             lastName: complaintDetails.user.lastName,
                             phone: complaintDetails.user.phone,
                             email: complaintDetails.user.email,
-                            zone: complaintDetails.user.zone || 'N/A',
+                            zone: typeof complaintDetails.user.zone === 'string' ? complaintDetails.user.zone : complaintDetails.user.zone?.name || 'N/A',
                             district: complaintDetails.locationDetails?.district || 'N/A',
                             upazila: complaintDetails.locationDetails?.thana || 'N/A',
                             ward: complaintDetails.locationDetails?.ward || 'N/A',

@@ -4,7 +4,7 @@
  * Implements lazy loading for images to improve performance
  */
 
-import { useState, useEffect, useRef, ImgHTMLAttributes } from 'react';
+import { useState, useEffect, useRef, type ImgHTMLAttributes } from 'react';
 import { Box, Skeleton } from '@mui/material';
 
 interface LazyImageProps extends Omit<ImgHTMLAttributes<HTMLImageElement>, 'src'> {

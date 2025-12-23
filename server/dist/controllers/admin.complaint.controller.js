@@ -87,7 +87,7 @@ async function updateComplaintStatus(req, res) {
                 message: 'Invalid complaint ID'
             });
         }
-        const { status, note } = req.body;
+        const { status, note, category, subcategory } = req.body;
         if (!status) {
             return res.status(400).json({
                 success: false,
@@ -103,7 +103,9 @@ async function updateComplaintStatus(req, res) {
         const complaint = await admin_complaint_service_1.adminComplaintService.updateComplaintStatus(complaintId, {
             status: status,
             note,
-            adminId: req.user.sub
+            adminId: req.user.sub,
+            category,
+            subcategory
         });
         res.status(200).json({
             success: true,

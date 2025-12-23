@@ -309,6 +309,10 @@ class CategoryService {
         categoryId: string,
         language: 'en' | 'bn' = 'en'
     ): Promise<string> {
+        // Special internal categories
+        if (categoryId === 'CORPORATION_INTERNAL') return language === 'bn' ? 'কর্পোরেশন (অভ্যন্তরীণ)' : 'Corporation (Internal)';
+        if (categoryId === 'CORPORATION_EXTERNAL') return language === 'bn' ? 'কর্পোরেশন (বাহ্যিক)' : 'Corporation (External)';
+
         const categories = await this.getAllCategories();
         const category = categories.find((cat) => cat.id === categoryId);
         if (!category) {
@@ -325,6 +329,17 @@ class CategoryService {
         subcategoryId: string,
         language: 'en' | 'bn' = 'en'
     ): Promise<string> {
+        // Special internal subcategories could be added here if needed, or fetched recursively
+        // For now, assume subcategory IDs might match standard ones or just return ID if unknown
+        // But better to just try fetching, and fallback to ID if needed? 
+        // Actually, if category is INTERNAL, subcategories are likely hardcoded in Modal but not in DB API.
+
+        if (categoryId === 'CORPORATION_INTERNAL' || categoryId === 'CORPORATION_EXTERNAL') {
+            // Basic mapping for known hardcoded subcategories if we want pretty names
+            // Or just return the ID formatted nicely
+            return subcategoryId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        }
+
         const category = await this.getCategoryById(categoryId);
         const subcategory = category.subcategories.find(
             (sub) => sub.id === subcategoryId
@@ -339,6 +354,9 @@ class CategoryService {
      * Get category color by ID (from cached categories)
      */
     async getCategoryColor(categoryId: string): Promise<string> {
+        if (categoryId === 'CORPORATION_INTERNAL') return '#9333ea'; // Purple
+        if (categoryId === 'CORPORATION_EXTERNAL') return '#ea580c'; // Orange
+
         const categories = await this.getAllCategories();
         const category = categories.find((cat) => cat.id === categoryId);
         return category?.color || '#808080'; // Default gray if not found

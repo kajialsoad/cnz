@@ -6,6 +6,8 @@ export { analyticsService } from './analyticsService';
 export { chatService } from './chatService';
 export { translationService } from './translationService';
 export { categoryService } from './categoryService';
+export { notificationService } from './notificationService';
+export { reviewService } from './reviewService';
 
 // Export service types
 export type {
@@ -67,3 +69,22 @@ export type {
     GetCategoryStatisticsResponse,
     GetCategoryTrendsResponse,
 } from '../types/category-service.types';
+
+// Export notification service types
+export type {
+    Notification,
+    NotificationMetadata,
+    GetNotificationsResponse,
+    GetNotificationsParams,
+    UnreadCountResponse,
+    MarkAsReadResponse as NotificationMarkAsReadResponse,
+    MarkAllAsReadResponse,
+} from './notificationService';
+
+// Export review service types
+export type {
+    Review,
+    ReviewSubmission,
+    ReviewAnalytics,
+    ReviewAnalyticsFilters,
+} from './reviewService';

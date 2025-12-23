@@ -112,7 +112,7 @@ class AnalyticsService {
             const resolvedComplaints = await prisma_1.default.complaint.findMany({
                 where: {
                     ...dateFilter,
-                    status: client_1.ComplaintStatus.RESOLVED
+                    status: client_1.Complaint_status.RESOLVED
                 },
                 select: {
                     createdAt: true,
@@ -147,7 +147,7 @@ class AnalyticsService {
                 prisma_1.default.complaint.count({
                     where: {
                         ...dateFilter,
-                        status: client_1.ComplaintStatus.RESOLVED
+                        status: client_1.Complaint_status.RESOLVED
                     }
                 })
             ]);
@@ -382,16 +382,16 @@ class AnalyticsService {
     async getStatusBreakdown(dateFilter = {}) {
         const [pending, inProgress, resolved, rejected] = await Promise.all([
             prisma_1.default.complaint.count({
-                where: { ...dateFilter, status: client_1.ComplaintStatus.PENDING }
+                where: { ...dateFilter, status: client_1.Complaint_status.PENDING }
             }),
             prisma_1.default.complaint.count({
-                where: { ...dateFilter, status: client_1.ComplaintStatus.IN_PROGRESS }
+                where: { ...dateFilter, status: client_1.Complaint_status.IN_PROGRESS }
             }),
             prisma_1.default.complaint.count({
-                where: { ...dateFilter, status: client_1.ComplaintStatus.RESOLVED }
+                where: { ...dateFilter, status: client_1.Complaint_status.RESOLVED }
             }),
             prisma_1.default.complaint.count({
-                where: { ...dateFilter, status: client_1.ComplaintStatus.REJECTED }
+                where: { ...dateFilter, status: client_1.Complaint_status.REJECTED }
             })
         ]);
         return {
@@ -506,13 +506,13 @@ class AnalyticsService {
             const data = dataMap.get(key);
             if (data) {
                 data.count++;
-                if (complaint.status === client_1.ComplaintStatus.RESOLVED) {
+                if (complaint.status === client_1.Complaint_status.RESOLVED) {
                     data.resolved++;
                 }
-                else if (complaint.status === client_1.ComplaintStatus.PENDING) {
+                else if (complaint.status === client_1.Complaint_status.PENDING) {
                     data.pending++;
                 }
-                else if (complaint.status === client_1.ComplaintStatus.IN_PROGRESS) {
+                else if (complaint.status === client_1.Complaint_status.IN_PROGRESS) {
                     data.inProgress++;
                 }
             }

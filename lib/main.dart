@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
@@ -33,6 +34,8 @@ import 'pages/waste_management_page.dart';
 import 'pages/welcome_screen.dart';
 import 'providers/complaint_provider.dart';
 import 'providers/language_provider.dart';
+import 'providers/notification_provider.dart';
+import 'providers/review_provider.dart';
 import 'repositories/complaint_repository.dart';
 import 'services/api_client.dart';
 import 'services/auth_service.dart';
@@ -54,6 +57,7 @@ void main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => LanguageProvider()),
+        ChangeNotifierProvider(create: (_) => NotificationProvider()),
         Provider<ApiClient>(
           create: (_) => SmartApiClient.instance,
           dispose: (_, apiClient) => apiClient,
@@ -68,6 +72,7 @@ void main() async {
           ),
           update: (_, repository, __) => ComplaintProvider(repository),
         ),
+        ChangeNotifierProvider(create: (_) => ReviewProvider()),
       ],
       child: const MyApp(),
     ),
@@ -83,6 +88,9 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
+  String? _targetRoute;
+  bool _isReady = false;
+
   @override
   void initState() {
     super.initState();
@@ -99,42 +107,64 @@ class _SplashScreenState extends State<SplashScreen> {
 
     if (!mounted) return;
 
-    if (isLoggedIn) {
-      Navigator.pushReplacementNamed(context, '/home');
-    } else {
-      Navigator.pushReplacementNamed(context, '/welcome');
+    setState(() {
+      if (isLoggedIn) {
+        _targetRoute = '/home';
+      } else {
+        _targetRoute = '/onboarding';
+      }
+      _isReady = true;
+    });
+  }
+
+  void _handleTap() {
+    if (_isReady && _targetRoute != null) {
+      Navigator.pushReplacementNamed(context, _targetRoute!);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFFFFFFF),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Image.asset(
-              'assets/logo_clean_c.png',
-              width: 130,
-              height: 128,
-              fit: BoxFit.contain,
-            ),
-            const SizedBox(height: 22),
-            const Text(
-              'ক্লিন কেয়ার',
-              style: TextStyle(
-                color: Color(0xFF184F27),
-                fontSize: 31,
-                fontWeight: FontWeight.w600,
+    return GestureDetector(
+      onTap: _handleTap,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFFFFFFF),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Image.asset(
+                'assets/logo_clean_c.png',
+                width: 130,
+                height: 128,
+                fit: BoxFit.contain,
               ),
-            ),
-            const SizedBox(height: 8),
-            // Optional: Loading indicator
-            const CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF2E8B57)),
-            ),
-          ],
+              const SizedBox(height: 22),
+              const Text(
+                'ক্লিন কেয়ার',
+                style: TextStyle(
+                  color: Color(0xFF184F27),
+                  fontSize: 31,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              // Show loading indicator only if not ready
+              if (!_isReady)
+                const CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF2E8B57)),
+                )
+              else
+                // Optional: Hint to user
+                const Text(
+                  'Tap screen to continue',
+                  style: TextStyle(
+                    color: Color(0xFF2E8B57),
+                    fontSize: 16,
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );

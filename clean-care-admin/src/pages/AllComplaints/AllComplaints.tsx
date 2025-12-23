@@ -8,7 +8,7 @@ import {
   InputLabel,
   FormControl,
   Select,
-  MenuItem,
+
   Card,
   CardContent,
   Chip,
@@ -18,6 +18,27 @@ import {
   AlertTitle,
   useTheme,
   useMediaQuery,
+  CircularProgress,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Collapse,
+  Tabs,
+  Tab,
+  Grid,
+  Menu,
+  MenuItem,
+  Divider,
+  Rating,
+  Tooltip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -28,6 +49,9 @@ import {
   Refresh as RefreshIcon,
   WifiOff as WifiOffIcon,
   Error as ErrorIcon,
+  Download as DownloadIcon,
+  Print as PrintIcon,
+  ArrowDropDown as ArrowDropDownIcon,
 } from '@mui/icons-material';
 import { ZoneFilter } from '../../components/common';
 import { showSuccessToast, showErrorToast, showNetworkErrorToast } from '../../utils/toastUtils';
@@ -38,6 +62,7 @@ import ChatModal from '../../components/Complaints/ChatModal';
 import CategoryFilter from '../../components/Complaints/CategoryFilter';
 import SubcategoryFilter from '../../components/Complaints/SubcategoryFilter';
 import CategoryBadge from '../../components/Complaints/CategoryBadge';
+import OthersFilterDropdown, { type OthersFilterValue } from '../../components/Complaints/OthersFilterDropdown';
 import LoadingButton from '../../components/common/LoadingButton';
 import PageLoadingBar from '../../components/common/PageLoadingBar';
 import { complaintService } from '../../services/complaintService';
@@ -74,6 +99,9 @@ const AllComplaints: React.FC = () => {
   );
   const [categoryFilter, setCategoryFilter] = useState(searchParams.get('category') || '');
   const [subcategoryFilter, setSubcategoryFilter] = useState(searchParams.get('subcategory') || '');
+  const [othersFilter, setOthersFilter] = useState<OthersFilterValue>(
+    (searchParams.get('othersFilter') as OthersFilterValue) || 'ALL'
+  );
 
   // City Corporation filters
   const [cityCorporations, setCityCorporations] = useState<CityCorporation[]>([]);
@@ -97,6 +125,7 @@ const AllComplaints: React.FC = () => {
     inProgress: 0,
     resolved: 0,
     rejected: 0,
+    others: 0,
   });
   const [pagination, setPagination] = useState({
     page: parseInt(searchParams.get('page') || '1', 10),
@@ -118,6 +147,24 @@ const AllComplaints: React.FC = () => {
 
   // Debounce search term to avoid excessive API calls
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
+
+  // Filter visibility state
+  const [showFilters, setShowFilters] = useState(true);
+
+  // Others Tab Menu State
+  const [othersMenuAnchor, setOthersMenuAnchor] = useState<null | HTMLElement>(null);
+  const [othersMenuOpen, setOthersMenuOpen] = useState(false);
+  const [internalExpanded, setInternalExpanded] = useState(false);
+  const [externalExpanded, setExternalExpanded] = useState(false);
+
+  // Date filter state
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+
+  // Admin Note Modal State
+  const [noteModalOpen, setNoteModalOpen] = useState(false);
+  const [selectedNote, setSelectedNote] = useState<string>('');
+  const [selectedNoteTitle, setSelectedNoteTitle] = useState<string>('');
 
   /**
    * Fetch city corporations on mount
@@ -166,14 +213,17 @@ const AllComplaints: React.FC = () => {
     if (statusFilter !== 'ALL') params.set('status', statusFilter);
     if (categoryFilter) params.set('category', categoryFilter);
     if (subcategoryFilter) params.set('subcategory', subcategoryFilter);
+    if (othersFilter !== 'ALL') params.set('othersFilter', othersFilter);
     if (selectedCityCorporation !== 'ALL') params.set('cityCorporation', selectedCityCorporation);
     if (selectedZone) params.set('zone', selectedZone.toString());
     if (selectedWard) params.set('ward', selectedWard.toString());
+    if (startDate) params.set('startDate', startDate);
+    if (endDate) params.set('endDate', endDate);
     if (pagination.page !== 1) params.set('page', pagination.page.toString());
     if (pagination.limit !== 20) params.set('limit', pagination.limit.toString());
 
     setSearchParams(params, { replace: true });
-  }, [searchTerm, statusFilter, categoryFilter, subcategoryFilter, selectedCityCorporation, selectedZone, selectedWard, pagination.page, pagination.limit]);
+  }, [searchTerm, statusFilter, categoryFilter, subcategoryFilter, othersFilter, selectedCityCorporation, selectedZone, selectedWard, startDate, endDate, pagination.page, pagination.limit]);
 
   /**
    * Fetch city corporations
@@ -255,6 +305,26 @@ const AllComplaints: React.FC = () => {
         filters.subcategory = subcategoryFilter;
       }
 
+      // Add Others filter if present
+      if (othersFilter !== 'ALL') {
+        if (othersFilter === 'OTHERS_ALL') {
+          // Show all Others complaints (status = OTHERS)
+          filters.status = 'OTHERS';
+        } else if (othersFilter === 'CORPORATION_INTERNAL') {
+          // Show all Corporation Internal complaints
+          filters.status = 'OTHERS';
+          filters.othersCategory = 'CORPORATION_INTERNAL';
+        } else if (othersFilter === 'CORPORATION_EXTERNAL') {
+          // Show all Corporation External complaints
+          filters.status = 'OTHERS';
+          filters.othersCategory = 'CORPORATION_EXTERNAL';
+        } else {
+          // Show specific subcategory
+          filters.status = 'OTHERS';
+          filters.othersSubcategory = othersFilter;
+        }
+      }
+
       // Add city corporation filter if present
       if (selectedCityCorporation !== 'ALL') {
         filters.cityCorporationCode = selectedCityCorporation;
@@ -266,8 +336,17 @@ const AllComplaints: React.FC = () => {
       }
 
       // Add ward filter if present
+      // Add ward filter if present
       if (selectedWard) {
         filters.wardId = selectedWard;
+      }
+
+      // Add date filters
+      if (startDate) {
+        filters.startDate = startDate;
+      }
+      if (endDate) {
+        filters.endDate = endDate;
       }
 
       console.log('Fetching complaints with params:', {
@@ -314,7 +393,7 @@ const AllComplaints: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [pagination.page, pagination.limit, statusFilter, categoryFilter, subcategoryFilter, selectedCityCorporation, selectedZone, selectedWard, debouncedSearchTerm]);
+  }, [pagination.page, pagination.limit, statusFilter, categoryFilter, subcategoryFilter, othersFilter, selectedCityCorporation, selectedZone, selectedWard, debouncedSearchTerm, startDate, endDate]);
 
   /**
    * Fetch complaints on component mount and when filters change
@@ -337,6 +416,15 @@ const AllComplaints: React.FC = () => {
    */
   const handleStatusFilterChange = (value: string) => {
     setStatusFilter(value as ComplaintStatus | 'ALL');
+
+    // Clear incompatible filters
+    if (value === 'OTHERS') {
+      setCategoryFilter('');
+      setSubcategoryFilter('');
+    } else {
+      setOthersFilter('ALL');
+    }
+
     // Reset to page 1 when filter changes
     setPagination((prev) => ({ ...prev, page: 1 }));
   };
@@ -368,6 +456,40 @@ const AllComplaints: React.FC = () => {
     setSubcategoryFilter(value);
     // Reset to page 1 when filter changes
     setPagination((prev) => ({ ...prev, page: 1 }));
+  };
+
+  /**
+   * Handle Others filter change
+   */
+  const handleOthersFilterChange = (value: OthersFilterValue) => {
+    setOthersFilter(value);
+    // Reset to page 1 when filter changes
+    setPagination((prev) => ({ ...prev, page: 1 }));
+  };
+
+  /**
+   * Others Menu Handlers
+   */
+  const handleOthersMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    event.stopPropagation(); // Prevent tab switching
+    setOthersMenuAnchor(event.currentTarget);
+    setOthersMenuOpen(true);
+  };
+
+  const handleOthersMenuClose = () => {
+    setOthersMenuAnchor(null);
+    setOthersMenuOpen(false);
+    // Reset expansions
+    setInternalExpanded(false);
+    setExternalExpanded(false);
+  };
+
+  const handleOthersMenuItemClick = (value: OthersFilterValue) => {
+    handleOthersFilterChange(value);
+    handleStatusFilterChange('OTHERS'); // Ensure we are on Others tab
+    if (!['CORPORATION_INTERNAL', 'CORPORATION_EXTERNAL'].includes(value as string)) {
+      handleOthersMenuClose();
+    }
   };
 
   /**
@@ -405,6 +527,7 @@ const AllComplaints: React.FC = () => {
     setStatusFilter('ALL');
     setCategoryFilter('');
     setSubcategoryFilter('');
+    setOthersFilter('ALL');
     setSelectedCityCorporation('ALL');
     setSelectedCityCorporation('ALL');
     setSelectedZone('');
@@ -459,6 +582,8 @@ const AllComplaints: React.FC = () => {
           newCounts.resolved = Math.max(0, newCounts.resolved - 1);
         } else if (oldComplaint.status === 'REJECTED') {
           newCounts.rejected = Math.max(0, newCounts.rejected - 1);
+        } else if (oldComplaint.status === 'OTHERS') {
+          newCounts.others = Math.max(0, newCounts.others - 1);
         }
 
         // Increment new status count
@@ -470,6 +595,8 @@ const AllComplaints: React.FC = () => {
           newCounts.resolved += 1;
         } else if (newStatus === 'REJECTED') {
           newCounts.rejected += 1;
+        } else if (newStatus === 'OTHERS') {
+          newCounts.others += 1;
         }
 
         return newCounts;
@@ -594,7 +721,7 @@ const AllComplaints: React.FC = () => {
       case 'RESOLVED':
         return 'Solved';
       case 'REJECTED':
-        return 'Rejected';
+        return 'Others';
       default:
         return status;
     }
@@ -608,19 +735,24 @@ const AllComplaints: React.FC = () => {
       PENDING: [
         { status: 'IN_PROGRESS', label: 'Mark In Progress', color: '#0c5460' },
         { status: 'RESOLVED', label: 'Mark Solved', color: '#155724' },
-        { status: 'REJECTED', label: 'Mark Rejected', color: '#721c24' },
+        { status: 'REJECTED', label: 'Mark Others', color: '#721c24' },
       ],
       IN_PROGRESS: [
         { status: 'PENDING', label: 'Mark Pending', color: '#856404' },
         { status: 'RESOLVED', label: 'Mark Solved', color: '#155724' },
-        { status: 'REJECTED', label: 'Mark Rejected', color: '#721c24' },
+        { status: 'REJECTED', label: 'Mark Others', color: '#721c24' },
       ],
       RESOLVED: [
         { status: 'PENDING', label: 'Mark Pending', color: '#856404' },
         { status: 'IN_PROGRESS', label: 'Mark In Progress', color: '#0c5460' },
-        { status: 'REJECTED', label: 'Mark Rejected', color: '#721c24' },
+        { status: 'REJECTED', label: 'Mark Others', color: '#721c24' },
       ],
       REJECTED: [
+        { status: 'PENDING', label: 'Mark Pending', color: '#856404' },
+        { status: 'IN_PROGRESS', label: 'Mark In Progress', color: '#0c5460' },
+        { status: 'RESOLVED', label: 'Mark Solved', color: '#155724' },
+      ],
+      OTHERS: [
         { status: 'PENDING', label: 'Mark Pending', color: '#856404' },
         { status: 'IN_PROGRESS', label: 'Mark In Progress', color: '#0c5460' },
         { status: 'RESOLVED', label: 'Mark Solved', color: '#155724' },
@@ -633,920 +765,574 @@ const AllComplaints: React.FC = () => {
   return (
     <MainLayout title="All Complaints">
       <PageLoadingBar loading={loading} />
+
+      {/* Main Layout Container */}
       <Box sx={{
-        width: '100%',
-        maxWidth: '100%',
-        px: { xs: 1, sm: 1.5, md: 2 },
-        mx: 0
+        p: { xs: 2, md: 3 },
+        backgroundColor: '#f9fafb',
+        minHeight: '100vh',
       }}>
         {/* Header Section */}
-        <Box sx={{ mb: { xs: 2, sm: 3 }, width: '100%' }}>
-          {/* Title and Status Summary Row */}
-          <Box sx={{
-            display: 'flex',
-            flexDirection: { xs: 'column', md: 'row' },
-            justifyContent: 'space-between',
-            alignItems: { xs: 'flex-start', md: 'flex-start' },
-            width: '100%',
-            mb: 2,
-            gap: { xs: 2, md: 0 },
-          }}>
-            {/* Left Side - Title and Subtitle */}
-            <Box sx={{ flex: 1 }}>
-              <Typography
-                variant={isMobile ? 'h5' : 'h4'}
-                sx={{ fontWeight: 600, mb: 0.5, color: 'text.primary' }}
-              >
-                All Complaints
+        <Box sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          mb: 3,
+        }}>
+          <Typography variant="h5" sx={{ fontWeight: 700, color: '#1e2939' }}>
+            All Complaints
+            {pagination.total > 0 && (
+              <Typography component="span" variant="body1" sx={{ color: '#6b7280', ml: 1.5, fontWeight: 500 }}>
+                (Total {pagination.total})
               </Typography>
-              <Typography
-                variant={isMobile ? 'body2' : 'body1'}
-                color="text.secondary"
-              >
-                Manage and track citizen complaints
-                {pagination.total > 0 && ` (${pagination.total} total)`}
+            )}
+          </Typography>
+
+          <Button
+            variant="contained"
+            onClick={() => setShowFilters(!showFilters)}
+            startIcon={<FilterIcon />}
+            sx={{
+              backgroundColor: '#4CAF50',
+              textTransform: 'none',
+              '&:hover': { backgroundColor: '#45a049' },
+            }}
+          >
+            {showFilters ? 'Hide Filters' : 'Show Filters'}
+          </Button>
+        </Box>
+
+        {/* Status Tabs */}
+        <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+          <Tabs
+            value={statusFilter === 'ALL' ? 'ALL' : statusFilter}
+            onChange={(_, newValue) => handleStatusFilterChange(newValue)}
+            variant="scrollable"
+            scrollButtons="auto"
+            sx={{
+              '& .MuiTab-root': {
+                textTransform: 'none',
+                minWidth: 100,
+                fontWeight: 600,
+              },
+            }}
+          >
+            <Tab label={`All (${statusCounts.total})`} value="ALL" />
+            <Tab label={`Pending (${statusCounts.pending})`} value="PENDING" />
+            <Tab label={`In Progress (${statusCounts.inProgress})`} value="IN_PROGRESS" />
+            <Tab label={`Solved (${statusCounts.resolved})`} value="RESOLVED" />
+            <Tab
+              label={
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  {`Others (${statusCounts.others})`}
+                  <Box
+                    component="span"
+                    onClick={handleOthersMenuOpen}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      borderRadius: '50%',
+                      p: 0.5,
+                      '&:hover': { bgcolor: 'rgba(0,0,0,0.05)' }
+                    }}
+                  >
+                    <ArrowDropDownIcon fontSize="small" />
+                  </Box>
+                </Box>
+              }
+              value="OTHERS"
+            />
+          </Tabs>
+        </Box>
+
+        {/* Others Tab Menu */}
+        <Menu
+          anchorEl={othersMenuAnchor}
+          open={othersMenuOpen}
+          onClose={handleOthersMenuClose}
+          onClick={(e) => e.stopPropagation()}
+          PaperProps={{
+            sx: {
+              mt: 1,
+              width: 250,
+              maxHeight: 400
+            }
+          }}
+        >
+          <MenuItem onClick={() => handleOthersMenuItemClick('OTHERS_ALL')}>
+            All Others
+          </MenuItem>
+          <Divider />
+
+          {/* Corporation Internal */}
+          <MenuItem
+            onClick={() => setInternalExpanded(!internalExpanded)}
+            sx={{ fontWeight: 'bold', justifyContent: 'space-between' }}
+          >
+            Corp. Internal
+            <ArrowDropDownIcon
+              sx={{
+                transform: internalExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                transition: '0.2s'
+              }}
+            />
+          </MenuItem>
+
+          {internalExpanded && [
+            'Engineering',
+            'Electricity',
+            'Health',
+            'Property (Eviction)'
+          ].map((sub) => (
+            <MenuItem
+              key={sub}
+              onClick={() => handleOthersMenuItemClick(sub)}
+              sx={{ pl: 4, fontSize: '0.9rem' }}
+              selected={othersFilter === sub}
+            >
+              {sub}
+            </MenuItem>
+          ))}
+
+          <Divider />
+
+          {/* Corporation External */}
+          <MenuItem
+            onClick={() => setExternalExpanded(!externalExpanded)}
+            sx={{ fontWeight: 'bold', justifyContent: 'space-between' }}
+          >
+            Corp. External
+            <ArrowDropDownIcon
+              sx={{
+                transform: externalExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                transition: '0.2s'
+              }}
+            />
+          </MenuItem>
+
+          {externalExpanded && [
+            'WASA',
+            'Titas',
+            'DPDC',
+            'DESCO',
+            'BTCL',
+            'Fire Service',
+            'Others'
+          ].map((sub) => (
+            <MenuItem
+              key={sub}
+              onClick={() => handleOthersMenuItemClick(sub)}
+              sx={{ pl: 4, fontSize: '0.9rem' }}
+              selected={othersFilter === sub}
+            >
+              {sub}
+            </MenuItem>
+          ))}
+        </Menu>
+
+        {/* Filter Section */}
+        <Collapse in={showFilters}>
+          <Paper
+            elevation={0}
+            sx={{
+              p: 3,
+              mb: 3,
+              borderRadius: 2,
+              border: '1px solid #e5e7eb',
+              backgroundColor: 'white',
+            }}
+          >
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#374151' }}>
+                Filter Options
               </Typography>
+              <Button
+                size="small"
+                onClick={handleClearFilters}
+                startIcon={<RefreshIcon />}
+                sx={{ textTransform: 'none', color: '#ef4444' }}
+              >
+                Clear Filters
+              </Button>
             </Box>
 
-            {/* Right Side - Status Summary */}
-            <Box sx={{
-              display: 'flex',
-              gap: { xs: 1, sm: 1.5 },
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              width: { xs: '100%', md: 'auto' },
-            }}>
-              <Chip
-                label={`${statusCounts.pending} Pending`}
-                sx={{
-                  ...getStatusColor('PENDING'),
-                  ...statusBadgeTransition,
-                  fontWeight: 500,
-                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                  height: { xs: 28, sm: 32 },
-                  px: { xs: 1.5, sm: 2 },
-                }}
-              />
-              <Chip
-                label={`${statusCounts.inProgress} In Progress`}
-                sx={{
-                  ...getStatusColor('IN_PROGRESS'),
-                  ...statusBadgeTransition,
-                  fontWeight: 500,
-                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                  height: { xs: 28, sm: 32 },
-                  px: { xs: 1.5, sm: 2 },
-                }}
-              />
-              <Chip
-                label={`${statusCounts.resolved} Solved`}
-                sx={{
-                  ...getStatusColor('RESOLVED'),
-                  ...statusBadgeTransition,
-                  fontWeight: 500,
-                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                  height: { xs: 28, sm: 32 },
-                  px: { xs: 1.5, sm: 2 },
-                }}
-              />
-              <Chip
-                label={`${statusCounts.rejected} Rejected`}
-                sx={{
-                  ...getStatusColor('REJECTED'),
-                  ...statusBadgeTransition,
-                  fontWeight: 500,
-                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                  height: { xs: 28, sm: 32 },
-                  px: { xs: 1.5, sm: 2 },
-                }}
-              />
-            </Box>
-          </Box>
+            <Grid container spacing={2}>
+              {/* Date Filter */}
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                <TextField
+                  fullWidth
+                  type="date"
+                  size="small"
+                  label="Date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                  sx={{ backgroundColor: 'white' }}
+                />
+              </Grid>
 
-          {/* Enhanced Search and Filter Section */}
-          <Box sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 2,
-            backgroundColor: '#f8f9fa',
-            p: { xs: 1.5, sm: 2 },
-            borderRadius: 2,
-            width: '100%',
-          }}>
-            {/* Main Search Row */}
-            <Box sx={{
-              display: 'flex',
-              flexDirection: { xs: 'column', sm: 'row' },
-              gap: { xs: 1.5, sm: 2 },
-              alignItems: { xs: 'stretch', sm: 'center' },
-            }}>
-              {/* Enhanced Search Input */}
-              <TextField
-                placeholder={isMobile ? "Search complaints..." : "Search by ID, title, location, or citizen name..."}
-                value={searchTerm}
-                onChange={handleSearchChange}
-                slotProps={{
-                  input: {
+              {/* City Corporation Filter */}
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>All City Corporations</InputLabel>
+                  <Select
+                    value={selectedCityCorporation || ''}
+                    onChange={(e) => handleCityCorporationFilterChange(e.target.value)}
+                    label="All City Corporations"
+                  >
+                    <MenuItem value="ALL">All City Corporations</MenuItem>
+                    {cityCorporations.map((city) => (
+                      <MenuItem key={city.id} value={city.code}>
+                        {city.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              {/* Zone Filter */}
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                <ZoneFilter
+                  value={selectedZone}
+                  onChange={handleZoneFilterChange}
+                  cityCorporationCode={selectedCityCorporation !== 'ALL' ? selectedCityCorporation : ''}
+                  hideLabel={false}
+                  label="All Zones"
+                />
+              </Grid>
+
+              {/* Ward Filter */}
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>All Wards</InputLabel>
+                  <Select
+                    value={selectedWard || ''}
+                    onChange={(e) => handleWardFilterChange(e.target.value ? Number(e.target.value) : null)}
+                    label="All Wards"
+                    displayEmpty
+                  >
+                    <MenuItem value="">All Wards</MenuItem>
+                    {wards && wards.map((ward) => (
+                      <MenuItem key={ward.id} value={ward.id}>
+                        Ward {ward.wardNumber || ward.id}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              {/* Category Filter - Hide for Others tab */}
+              {statusFilter !== 'OTHERS' && (
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                  <CategoryFilter
+                    value={categoryFilter}
+                    onChange={handleCategoryFilterChange}
+                  />
+                </Grid>
+              )}
+
+              {/* Subcategory Filter - Hide for Others tab */}
+              {statusFilter !== 'OTHERS' && (
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                  <SubcategoryFilter
+                    value={subcategoryFilter}
+                    onChange={handleSubcategoryFilterChange}
+                    categoryId={categoryFilter}
+                    fullWidth
+                  />
+                </Grid>
+              )}
+
+              {/* Others Filter - Show ONLY for Others tab */}
+              {statusFilter === 'OTHERS' && (
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                  <OthersFilterDropdown
+                    value={othersFilter}
+                    onChange={handleOthersFilterChange}
+                    fullWidth
+                  />
+                </Grid>
+              )}
+
+              {/* Search Bar - Full Width */}
+              <Grid size={{ xs: 12 }}>
+                <TextField
+                  fullWidth
+                  placeholder="Search by ID, citizen name, or phone number..."
+                  value={searchTerm}
+                  onChange={handleSearchChange}
+                  InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
                         <SearchIcon sx={{ color: 'text.secondary' }} />
                       </InputAdornment>
                     ),
-                    endAdornment: searchTerm && (
-                      <InputAdornment position="end">
-                        <Button
+                  }}
+                  size="small"
+                  sx={{
+                    backgroundColor: 'white',
+                    '& .MuiOutlinedInput-root': {
+                      fontSize: '0.95rem',
+                    }
+                  }}
+                />
+              </Grid>
+            </Grid>
+          </Paper>
+        </Collapse>
+
+        {/* Utilities Row (Download, Print, etc - Placeholder) */}
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2, gap: 1 }}>
+          <Button startIcon={<DownloadIcon />} variant="outlined" size="small" sx={{ color: '#1976d2', borderColor: '#1976d2' }}>
+            Download
+          </Button>
+          <Button startIcon={<PrintIcon />} variant="outlined" size="small" sx={{ color: '#9c27b0', borderColor: '#9c27b0' }}>
+            Print
+          </Button>
+        </Box>
+
+        {/* Complaints Table */}
+        {!loading && !error && (
+          <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid #e0e0e0', borderRadius: 2 }}>
+            <Table sx={{ minWidth: 800 }}>
+              <TableHead sx={{ backgroundColor: '#f9fafb' }}>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 600 }}>Complaint No</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Citizen Info</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Location</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Category</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Review & Report</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Date</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 600 }}>Action</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {complaints.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} align="center" sx={{ py: 8 }}>
+                      <Typography color="text.secondary">No complaints found</Typography>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  complaints.map((complaint) => (
+                    <TableRow key={complaint.id} hover>
+                      <TableCell>
+                        <Typography variant="body2" sx={{ fontWeight: 600, color: '#4CAF50' }}>
+                          {complaint.trackingNumber || `C${String(complaint.id).padStart(6, '0')}`}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Box>
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                            {complaint.user.firstName} {complaint.user.lastName}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {complaint.user.phone || 'N/A'}
+                          </Typography>
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        <Box>
+                          <Typography variant="body2">
+                            {complaint.location}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            Zone: {typeof complaint.user.zone === 'object' && complaint.user.zone !== null ? (complaint.user.zone as any).name || (complaint.user.zone as any).zoneNumber : complaint.user.zone || 'N/A'} |
+                            Ward: {typeof complaint.user.ward === 'object' && complaint.user.ward !== null ? (complaint.user.ward as any).wardNumber || (complaint.user.ward as any).number : complaint.user.ward || 'N/A'}
+                          </Typography>
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        <Box>
+                          <Typography variant="body2">
+                            {complaint.category || 'N/A'}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {complaint.subcategory}
+                          </Typography>
+
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={getStatusLabel(complaint.status)}
                           size="small"
-                          onClick={() => {
-                            setSearchTerm('');
-                            setPagination((prev) => ({ ...prev, page: 1 }));
-                          }}
                           sx={{
-                            minWidth: 'auto',
-                            p: 0.5,
-                            color: 'text.secondary',
+                            ...getStatusColor(complaint.status),
+                            fontWeight: 500,
+                            borderRadius: 1,
+                            height: 24,
+                          }}
+                        />
+                        {(complaint.status === 'OTHERS' || complaint.status === 'REJECTED') && (complaint.othersCategory || complaint.othersSubcategory) && (
+                          <Box sx={{ mt: 0.5, lineHeight: 1.2 }}>
+                            {complaint.othersCategory && (
+                              <Typography variant="caption" display="block" sx={{ fontWeight: 600, fontSize: '0.7rem', color: '#4b5563' }}>
+                                {complaint.othersCategory === 'CORPORATION_INTERNAL' ? 'Corp. Internal' :
+                                  complaint.othersCategory === 'CORPORATION_EXTERNAL' ? 'Corp. External' :
+                                    complaint.othersCategory}
+                              </Typography>
+                            )}
+                            {complaint.othersSubcategory && (
+                              <Typography variant="caption" display="block" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
+                                {complaint.othersSubcategory}
+                              </Typography>
+                            )}
+                          </Box>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {['RESOLVED', 'OTHERS', 'REJECTED'].includes(complaint.status) ? (
+                          <Box sx={{ maxWidth: 200 }}>
+                            {/* Admin Note */}
+                            {complaint.resolutionNote && (
+                              <Tooltip title="Click to view full note">
+                                <Typography
+                                  variant="caption"
+                                  display="block"
+                                  sx={{
+                                    color: '#1976d2',
+                                    fontWeight: 500,
+                                    mb: 0.5,
+                                    cursor: 'pointer',
+                                    '&:hover': { textDecoration: 'underline' }
+                                  }}
+                                  noWrap
+                                  onClick={() => {
+                                    setSelectedNote(complaint.resolutionNote || '');
+                                    setSelectedNoteTitle('Admin Resolution Note');
+                                    setNoteModalOpen(true);
+                                  }}
+                                >
+                                  Admin: {complaint.resolutionNote}
+                                </Typography>
+                              </Tooltip>
+                            )}
+
+                            {/* User Review */}
+                            {complaint.review ? (
+                              <Box>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                  <Rating value={complaint.review.rating} readOnly size="small" sx={{ fontSize: '1rem' }} />
+                                  <Typography variant="caption" color="text.secondary">
+                                    ({complaint.review.rating})
+                                  </Typography>
+                                </Box>
+                                {complaint.review.comment && (
+                                  <Tooltip title={complaint.review.comment}>
+                                    <Typography variant="caption" display="block" color="text.secondary" noWrap sx={{ mt: 0.5 }}>
+                                      "{complaint.review.comment}"
+                                    </Typography>
+                                  </Tooltip>
+                                )}
+                              </Box>
+                            ) : (
+                              <Typography variant="caption" color="text.disabled" sx={{ fontStyle: 'italic' }}>
+                                Not reviewed yet
+                              </Typography>
+                            )}
+                          </Box>
+                        ) : (
+                          <Chip
+                            label="Unsolved"
+                            size="small"
+                            variant="outlined"
+                            sx={{
+                              borderColor: '#e0e0e0',
+                              color: '#9e9e9e',
+                              height: 24,
+                              fontSize: '0.75rem'
+                            }}
+                          />
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2">
+                          {new Date(complaint.createdAt).toLocaleDateString()}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          startIcon={<ChatIcon />}
+                          onClick={() => handleOpenChat(complaint)}
+                          sx={{
+                            borderColor: '#e0e0e0',
+                            color: 'text.primary',
+                            textTransform: 'none',
+                            mr: 1,
                             '&:hover': {
-                              color: 'error.main',
-                              backgroundColor: 'transparent',
+                              borderColor: '#4CAF50',
+                              color: '#4CAF50',
                             },
                           }}
                         >
-                          ✕
+                          Chat
                         </Button>
-                      </InputAdornment>
-                    ),
-                  },
-                }}
-                sx={{
-                  flex: 1,
-                  '& .MuiOutlinedInput-root': {
-                    backgroundColor: 'white',
-                    height: { xs: 40, sm: 44 },
-                    fontSize: { xs: '0.875rem', sm: '0.95rem' },
-                    '&:hover': {
-                      '& .MuiOutlinedInput-notchedOutline': {
-                        borderColor: '#4CAF50',
-                      },
-                    },
-                    '&.Mui-focused': {
-                      '& .MuiOutlinedInput-notchedOutline': {
-                        borderColor: '#4CAF50',
-                        borderWidth: 2,
-                      },
-                    },
-                  },
-                }}
-              />
-
-              {/* Status Filter */}
-              <FormControl sx={{ minWidth: { xs: '100%', sm: 180 } }}>
-                <Select
-                  value={statusFilter}
-                  onChange={(e) => handleStatusFilterChange(e.target.value)}
-                  displayEmpty
-                  startAdornment={
-                    <InputAdornment position="start">
-                      <FilterIcon sx={{ color: 'text.secondary', mr: 1 }} />
-                    </InputAdornment>
-                  }
-                  sx={{
-                    backgroundColor: 'white',
-                    height: { xs: 40, sm: 44 },
-                    '& .MuiSelect-select': {
-                      display: 'flex',
-                      alignItems: 'center',
-                      pl: 0,
-                      fontSize: { xs: '0.875rem', sm: '0.95rem' },
-                    },
-                    '&:hover': {
-                      '& .MuiOutlinedInput-notchedOutline': {
-                        borderColor: '#4CAF50',
-                      },
-                    },
-                    '&.Mui-focused': {
-                      '& .MuiOutlinedInput-notchedOutline': {
-                        borderColor: '#4CAF50',
-                        borderWidth: 2,
-                      },
-                    },
-                  }}
-                >
-                  <MenuItem value="ALL">
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Box sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#9e9e9e' }} />
-                      All Status
-                    </Box>
-                  </MenuItem>
-                  <MenuItem value="PENDING">
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Box sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#ff9800' }} />
-                      Pending
-                    </Box>
-                  </MenuItem>
-                  <MenuItem value="IN_PROGRESS">
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Box sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#2196f3' }} />
-                      In Progress
-                    </Box>
-                  </MenuItem>
-                  <MenuItem value="RESOLVED">
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Box sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#4caf50' }} />
-                      Solved
-                    </Box>
-                  </MenuItem>
-                  <MenuItem value="REJECTED">
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Box sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#f44336' }} />
-                      Rejected
-                    </Box>
-                  </MenuItem>
-                </Select>
-              </FormControl>
-
-              {/* Category Filter */}
-              <CategoryFilter
-                value={categoryFilter}
-                onChange={handleCategoryFilterChange}
-              />
-
-              {/* Subcategory Filter */}
-              <SubcategoryFilter
-                categoryId={categoryFilter}
-                value={subcategoryFilter}
-                onChange={handleSubcategoryFilterChange}
-              />
-            </Box>
-
-            {/* Second Row - City Corporation Filters */}
-            <Box sx={{
-              display: 'flex',
-              flexDirection: { xs: 'column', sm: 'row' },
-              gap: { xs: 1.5, sm: 2 },
-              alignItems: { xs: 'stretch', sm: 'center' },
-            }}>
-              {/* City Corporation Filter */}
-              <FormControl sx={{ minWidth: { xs: '100%', sm: 200 } }}>
-                <Select
-                  value={selectedCityCorporation}
-                  onChange={(e) => handleCityCorporationFilterChange(e.target.value)}
-                  displayEmpty
-                  disabled={cityCorporationsLoading}
-                  sx={{
-                    backgroundColor: 'white',
-                    height: { xs: 40, sm: 44 },
-                    '& .MuiSelect-select': {
-                      display: 'flex',
-                      alignItems: 'center',
-                      fontSize: { xs: '0.875rem', sm: '0.95rem' },
-                    },
-                    '&:hover': {
-                      '& .MuiOutlinedInput-notchedOutline': {
-                        borderColor: '#4CAF50',
-                      },
-                    },
-                    '&.Mui-focused': {
-                      '& .MuiOutlinedInput-notchedOutline': {
-                        borderColor: '#4CAF50',
-                        borderWidth: 2,
-                      },
-                    },
-                  }}
-                >
-                  <MenuItem value="ALL">সকল সিটি কর্পোরেশন</MenuItem>
-                  {cityCorporations && cityCorporations.map((cc) => (
-                    <MenuItem key={cc.code} value={cc.code}>
-                      {cc.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-
-              {/* Zone Filter */}
-              <Box sx={{ minWidth: { xs: '100%', sm: 200 } }}>
-                <ZoneFilter
-                  value={selectedZone}
-                  onChange={handleZoneFilterChange}
-                  cityCorporationCode={selectedCityCorporation !== 'ALL' ? selectedCityCorporation : ''}
-                  disabled={selectedCityCorporation === 'ALL'}
-                  hideLabel={true}
-                />
-              </Box>
-
-              {/* Ward Filter */}
-              <FormControl sx={{ minWidth: { xs: '100%', sm: 200 } }}>
-                <Select
-                  value={selectedWard || ''}
-                  onChange={(e) => handleWardFilterChange(e.target.value ? Number(e.target.value) : null)}
-                  displayEmpty
-                  disabled={!selectedZone || wardsLoading || !wards || wards.length === 0}
-                  sx={{
-                    backgroundColor: 'white',
-                    height: { xs: 40, sm: 44 },
-                    '& .MuiSelect-select': {
-                      display: 'flex',
-                      alignItems: 'center',
-                      fontSize: { xs: '0.875rem', sm: '0.95rem' },
-                    },
-                    '&:hover': {
-                      '& .MuiOutlinedInput-notchedOutline': {
-                        borderColor: '#4CAF50',
-                      },
-                    },
-                    '&.Mui-focused': {
-                      '& .MuiOutlinedInput-notchedOutline': {
-                        borderColor: '#4CAF50',
-                        borderWidth: 2,
-                      },
-                    },
-                  }}
-                >
-                  <MenuItem value="">সকল ওয়ার্ড</MenuItem>
-                  {wards && wards.map((ward) => (
-                    <MenuItem key={ward.id} value={ward.id}>
-                      ওয়ার্ড {ward.wardNumber || ward.id}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-
-              {/* Clear Filters Button */}
-              {(searchTerm || statusFilter !== 'ALL' || categoryFilter || subcategoryFilter || selectedCityCorporation !== 'ALL' || selectedZone || selectedWard) && (
-                <Button
-                  variant="outlined"
-                  onClick={handleClearFilters}
-                  startIcon={<RefreshIcon />}
-                  sx={{
-                    height: { xs: 40, sm: 44 },
-                    textTransform: 'none',
-                    borderColor: '#e0e0e0',
-                    color: 'text.primary',
-                    fontSize: { xs: '0.875rem', sm: '0.95rem' },
-                    minWidth: { xs: '100%', sm: 'auto' },
-                    whiteSpace: 'nowrap',
-                    '&:hover': {
-                      borderColor: '#4CAF50',
-                      color: '#4CAF50',
-                      backgroundColor: 'rgba(76, 175, 80, 0.04)',
-                    },
-                  }}
-                >
-                  Clear Filters
-                </Button>
-              )}
-            </Box>
-
-            {/* Search Tips (shown when searching) */}
-            {searchTerm && (
-              <Box sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1,
-                px: 1,
-                py: 0.5,
-                backgroundColor: 'rgba(76, 175, 80, 0.08)',
-                borderRadius: 1,
-                fontSize: '0.75rem',
-                color: 'text.secondary',
-              }}>
-                <SearchIcon sx={{ fontSize: 16 }} />
-                <Typography variant="caption">
-                  Searching for: <strong>"{searchTerm}"</strong>
-                  {debouncedSearchTerm !== searchTerm && ' (typing...)'}
-                </Typography>
-              </Box>
-            )}
-
-            {/* Active Filters Display */}
-            {(searchTerm || statusFilter !== 'ALL' || selectedCityCorporation !== 'ALL' || selectedZone || selectedWard) && (
-              <Box sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1,
-                flexWrap: 'wrap',
-              }}>
-                <Typography variant="caption" color="text.secondary">
-                  Active filters:
-                </Typography>
-                {searchTerm && (
-                  <Chip
-                    label={`Search: "${searchTerm.substring(0, 20)}${searchTerm.length > 20 ? '...' : ''}"`}
-                    size="small"
-                    onDelete={() => {
-                      setSearchTerm('');
-                      setPagination((prev) => ({ ...prev, page: 1 }));
-                    }}
-                    sx={{
-                      backgroundColor: 'white',
-                      fontSize: '0.75rem',
-                      height: 24,
-                    }}
-                  />
+                        <Button
+                          variant="contained"
+                          size="small"
+                          onClick={() => handleViewDetails(complaint.id)}
+                          sx={{
+                            backgroundColor: '#4CAF50',
+                            color: 'white',
+                            textTransform: 'none',
+                            boxShadow: 'none',
+                            '&:hover': {
+                              backgroundColor: '#45a049',
+                              boxShadow: 'none',
+                            },
+                          }}
+                        >
+                          View Details
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
                 )}
-                {statusFilter !== 'ALL' && (
-                  <Chip
-                    label={`Status: ${statusFilter.replace('_', ' ')}`}
-                    size="small"
-                    onDelete={() => handleStatusFilterChange('ALL')}
-                    sx={{
-                      backgroundColor: 'white',
-                      fontSize: '0.75rem',
-                      height: 24,
-                    }}
-                  />
-                )}
-                {selectedCityCorporation !== 'ALL' && (
-                  <Chip
-                    label={`City Corp: ${cityCorporations.find(cc => cc.code === selectedCityCorporation)?.name || selectedCityCorporation}`}
-                    size="small"
-                    onDelete={() => handleCityCorporationFilterChange('ALL')}
-                    sx={{
-                      backgroundColor: 'white',
-                      fontSize: '0.75rem',
-                      height: 24,
-                    }}
-                  />
-                )}
-                {selectedZone && (
-                  <Chip
-                    label={`Zone: ${selectedZone}`}
-                    size="small"
-                    onDelete={() => handleZoneFilterChange('')}
-                    sx={{
-                      backgroundColor: 'white',
-                      fontSize: '0.75rem',
-                      height: 24,
-                    }}
-                  />
-                )}
-                {selectedWard && (
-                  <Chip
-                    label={`Ward: ${wards.find(w => w.id === selectedWard)?.wardNumber || selectedWard}`}
-                    size="small"
-                    onDelete={() => handleWardFilterChange(null)}
-                    sx={{
-                      backgroundColor: 'white',
-                      fontSize: '0.75rem',
-                      height: 24,
-                    }}
-                  />
-                )}
-              </Box>
-            )}
-          </Box>
-        </Box>
-
-        {/* Error State */}
-        {error && !loading && (
-          <Alert
-            severity="error"
-            sx={{
-              mb: 3,
-              borderRadius: 2,
-              '& .MuiAlert-message': {
-                width: '100%',
-              },
-            }}
-            icon={errorType === ErrorType.NETWORK ? <WifiOffIcon /> : <ErrorIcon />}
-            action={
-              isRetryable && (
-                <Button
-                  color="inherit"
-                  size="small"
-                  startIcon={<RefreshIcon />}
-                  onClick={handleRetry}
-                  sx={{
-                    textTransform: 'none',
-                    fontWeight: 500,
-                  }}
-                >
-                  Retry
-                </Button>
-              )
-            }
-          >
-            <AlertTitle sx={{ fontWeight: 600, mb: 0.5 }}>
-              {errorType === ErrorType.NETWORK
-                ? 'Connection Error'
-                : errorType === ErrorType.SERVER
-                  ? 'Server Error'
-                  : errorType === ErrorType.AUTHENTICATION
-                    ? 'Authentication Error'
-                    : 'Error'}
-            </AlertTitle>
-            {error}
-            {errorType === ErrorType.NETWORK && (
-              <Typography variant="body2" sx={{ mt: 1, opacity: 0.9 }}>
-                Please check your internet connection and try again.
-              </Typography>
-            )}
-          </Alert>
+              </TableBody>
+            </Table>
+          </TableContainer>
         )}
 
         {/* Loading State */}
         {loading && (
-          <Box sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 2,
-            width: '100%',
-          }}>
-            {[1, 2, 3].map((index) => (
-              <ComplaintCardSkeleton key={index} />
-            ))}
+          <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+            <CircularProgress />
           </Box>
         )}
 
-        {/* Empty State */}
-        {!loading && !error && complaints.length === 0 && (
+        {/* Pagination Section */}
+        {!loading && !error && complaints.length > 0 && pagination.total > 0 && (
           <Box sx={{
+            mt: { xs: 3, sm: 4 },
+            mb: 2,
             display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
             justifyContent: 'center',
-            py: 8,
-            px: 2,
           }}>
-            <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
-              No complaints found
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {searchTerm || statusFilter !== 'ALL'
-                ? 'Try adjusting your search or filters'
-                : 'No complaints have been submitted yet'}
-            </Typography>
-            {(searchTerm || statusFilter !== 'ALL') && (
-              <Button
-                variant="outlined"
-                onClick={handleClearFilters}
-                sx={{ mt: 2 }}
-              >
-                Clear Filters
-              </Button>
-            )}
+            <Pagination
+              count={pagination.totalPages}
+              page={pagination.page}
+              onChange={handlePageChange}
+              color="primary"
+              size={isMobile ? 'small' : 'large'}
+              showFirstButton={!isMobile}
+              showLastButton={!isMobile}
+              siblingCount={isMobile ? 0 : 1}
+              boundaryCount={isMobile ? 1 : 1}
+              sx={{
+                '& .MuiPaginationItem-root': {
+                  fontSize: { xs: '0.875rem', sm: '0.95rem' },
+                  '&.Mui-selected': {
+                    backgroundColor: '#4CAF50 !important',
+                    color: 'white',
+                  }
+                }
+              }}
+            />
           </Box>
-        )}
-
-        {/* Complaints List */}
-        {!loading && !error && complaints.length > 0 && (
-          <>
-            <Box sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 2,
-              width: '100%',
-            }}>
-              {complaints.map((complaint, index) => (
-                <Card
-                  key={complaint.id}
-                  sx={{
-                    borderRadius: 2,
-                    border: '1px solid #e0e0e0',
-                    width: '100%',
-                    animation: `${fadeIn} ${animationConfig.normal.duration} ${animationConfig.normal.timing}`,
-                    animationDelay: getStaggerDelay(index, 50),
-                    animationFillMode: 'both',
-                    transition: `box-shadow ${animationConfig.fast.duration} ${animationConfig.fast.timing}, transform ${animationConfig.fast.duration} ${animationConfig.fast.timing}`,
-                    '&:hover': {
-                      boxShadow: 2,
-                      transform: 'translateY(-2px)',
-                    },
-                  }}
-                >
-                  <CardContent sx={{ p: { xs: 1.5, sm: 2, md: 2.5 } }}>
-                    <Box sx={{
-                      display: 'flex',
-                      flexDirection: { xs: 'column', sm: 'row' },
-                      justifyContent: 'space-between',
-                      alignItems: { xs: 'flex-start', sm: 'flex-start' },
-                      mb: 2,
-                      width: '100%',
-                      gap: { xs: 1.5, sm: 0 },
-                    }}>
-                      {/* Left Section - Complaint Info */}
-                      <Box sx={{ flex: 1, mr: { xs: 0, sm: 2 }, width: { xs: '100%', sm: 'auto' } }}>
-                        <Box sx={{
-                          display: 'flex',
-                          flexDirection: { xs: 'column', sm: 'row' },
-                          alignItems: { xs: 'flex-start', sm: 'center' },
-                          gap: { xs: 0.5, sm: 2 },
-                          mb: 1
-                        }}>
-                          <Typography
-                            variant={isMobile ? 'subtitle1' : 'h6'}
-                            sx={{ fontWeight: 600, color: '#4CAF50' }}
-                          >
-                            {complaint.trackingNumber || `C${String(complaint.id).padStart(6, '0')}`}
-                          </Typography>
-                          <Typography
-                            variant={isMobile ? 'body2' : 'body1'}
-                            sx={{ fontWeight: 500 }}
-                          >
-                            {complaint.title}
-                          </Typography>
-                        </Box>
-
-                        {/* Category Badge - NEW */}
-                        {complaint.category && (
-                          <CategoryBadge
-                            categoryId={complaint.category}
-                            subcategoryId={complaint.subcategory}
-                          />
-                        )}
-
-                        <Box sx={{
-                          display: 'flex',
-                          flexDirection: { xs: 'column', sm: 'row' },
-                          alignItems: { xs: 'flex-start', sm: 'center' },
-                          gap: { xs: 0.5, sm: 1 },
-                          mb: 1
-                        }}>
-                          <Typography variant="body2" color="text.secondary">
-                            📍 {complaint.location}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            ⏰ {formatTimeAgo(complaint.createdAt)}
-                          </Typography>
-                        </Box>
-
-                        {/* Citizen Info */}
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Typography
-                            variant={isMobile ? 'body2' : 'body1'}
-                            sx={{ fontWeight: 500 }}
-                          >
-                            {complaint.user.firstName} {complaint.user.lastName}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            Citizen
-                          </Typography>
-                          {complaint.user.zone && (
-                            <Chip
-                              label={`Zone ${complaint.user.zone}`}
-                              size="small"
-                              variant="outlined"
-                              sx={{
-                                height: 24,
-                                fontSize: '0.75rem',
-                                borderColor: '#e0e0e0',
-                                color: 'text.secondary',
-                              }}
-                            />
-                          )}
-                          {complaint.user.ward && (
-                            <Chip
-                              label={`Ward ${complaint.user.ward}`}
-                              size="small"
-                              variant="outlined"
-                              sx={{
-                                height: 24,
-                                fontSize: '0.75rem',
-                                borderColor: '#e0e0e0',
-                                color: 'text.secondary',
-                              }}
-                            />
-                          )}
-                        </Box>
-                      </Box>
-
-                      {/* Right Section - Status */}
-                      <Box sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        width: { xs: '100%', sm: 'auto' },
-                        justifyContent: { xs: 'flex-start', sm: 'flex-end' },
-                      }}>
-                        <Chip
-                          label={getStatusLabel(complaint.status)}
-                          sx={{
-                            ...getStatusColor(complaint.status),
-                            ...statusBadgeTransition,
-                            fontWeight: 500,
-                            fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                            height: { xs: 28, sm: 32 },
-                          }}
-                        />
-                      </Box>
-                    </Box>
-
-                    {/* Action Buttons */}
-                    <Box sx={{
-                      display: 'flex',
-                      flexDirection: { xs: 'column', sm: 'row' },
-                      gap: { xs: 1, sm: 1.5 },
-                      mt: 2,
-                      width: '100%',
-                      flexWrap: 'wrap'
-                    }}>
-                      <LoadingButton
-                        variant="outlined"
-                        size={isMobile ? 'small' : 'medium'}
-                        startIcon={!isMobile && <VisibilityIcon />}
-                        onClick={() => handleViewDetails(complaint.id)}
-                        sx={{
-                          borderColor: '#4CAF50',
-                          color: '#4CAF50',
-                          '&:hover': {
-                            backgroundColor: '#4CAF50',
-                            color: 'white',
-                          },
-                          textTransform: 'none',
-                          px: { xs: 2, sm: 2.5 },
-                          py: { xs: 1, sm: 0.75 },
-                          minHeight: { xs: 44, sm: 'auto' },
-                          fontSize: { xs: '0.875rem', sm: '0.95rem' },
-                        }}
-                      >
-                        View Details
-                      </LoadingButton>
-
-                      <LoadingButton
-                        variant="outlined"
-                        size={isMobile ? 'small' : 'medium'}
-                        startIcon={!isMobile && <ChatIcon />}
-                        onClick={() => handleOpenChat(complaint)}
-                        sx={{
-                          borderColor: '#e0e0e0',
-                          color: 'text.primary',
-                          textTransform: 'none',
-                          px: { xs: 2, sm: 2.5 },
-                          py: { xs: 1, sm: 0.75 },
-                          minHeight: { xs: 44, sm: 'auto' },
-                          fontSize: { xs: '0.875rem', sm: '0.95rem' },
-                          '&:hover': {
-                            borderColor: '#4CAF50',
-                            color: '#4CAF50',
-                          },
-                        }}
-                      >
-                        Chat
-                      </LoadingButton>
-
-                      {/* Dynamic Status Change Buttons */}
-                      {getAvailableStatusTransitions(complaint.status).map((transition) => (
-                        <LoadingButton
-                          key={transition.status}
-                          variant="outlined"
-                          size={isMobile ? 'small' : 'medium'}
-                          startIcon={!isMobile && <CheckCircleIcon />}
-                          onClick={() => handleStatusUpdate(complaint.id, transition.status)}
-                          loading={updatingStatusId === complaint.id}
-                          loadingText="Updating..."
-                          sx={{
-                            borderColor: transition.color,
-                            color: transition.color,
-                            textTransform: 'none',
-                            px: { xs: 2, sm: 2.5 },
-                            py: { xs: 1, sm: 0.75 },
-                            minHeight: { xs: 44, sm: 'auto' },
-                            fontSize: { xs: '0.875rem', sm: '0.95rem' },
-                            '&:hover': {
-                              backgroundColor: transition.color,
-                              color: 'white',
-                              borderColor: transition.color,
-                            },
-                          }}
-                        >
-                          {transition.label}
-                        </LoadingButton>
-                      ))}
-                    </Box>
-                  </CardContent>
-                </Card>
-              ))}
-            </Box>
-
-            {/* Pagination Section */}
-            {pagination.total > 0 && (
-              <Box sx={{
-                mt: { xs: 3, sm: 4 },
-                mb: 2,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 2,
-              }}>
-                {/* Pagination Info */}
-                <Box sx={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                  gap: 2,
-                  px: { xs: 1, sm: 2 },
-                }}>
-                  {/* Items per page selector */}
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Typography variant="body2" color="text.secondary">
-                      Show:
-                    </Typography>
-                    <FormControl size="small">
-                      <Select
-                        value={pagination.limit}
-                        onChange={(e) => {
-                          setPagination((prev) => ({
-                            ...prev,
-                            limit: Number(e.target.value),
-                            page: 1, // Reset to first page
-                          }));
-                        }}
-                        sx={{
-                          minWidth: 80,
-                          fontSize: '0.875rem',
-                        }}
-                      >
-                        <MenuItem value={10}>10</MenuItem>
-                        <MenuItem value={20}>20</MenuItem>
-                        <MenuItem value={50}>50</MenuItem>
-                        <MenuItem value={100}>100</MenuItem>
-                      </Select>
-                    </FormControl>
-                    <Typography variant="body2" color="text.secondary">
-                      per page
-                    </Typography>
-                  </Box>
-
-                  {/* Page info */}
-                  <Typography variant="body2" color="text.secondary">
-                    Showing {((pagination.page - 1) * pagination.limit) + 1} - {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} complaints
-                  </Typography>
-                </Box>
-
-                {/* Pagination Controls */}
-                {pagination.totalPages > 1 && (
-                  <Box sx={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                  }}>
-                    <Pagination
-                      count={pagination.totalPages}
-                      page={pagination.page}
-                      onChange={handlePageChange}
-                      color="primary"
-                      size={isMobile ? 'small' : 'large'}
-                      showFirstButton={!isMobile}
-                      showLastButton={!isMobile}
-                      siblingCount={isMobile ? 0 : 1}
-                      boundaryCount={isMobile ? 1 : 1}
-                      sx={{
-                        '& .MuiPaginationItem-root': {
-                          fontSize: { xs: '0.875rem', sm: '0.95rem' },
-                          minWidth: { xs: 32, sm: 40 },
-                          height: { xs: 32, sm: 40 },
-                        },
-                        '& .Mui-selected': {
-                          backgroundColor: '#4CAF50 !important',
-                          color: 'white',
-                          '&:hover': {
-                            backgroundColor: '#45a049 !important',
-                          },
-                        },
-                      }}
-                    />
-                  </Box>
-                )}
-
-                {/* Quick page jump (desktop only) */}
-                {!isMobile && pagination.totalPages > 5 && (
-                  <Box sx={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    gap: 1,
-                  }}>
-                    <Typography variant="body2" color="text.secondary">
-                      Go to page:
-                    </Typography>
-                    <TextField
-                      type="number"
-                      size="small"
-                      value={pagination.page}
-                      onChange={(e) => {
-                        const page = Number(e.target.value);
-                        if (page >= 1 && page <= pagination.totalPages) {
-                          setPagination((prev) => ({ ...prev, page }));
-                          window.scrollTo({ top: 0, behavior: 'smooth' });
-                        }
-                      }}
-                      inputProps={{
-                        min: 1,
-                        max: pagination.totalPages,
-                        style: { textAlign: 'center' },
-                      }}
-                      sx={{
-                        width: 80,
-                        '& input': {
-                          fontSize: '0.875rem',
-                        },
-                      }}
-                    />
-                    <Typography variant="body2" color="text.secondary">
-                      of {pagination.totalPages}
-                    </Typography>
-                  </Box>
-                )}
-              </Box>
-            )}
-          </>
         )}
       </Box>
 
@@ -1561,12 +1347,34 @@ const AllComplaints: React.FC = () => {
 
       {/* Chat Modal */}
       <ChatModal
-        complaintId={selectedChatComplaintId}
         open={chatModalOpen}
-        onClose={handleCloseChatModal}
-        citizenName={selectedChatCitizenName}
+        onClose={() => setChatModalOpen(false)}
+        complaintId={selectedChatComplaintId || 0}
         complaintTitle={selectedChatComplaintTitle}
+        citizenName={selectedChatCitizenName}
       />
+
+      {/* Admin Note View Modal */}
+      <Dialog
+        open={noteModalOpen}
+        onClose={() => setNoteModalOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontWeight: 600, color: '#1f2937' }}>
+          {selectedNoteTitle}
+        </DialogTitle>
+        <DialogContent dividers>
+          <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', color: '#374151' }}>
+            {selectedNote}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setNoteModalOpen(false)} color="primary">
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
     </MainLayout>
   );
 };

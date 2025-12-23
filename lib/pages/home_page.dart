@@ -11,6 +11,8 @@ import '../components/mayor_statement_banner.dart';
 import '../providers/language_provider.dart';
 import '../services/auth_service.dart';
 import '../widgets/translated_text.dart';
+import '../providers/notification_provider.dart';
+import '../widgets/notification_sheet.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -38,6 +40,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       duration: const Duration(seconds: 3),
       vsync: this,
     )..repeat(reverse: true);
+
+    // Fetch initial notification count
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<NotificationProvider>().fetchNotifications();
+      }
+    });
   }
 
   @override
@@ -145,37 +154,69 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         ],
       ),
       actions: [
-        // Chat Icon - Navigate to live chat
+        // Notification Icon
         Padding(
           padding: const EdgeInsets.only(right: 8.0),
-          child: Tooltip(
-            message: 'Live Chat',
-            child: GestureDetector(
-              onTap: () {
-                Navigator.pushNamed(context, '/live-chat');
-              },
-              child: Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF4CAF50),
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.15),
-                      offset: const Offset(0, 2),
-                      blurRadius: 4,
-                      spreadRadius: 0,
-                    ),
-                  ],
+          child: Consumer<NotificationProvider>(
+            builder: (context, provider, _) {
+              return Tooltip(
+                message: 'Notifications',
+                child: GestureDetector(
+                  onTap: _showNotificationsModal,
+                  child: Stack(
+                    children: [
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF4CAF50),
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.15),
+                              offset: const Offset(0, 2),
+                              blurRadius: 4,
+                              spreadRadius: 0,
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.notifications_none,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                      ),
+                      if (provider.unreadCount > 0)
+                        Positioned(
+                          top: -2,
+                          right: -2,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2),
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 16,
+                              minHeight: 16,
+                            ),
+                            child: Text(
+                              provider.unreadCount > 99 ? '99+' : '${provider.unreadCount}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
-                child: const Icon(
-                  Icons.chat_bubble_outline,
-                  color: Colors.white,
-                  size: 20,
-                ),
-              ),
-            ),
+              );
+            },
           ),
         ),
         Padding(
@@ -1110,6 +1151,15 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         margin: const EdgeInsets.all(16),
       ),
+    );
+  }
+
+  void _showNotificationsModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const NotificationSheet(),
     );
   }
 }

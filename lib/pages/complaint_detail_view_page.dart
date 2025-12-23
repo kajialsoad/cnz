@@ -6,8 +6,14 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import '../components/custom_bottom_nav.dart';
 import '../widgets/translated_text.dart';
+import '../widgets/resolution_details_card.dart';
+import '../widgets/status_timeline.dart';
+import '../widgets/review_display_card.dart';
+import '../widgets/review_submission_modal.dart';
 import '../providers/complaint_provider.dart';
+import '../providers/review_provider.dart';
 import '../models/complaint.dart';
+import '../models/review_model.dart';
 import '../config/api_config.dart';
 import '../config/url_helper.dart';
 import 'complaint_chat_page.dart';
@@ -23,6 +29,8 @@ class ComplaintDetailViewPage extends StatefulWidget {
 class _ComplaintDetailViewPageState extends State<ComplaintDetailViewPage> {
   int _currentIndex = 0;
   String? complaintId;
+  List<ReviewModel> _reviews = [];
+  bool _loadingReviews = false;
 
   @override
   void initState() {
@@ -35,8 +43,37 @@ class _ComplaintDetailViewPageState extends State<ComplaintDetailViewPage> {
         complaintId = args.toString();
         Provider.of<ComplaintProvider>(context, listen: false)
             .loadComplaint(complaintId!);
+        _loadReviews();
       }
     });
+  }
+
+  /// Load reviews for the complaint
+  Future<void> _loadReviews() async {
+    if (complaintId == null) return;
+
+    setState(() {
+      _loadingReviews = true;
+    });
+
+    try {
+      final reviewProvider = Provider.of<ReviewProvider>(context, listen: false);
+      final reviews = await reviewProvider.getReviews(int.parse(complaintId!));
+      
+      if (mounted) {
+        setState(() {
+          _reviews = reviews;
+          _loadingReviews = false;
+        });
+      }
+    } catch (e) {
+      print('❌ Error loading reviews: $e');
+      if (mounted) {
+        setState(() {
+          _loadingReviews = false;
+        });
+      }
+    }
   }
 
   @override
@@ -220,9 +257,26 @@ class _ComplaintDetailViewPageState extends State<ComplaintDetailViewPage> {
       _buildHeaderCard(complaint),
       _buildDescriptionCard(complaint),
       _buildLocationCard(complaint),
-      _buildInspectorDetailsCard(complaint), // NEW: Ward Inspector & Zone Officer
+      _buildInspectorDetailsCard(complaint), // Ward Inspector & Zone Officer
       if (complaint.imageUrls.isNotEmpty) _buildImagesSection(complaint.imageUrls),
       if (complaint.audioUrls.isNotEmpty) _buildAudioSection(complaint.audioUrls),
+      
+      // NEW: Status Timeline
+      StatusTimeline(complaint: complaint),
+      
+      // NEW: Resolution Details (for resolved complaints)
+      if (complaint.status == ComplaintStatus.resolved && complaint.hasResolution)
+        ResolutionDetailsCard(
+          complaint: complaint,
+          onReviewSubmitted: complaint.canSubmitReview
+              ? () => _showReviewModal(complaint)
+              : null,
+        ),
+      
+      // NEW: Reviews Section
+      if (_reviews.isNotEmpty || _loadingReviews)
+        _buildReviewsSection(),
+      
       _buildTimestampsCard(complaint),
       _buildChatButton(complaint),
     ];
@@ -251,6 +305,48 @@ class _ComplaintDetailViewPageState extends State<ComplaintDetailViewPage> {
         ),
       ),
     );
+  }
+
+  /// Show review submission modal
+  void _showReviewModal(Complaint complaint) {
+    showReviewSubmissionModal(
+      context,
+      complaintId: int.parse(complaint.id),
+      onSuccess: () {
+        // Reload reviews after submission
+        _loadReviews();
+        // Reload complaint to update canSubmitReview status
+        Provider.of<ComplaintProvider>(context, listen: false)
+            .loadComplaint(complaint.id);
+      },
+    );
+  }
+
+  /// Build reviews section
+  Widget _buildReviewsSection() {
+    if (_loadingReviews) {
+      return Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              offset: const Offset(0, 2),
+              blurRadius: 8,
+            ),
+          ],
+        ),
+        child: const Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4CAF50)),
+          ),
+        ),
+      );
+    }
+
+    return ReviewsList(reviews: _reviews);
   }
 
   Widget _buildHeaderCard(Complaint complaint) {

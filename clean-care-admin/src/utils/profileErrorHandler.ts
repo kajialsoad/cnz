@@ -7,16 +7,30 @@
 
 import axios, { AxiosError } from 'axios';
 
-export enum ProfileErrorType {
-    NETWORK_ERROR = 'NETWORK_ERROR',
-    VALIDATION_ERROR = 'VALIDATION_ERROR',
-    AUTHENTICATION_ERROR = 'AUTHENTICATION_ERROR',
-    AUTHORIZATION_ERROR = 'AUTHORIZATION_ERROR',
-    SERVER_ERROR = 'SERVER_ERROR',
-    UPLOAD_ERROR = 'UPLOAD_ERROR',
-    TIMEOUT_ERROR = 'TIMEOUT_ERROR',
-    UNKNOWN_ERROR = 'UNKNOWN_ERROR',
-}
+export type ProfileErrorType =
+    | 'NETWORK_ERROR'
+    | 'VALIDATION_ERROR'
+    | 'AUTHENTICATION_ERROR'
+    | 'AUTHORIZATION_ERROR'
+    | 'SERVER_ERROR'
+    | 'FILE_TOO_LARGE'
+    | 'INVALID_FILE_TYPE'
+    | 'TIMEOUT_ERROR'
+    | 'UPLOAD_ERROR'
+    | 'UNKNOWN_ERROR';
+
+export const ProfileErrorTypes = {
+    NETWORK_ERROR: 'NETWORK_ERROR' as const,
+    VALIDATION_ERROR: 'VALIDATION_ERROR' as const,
+    AUTHENTICATION_ERROR: 'AUTHENTICATION_ERROR' as const,
+    AUTHORIZATION_ERROR: 'AUTHORIZATION_ERROR' as const,
+    SERVER_ERROR: 'SERVER_ERROR' as const,
+    FILE_TOO_LARGE: 'FILE_TOO_LARGE' as const,
+    INVALID_FILE_TYPE: 'INVALID_FILE_TYPE' as const,
+    TIMEOUT_ERROR: 'TIMEOUT_ERROR' as const,
+    UPLOAD_ERROR: 'UPLOAD_ERROR' as const,
+    UNKNOWN_ERROR: 'UNKNOWN_ERROR' as const,
+};
 
 export interface ProfileError {
     type: ProfileErrorType;
@@ -36,7 +50,7 @@ export function parseApiError(error: unknown): ProfileError {
         error !== null &&
         'type' in error &&
         'message' in error &&
-        Object.values(ProfileErrorType).includes((error as any).type)
+        typeof (error as any).type === 'string'
     ) {
         return error as ProfileError;
     }
@@ -49,14 +63,14 @@ export function parseApiError(error: unknown): ProfileError {
         if (!axiosError.response) {
             if (axiosError.code === 'ECONNABORTED' || axiosError.message.includes('timeout')) {
                 return {
-                    type: ProfileErrorType.TIMEOUT_ERROR,
+                    type: ProfileErrorTypes.TIMEOUT_ERROR,
                     message: 'Request timed out. Please check your internet connection and try again.',
                     retryable: true,
                 };
             }
 
             return {
-                type: ProfileErrorType.NETWORK_ERROR,
+                type: ProfileErrorTypes.NETWORK_ERROR,
                 message: 'Network error. Please check your internet connection and try again.',
                 retryable: true,
             };
@@ -67,7 +81,7 @@ export function parseApiError(error: unknown): ProfileError {
         // Authentication error (401)
         if (status === 401) {
             return {
-                type: ProfileErrorType.AUTHENTICATION_ERROR,
+                type: ProfileErrorTypes.AUTHENTICATION_ERROR,
                 message: data?.message || 'Your session has expired. Please log in again.',
                 statusCode: status,
                 retryable: false,
@@ -77,7 +91,7 @@ export function parseApiError(error: unknown): ProfileError {
         // Authorization error (403)
         if (status === 403) {
             return {
-                type: ProfileErrorType.AUTHORIZATION_ERROR,
+                type: ProfileErrorTypes.AUTHORIZATION_ERROR,
                 message: data?.message || 'You do not have permission to perform this action.',
                 statusCode: status,
                 retryable: false,
@@ -87,7 +101,7 @@ export function parseApiError(error: unknown): ProfileError {
         // Validation error (400)
         if (status === 400) {
             return {
-                type: ProfileErrorType.VALIDATION_ERROR,
+                type: ProfileErrorTypes.VALIDATION_ERROR,
                 message: data?.message || 'Invalid data provided. Please check your input.',
                 details: data?.issues || data?.errors,
                 statusCode: status,
@@ -98,7 +112,7 @@ export function parseApiError(error: unknown): ProfileError {
         // Server error (500+)
         if (status >= 500) {
             return {
-                type: ProfileErrorType.SERVER_ERROR,
+                type: ProfileErrorTypes.SERVER_ERROR,
                 message: data?.message || 'Server error. Please try again later.',
                 statusCode: status,
                 retryable: true,
@@ -107,7 +121,7 @@ export function parseApiError(error: unknown): ProfileError {
 
         // Other HTTP errors
         return {
-            type: ProfileErrorType.UNKNOWN_ERROR,
+            type: ProfileErrorTypes.UNKNOWN_ERROR,
             message: data?.message || `Request failed with status ${status}`,
             statusCode: status,
             retryable: false,
@@ -117,7 +131,7 @@ export function parseApiError(error: unknown): ProfileError {
     // Handle standard Error objects
     if (error instanceof Error) {
         return {
-            type: ProfileErrorType.UNKNOWN_ERROR,
+            type: ProfileErrorTypes.UNKNOWN_ERROR,
             message: error.message,
             retryable: false,
         };
@@ -125,7 +139,7 @@ export function parseApiError(error: unknown): ProfileError {
 
     // Handle unknown errors
     return {
-        type: ProfileErrorType.UNKNOWN_ERROR,
+        type: ProfileErrorTypes.UNKNOWN_ERROR,
         message: 'An unexpected error occurred. Please try again.',
         retryable: false,
     };
@@ -136,25 +150,25 @@ export function parseApiError(error: unknown): ProfileError {
  */
 export function getUserFriendlyErrorMessage(error: ProfileError): string {
     switch (error.type) {
-        case ProfileErrorType.NETWORK_ERROR:
+        case ProfileErrorTypes.NETWORK_ERROR:
             return 'Unable to connect to the server. Please check your internet connection.';
 
-        case ProfileErrorType.TIMEOUT_ERROR:
+        case ProfileErrorTypes.TIMEOUT_ERROR:
             return 'The request took too long. Please try again.';
 
-        case ProfileErrorType.AUTHENTICATION_ERROR:
+        case ProfileErrorTypes.AUTHENTICATION_ERROR:
             return 'Your session has expired. Please log in again.';
 
         case ProfileErrorType.AUTHORIZATION_ERROR:
             return 'You do not have permission to perform this action.';
 
-        case ProfileErrorType.VALIDATION_ERROR:
+        case ProfileErrorTypes.VALIDATION_ERROR:
             return error.message || 'Please check your input and try again.';
 
-        case ProfileErrorType.SERVER_ERROR:
+        case ProfileErrorTypes.SERVER_ERROR:
             return 'Server error. Our team has been notified. Please try again later.';
 
-        case ProfileErrorType.UPLOAD_ERROR:
+        case ProfileErrorTypes.UPLOAD_ERROR:
             return error.message || 'Failed to upload file. Please try again.';
 
         default:
@@ -231,8 +245,8 @@ export function handleProfileFetchError(error: unknown): ProfileError {
     const isExpectedError =
         parsedError.statusCode === 404 ||
         parsedError.statusCode === 401 ||
-        parsedError.type === ProfileErrorType.NETWORK_ERROR ||
-        parsedError.type === ProfileErrorType.TIMEOUT_ERROR;
+        parsedError.type === ProfileErrorTypes.NETWORK_ERROR ||
+        parsedError.type === ProfileErrorTypes.TIMEOUT_ERROR;
 
     if (!isExpectedError) {
         // Log error for debugging
@@ -262,7 +276,7 @@ export function handleProfileUpdateError(error: unknown): ProfileError {
     });
 
     // Check for specific validation errors
-    if (parsedError.type === ProfileErrorType.VALIDATION_ERROR && parsedError.details) {
+    if (parsedError.type === ProfileErrorTypes.VALIDATION_ERROR && parsedError.details) {
         // Format validation errors
         if (Array.isArray(parsedError.details)) {
             const errorMessages = parsedError.details.map((issue: any) => {
@@ -304,7 +318,7 @@ export function handleAvatarUploadError(error: unknown): ProfileError {
  * Check if user should be logged out due to error
  */
 export function shouldLogoutUser(error: ProfileError): boolean {
-    return error.type === ProfileErrorType.AUTHENTICATION_ERROR;
+    return error.type === ProfileErrorTypes.AUTHENTICATION_ERROR;
 }
 
 /**

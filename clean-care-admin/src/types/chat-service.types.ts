@@ -8,6 +8,7 @@ export interface ChatMessage {
     senderId: number;
     senderType: SenderType;
     senderName?: string;
+    senderRole?: string;
     message: string;
     imageUrl?: string;
     read: boolean;

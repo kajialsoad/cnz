@@ -106,7 +106,7 @@ class ZoneController {
      */
     async createZone(req, res) {
         try {
-            const { zoneNumber, name, cityCorporationId, officerName, officerDesignation, officerSerialNumber, } = req.body;
+            const { zoneNumber, name, cityCorporationId, officerName, officerDesignation, officerSerialNumber, officerPhone, } = req.body;
             // Validate required fields
             if (!zoneNumber || !cityCorporationId) {
                 return res.status(400).json({
@@ -121,6 +121,7 @@ class ZoneController {
                 officerName,
                 officerDesignation,
                 officerSerialNumber,
+                officerPhone,
             });
             return res.status(201).json({
                 success: true,
@@ -151,12 +152,13 @@ class ZoneController {
     async updateZone(req, res) {
         try {
             const { id } = req.params;
-            const { name, officerName, officerDesignation, officerSerialNumber, status, } = req.body;
+            const { name, officerName, officerDesignation, officerSerialNumber, officerPhone, status, } = req.body;
             const zone = await zone_service_1.default.updateZone(parseInt(id), {
                 name,
                 officerName,
                 officerDesignation,
                 officerSerialNumber,
+                officerPhone,
                 status,
             });
             return res.status(200).json({

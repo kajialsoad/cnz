@@ -352,6 +352,7 @@ export class ChatService {
             const messagesWithSenderInfo = await Promise.all(
                 messages.map(async (msg: any) => {
                     let senderName = 'Unknown';
+                    let senderRole = undefined;
 
                     if (msg.senderType === 'CITIZEN') {
                         const user = await prisma.user.findUnique({
@@ -375,12 +376,14 @@ export class ChatService {
                         });
                         if (admin) {
                             senderName = `${admin.firstName} ${admin.lastName} (Admin)`;
+                            senderRole = admin.role;
                         }
                     }
 
                     return {
                         ...msg,
-                        senderName
+                        senderName,
+                        senderRole
                     };
                 })
             );
@@ -474,7 +477,8 @@ export class ChatService {
 
             return {
                 ...message,
-                senderName
+                senderName,
+                senderRole: input.senderType === 'ADMIN' ? sender.role : undefined
             };
         } catch (error) {
             console.error('Error sending chat message:', error);

@@ -41,6 +41,7 @@ exports.updateUser = updateUser;
 exports.updateUserStatus = updateUserStatus;
 exports.updateUserPermissions = updateUserPermissions;
 exports.deleteUser = deleteUser;
+exports.bulkDeleteUsers = bulkDeleteUsers;
 exports.getUserComplaints = getUserComplaints;
 exports.assignZonesToSuperAdmin = assignZonesToSuperAdmin;
 exports.getAssignedZones = getAssignedZones;
@@ -69,7 +70,10 @@ const createUserSchema = zod_1.z.object({
     firstName: zod_1.z.string().min(1, 'First name is required'),
     lastName: zod_1.z.string().min(1, 'Last name is required'),
     phone: zod_1.z.string().min(10, 'Valid phone number is required'),
-    email: zod_1.z.string().email().optional(),
+    email: zod_1.z.string().email().optional().or(zod_1.z.literal('')),
+    whatsapp: zod_1.z.string().optional(),
+    joiningDate: zod_1.z.string().optional().transform(val => val ? new Date(val) : undefined),
+    address: zod_1.z.string().optional(),
     password: zod_1.z.string().min(8, 'Password must be at least 8 characters'),
     cityCorporationCode: zod_1.z.string().optional(),
     ward: zod_1.z.string().optional(),
@@ -82,8 +86,11 @@ const createUserSchema = zod_1.z.object({
 const updateUserSchema = zod_1.z.object({
     firstName: zod_1.z.string().min(1).optional(),
     lastName: zod_1.z.string().min(1).optional(),
-    email: zod_1.z.string().email().optional(),
+    email: zod_1.z.string().email().optional().or(zod_1.z.literal('')),
     phone: zod_1.z.string().min(10).optional(),
+    whatsapp: zod_1.z.string().optional(),
+    joiningDate: zod_1.z.string().optional().transform(val => val ? new Date(val) : undefined),
+    address: zod_1.z.string().optional(),
     cityCorporationCode: zod_1.z.string().optional(),
     ward: zod_1.z.string().optional(),
     zone: zod_1.z.string().optional(),
@@ -96,6 +103,9 @@ const updateUserSchema = zod_1.z.object({
 const updateStatusSchema = zod_1.z.object({
     status: zod_1.z.nativeEnum(client_1.UserStatus),
     reason: zod_1.z.string().optional(),
+});
+const bulkDeleteUserSchema = zod_1.z.object({
+    userIds: zod_1.z.array(zod_1.z.number().int().positive()).min(1, 'At least one user ID is required'),
 });
 // Get all users with pagination and filters
 async function getUsers(req, res) {
@@ -221,7 +231,8 @@ async function createUser(req, res) {
     try {
         console.log('➕ Creating new user:', { ...req.body, password: '***' });
         // Validate request body
-        const data = createUserSchema.parse(req.body);
+        const rawData = createUserSchema.parse(req.body);
+        const data = { ...rawData, email: rawData.email?.toLowerCase() };
         // Get IP address and user agent for activity logging
         const ipAddress = req.ip || req.socket.remoteAddress;
         const userAgent = req.get('user-agent');
@@ -267,7 +278,8 @@ async function updateUser(req, res) {
         }
         console.log('✏️ Updating user:', userId, req.body);
         // Validate request body
-        const data = updateUserSchema.parse(req.body);
+        const rawData = updateUserSchema.parse(req.body);
+        const data = { ...rawData, email: rawData.email?.toLowerCase() };
         // Get IP address and user agent for activity logging
         const ipAddress = req.ip || req.socket.remoteAddress;
         const userAgent = req.get('user-agent');
@@ -422,6 +434,36 @@ async function deleteUser(req, res) {
         return res.status(500).json({
             success: false,
             message: err?.message ?? 'Failed to delete user',
+        });
+    }
+}
+// Bulk delete users
+async function bulkDeleteUsers(req, res) {
+    try {
+        console.log('🗑️ Bulk deleting users:', req.body);
+        const { userIds } = bulkDeleteUserSchema.parse(req.body);
+        const deletedBy = req.user?.id || 0;
+        // Get IP address and user agent for activity logging
+        const ipAddress = req.ip || req.socket.remoteAddress;
+        const userAgent = req.get('user-agent');
+        await admin_user_service_1.adminUserService.bulkDeleteUsers(userIds, deletedBy, ipAddress, userAgent);
+        return res.status(200).json({
+            success: true,
+            message: 'Users deleted successfully',
+        });
+    }
+    catch (err) {
+        console.error('❌ Error bulk deleting users:', err);
+        if (err instanceof zod_1.z.ZodError) {
+            return res.status(400).json({
+                success: false,
+                message: 'Validation error',
+                errors: err.errors,
+            });
+        }
+        return res.status(500).json({
+            success: false,
+            message: err?.message ?? 'Failed to delete users',
         });
     }
 }

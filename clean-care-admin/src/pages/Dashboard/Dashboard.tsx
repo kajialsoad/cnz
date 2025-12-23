@@ -17,6 +17,8 @@ import { UserRole } from '../../types/userManagement.types';
 import { ZoneComparison } from './components/ZoneComparison/ZoneComparison';
 import { ZoneFilter } from '../../components/common';
 import type { Zone } from '../../services/zoneService';
+import { OthersAnalyticsWidget } from './components/OthersAnalytics';
+import { UserSatisfactionWidget } from './components/UserSatisfaction';
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
@@ -202,6 +204,36 @@ const Dashboard: React.FC = () => {
             </ErrorBoundary>
           </Box>
         )}
+
+        {/* Others Analytics and User Satisfaction Widgets */}
+        <Box sx={{ mt: 4 }}>
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: '1fr',
+                md: 'repeat(2, 1fr)',
+              },
+              gap: 3,
+              mb: 4,
+            }}
+          >
+            <ErrorBoundary>
+              <OthersAnalyticsWidget
+                key={`others-${refreshKey}`}
+                cityCorporationCode={selectedCityCorporation !== 'ALL' ? selectedCityCorporation : undefined}
+                zoneId={selectedZoneId || undefined}
+              />
+            </ErrorBoundary>
+            <ErrorBoundary>
+              <UserSatisfactionWidget
+                key={`satisfaction-${refreshKey}`}
+                cityCorporationCode={selectedCityCorporation !== 'ALL' ? selectedCityCorporation : undefined}
+                zoneId={selectedZoneId || undefined}
+              />
+            </ErrorBoundary>
+          </Box>
+        </Box>
 
         {/* Operational Monitoring - Coming Soon */}
         <Box sx={{ mt: 4 }}>

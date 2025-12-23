@@ -6,6 +6,53 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const prisma_1 = __importDefault(require("../utils/prisma"));
 class WardService {
     /**
+     * Get wards with flexible filtering
+     */
+    async getWards(params) {
+        const where = {};
+        if (params.zoneId) {
+            where.zoneId = params.zoneId;
+        }
+        if (params.cityCorporationCode && !params.zoneId) {
+            where.zone = {
+                cityCorporation: {
+                    code: params.cityCorporationCode
+                }
+            };
+        }
+        if (params.status && params.status !== 'ALL') {
+            where.status = params.status;
+        }
+        const wards = await prisma_1.default.ward.findMany({
+            where,
+            include: {
+                zone: {
+                    select: {
+                        id: true,
+                        zoneNumber: true,
+                        name: true,
+                        cityCorporation: {
+                            select: {
+                                id: true,
+                                code: true,
+                                name: true,
+                            },
+                        },
+                    },
+                },
+                _count: {
+                    select: {
+                        users: true,
+                    },
+                },
+            },
+            orderBy: {
+                wardNumber: 'asc',
+            },
+        });
+        return wards;
+    }
+    /**
      * Get wards by zone with optional status filter
      */
     async getWardsByZone(zoneId, status) {
@@ -151,6 +198,7 @@ class WardService {
                 cityCorporationId: zone.cityCorporationId, // Required field
                 inspectorName: data.inspectorName,
                 inspectorSerialNumber: data.inspectorSerialNumber,
+                inspectorPhone: data.inspectorPhone,
                 status: 'ACTIVE',
             },
             include: {
@@ -266,10 +314,71 @@ class WardService {
      */
     async updateWard(id, data) {
         // Check if ward exists
-        await this.getWardById(id);
+        const existingWard = await this.getWardById(id);
+        let targetZoneId = existingWard.zoneId;
+        const targetWardNumber = data.wardNumber ?? existingWard.wardNumber; // Valid since existingWard.wardNumber is Int
+        let isMovingZone = false;
+        // If updating zone, validate new zone
+        if (data.zoneId && data.zoneId !== existingWard.zoneId) {
+            isMovingZone = true;
+            targetZoneId = data.zoneId;
+            // Validate new zone exists
+            const newZone = await prisma_1.default.zone.findUnique({
+                where: { id: data.zoneId },
+                include: { _count: { select: { wards: true } } }
+            });
+            if (!newZone) {
+                throw new Error(`Zone with ID ${data.zoneId} not found`);
+            }
+            // Check ward limits in new zone
+            if (newZone._count.wards >= 12) {
+                throw new Error(`Cannot move ward to Zone ${newZone.zoneNumber}. It already has the maximum of 12 wards.`);
+            }
+        }
+        // If ward number OR zone is changing, validate uniqueness in the TARGET City Corporation
+        if (isMovingZone || (data.wardNumber && data.wardNumber !== existingWard.wardNumber)) {
+            // Get City Corp of target zone
+            const targetZone = await prisma_1.default.zone.findUnique({
+                where: { id: targetZoneId },
+                select: { cityCorporationId: true, cityCorporation: true, zoneNumber: true, name: true }
+            });
+            if (!targetZone)
+                throw new Error("Target zone not found");
+            // Check uniqueness in target City Corp
+            const conflict = await prisma_1.default.ward.findFirst({
+                where: {
+                    wardNumber: targetWardNumber,
+                    cityCorporationId: targetZone.cityCorporationId,
+                    id: { not: id } // Exclude self
+                },
+                include: { zone: true }
+            });
+            if (conflict) {
+                throw new Error(`Ward number ${targetWardNumber} is already used in ${conflict.zone.name || 'Zone ' + conflict.zone.zoneNumber} (City Corp: ${targetZone.cityCorporation.name})`);
+            }
+            // Also validate range for target city corp
+            const min = targetZone.cityCorporation.minWard || 1;
+            const max = targetZone.cityCorporation.maxWard || 100;
+            // Should not happen as wardNumber is required, but TS needs assurance
+            if (targetWardNumber === undefined || targetWardNumber === null) {
+                throw new Error("Ward number is missing");
+            }
+            if (targetWardNumber < min || targetWardNumber > max) {
+                throw new Error(`Ward number ${targetWardNumber} is invalid for ${targetZone.cityCorporation.name} (Range: ${min}-${max})`);
+            }
+        }
         const ward = await prisma_1.default.ward.update({
             where: { id },
-            data,
+            data: {
+                wardNumber: data.wardNumber,
+                number: data.wardNumber, // Sync 'number' field
+                zoneId: data.zoneId, // Update Zone if provided
+                cityCorporationId: isMovingZone ? (await prisma_1.default.zone.findUnique({ where: { id: targetZoneId } }))?.cityCorporationId : undefined, // Update CityCorp if moving zone
+                inspectorName: data.inspectorName,
+                inspectorSerialNumber: data.inspectorSerialNumber,
+                inspectorPhone: data.inspectorPhone,
+                status: data.status,
+            },
             include: {
                 zone: {
                     select: {
@@ -444,6 +553,7 @@ class WardService {
             data: {
                 inspectorName: inspectorData.inspectorName,
                 inspectorSerialNumber: inspectorData.inspectorSerialNumber,
+                inspectorPhone: inspectorData.inspectorPhone,
             },
             include: {
                 zone: {
@@ -475,6 +585,7 @@ class WardService {
                 wardNumber: true,
                 inspectorName: true,
                 inspectorSerialNumber: true,
+                inspectorPhone: true,
                 zone: {
                     select: {
                         id: true,
@@ -500,6 +611,7 @@ class WardService {
             inspector: {
                 name: ward.inspectorName,
                 serialNumber: ward.inspectorSerialNumber,
+                phone: ward.inspectorPhone,
             },
         };
     }
@@ -527,6 +639,15 @@ class WardService {
             }
             else if (inspectorData.inspectorSerialNumber.length > 100) {
                 errors.push('Inspector serial number cannot exceed 100 characters');
+            }
+        }
+        // Inspector phone validation
+        if (inspectorData.inspectorPhone !== undefined) {
+            if (typeof inspectorData.inspectorPhone !== 'string') {
+                errors.push('Inspector phone must be a string');
+            }
+            else if (inspectorData.inspectorPhone.length > 20) {
+                errors.push('Inspector phone cannot exceed 20 characters');
             }
         }
         return {

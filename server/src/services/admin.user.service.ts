@@ -1,6 +1,6 @@
 import prisma from '../utils/prisma';
 import { hash } from 'bcrypt';
-import { users_role, UserStatus, ComplaintStatus, Prisma } from '@prisma/client';
+import { users_role, UserStatus, Complaint_status, Prisma } from '@prisma/client';
 import { activityLogService, ActivityActions, EntityTypes } from './activity-log.service';
 import { redisCache, RedisCacheKeys, RedisCacheTTL, withRedisCache, invalidateRedisCache } from '../utils/redis-cache';
 import { multiZoneService } from './multi-zone.service';
@@ -99,7 +99,7 @@ export interface GetUsersResponse {
 export interface ComplaintSummary {
     id: number;
     title: string;
-    status: ComplaintStatus;
+    status: Complaint_status;
     priority: number;
     createdAt: Date;
     updatedAt: Date;
@@ -327,12 +327,12 @@ export class AdminUserService {
 
             userStat.totalComplaints += count;
 
-            if (stat.status === ComplaintStatus.RESOLVED) {
+            if (stat.status === Complaint_status.RESOLVED) {
                 userStat.resolvedComplaints += count;
-            } else if (stat.status === ComplaintStatus.PENDING) {
+            } else if (stat.status === Complaint_status.PENDING) {
                 userStat.pendingComplaints += count;
                 userStat.unresolvedComplaints += count;
-            } else if (stat.status === ComplaintStatus.IN_PROGRESS) {
+            } else if (stat.status === Complaint_status.IN_PROGRESS) {
                 userStat.inProgressComplaints += count;
                 userStat.unresolvedComplaints += count;
             }
@@ -575,12 +575,12 @@ export class AdminUserService {
 
             userStat.totalComplaints += count;
 
-            if (stat.status === ComplaintStatus.RESOLVED) {
+            if (stat.status === Complaint_status.RESOLVED) {
                 userStat.resolvedComplaints += count;
-            } else if (stat.status === ComplaintStatus.PENDING) {
+            } else if (stat.status === Complaint_status.PENDING) {
                 userStat.pendingComplaints += count;
                 userStat.unresolvedComplaints += count;
-            } else if (stat.status === ComplaintStatus.IN_PROGRESS) {
+            } else if (stat.status === Complaint_status.IN_PROGRESS) {
                 userStat.inProgressComplaints += count;
                 userStat.unresolvedComplaints += count;
             }
@@ -866,7 +866,7 @@ export class AdminUserService {
         const resolvedComplaints = await prisma.complaint.count({
             where: {
                 ...complaintWhere,
-                status: ComplaintStatus.RESOLVED,
+                status: Complaint_status.RESOLVED,
             },
         });
 
@@ -1459,12 +1459,12 @@ export class AdminUserService {
             const count = stat._count.id;
             statistics.totalComplaints += count;
 
-            if (stat.status === ComplaintStatus.RESOLVED) {
+            if (stat.status === Complaint_status.RESOLVED) {
                 statistics.resolvedComplaints += count;
-            } else if (stat.status === ComplaintStatus.PENDING) {
+            } else if (stat.status === Complaint_status.PENDING) {
                 statistics.pendingComplaints += count;
                 statistics.unresolvedComplaints += count;
-            } else if (stat.status === ComplaintStatus.IN_PROGRESS) {
+            } else if (stat.status === Complaint_status.IN_PROGRESS) {
                 statistics.inProgressComplaints += count;
                 statistics.unresolvedComplaints += count;
             }

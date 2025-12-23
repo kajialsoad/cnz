@@ -37,23 +37,27 @@ console.log('🔧 Admin user route registered: PUT /:id/permissions (with strict
 // Delete user (soft delete) - strict rate limiting for sensitive operations
 router.delete('/:id', rate_limit_middleware_1.strictRateLimit, admin_user_controller_2.deleteUser);
 console.log('🔧 Admin user route registered: DELETE /:id');
-// Get user complaints
+// Bulk delete users - strict rate limiting
 const admin_user_controller_3 = require("../controllers/admin.user.controller");
-router.get('/:id/complaints', admin_user_controller_3.getUserComplaints);
+router.post('/bulk-delete', rate_limit_middleware_1.strictRateLimit, admin_user_controller_3.bulkDeleteUsers);
+console.log('🔧 Admin user route registered: POST /bulk-delete');
+// Get user complaints
+const admin_user_controller_4 = require("../controllers/admin.user.controller");
+router.get('/:id/complaints', admin_user_controller_4.getUserComplaints);
 console.log('🔧 Admin user route registered: GET /:id/complaints');
 // Multi-Zone Management Endpoints (Master Admin only)
-const admin_user_controller_4 = require("../controllers/admin.user.controller");
+const admin_user_controller_5 = require("../controllers/admin.user.controller");
 // Assign zones to Super Admin
-router.post('/:id/zones', (0, auth_middleware_1.rbacGuard)('MASTER_ADMIN'), rate_limit_middleware_1.strictRateLimit, admin_user_controller_4.assignZonesToSuperAdmin);
+router.post('/:id/zones', (0, auth_middleware_1.rbacGuard)('MASTER_ADMIN'), rate_limit_middleware_1.strictRateLimit, admin_user_controller_5.assignZonesToSuperAdmin);
 console.log('🔧 Admin user route registered: POST /:id/zones (Master Admin only)');
 // Get assigned zones
-router.get('/:id/zones', (0, auth_middleware_1.rbacGuard)('MASTER_ADMIN', 'SUPER_ADMIN'), admin_user_controller_4.getAssignedZones);
+router.get('/:id/zones', (0, auth_middleware_1.rbacGuard)('MASTER_ADMIN', 'SUPER_ADMIN'), admin_user_controller_5.getAssignedZones);
 console.log('🔧 Admin user route registered: GET /:id/zones');
 // Update zone assignments
-router.put('/:id/zones', (0, auth_middleware_1.rbacGuard)('MASTER_ADMIN'), rate_limit_middleware_1.strictRateLimit, admin_user_controller_4.updateZoneAssignments);
+router.put('/:id/zones', (0, auth_middleware_1.rbacGuard)('MASTER_ADMIN'), rate_limit_middleware_1.strictRateLimit, admin_user_controller_5.updateZoneAssignments);
 console.log('🔧 Admin user route registered: PUT /:id/zones (Master Admin only)');
 // Remove specific zone
-router.delete('/:id/zones/:zoneId', (0, auth_middleware_1.rbacGuard)('MASTER_ADMIN'), rate_limit_middleware_1.strictRateLimit, admin_user_controller_4.removeZoneFromSuperAdmin);
+router.delete('/:id/zones/:zoneId', (0, auth_middleware_1.rbacGuard)('MASTER_ADMIN'), rate_limit_middleware_1.strictRateLimit, admin_user_controller_5.removeZoneFromSuperAdmin);
 console.log('🔧 Admin user route registered: DELETE /:id/zones/:zoneId (Master Admin only)');
 console.log('✅ Admin user routes module loaded successfully');
 exports.default = router;

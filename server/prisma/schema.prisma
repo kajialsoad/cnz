@@ -19,9 +19,9 @@ model CityCorporation {
   updatedAt  DateTime              @updatedAt
   minZone    Int                   @default(1)
   maxZone    Int                   @default(20)
+  complaints Complaint[]
   users      User[]
   zones      Zone[]
-  complaints Complaint[]
 
   @@index([status])
   @@index([code])
@@ -39,15 +39,15 @@ model Zone {
   officerSerialNumber String?
   supervisorName      String?
   supervisorTitle     String?
-  officerPhone        String?
   status              ZoneStatus        @default(ACTIVE)
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
-  users               User[]
+  officerPhone        String?
+  complaints          Complaint[]
   assignedUsers       UserZone[]
+  users               User[]
   ward_inspectors     ward_inspectors[]
   wards               Ward[]
-  complaints          Complaint[]
   cityCorporation     CityCorporation   @relation(fields: [cityCorporationId], references: [id], onDelete: Cascade)
 
   @@unique([zoneNumber, cityCorporationId])
@@ -62,12 +62,12 @@ model Ward {
   zoneId                Int
   inspectorName         String?
   inspectorSerialNumber String?
-  inspectorPhone        String?
   cityCorporationId     Int
   inspectorCount        Int?
   status                WardStatus        @default(ACTIVE)
   createdAt             DateTime          @default(now())
   updatedAt             DateTime          @updatedAt
+  inspectorPhone        String?
   Complaint             Complaint[]
   users                 User[]
   ward_inspectors       ward_inspectors[]
@@ -120,10 +120,11 @@ model User {
   emailVerificationTokens EmailVerificationToken[]
   passwordResetTokens     PasswordResetToken[]
   refreshTokens           RefreshToken[]
+  reviews                 Review[]
   sessions                Session[]
   user_activities         user_activities[]
-  assignedZones           UserZone[]               @relation("UserZones")
   assignedByZones         UserZone[]               @relation("ZoneAssigner")
+  assignedZones           UserZone[]               @relation("UserZones")
   cityCorporation         CityCorporation?         @relation(fields: [cityCorporationCode], references: [code])
   ward                    Ward?                    @relation(fields: [wardId], references: [id])
   zone                    Zone?                    @relation(fields: [zoneId], references: [id])
@@ -199,33 +200,40 @@ model EmailVerificationToken {
 }
 
 model Complaint {
-  id                   Int                    @id @default(autoincrement())
-  title                String
-  description          String                 @db.Text
-  location             String
-  imageUrl             String?                @db.Text
-  audioUrl             String?                @db.Text
-  status               ComplaintStatus        @default(PENDING)
-  priority             Int                    @default(1)
-  userId               Int?
-  createdAt            DateTime               @default(now())
-  updatedAt            DateTime               @updatedAt
-  category             String?
-  subcategory          String?
-  wardId               Int?
-  assignedAt           DateTime?
-  resolvedAt           DateTime?
-  assignedAdminId      Int?
-  // NEW: Geographical fields for dynamic city corporation system
-  cityCorporationCode  String?
-  zoneId               Int?
-  assignedAdmin        User?                  @relation("AssignedComplaints", fields: [assignedAdminId], references: [id])
-  user                 User?                  @relation(fields: [userId], references: [id])
-  wards                Ward?                  @relation(fields: [wardId], references: [id])
-  cityCorporation      CityCorporation?       @relation(fields: [cityCorporationCode], references: [code])
-  zone                 Zone?                  @relation(fields: [zoneId], references: [id])
-  chatMessages         ComplaintChatMessage[]
-  statusHistory        StatusHistory[]
+  id                  Int                    @id @default(autoincrement())
+  title               String
+  description         String                 @db.Text
+  location            String
+  imageUrl            String?                @db.Text
+  audioUrl            String?                @db.Text
+  status              Complaint_status       @default(PENDING)
+  priority            Int                    @default(1)
+  userId              Int?
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+  category            String?
+  subcategory         String?
+  wardId              Int?
+  assignedAt          DateTime?
+  resolvedAt          DateTime?
+  assignedAdminId     Int?
+  cityCorporationCode String?
+  zoneId              Int?
+  feedback            String?                @db.Text
+  rating              Int?
+  resolutionImages    String?                @db.Text
+  resolutionNote      String?                @db.Text
+  othersCategory      String?
+  othersSubcategory   String?
+  assignedAdmin       User?                  @relation("AssignedComplaints", fields: [assignedAdminId], references: [id])
+  cityCorporation     CityCorporation?       @relation(fields: [cityCorporationCode], references: [code])
+  user                User?                  @relation(fields: [userId], references: [id])
+  wards               Ward?                  @relation(fields: [wardId], references: [id])
+  zone                Zone?                  @relation(fields: [zoneId], references: [id])
+  notifications       Notification[]
+  chatMessages        ComplaintChatMessage[]
+  reviews             Review[]
+  statusHistory       StatusHistory[]
 
   @@index([userId, status])
   @@index([status])
@@ -242,6 +250,9 @@ model Complaint {
   @@index([cityCorporationCode])
   @@index([zoneId])
   @@index([cityCorporationCode, zoneId, wardId])
+  @@index([othersCategory])
+  @@index([othersSubcategory])
+  @@index([status, othersCategory])
 }
 
 model ChatMessage {
@@ -278,14 +289,14 @@ model ComplaintChatMessage {
 }
 
 model StatusHistory {
-  id          Int             @id @default(autoincrement())
+  id          Int                      @id @default(autoincrement())
   complaintId Int
-  oldStatus   ComplaintStatus
-  newStatus   ComplaintStatus
+  oldStatus   status_history_oldStatus
+  newStatus   status_history_newStatus
   changedBy   Int
-  note        String?         @db.Text
-  createdAt   DateTime        @default(now())
-  complaint   Complaint       @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  note        String?                  @db.Text
+  createdAt   DateTime                 @default(now())
+  complaint   Complaint                @relation(fields: [complaintId], references: [id], onDelete: Cascade)
 
   @@index([complaintId])
   @@index([createdAt])
@@ -308,16 +319,40 @@ model Payment {
 }
 
 model Notification {
-  id        Int      @id @default(autoincrement())
-  title     String
-  message   String   @db.Text
-  type      String
-  isRead    Boolean  @default(false)
-  userId    Int
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id])
+  id           Int        @id @default(autoincrement())
+  title        String
+  message      String     @db.Text
+  type         String
+  isRead       Boolean    @default(false)
+  userId       Int
+  createdAt    DateTime   @default(now())
+  complaintId  Int?
+  statusChange String?
+  metadata     String?    @db.Text
+  complaint    Complaint? @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id])
 
   @@index([userId, isRead])
+  @@index([complaintId])
+}
+
+model Review {
+  id          Int       @id @default(autoincrement())
+  complaintId Int
+  userId      Int
+  rating      Int
+  comment     String?   @db.Text
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  complaint   Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([complaintId, userId])
+  @@index([complaintId])
+  @@index([userId])
+  @@index([rating])
+  @@index([createdAt])
+  @@map("reviews")
 }
 
 model ActivityLog {
@@ -380,9 +415,9 @@ model UserZone {
   assignedBy Int?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+  assigner   User?    @relation("ZoneAssigner", fields: [assignedBy], references: [id])
   user       User     @relation("UserZones", fields: [userId], references: [id], onDelete: Cascade)
   zone       Zone     @relation(fields: [zoneId], references: [id], onDelete: Cascade)
-  assigner   User?    @relation("ZoneAssigner", fields: [assignedBy], references: [id], onDelete: SetNull)
 
   @@unique([userId, zoneId])
   @@index([userId])
@@ -396,13 +431,6 @@ enum UserStatus {
   INACTIVE
   SUSPENDED
   PENDING
-}
-
-enum ComplaintStatus {
-  PENDING
-  IN_PROGRESS
-  RESOLVED
-  REJECTED
 }
 
 enum PaymentStatus {
@@ -449,4 +477,28 @@ enum users_role {
 enum ward_inspectors_status {
   ACTIVE
   INACTIVE
+}
+
+enum status_history_oldStatus {
+  PENDING
+  IN_PROGRESS
+  RESOLVED
+  REJECTED
+  OTHERS
+}
+
+enum status_history_newStatus {
+  PENDING
+  IN_PROGRESS
+  RESOLVED
+  REJECTED
+  OTHERS
+}
+
+enum Complaint_status {
+  PENDING
+  IN_PROGRESS
+  RESOLVED
+  REJECTED
+  OTHERS
 }

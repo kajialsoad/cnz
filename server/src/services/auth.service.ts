@@ -676,7 +676,27 @@ export class AuthService {
         wardImageCount: true,
         createdAt: true,
         updatedAt: true,
-        lastLoginAt: true
+        lastLoginAt: true,
+        cityCorporation: {
+          select: {
+            code: true,
+            name: true,
+          }
+        },
+        zone: {
+          select: {
+            id: true,
+            name: true,
+            zoneNumber: true,
+          }
+        },
+        ward: {
+          select: {
+            id: true,
+            wardNumber: true,
+            number: true,
+          }
+        }
       }
     });
 
@@ -787,7 +807,27 @@ export class AuthService {
         wardImageCount: true,
         createdAt: true,
         updatedAt: true,
-        lastLoginAt: true
+        lastLoginAt: true,
+        cityCorporation: {
+          select: {
+            code: true,
+            name: true,
+          }
+        },
+        zone: {
+          select: {
+            id: true,
+            name: true,
+            zoneNumber: true,
+          }
+        },
+        ward: {
+          select: {
+            id: true,
+            wardNumber: true,
+            number: true,
+          }
+        }
       }
     });
 

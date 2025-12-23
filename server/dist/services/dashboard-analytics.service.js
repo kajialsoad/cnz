@@ -26,16 +26,16 @@ class DashboardAnalyticsService {
             const [totalComplaints, resolvedComplaints, pendingComplaints, inProgressComplaints, rejectedComplaints] = await Promise.all([
                 prisma_1.default.complaint.count({ where: complaintWhere }),
                 prisma_1.default.complaint.count({
-                    where: { ...complaintWhere, status: client_1.ComplaintStatus.RESOLVED }
+                    where: { ...complaintWhere, status: client_1.Complaint_status.RESOLVED }
                 }),
                 prisma_1.default.complaint.count({
-                    where: { ...complaintWhere, status: client_1.ComplaintStatus.PENDING }
+                    where: { ...complaintWhere, status: client_1.Complaint_status.PENDING }
                 }),
                 prisma_1.default.complaint.count({
-                    where: { ...complaintWhere, status: client_1.ComplaintStatus.IN_PROGRESS }
+                    where: { ...complaintWhere, status: client_1.Complaint_status.IN_PROGRESS }
                 }),
                 prisma_1.default.complaint.count({
-                    where: { ...complaintWhere, status: client_1.ComplaintStatus.REJECTED }
+                    where: { ...complaintWhere, status: client_1.Complaint_status.REJECTED }
                 })
             ]);
             const unresolvedComplaints = totalComplaints - resolvedComplaints - rejectedComplaints;
@@ -181,7 +181,7 @@ class DashboardAnalyticsService {
             const resolvedComplaints = await prisma_1.default.complaint.findMany({
                 where: {
                     ...complaintWhere,
-                    status: client_1.ComplaintStatus.RESOLVED,
+                    status: client_1.Complaint_status.RESOLVED,
                     updatedAt: { not: null }
                 },
                 select: {

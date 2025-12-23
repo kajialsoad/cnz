@@ -1,5 +1,10 @@
+import 'package:flutter/material.dart';
+import '../models/complaint.dart';
+import '../widgets/translated_text.dart';
 
-  Widget _buildInspectorDetailsCard(Complaint complaint) {
+// Extension methods for ComplaintDetailViewPage
+extension InspectorDetailsExtension on State {
+  Widget buildInspectorDetailsCard(Complaint complaint) {
     // Check if we have ward or zone data
     final hasWardInspector = complaint.ward != null && 
                              (complaint.ward!['inspectorName'] != null || 
@@ -50,7 +55,7 @@
           
           // Ward Inspector Section
           if (hasWardInspector) ...[
-            _buildOfficerCard(
+            buildOfficerCard(
               title: 'Ward Inspector',
               titleBangla: 'ওয়ার্ড ইন্সপেক্টর',
               name: complaint.ward!['inspectorName'],
@@ -66,7 +71,7 @@
           
           // Zone Officer Section
           if (hasZoneOfficer) ...[
-            _buildOfficerCard(
+            buildOfficerCard(
               title: 'Zone Officer',
               titleBangla: 'জোন অফিসার',
               name: complaint.zone!['officerName'],
@@ -80,7 +85,7 @@
     );
   }
 
-  Widget _buildOfficerCard({
+  Widget buildOfficerCard({
     required String title,
     required String titleBangla,
     String? name,
@@ -171,3 +176,4 @@
       ),
     );
   }
+}

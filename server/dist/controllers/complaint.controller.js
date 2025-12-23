@@ -277,7 +277,7 @@ class ComplaintController {
                 });
             }
             const status = req.params.status?.toUpperCase();
-            if (!Object.values(client_1.ComplaintStatus).includes(status)) {
+            if (!Object.values(client_1.Complaint_status).includes(status)) {
                 return res.status(400).json({
                     success: false,
                     message: 'Invalid complaint status'

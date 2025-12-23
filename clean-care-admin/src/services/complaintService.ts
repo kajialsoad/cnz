@@ -338,9 +338,140 @@ class ComplaintService {
         data: UpdateComplaintStatusRequest
     ): Promise<Complaint> {
         try {
+            // Check if we need to send FormData (for file uploads)
+            if (data.resolutionImageFiles && data.resolutionImageFiles.length > 0) {
+                const formData = new FormData();
+                formData.append('status', data.status);
+
+                if (data.note) formData.append('note', data.note);
+                if (data.resolutionImages) formData.append('resolutionImages', data.resolutionImages);
+                if (data.resolutionNote) formData.append('resolutionNote', data.resolutionNote);
+                if (data.category) formData.append('category', data.category);
+                if (data.subcategory) formData.append('subcategory', data.subcategory);
+
+                // Append files
+                data.resolutionImageFiles.forEach((file) => {
+                    formData.append('resolutionImages', file); // Field name expected by backend multer
+                });
+
+                // Backend controller expects 'resolutionImageFiles'? 
+                // Wait, backend controller (admin.complaint.controller.ts) uses uploadConfig.array('resolutionImages', 5) (probably).
+                // Let's check backend route. 
+                // But generally backend maps 'resolutionImages' to files.
+                // In controller line 247: resolutionImageFiles: files. Multi-part parses them.
+                // The field name in FormData must match the uploadConfig middleware. 
+                // Assuming it is 'resolutionImages' or 'images'. 
+                // Controller line 247 passes 'files' which comes from req.files using the field name.
+                // Route admin.complaint.routes.ts likely has uploadConfig.array('resolutionImages').
+                // I will use 'resolutionImages' as the field name for files.
+
+                // Note: Providing both 'resolutionImages' (string) and 'resolutionImages' (files) might be tricky depending on how backend parses.
+                // Backend parses files separately from body.
+                // body.resolutionImages will contain the string.
+                // req.files will contain the files.
+                // This is fine.
+
+                const response = await this.apiClient.patch<UpdateComplaintStatusResponse>(
+                    `/api/admin/complaints/${id}/status`,
+                    formData,
+                    {
+                        headers: {
+                            'Content-Type': 'multipart/form-data',
+                        },
+                    }
+                );
+                return this.parseMediaUrls(response.data.data.complaint);
+            } else {
+                // Send JSON as before
+                const response = await this.apiClient.patch<UpdateComplaintStatusResponse>(
+                    `/api/admin/complaints/${id}/status`,
+                    data
+                );
+                return this.parseMediaUrls(response.data.data.complaint);
+            }
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    /**
+     * Mark complaint as Others
+     */
+    async markComplaintAsOthers(
+        id: number,
+        data: {
+            othersCategory: string;
+            othersSubcategory: string;
+            note?: string;
+            images?: File[];
+        }
+    ): Promise<Complaint> {
+        try {
+            const formData = new FormData();
+            formData.append('othersCategory', data.othersCategory);
+            formData.append('othersSubcategory', data.othersSubcategory);
+
+            if (data.note) {
+                formData.append('note', data.note);
+            }
+
+            if (data.images && data.images.length > 0) {
+                data.images.forEach((image) => {
+                    formData.append('images', image);
+                });
+            }
+
+            const response = await this.apiClient.patch<UpdateComplaintStatusResponse>(
+                `/api/admin/complaints/${id}/mark-others`,
+                formData,
+                {
+                    headers: {
+                        'Content-Type': 'multipart/form-data',
+                    },
+                }
+            );
+
+            // Parse media URLs
+            const complaint = this.parseMediaUrls(response.data.data.complaint);
+
+            return complaint;
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    /**
+     * Update complaint status with resolution documentation
+     * Supports multipart/form-data for image uploads
+     */
+    async updateComplaintStatusWithResolution(
+        id: number,
+        status: string,
+        resolutionNote?: string,
+        resolutionImages?: File[]
+    ): Promise<Complaint> {
+        try {
+            const formData = new FormData();
+            formData.append('status', status);
+
+            if (resolutionNote) {
+                formData.append('resolutionNote', resolutionNote);
+            }
+
+            if (resolutionImages && resolutionImages.length > 0) {
+                resolutionImages.forEach((image) => {
+                    formData.append('resolutionImages', image);
+                });
+            }
+
             const response = await this.apiClient.patch<UpdateComplaintStatusResponse>(
                 `/api/admin/complaints/${id}/status`,
-                data
+                formData,
+                {
+                    headers: {
+                        'Content-Type': 'multipart/form-data',
+                    },
+                }
             );
 
             // Parse media URLs
@@ -430,6 +561,91 @@ class ComplaintService {
      */
     getOptimizedUrl(url: string): string {
         return this.getOptimizedCloudinaryUrl(url);
+    }
+
+    /**
+     * Upload an image file
+     * @param file - The file to upload
+     * @returns The uploaded file URL
+     */
+    async uploadImage(file: File): Promise<string> {
+        try {
+            const formData = new FormData();
+            formData.append('images', file);
+
+            const response = await this.apiClient.post<{
+                success: boolean;
+                data: {
+                    fileUrls: string[];
+                };
+            }>('/api/uploads', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+            });
+
+            if (response.data.success && response.data.data.fileUrls.length > 0) {
+                return response.data.data.fileUrls[0];
+            }
+
+            throw new Error('Failed to upload image');
+        } catch (error) {
+            console.error('Error uploading image:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Get Others complaints analytics
+     * @param filters - Optional filters (city corporation, zone, date range)
+     * @returns Others analytics data
+     */
+    async getOthersAnalytics(filters: {
+        cityCorporationCode?: string;
+        zoneId?: number;
+        startDate?: string;
+        endDate?: string;
+    } = {}): Promise<{
+        totalOthers: number;
+        byCategory: {
+            CORPORATION_INTERNAL: number;
+            CORPORATION_EXTERNAL: number;
+        };
+        bySubcategory: Record<string, number>;
+        topSubcategories: Array<{ subcategory: string; count: number }>;
+        averageResolutionTime: {
+            overall: number;
+            bySubcategory: Record<string, number>;
+        };
+        trend: Array<{ date: string; count: number }>;
+    }> {
+        try {
+            const params: any = {};
+
+            // Add filters to params if provided
+            if (filters.cityCorporationCode) {
+                params.cityCorporationCode = filters.cityCorporationCode;
+            }
+            if (filters.zoneId !== undefined) {
+                params.zoneId = filters.zoneId;
+            }
+            if (filters.startDate) {
+                params.startDate = filters.startDate;
+            }
+            if (filters.endDate) {
+                params.endDate = filters.endDate;
+            }
+
+            const response = await this.apiClient.get<{
+                success: boolean;
+                data: any;
+            }>('/api/admin/complaints/analytics/others', { params });
+
+            return response.data.data;
+        } catch (error) {
+            console.error('Error fetching Others analytics:', error);
+            throw error;
+        }
     }
 }
 

@@ -48,6 +48,7 @@ import { complaintService } from '../../services/complaintService';
 import { handleApiError } from '../../utils/errorHandler';
 import { scaleIn, slideInUp, animationConfig, statusBadgeTransition, fadeIn } from '../../styles/animations';
 import { usePermissions } from '../../hooks/usePermissions';
+import MarkOthersModal from './MarkOthersModal';
 import CategoryInfo from './CategoryInfo';
 import type { ComplaintDetails, ComplaintStatus } from '../../types/complaint-service.types';
 
@@ -90,6 +91,7 @@ const ComplaintDetailsModal: React.FC<ComplaintDetailsModalProps> = ({
 
     // Status update state
     const [updatingStatus, setUpdatingStatus] = useState(false);
+    const [markOthersOpen, setMarkOthersOpen] = useState(false);
 
     /**
      * Fetch complaint details when modal opens
@@ -110,6 +112,15 @@ const ComplaintDetailsModal: React.FC<ComplaintDetailsModalProps> = ({
             setLoading(true);
             setError(null);
             const data = await complaintService.getComplaintById(complaintId);
+
+            // Debug logging for resolution fields
+            console.log('📋 Complaint data received:', {
+                id: data.id,
+                resolutionImages: data.resolutionImages,
+                resolutionNote: data.resolutionNote,
+                status: data.status
+            });
+
             setComplaint(data);
         } catch (err: any) {
             const enhancedError = handleApiError(err);
@@ -373,6 +384,12 @@ const ComplaintDetailsModal: React.FC<ComplaintDetailsModalProps> = ({
     const handleStatusChange = async (newStatus: ComplaintStatus) => {
         if (!complaint || !complaintId) return;
 
+        // Open Mark Others modal for REJECTED status
+        if (newStatus === 'REJECTED') {
+            setMarkOthersOpen(true);
+            return;
+        }
+
         try {
             setUpdatingStatus(true);
 
@@ -386,6 +403,44 @@ const ComplaintDetailsModal: React.FC<ComplaintDetailsModalProps> = ({
                 icon: '✅',
                 duration: 3000,
             });
+        } catch (err: any) {
+            const enhancedError = handleApiError(err);
+            toast.error(enhancedError.userMessage, {
+                duration: 5000,
+                icon: '❌',
+            });
+        } finally {
+            setUpdatingStatus(false);
+        }
+    };
+
+    const handleMarkOthersConfirm = async (
+        category: string,
+        subCategory: string,
+        note: string,
+        images: File[]
+    ) => {
+        if (!complaint || !complaintId) return;
+
+        try {
+            setUpdatingStatus(true);
+
+            await complaintService.markComplaintAsOthers(complaintId, {
+                othersCategory: category,
+                othersSubcategory: subCategory,
+                note,
+                images,
+            });
+
+            onStatusUpdate(complaintId, 'REJECTED');
+
+            toast.success('Complaint marked as Others successfully', {
+                icon: '✅',
+                duration: 3000,
+            });
+
+            setMarkOthersOpen(false);
+            fetchComplaintDetails();
         } catch (err: any) {
             const enhancedError = handleApiError(err);
             toast.error(enhancedError.userMessage, {
@@ -421,6 +476,12 @@ const ComplaintDetailsModal: React.FC<ComplaintDetailsModalProps> = ({
                 { status: 'PENDING', label: 'Mark Pending', color: '#856404' },
                 { status: 'IN_PROGRESS', label: 'Mark In Progress', color: '#0c5460' },
                 { status: 'RESOLVED', label: 'Mark Solved', color: '#155724' },
+            ],
+            OTHERS: [
+                { status: 'PENDING', label: 'Mark Pending', color: '#856404' },
+                { status: 'IN_PROGRESS', label: 'Mark In Progress', color: '#0c5460' },
+                { status: 'RESOLVED', label: 'Mark Solved', color: '#155724' },
+                { status: 'REJECTED', label: 'Mark Rejected', color: '#721c24' },
             ],
         };
 
@@ -463,7 +524,7 @@ const ComplaintDetailsModal: React.FC<ComplaintDetailsModalProps> = ({
                         borderBottom: '1px solid #e0e0e0',
                     }}
                 >
-                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                    <Typography component="span" variant="h6" sx={{ fontWeight: 600 }}>
                         Complaint Details
                     </Typography>
                     <IconButton
@@ -641,7 +702,12 @@ const ComplaintDetailsModal: React.FC<ComplaintDetailsModalProps> = ({
                                             Ward
                                         </Typography>
                                         <Typography variant={isMobile ? 'body2' : 'body1'}>
-                                            {complaint.locationDetails?.ward || complaint.user.ward || 'N/A'}
+                                            {complaint.locationDetails?.ward ||
+                                                (complaint.user.ward
+                                                    ? (typeof complaint.user.ward === 'object'
+                                                        ? `Ward ${complaint.user.ward.wardNumber}`
+                                                        : `Ward ${complaint.user.ward}`)
+                                                    : 'N/A')}
                                         </Typography>
                                     </Box>
                                     <Box sx={{ gridColumn: { xs: '1', sm: '1 / -1' } }}>
@@ -732,7 +798,11 @@ const ComplaintDetailsModal: React.FC<ComplaintDetailsModalProps> = ({
                                             Ward Number
                                         </Typography>
                                         <Typography variant={isMobile ? 'body2' : 'body1'}>
-                                            {complaint.user.ward ? `Ward ${complaint.user.ward}` : 'N/A'}
+                                            {complaint.user.ward
+                                                ? (typeof complaint.user.ward === 'object'
+                                                    ? `Ward ${complaint.user.ward.wardNumber}`
+                                                    : `Ward ${complaint.user.ward}`)
+                                                : 'N/A'}
                                         </Typography>
                                     </Box>
                                     <Box>
@@ -1030,6 +1100,119 @@ const ComplaintDetailsModal: React.FC<ComplaintDetailsModalProps> = ({
                                     </Box>
                                 </>
                             )}
+
+                            {/* Resolution Information (Admin Report) */}
+                            {(complaint.resolutionNote || complaint.resolutionImages) && (
+                                <>
+                                    <Divider sx={{ my: { xs: 2, sm: 3 } }} />
+                                    <Box sx={{ mb: { xs: 2, sm: 3 } }}>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', mb: { xs: 1, sm: 1.5 } }}>
+                                            <EditIcon sx={{ mr: 1, color: '#4CAF50', fontSize: { xs: 18, sm: 20 } }} />
+                                            <Typography
+                                                variant={isMobile ? 'body1' : 'subtitle1'}
+                                                sx={{ fontWeight: 600, color: '#4CAF50' }}
+                                            >
+                                                Admin Resolution Report
+                                            </Typography>
+                                        </Box>
+
+                                        {/* Resolution Note */}
+                                        {complaint.resolutionNote && (
+                                            <Box sx={{ mb: { xs: 2, sm: 3 } }}>
+                                                <Typography
+                                                    variant={isMobile ? 'caption' : 'body2'}
+                                                    color="text.secondary"
+                                                    sx={{ mb: 0.5 }}
+                                                >
+                                                    Resolution Note
+                                                </Typography>
+                                                <Box
+                                                    sx={{
+                                                        p: { xs: 1.5, sm: 2 },
+                                                        backgroundColor: '#f0f7f0',
+                                                        border: '1px solid #c3e6cb',
+                                                        borderRadius: 1,
+                                                    }}
+                                                >
+                                                    <Typography
+                                                        variant={isMobile ? 'body2' : 'body1'}
+                                                        sx={{ whiteSpace: 'pre-wrap' }}
+                                                    >
+                                                        {complaint.resolutionNote}
+                                                    </Typography>
+                                                </Box>
+                                            </Box>
+                                        )}
+
+                                        {/* Resolution Images */}
+                                        {complaint.resolutionImages && (() => {
+                                            const resolutionImageUrls = complaint.resolutionImages.split(',').filter(url => url.trim());
+                                            return resolutionImageUrls.length > 0 && (
+                                                <Box>
+                                                    <Typography
+                                                        variant={isMobile ? 'caption' : 'body2'}
+                                                        color="text.secondary"
+                                                        sx={{ mb: 1 }}
+                                                    >
+                                                        Resolution Images ({resolutionImageUrls.length})
+                                                    </Typography>
+                                                    <ImageList
+                                                        cols={isMobile ? 2 : isTablet ? 3 : 4}
+                                                        gap={isMobile ? 8 : 12}
+                                                    >
+                                                        {resolutionImageUrls.map((imageUrl, index) => (
+                                                            <ImageListItem
+                                                                key={index}
+                                                                sx={{
+                                                                    cursor: 'pointer',
+                                                                    borderRadius: 1,
+                                                                    overflow: 'hidden',
+                                                                    border: '2px solid #4CAF50',
+                                                                    '&:hover': {
+                                                                        opacity: 0.8,
+                                                                        boxShadow: 2,
+                                                                    },
+                                                                }}
+                                                                onClick={() => {
+                                                                    // Open resolution image in lightbox
+                                                                    // You can enhance this to show resolution images separately
+                                                                    window.open(imageUrl.trim(), '_blank');
+                                                                }}
+                                                            >
+                                                                <img
+                                                                    src={imageUrl.trim()}
+                                                                    alt={`Resolution image ${index + 1}`}
+                                                                    loading="lazy"
+                                                                    style={{
+                                                                        width: '100%',
+                                                                        height: 150,
+                                                                        objectFit: 'cover',
+                                                                    }}
+                                                                    onError={(e) => {
+                                                                        const target = e.target as HTMLImageElement;
+                                                                        target.style.display = 'none';
+                                                                        const parent = target.parentElement;
+                                                                        if (parent) {
+                                                                            parent.innerHTML = `
+                                                                                <div style="width: 100%; height: 150px; display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: #f5f5f5;">
+                                                                                    <svg style="width: 40px; height: 40px; color: #757575; margin-bottom: 8px;" fill="currentColor" viewBox="0 0 24 24">
+                                                                                        <path d="M21 5v6.59l-3-3.01-4 4.01-4-4-4 4-3-3.01V5c0-1.1.9-2 2-2h14c1.1 0 2 .9 2 2zm-3 6.42l3 3.01V19c0 1.1-.9 2-2 2H5c-1.1 0-2-.9-2-2v-6.58l3 2.99 4-4 4 4 4-4z"/>
+                                                                                    </svg>
+                                                                                    <span style="font-size: 12px; color: #757575;">Failed to load</span>
+                                                                                </div>
+                                                                            `;
+                                                                        }
+                                                                    }}
+                                                                />
+                                                            </ImageListItem>
+                                                        ))}
+                                                    </ImageList>
+                                                </Box>
+                                            );
+                                        })()}
+                                    </Box>
+                                </>
+                            )}
                         </Box>
                     )}
                 </DialogContent>
@@ -1123,6 +1306,14 @@ const ComplaintDetailsModal: React.FC<ComplaintDetailsModalProps> = ({
                     </Box>
                 </DialogActions>
             </Dialog>
+
+            {/* Mark Others Modal */}
+            <MarkOthersModal
+                open={markOthersOpen}
+                onClose={() => setMarkOthersOpen(false)}
+                onConfirm={handleMarkOthersConfirm}
+                loading={updatingStatus}
+            />
 
             {/* Image Lightbox */}
             {

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../utils/cloudinary_helper.dart';
+import 'review_model.dart';
 
 class Complaint {
   final String id;
@@ -24,6 +25,14 @@ class Complaint {
   final Map<String, dynamic>? zone;
   final Map<String, dynamic>? ward;
   final Map<String, dynamic>? assignedAdmin;
+  
+  // NEW FIELDS for Others Status and Resolution Documentation
+  final String? othersCategory;  // "CORPORATION_INTERNAL" or "CORPORATION_EXTERNAL"
+  final String? othersSubcategory;  // Specific department/agency
+  final String? resolutionImages;  // Comma-separated image URLs
+  final String? resolutionNote;  // Admin's resolution notes
+  final String? resolvedByAdminName;  // Name of admin who resolved
+  final ReviewModel? userReview;  // User's review for resolved complaint
 
   Complaint({
     required this.id,
@@ -45,6 +54,13 @@ class Complaint {
     this.zone,
     this.ward,
     this.assignedAdmin,
+    // NEW: Others and Resolution parameters
+    this.othersCategory,
+    this.othersSubcategory,
+    this.resolutionImages,
+    this.resolutionNote,
+    this.resolvedByAdminName,
+    this.userReview,
   });
 
   factory Complaint.fromJson(Map<String, dynamic> json) {
@@ -90,6 +106,15 @@ class Complaint {
       zone: zone,
       ward: ward,
       assignedAdmin: complaintData['assignedAdmin'] as Map<String, dynamic>?,
+      // NEW: Parse Others and Resolution fields
+      othersCategory: complaintData['othersCategory'],
+      othersSubcategory: complaintData['othersSubcategory'],
+      resolutionImages: complaintData['resolutionImages'],
+      resolutionNote: complaintData['resolutionNote'],
+      resolvedByAdminName: _parseResolvedByAdminName(complaintData),
+      userReview: complaintData['userReview'] != null
+          ? ReviewModel.fromJson(complaintData['userReview'] as Map<String, dynamic>)
+          : null,
     );
   }
 
@@ -106,9 +131,31 @@ class Complaint {
       case 'REJECTED':
       case 'CANCELLED':
         return ComplaintStatus.closed;
+      case 'OTHERS':
+        return ComplaintStatus.others;
       default:
         return status.toLowerCase();
     }
+  }
+
+  /// Parse resolved by admin name from assignedAdmin or other fields
+  static String? _parseResolvedByAdminName(Map<String, dynamic> json) {
+    // Check for direct resolvedByAdminName field
+    if (json['resolvedByAdminName'] != null) {
+      return json['resolvedByAdminName'].toString();
+    }
+    
+    // Check assignedAdmin object
+    if (json['assignedAdmin'] != null) {
+      final admin = json['assignedAdmin'] as Map<String, dynamic>;
+      final firstName = admin['firstName'] ?? '';
+      final lastName = admin['lastName'] ?? '';
+      if (firstName.isNotEmpty || lastName.isNotEmpty) {
+        return '$firstName $lastName'.trim();
+      }
+    }
+    
+    return null;
   }
 
   /// Parse audio URLs from backend response
@@ -225,6 +272,58 @@ class Complaint {
     return parts.isNotEmpty ? parts.join(' • ') : '';
   }
 
+  // NEW HELPER METHODS for Others Status and Resolution
+
+  /// Check if complaint is marked as Others
+  bool get isOthers => status.toLowerCase() == ComplaintStatus.others;
+
+  /// Check if complaint has resolution documentation
+  bool get hasResolution => resolutionImages != null || resolutionNote != null;
+
+  /// Check if user can submit a review (complaint is resolved and no review yet)
+  bool get canSubmitReview => 
+      status.toLowerCase() == ComplaintStatus.resolved && userReview == null;
+
+  /// Check if user has already submitted a review
+  bool get hasUserReview => userReview != null;
+
+  /// Get resolution image URLs as a list
+  List<String> get resolutionImageUrls {
+    if (resolutionImages == null || resolutionImages!.isEmpty) return [];
+    return resolutionImages!
+        .split(',')
+        .map((url) => url.trim())
+        .where((url) => url.isNotEmpty)
+        .toList();
+  }
+
+  /// Get optimized resolution image URLs for thumbnails (200x200)
+  List<String> get resolutionThumbnailUrls {
+    return resolutionImageUrls
+        .map((url) => CloudinaryHelper.getThumbnailUrl(url))
+        .toList();
+  }
+
+  /// Get optimized resolution image URLs for medium size (800x600)
+  List<String> get resolutionMediumUrls {
+    return resolutionImageUrls
+        .map((url) => CloudinaryHelper.getMediumUrl(url))
+        .toList();
+  }
+
+  /// Get Others category display name
+  String? get othersCategoryDisplay {
+    if (othersCategory == null) return null;
+    switch (othersCategory!.toUpperCase()) {
+      case 'CORPORATION_INTERNAL':
+        return 'Corporation Internal';
+      case 'CORPORATION_EXTERNAL':
+        return 'Corporation External';
+      default:
+        return othersCategory;
+    }
+  }
+
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -245,6 +344,12 @@ class Complaint {
       'zone': zone,
       'ward': ward,
       'assignedAdmin': assignedAdmin,
+      // NEW: Include Others and Resolution fields
+      'othersCategory': othersCategory,
+      'othersSubcategory': othersSubcategory,
+      'resolutionImages': resolutionImages,
+      'resolutionNote': resolutionNote,
+      'resolvedByAdminName': resolvedByAdminName,
     };
   }
 
@@ -268,6 +373,12 @@ class Complaint {
     Map<String, dynamic>? zone,
     Map<String, dynamic>? ward,
     Map<String, dynamic>? assignedAdmin,
+    // NEW: Others and Resolution parameters
+    String? othersCategory,
+    String? othersSubcategory,
+    String? resolutionImages,
+    String? resolutionNote,
+    String? resolvedByAdminName,
   }) {
     return Complaint(
       id: id ?? this.id,
@@ -289,6 +400,12 @@ class Complaint {
       zone: zone ?? this.zone,
       ward: ward ?? this.ward,
       assignedAdmin: assignedAdmin ?? this.assignedAdmin,
+      // NEW: Copy Others and Resolution fields
+      othersCategory: othersCategory ?? this.othersCategory,
+      othersSubcategory: othersSubcategory ?? this.othersSubcategory,
+      resolutionImages: resolutionImages ?? this.resolutionImages,
+      resolutionNote: resolutionNote ?? this.resolutionNote,
+      resolvedByAdminName: resolvedByAdminName ?? this.resolvedByAdminName,
     );
   }
 
@@ -389,14 +506,15 @@ class UrgencyLevel {
 }
 
 /// Utility class for complaint status
-/// Matches backend enum: PENDING, IN_PROGRESS, RESOLVED, REJECTED
+/// Matches backend enum: PENDING, IN_PROGRESS, RESOLVED, REJECTED, OTHERS
 class ComplaintStatus {
   static const String pending = 'pending';
   static const String inProgress = 'in_progress';
   static const String resolved = 'resolved';
   static const String closed = 'closed';
+  static const String others = 'others';  // NEW: Others status
 
-  static List<String> get all => [pending, inProgress, resolved, closed];
+  static List<String> get all => [pending, inProgress, resolved, closed, others];
 
   static String getDisplayName(String status) {
     switch (status.toLowerCase()) {
@@ -411,6 +529,8 @@ class ComplaintStatus {
       case 'rejected':
       case 'cancelled':
         return 'Closed';
+      case others:
+        return 'Others';
       default:
         // Capitalize first letter of each word
         return status.split('_').map((word) => 
@@ -432,6 +552,8 @@ class ComplaintStatus {
       case 'rejected':
       case 'cancelled':
         return const Color(0xFF9E9E9E); // Grey
+      case others:
+        return const Color(0xFF9C27B0); // Purple
       default:
         return Colors.grey;
     }
@@ -451,6 +573,8 @@ class ComplaintStatus {
       case 'rejected':
       case 'cancelled':
         return 'REJECTED';
+      case others:
+        return 'OTHERS';
       default:
         return status.toUpperCase();
     }

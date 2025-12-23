@@ -106,7 +106,7 @@ class AuthService {
                 zoneId: input.zoneId,
                 wardId: input.wardId,
                 wardImageCount: 0, // Initialize to 0 for new users
-                role: input.role || 'ADMIN',
+                role: input.role || 'CUSTOMER',
                 status: emailVerificationEnabled ? 'PENDING' : 'ACTIVE',
                 emailVerified: !emailVerificationEnabled, // Mark as verified if verification is disabled
                 phoneVerified: false,
@@ -186,6 +186,17 @@ class AuthService {
         if (user.status === 'SUSPENDED') {
             throw new Error('Account is suspended');
         }
+        // Role-based Portal Validation
+        if (input.portal === 'ADMIN') {
+            if (user.role === 'CUSTOMER' || user.role === 'SERVICE_PROVIDER') {
+                throw new Error('Access denied. Citizens cannot access the Admin Panel.');
+            }
+        }
+        else if (input.portal === 'APP') {
+            if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN' || user.role === 'MASTER_ADMIN') {
+                throw new Error('Access denied. Admins cannot access the User App. Please use the Admin Panel.');
+            }
+        }
         // Check if email verification is enabled and if email is verified for pending accounts
         const emailVerificationEnabled = env_1.default.EMAIL_VERIFICATION_ENABLED;
         console.log('Login - Email verification enabled:', emailVerificationEnabled);
@@ -200,18 +211,18 @@ class AuthService {
         }
         // Track successful login attempt (clears failed attempts)
         await (0, rate_limit_middleware_1.trackLoginAttempt)(identifier, true, ip);
-        // Admin রোল ন্যারো করা
-        const toAdminRole = (r) => {
-            if (r === 'ADMIN' || r === 'SUPER_ADMIN' || r === 'MASTER_ADMIN')
+        // রোল যাচাই করা (ADMIN বা CUSTOMER সবার জন্যই লগইন এলাউড)
+        const toUserRole = (r) => {
+            if (['CUSTOMER', 'SERVICE_PROVIDER', 'ADMIN', 'SUPER_ADMIN', 'MASTER_ADMIN'].includes(r))
                 return r;
-            throw new Error('Access denied. Admin privileges required.');
+            throw new Error('Access denied. Invalid role.');
         };
         // Generate tokens
         try {
             const accessToken = (0, jwt_1.signAccessToken)({
                 id: parseInt(user.id.toString()),
                 sub: parseInt(user.id.toString()),
-                role: toAdminRole(user.role),
+                role: toUserRole(user.role),
                 email: user.email ?? undefined,
                 phone: user.phone ?? undefined,
                 zoneId: user.zoneId,
@@ -220,7 +231,7 @@ class AuthService {
             const refreshToken = (0, jwt_1.signRefreshToken)({
                 id: parseInt(user.id.toString()),
                 sub: parseInt(user.id.toString()),
-                role: toAdminRole(user.role),
+                role: toUserRole(user.role),
                 email: user.email ?? undefined,
                 phone: user.phone ?? undefined,
                 zoneId: user.zoneId,
@@ -537,7 +548,27 @@ class AuthService {
                 wardImageCount: true,
                 createdAt: true,
                 updatedAt: true,
-                lastLoginAt: true
+                lastLoginAt: true,
+                cityCorporation: {
+                    select: {
+                        code: true,
+                        name: true,
+                    }
+                },
+                zone: {
+                    select: {
+                        id: true,
+                        name: true,
+                        zoneNumber: true,
+                    }
+                },
+                ward: {
+                    select: {
+                        id: true,
+                        wardNumber: true,
+                        number: true,
+                    }
+                }
             }
         });
         if (!user) {
@@ -613,7 +644,27 @@ class AuthService {
                 wardImageCount: true,
                 createdAt: true,
                 updatedAt: true,
-                lastLoginAt: true
+                lastLoginAt: true,
+                cityCorporation: {
+                    select: {
+                        code: true,
+                        name: true,
+                    }
+                },
+                zone: {
+                    select: {
+                        id: true,
+                        name: true,
+                        zoneNumber: true,
+                    }
+                },
+                ward: {
+                    select: {
+                        id: true,
+                        wardNumber: true,
+                        number: true,
+                    }
+                }
             }
         });
         return user;

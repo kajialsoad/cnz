@@ -1,5 +1,5 @@
 // Complaint Service Types
-export type ComplaintStatus = 'PENDING' | 'IN_PROGRESS' | 'RESOLVED' | 'REJECTED';
+export type ComplaintStatus = 'PENDING' | 'IN_PROGRESS' | 'RESOLVED' | 'REJECTED' | 'OTHERS';
 
 export interface Complaint {
     id: number;
@@ -23,6 +23,14 @@ export interface Complaint {
     audioUrl?: string; // JSON string of audio URLs
     imageUrls: string[];
     audioUrls: string[];
+    resolutionNote?: string | null; // Admin's resolution note
+    resolutionImages?: string | null; // Resolution proof images (comma-separated URLs)
+    review?: {
+        rating: number;
+        comment?: string;
+    } | null;
+    othersCategory?: string | null; // "CORPORATION_INTERNAL" or "CORPORATION_EXTERNAL"
+    othersSubcategory?: string | null; // Specific department/agency
     userId: number;
     user: {
         id: number;
@@ -30,8 +38,8 @@ export interface Complaint {
         lastName: string;
         email: string;
         phone: string;
-        zone?: string | null;
-        ward?: string | null;
+        zone?: string | { id: number; name: string; zoneNumber?: number } | null;
+        ward?: string | { id: number; wardNumber: number; number?: number } | null;
         address?: string | null;
         cityCorporation?: {
             code: string;
@@ -81,6 +89,18 @@ export interface Complaint {
 
 export interface ComplaintDetails extends Complaint {
     statusHistory?: StatusHistoryEntry[];
+    reviews?: Array<{
+        id: number;
+        rating: number;
+        comment?: string | null;
+        createdAt: string;
+        user?: {
+            id: number;
+            firstName: string;
+            lastName: string;
+            avatar?: string | null;
+        };
+    }>;
 }
 
 export interface StatusHistoryEntry {
@@ -91,6 +111,12 @@ export interface StatusHistoryEntry {
     changedBy: number;
     note?: string;
     createdAt: string;
+    changer?: {
+        role: string;
+        firstName?: string;
+        lastName?: string;
+        name: string;
+    };
 }
 
 /**
@@ -127,6 +153,7 @@ export interface ComplaintStats {
     inProgress: number;
     resolved: number;
     rejected: number;
+    others: number;
 }
 
 export interface PaginationInfo {
@@ -150,7 +177,21 @@ export interface GetComplaintByIdResponse {
 
 export interface UpdateComplaintStatusRequest {
     status: ComplaintStatus;
+    note?: string; // For rejection or resolution notes
+    resolutionImages?: string; // Comma separated URLs
+    resolutionImageFiles?: File[]; // For new uploads
+    resolutionNote?: string;
+    category?: string;
+    subcategory?: string;
+    adminId?: number;
+}
+
+export interface MarkOthersRequest {
+    othersCategory: string;
+    othersSubcategory: string;
     note?: string;
+    images?: File[];
+    adminId?: number;
 }
 
 export interface UpdateComplaintStatusResponse {

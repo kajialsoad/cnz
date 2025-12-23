@@ -1,5 +1,5 @@
 import prisma from '../utils/prisma';
-import { ComplaintStatus, users_role } from '@prisma/client';
+import { Complaint_status, users_role } from '@prisma/client';
 import { multiZoneService } from './multi-zone.service';
 
 export interface GeographicalFilters {
@@ -67,16 +67,16 @@ export class DashboardAnalyticsService {
             ] = await Promise.all([
                 prisma.complaint.count({ where: complaintWhere }),
                 prisma.complaint.count({
-                    where: { ...complaintWhere, status: ComplaintStatus.RESOLVED }
+                    where: { ...complaintWhere, status: Complaint_status.RESOLVED }
                 }),
                 prisma.complaint.count({
-                    where: { ...complaintWhere, status: ComplaintStatus.PENDING }
+                    where: { ...complaintWhere, status: Complaint_status.PENDING }
                 }),
                 prisma.complaint.count({
-                    where: { ...complaintWhere, status: ComplaintStatus.IN_PROGRESS }
+                    where: { ...complaintWhere, status: Complaint_status.IN_PROGRESS }
                 }),
                 prisma.complaint.count({
-                    where: { ...complaintWhere, status: ComplaintStatus.REJECTED }
+                    where: { ...complaintWhere, status: Complaint_status.REJECTED }
                 })
             ]);
 
@@ -240,7 +240,7 @@ export class DashboardAnalyticsService {
             const resolvedComplaints = await prisma.complaint.findMany({
                 where: {
                     ...complaintWhere,
-                    status: ComplaintStatus.RESOLVED,
+                    status: Complaint_status.RESOLVED,
                     updatedAt: { not: null }
                 },
                 select: {

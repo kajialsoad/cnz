@@ -1,4 +1,4 @@
-import { users_role, UserStatus, ComplaintStatus } from '@prisma/client';
+import { users_role, UserStatus, Complaint_status } from '@prisma/client';
 
 // Query interfaces
 export interface GetUsersQuery {
@@ -58,7 +58,7 @@ export interface GetUsersResponse {
 export interface ComplaintSummary {
     id: number;
     title: string;
-    status: ComplaintStatus;
+    status: Complaint_status;
     priority: number;
     createdAt: Date;
     updatedAt: Date;

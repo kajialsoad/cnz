@@ -107,6 +107,7 @@ class ZoneService {
                 officerName: data.officerName,
                 officerDesignation: data.officerDesignation,
                 officerSerialNumber: data.officerSerialNumber,
+                officerPhone: data.officerPhone,
                 status: 'ACTIVE',
             },
             include: {
@@ -294,6 +295,7 @@ class ZoneService {
                 officerName: officerData.officerName,
                 officerDesignation: officerData.officerDesignation,
                 officerSerialNumber: officerData.officerSerialNumber,
+                officerPhone: officerData.officerPhone,
             },
             include: {
                 cityCorporation: {
@@ -320,6 +322,7 @@ class ZoneService {
                 officerName: true,
                 officerDesignation: true,
                 officerSerialNumber: true,
+                officerPhone: true,
                 cityCorporation: {
                     select: {
                         code: true,
@@ -340,6 +343,7 @@ class ZoneService {
                 name: zone.officerName,
                 designation: zone.officerDesignation,
                 serialNumber: zone.officerSerialNumber,
+                phone: zone.officerPhone,
             },
         };
     }
@@ -376,6 +380,15 @@ class ZoneService {
             }
             else if (officerData.officerSerialNumber.length > 100) {
                 errors.push('Officer serial number cannot exceed 100 characters');
+            }
+        }
+        // Officer phone validation
+        if (officerData.officerPhone !== undefined) {
+            if (typeof officerData.officerPhone !== 'string') {
+                errors.push('Officer phone must be a string');
+            }
+            else if (officerData.officerPhone.length > 20) {
+                errors.push('Officer phone cannot exceed 20 characters');
             }
         }
         return {

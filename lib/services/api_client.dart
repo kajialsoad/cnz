@@ -221,6 +221,36 @@ class ApiClient {
     }
   }
 
+  Future<Map<String, dynamic>> patch(
+    String path,
+    Map<String, dynamic> body,
+  ) async {
+    try {
+      final token = await _getAccessToken();
+      final res = await _httpClient
+          .patch(
+            Uri.parse('$baseUrl$path'),
+            headers: {
+              'Content-Type': 'application/json',
+              if (token != null) 'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode(body),
+          )
+          .timeout(timeout);
+
+      return _handleResponse(res);
+    } on TimeoutException {
+      throw ApiException('Request timeout. Please check your connection.');
+    } on http.ClientException {
+      throw ApiException(
+        'Network error. Please check your internet connection.',
+      );
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException('An unexpected error occurred: ${e.toString()}');
+    }
+  }
+
   Future<Map<String, dynamic>> postMultipart(
     String path, {
     Map<String, dynamic>? data,

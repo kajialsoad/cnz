@@ -1,12 +1,15 @@
 import prisma from '../utils/prisma';
-import { ComplaintStatus } from '@prisma/client';
+import { Complaint_status } from '@prisma/client';
+import notificationService from './notification.service';
 
 export interface AdminComplaintQueryInput {
     page?: number;
     limit?: number;
-    status?: ComplaintStatus | 'ALL';
+    status?: Complaint_status | 'ALL';
     category?: string;
     subcategory?: string;
+    othersCategory?: string; // New: Filter by Others category
+    othersSubcategory?: string; // New: Filter by Others subcategory
     ward?: string;
     zoneId?: number; // New: Zone filter
     wardId?: number; // New: Ward filter
@@ -20,9 +23,25 @@ export interface AdminComplaintQueryInput {
 }
 
 export interface UpdateComplaintStatusInput {
-    status: ComplaintStatus;
+    status: Complaint_status;
     note?: string;
     adminId: number;
+    category?: string;
+    subcategory?: string;
+    resolutionImages?: string;
+    resolutionNote?: string;
+    resolutionImageFiles?: Express.Multer.File[]; // NEW: Files to upload
+}
+
+/**
+ * Input for marking complaint as Others
+ */
+export interface MarkOthersInput {
+    othersCategory: 'CORPORATION_INTERNAL' | 'CORPORATION_EXTERNAL';
+    othersSubcategory: string;
+    note?: string;
+    adminId: number;
+    adminReportImages?: Express.Multer.File[]; // NEW: Files to upload
 }
 
 export class AdminComplaintService {
@@ -38,6 +57,8 @@ export class AdminComplaintService {
                 status,
                 category,
                 subcategory,
+                othersCategory,
+                othersSubcategory,
                 ward,
                 zoneId, // specific zone filter requested
                 wardId,
@@ -124,6 +145,20 @@ export class AdminComplaintService {
                         }
                     });
                 }
+            }
+
+            // Others Category filter (for OTHERS status)
+            if (othersCategory) {
+                andConditions.push({
+                    othersCategory: othersCategory
+                });
+            }
+
+            // Others Subcategory filter
+            if (othersSubcategory) {
+                andConditions.push({
+                    othersSubcategory: othersSubcategory
+                });
             }
 
             // Ward filter (filter through user relationship using wardId)
@@ -249,6 +284,12 @@ export class AdminComplaintService {
                                     }
                                 }
                             }
+                        },
+                        reviews: {
+                            select: {
+                                rating: true,
+                                comment: true
+                            }
                         }
                     }
                 }),
@@ -342,6 +383,23 @@ export class AdminComplaintService {
                             phone: true,
                             email: true
                         }
+                    },
+                    // Include reviews for display in details view
+                    reviews: {
+                        select: {
+                            id: true,
+                            rating: true,
+                            comment: true,
+                            createdAt: true,
+                            user: {
+                                select: {
+                                    id: true,
+                                    firstName: true,
+                                    lastName: true,
+                                    avatar: true
+                                }
+                            }
+                        }
                     }
                 }
             });
@@ -363,9 +421,33 @@ export class AdminComplaintService {
                 })
             ]);
 
+            // Fetch details of users who changed status
+            const userIds = [...new Set(statusHistory.map(history => history.changedBy))];
+            const users = await prisma.user.findMany({
+                where: { id: { in: userIds } },
+                select: {
+                    id: true,
+                    role: true,
+                    firstName: true,
+                    lastName: true
+                }
+            });
+
+            const userMap = new Map(users.map(user => [user.id, user]));
+
+            const enrichedStatusHistory = statusHistory.map(history => ({
+                ...history,
+                changer: userMap.get(history.changedBy) ? {
+                    role: userMap.get(history.changedBy)?.role,
+                    firstName: userMap.get(history.changedBy)?.firstName,
+                    lastName: userMap.get(history.changedBy)?.lastName,
+                    name: `${userMap.get(history.changedBy)?.firstName} ${userMap.get(history.changedBy)?.lastName}`
+                } : undefined
+            }));
+
             return this.formatComplaintResponse({
                 ...complaint,
-                statusHistory,
+                statusHistory: enrichedStatusHistory,
                 chatMessages
             });
         } catch (error) {
@@ -376,6 +458,11 @@ export class AdminComplaintService {
 
     /**
      * Update complaint status and create status history entry
+     * Enhanced to support resolution documentation (images and notes)
+     * 
+     * @param id - Complaint ID
+     * @param input - Status update input with optional resolution documentation
+     * @returns Updated complaint
      */
     async updateComplaintStatus(id: number, input: UpdateComplaintStatusInput) {
         try {
@@ -388,6 +475,51 @@ export class AdminComplaintService {
                 throw new Error('Complaint not found');
             }
 
+            // Validate resolution documentation for RESOLVED status
+            if (input.status === Complaint_status.RESOLVED) {
+                if (!input.resolutionNote || input.resolutionNote.trim().length === 0) {
+                    throw new Error('Resolution note is required when marking complaint as RESOLVED');
+                }
+
+                if (input.resolutionNote.length < 20) {
+                    throw new Error('Resolution note must be at least 20 characters');
+                }
+
+                if (input.resolutionNote.length > 500) {
+                    throw new Error('Resolution note must not exceed 500 characters');
+                }
+            }
+
+            // Upload resolution images to Cloudinary if files are provided
+            let resolutionImageUrls: string | undefined = input.resolutionImages;
+
+            if (input.resolutionImageFiles && input.resolutionImageFiles.length > 0) {
+                console.log(`📤 Uploading ${input.resolutionImageFiles.length} resolution images to Cloudinary...`);
+                const newResolutionImageUrls = await this.uploadResolutionImages(input.resolutionImageFiles);
+                console.log(`✅ Resolution images uploaded successfully: ${newResolutionImageUrls}`);
+
+                // Append new images to existing ones (if any)
+                if (resolutionImageUrls) {
+                    resolutionImageUrls = `${resolutionImageUrls},${newResolutionImageUrls}`;
+                } else {
+                    resolutionImageUrls = newResolutionImageUrls;
+                }
+            }
+
+            // Validation: At least one resolution image is required for RESOLVED status
+            // We check if we have new images OR existing images being preserved
+            if (input.status === Complaint_status.RESOLVED) {
+                // Determine final images: if resolutionImageUrls is undefined, we are keeping current images
+                // If it is defined (string), that IS the new state.
+                const finalImages = resolutionImageUrls !== undefined
+                    ? resolutionImageUrls
+                    : currentComplaint.resolutionImages;
+
+                if (!finalImages || finalImages.trim().length === 0) {
+                    throw new Error('At least one resolution image is required when marking complaint as RESOLVED');
+                }
+            }
+
             // Update complaint status and create status history in a transaction
             const result = await prisma.$transaction(async (tx) => {
                 // Update complaint status
@@ -395,7 +527,20 @@ export class AdminComplaintService {
                     where: { id },
                     data: {
                         status: input.status,
-                        updatedAt: new Date()
+                        updatedAt: new Date(),
+                        resolutionImages: resolutionImageUrls, // Add resolution images (comma-separated URLs)
+                        resolutionNote: input.resolutionNote,      // Add resolution note
+
+                        // Intelligent Category Handling
+                        // If status is OTHERS, we map the input category/subcategory to the others* fields
+                        // This preserves the original user-submitted category in the main fields
+                        othersCategory: input.status === Complaint_status.OTHERS ? input.category : undefined,
+                        othersSubcategory: input.status === Complaint_status.OTHERS ? input.subcategory : undefined,
+
+                        // Only update main category/subcategory if status is NOT OTHERS
+                        // This prevents overwriting the original category when marking as others
+                        category: input.status !== Complaint_status.OTHERS ? input.category : undefined,
+                        subcategory: input.status !== Complaint_status.OTHERS ? input.subcategory : undefined,
                     },
                     include: {
                         user: {
@@ -424,12 +569,296 @@ export class AdminComplaintService {
                 return updatedComplaint;
             });
 
+            // Send notification based on status using NotificationService
+            if (currentComplaint.userId) {
+                try {
+                    if (input.status === Complaint_status.IN_PROGRESS) {
+                        await notificationService.createStatusChangeNotification(
+                            id,
+                            currentComplaint.userId,
+                            'IN_PROGRESS',
+                            {
+                                adminName: `Admin #${input.adminId}`,
+                                resolutionImages: resolutionImageUrls ? resolutionImageUrls.split(',').map(url => url.trim()) : undefined,
+                                resolutionNote: input.resolutionNote
+                            }
+                        );
+                    } else if (input.status === Complaint_status.RESOLVED) {
+                        // Parse resolution images for notification metadata
+                        const resolutionImageUrlsArray = resolutionImageUrls
+                            ? resolutionImageUrls.split(',').map(url => url.trim())
+                            : [];
+
+                        await notificationService.createStatusChangeNotification(
+                            id,
+                            currentComplaint.userId,
+                            'RESOLVED',
+                            {
+                                resolutionImages: resolutionImageUrlsArray,
+                                resolutionNote: input.resolutionNote,
+                                adminName: `Admin #${input.adminId}`
+                            }
+                        );
+                    }
+                } catch (notificationError) {
+                    console.error('Failed to create notification:', notificationError);
+                    // Don't throw error to prevent failing the main operation
+                }
+            }
+
+            // Create activity log entry
+            try {
+                await prisma.activityLog.create({
+                    data: {
+                        userId: input.adminId,
+                        action: 'UPDATE_STATUS',
+                        entityType: 'Complaint',
+                        entityId: id,
+                        oldValue: JSON.stringify({
+                            status: currentComplaint.status,
+                            resolutionImages: currentComplaint.resolutionImages,
+                            resolutionNote: currentComplaint.resolutionNote
+                        }),
+                        newValue: JSON.stringify({
+                            status: input.status,
+                            resolutionImages: resolutionImageUrls,
+                            resolutionNote: input.resolutionNote
+                        })
+                    }
+                });
+            } catch (logError) {
+                console.error('Failed to create activity log:', logError);
+                // Don't throw error to prevent failing the main operation
+            }
+
             return this.formatComplaintResponse(result);
         } catch (error) {
             console.error('Error updating complaint status:', error);
             throw error;
         }
     }
+
+    /**
+     * Upload resolution images to Cloudinary
+     * Validates and uploads multiple images (max 5, 5MB each)
+     * 
+     * @param files - Array of image files from multer
+     * @returns Comma-separated string of Cloudinary URLs
+     */
+    async uploadResolutionImages(files: Express.Multer.File[]): Promise<string> {
+        try {
+            // Validate file count
+            if (!files || files.length === 0) {
+                throw new Error('No files provided');
+            }
+
+            if (files.length > 5) {
+                throw new Error('Maximum 5 images allowed');
+            }
+
+            // Validate each file
+            for (const file of files) {
+                // Check file size (5MB = 5 * 1024 * 1024 bytes)
+                const maxSize = 5 * 1024 * 1024;
+                if (file.size > maxSize) {
+                    throw new Error(`File ${file.originalname} exceeds 5MB limit`);
+                }
+
+                // Check file type
+                const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+                if (!allowedMimeTypes.includes(file.mimetype)) {
+                    throw new Error(`File ${file.originalname} has invalid type. Only JPEG, PNG, and WebP are allowed`);
+                }
+            }
+
+            // Import cloudUploadService dynamically to avoid circular dependency
+            const { cloudUploadService } = await import('./cloud-upload.service');
+
+            // Upload all files to Cloudinary
+            const uploadPromises = files.map(file =>
+                cloudUploadService.uploadImage(file, 'resolutions')
+            );
+
+            const uploadResults = await Promise.all(uploadPromises);
+
+            // Extract secure URLs and join with comma
+            const imageUrls = uploadResults.map(result => result.secure_url).join(',');
+
+            console.log(`✅ Successfully uploaded ${files.length} resolution images`);
+
+            return imageUrls;
+        } catch (error) {
+            console.error('Error uploading resolution images:', error);
+            throw new Error(`Failed to upload resolution images: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+    }
+
+    /**
+     * Mark complaint as Others with category and subcategory
+     * @param id - Complaint ID
+     * @param input - Others marking input
+     * @returns Updated complaint
+     */
+    async markComplaintAsOthers(id: number, input: MarkOthersInput) {
+        try {
+            // Validate Others category
+            const validCategories = ['CORPORATION_INTERNAL', 'CORPORATION_EXTERNAL'];
+            if (!validCategories.includes(input.othersCategory)) {
+                throw new Error('Invalid Others category');
+            }
+
+            // Validate subcategory based on category
+            const validSubcategories = {
+                CORPORATION_INTERNAL: ['Engineering', 'Electricity', 'Health', 'Property (Eviction)'],
+                CORPORATION_EXTERNAL: ['WASA', 'Titas', 'DPDC', 'DESCO', 'BTCL', 'Fire Service', 'Others']
+            };
+
+            if (!validSubcategories[input.othersCategory].includes(input.othersSubcategory)) {
+                throw new Error(`Invalid subcategory for ${input.othersCategory}`);
+            }
+
+            // Get current complaint
+            const currentComplaint = await prisma.complaint.findUnique({
+                where: { id },
+                include: {
+                    user: {
+                        select: {
+                            id: true,
+                            firstName: true,
+                            lastName: true
+                        }
+                    }
+                }
+            });
+
+            if (!currentComplaint) {
+                throw new Error('Complaint not found');
+            }
+
+            // Upload admin report images to Cloudinary if provided
+            let resolutionImageUrls: string | undefined;
+
+            if (input.adminReportImages && input.adminReportImages.length > 0) {
+                console.log(`📤 Uploading ${input.adminReportImages.length} admin report images to Cloudinary...`);
+                resolutionImageUrls = await this.uploadResolutionImages(input.adminReportImages);
+                console.log(`✅ Admin report images uploaded successfully: ${resolutionImageUrls}`);
+            }
+
+            // Update complaint and create history in transaction
+            const result = await prisma.$transaction(async (tx) => {
+                // Update complaint to Others status
+                const updatedComplaint = await tx.complaint.update({
+                    where: { id },
+                    data: {
+                        status: Complaint_status.OTHERS,
+                        othersCategory: input.othersCategory,
+                        othersSubcategory: input.othersSubcategory,
+                        updatedAt: new Date(),
+                        resolutionImages: resolutionImageUrls, // Save uploaded images
+                        resolutionNote: input.note // Save note as resolution note
+                    },
+                    include: {
+                        user: {
+                            select: {
+                                id: true,
+                                firstName: true,
+                                lastName: true,
+                                email: true,
+                                phone: true
+                            }
+                        }
+                    }
+                });
+
+                // Create status history entry
+                await tx.statusHistory.create({
+                    data: {
+                        complaintId: id,
+                        oldStatus: currentComplaint.status,
+                        newStatus: Complaint_status.OTHERS,
+                        changedBy: input.adminId,
+                        note: input.note || `Marked as Others: ${input.othersCategory} - ${input.othersSubcategory}`
+                    }
+                });
+
+                return updatedComplaint;
+            });
+
+            // Create notification for user using NotificationService
+            if (currentComplaint.userId) {
+                try {
+                    await notificationService.createStatusChangeNotification(
+                        id,
+                        currentComplaint.userId,
+                        'OTHERS',
+                        {
+                            othersCategory: input.othersCategory,
+                            othersSubcategory: input.othersSubcategory,
+                            adminName: `Admin #${input.adminId}`,
+                            // resolutionImages: resolutionImageUrls ? resolutionImageUrls.split(',') : undefined, // Optional: Include images in notification metadata if needed
+                            // resolutionNote: input.note
+                        }
+                    );
+                } catch (notificationError) {
+                    console.error('Failed to create notification:', notificationError);
+                    // Don't throw error to prevent failing the main operation
+                }
+            }
+
+            // Create activity log entry
+            try {
+                await prisma.activityLog.create({
+                    data: {
+                        userId: input.adminId,
+                        action: 'MARK_AS_OTHERS',
+                        entityType: 'Complaint',
+                        entityId: id,
+                        oldValue: JSON.stringify({
+                            status: currentComplaint.status,
+                            othersCategory: currentComplaint.othersCategory,
+                            othersSubcategory: currentComplaint.othersSubcategory
+                        }),
+                        newValue: JSON.stringify({
+                            status: Complaint_status.OTHERS,
+                            othersCategory: input.othersCategory,
+                            othersSubcategory: input.othersSubcategory,
+                            resolutionImages: resolutionImageUrls,
+                            resolutionNote: input.note
+                        })
+                    }
+                });
+            } catch (logError) {
+                console.error('Failed to create activity log:', logError);
+                // Don't throw error to prevent failing the main operation
+            }
+
+            return this.formatComplaintResponse(result);
+        } catch (error) {
+            console.error('Error marking complaint as Others:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Create a notification for a user
+     */
+    private async createNotification(userId: number, title: string, message: string) {
+        try {
+            await prisma.notification.create({
+                data: {
+                    userId,
+                    title,
+                    message,
+                    type: 'SYSTEM',
+                    isRead: false
+                }
+            });
+        } catch (error) {
+            console.error('Failed to create notification:', error);
+            // Don't throw error to prevent failing the main request
+        }
+    }
+
 
     /**
      * Get all complaints for a specific user
@@ -495,10 +924,10 @@ export class AdminComplaintService {
     private async getUserComplaintStatistics(userId: number) {
         const [total, pending, inProgress, resolved, rejected] = await Promise.all([
             prisma.complaint.count({ where: { userId } }),
-            prisma.complaint.count({ where: { userId, status: ComplaintStatus.PENDING } }),
-            prisma.complaint.count({ where: { userId, status: ComplaintStatus.IN_PROGRESS } }),
-            prisma.complaint.count({ where: { userId, status: ComplaintStatus.RESOLVED } }),
-            prisma.complaint.count({ where: { userId, status: ComplaintStatus.REJECTED } })
+            prisma.complaint.count({ where: { userId, status: Complaint_status.PENDING } }),
+            prisma.complaint.count({ where: { userId, status: Complaint_status.IN_PROGRESS } }),
+            prisma.complaint.count({ where: { userId, status: Complaint_status.RESOLVED } }),
+            prisma.complaint.count({ where: { userId, status: Complaint_status.REJECTED } })
         ]);
 
         return {
@@ -550,29 +979,35 @@ export class AdminComplaintService {
             ? { user: userFilter }
             : {};
 
-        const [pending, inProgress, resolved, rejected] = await Promise.all([
+        const [pending, inProgress, resolved, rejected, others] = await Promise.all([
             prisma.complaint.count({
                 where: {
                     ...whereClause,
-                    status: ComplaintStatus.PENDING
+                    status: Complaint_status.PENDING
                 }
             }),
             prisma.complaint.count({
                 where: {
                     ...whereClause,
-                    status: ComplaintStatus.IN_PROGRESS
+                    status: Complaint_status.IN_PROGRESS
                 }
             }),
             prisma.complaint.count({
                 where: {
                     ...whereClause,
-                    status: ComplaintStatus.RESOLVED
+                    status: Complaint_status.RESOLVED
                 }
             }),
             prisma.complaint.count({
                 where: {
                     ...whereClause,
-                    status: ComplaintStatus.REJECTED
+                    status: Complaint_status.REJECTED
+                }
+            }),
+            prisma.complaint.count({
+                where: {
+                    ...whereClause,
+                    status: Complaint_status.OTHERS
                 }
             })
         ]);
@@ -582,7 +1017,8 @@ export class AdminComplaintService {
             inProgress,
             resolved,
             rejected,
-            total: pending + inProgress + resolved + rejected
+            others,
+            total: pending + inProgress + resolved + rejected + others
         };
     }
 
@@ -623,11 +1059,22 @@ export class AdminComplaintService {
         const thana = locationParts[2]?.trim() || null;
         const address = locationParts[0]?.trim() || complaint.location;
 
+        // Debug logging for resolution fields
+        if (complaint.resolutionImages || complaint.resolutionNote) {
+            console.log(`📸 Complaint ${complaint.id} has resolution data:`, {
+                resolutionImages: complaint.resolutionImages,
+                resolutionNote: complaint.resolutionNote
+            });
+        }
+
         return {
             ...complaint,
             complaintId: `C${String(complaint.id).padStart(6, '0')}`, // Format: C001234
             imageUrls: this.parseFileUrls(complaint.imageUrl),
             audioUrls: this.parseFileUrls(complaint.audioUrl),
+            resolutionImages: complaint.resolutionImages || null, // Include resolution images
+            resolutionNote: complaint.resolutionNote || null, // Include resolution note
+            review: complaint.reviews && complaint.reviews.length > 0 ? complaint.reviews[0] : null, // Extract first review
             locationDetails: {
                 address,
                 district,
@@ -729,16 +1176,16 @@ export class AdminComplaintService {
                 stats.total++;
 
                 switch (complaint.status) {
-                    case ComplaintStatus.PENDING:
+                    case Complaint_status.PENDING:
                         stats.pending++;
                         break;
-                    case ComplaintStatus.IN_PROGRESS:
+                    case Complaint_status.IN_PROGRESS:
                         stats.inProgress++;
                         break;
-                    case ComplaintStatus.RESOLVED:
+                    case Complaint_status.RESOLVED:
                         stats.resolved++;
                         break;
-                    case ComplaintStatus.REJECTED:
+                    case Complaint_status.REJECTED:
                         stats.rejected++;
                         break;
                 }
@@ -846,16 +1293,16 @@ export class AdminComplaintService {
                 stats.total++;
 
                 switch (complaint.status) {
-                    case ComplaintStatus.PENDING:
+                    case Complaint_status.PENDING:
                         stats.pending++;
                         break;
-                    case ComplaintStatus.IN_PROGRESS:
+                    case Complaint_status.IN_PROGRESS:
                         stats.inProgress++;
                         break;
-                    case ComplaintStatus.RESOLVED:
+                    case Complaint_status.RESOLVED:
                         stats.resolved++;
                         break;
-                    case ComplaintStatus.REJECTED:
+                    case Complaint_status.REJECTED:
                         stats.rejected++;
                         break;
                 }
@@ -871,6 +1318,176 @@ export class AdminComplaintService {
         } catch (error) {
             console.error('Error getting complaint stats by ward:', error);
             throw error;
+        }
+    }
+
+    /**
+     * Get analytics for Others complaints
+     * Provides comprehensive statistics about complaints marked as Others
+     * 
+     * @param filters - Optional filters for analytics
+     * @returns Others analytics data
+     */
+    async getOthersAnalytics(filters: {
+        cityCorporationCode?: string;
+        zoneId?: number;
+        startDate?: Date;
+        endDate?: Date;
+    } = {}) {
+        try {
+            // Build where clause for Others complaints
+            const userFilter: any = {};
+            const complaintFilter: any = {
+                status: Complaint_status.OTHERS
+            };
+
+            // Apply city corporation filter
+            if (filters.cityCorporationCode) {
+                userFilter.cityCorporationCode = filters.cityCorporationCode;
+            }
+
+            // Apply zone filter
+            if (filters.zoneId) {
+                userFilter.zoneId = filters.zoneId;
+            }
+
+            // Apply date range filter
+            if (filters.startDate || filters.endDate) {
+                complaintFilter.createdAt = {};
+                if (filters.startDate) {
+                    complaintFilter.createdAt.gte = filters.startDate;
+                }
+                if (filters.endDate) {
+                    complaintFilter.createdAt.lte = filters.endDate;
+                }
+            }
+
+            // Build final where clause
+            const whereClause: any = {
+                ...complaintFilter
+            };
+
+            if (Object.keys(userFilter).length > 0) {
+                whereClause.user = userFilter;
+            }
+
+            // Fetch all Others complaints with necessary data
+            const othersComplaints = await prisma.complaint.findMany({
+                where: whereClause,
+                select: {
+                    id: true,
+                    othersCategory: true,
+                    othersSubcategory: true,
+                    createdAt: true,
+                    updatedAt: true,
+                    status: true
+                }
+            });
+
+            // Calculate total Others complaints
+            const totalOthers = othersComplaints.length;
+
+            // Group by category
+            const byCategory = {
+                CORPORATION_INTERNAL: 0,
+                CORPORATION_EXTERNAL: 0
+            };
+
+            // Group by subcategory
+            const bySubcategory: Record<string, number> = {};
+
+            // Track resolution times for resolved Others complaints
+            const resolutionTimes: number[] = [];
+            const resolutionTimesBySubcategory: Record<string, number[]> = {};
+
+            // Process each complaint
+            othersComplaints.forEach(complaint => {
+                // Count by category
+                if (complaint.othersCategory === 'CORPORATION_INTERNAL') {
+                    byCategory.CORPORATION_INTERNAL++;
+                } else if (complaint.othersCategory === 'CORPORATION_EXTERNAL') {
+                    byCategory.CORPORATION_EXTERNAL++;
+                }
+
+                // Count by subcategory
+                if (complaint.othersSubcategory) {
+                    bySubcategory[complaint.othersSubcategory] =
+                        (bySubcategory[complaint.othersSubcategory] || 0) + 1;
+
+                    // Calculate resolution time if resolved
+                    if (complaint.status === Complaint_status.RESOLVED) {
+                        const resolutionTimeHours =
+                            (complaint.updatedAt.getTime() - complaint.createdAt.getTime()) / (1000 * 60 * 60);
+
+                        resolutionTimes.push(resolutionTimeHours);
+
+                        if (!resolutionTimesBySubcategory[complaint.othersSubcategory]) {
+                            resolutionTimesBySubcategory[complaint.othersSubcategory] = [];
+                        }
+                        resolutionTimesBySubcategory[complaint.othersSubcategory].push(resolutionTimeHours);
+                    }
+                }
+            });
+
+            // Calculate top subcategories (sorted by count, top 5)
+            const topSubcategories = Object.entries(bySubcategory)
+                .map(([subcategory, count]) => ({ subcategory, count }))
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 5);
+
+            // Calculate average resolution time
+            const calculateAverage = (times: number[]) => {
+                if (times.length === 0) return 0;
+                const sum = times.reduce((acc, time) => acc + time, 0);
+                return Math.round(sum / times.length * 100) / 100; // Round to 2 decimal places
+            };
+
+            const averageResolutionTime = {
+                overall: calculateAverage(resolutionTimes),
+                bySubcategory: Object.entries(resolutionTimesBySubcategory).reduce(
+                    (acc, [subcategory, times]) => {
+                        acc[subcategory] = calculateAverage(times);
+                        return acc;
+                    },
+                    {} as Record<string, number>
+                )
+            };
+
+            // Generate trend data (last 30 days)
+            const trend: Array<{ date: string; count: number }> = [];
+            const now = new Date();
+            const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+            // Group complaints by date
+            const complaintsByDate: Record<string, number> = {};
+            othersComplaints.forEach(complaint => {
+                if (complaint.createdAt >= thirtyDaysAgo) {
+                    const dateKey = complaint.createdAt.toISOString().split('T')[0];
+                    complaintsByDate[dateKey] = (complaintsByDate[dateKey] || 0) + 1;
+                }
+            });
+
+            // Fill in all dates (including zeros)
+            for (let i = 29; i >= 0; i--) {
+                const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+                const dateKey = date.toISOString().split('T')[0];
+                trend.push({
+                    date: dateKey,
+                    count: complaintsByDate[dateKey] || 0
+                });
+            }
+
+            return {
+                totalOthers,
+                byCategory,
+                bySubcategory,
+                topSubcategories,
+                averageResolutionTime,
+                trend
+            };
+        } catch (error) {
+            console.error('Error getting Others analytics:', error);
+            throw new Error(`Failed to get Others analytics: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }
 }

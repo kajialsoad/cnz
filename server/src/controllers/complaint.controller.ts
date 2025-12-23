@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { complaintService, CreateComplaintInput, UpdateComplaintInput, ComplaintQueryInput, WardImageLimitError } from '../services/complaint.service';
 import { validateInput, createComplaintSchema, updateComplaintSchema, complaintQuerySchema } from '../utils/validation';
-import { ComplaintStatus } from '@prisma/client';
+import { Complaint_status } from '@prisma/client';
 
 // Extend Request interface to include user information from JWT
 interface AuthenticatedRequest extends Request {
@@ -282,9 +282,9 @@ export class ComplaintController {
         });
       }
 
-      const status = req.params.status?.toUpperCase() as ComplaintStatus;
+      const status = req.params.status?.toUpperCase() as Complaint_status;
 
-      if (!Object.values(ComplaintStatus).includes(status)) {
+      if (!Object.values(Complaint_status).includes(status)) {
         return res.status(400).json({
           success: false,
           message: 'Invalid complaint status'

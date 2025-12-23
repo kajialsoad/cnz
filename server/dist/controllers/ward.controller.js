@@ -44,20 +44,23 @@ class WardController {
      */
     async getWards(req, res) {
         try {
-            const { zoneId, status } = req.query;
-            // Validate required zoneId parameter
-            if (!zoneId || typeof zoneId !== 'string') {
+            const { zoneId, status, cityCorporationCode } = req.query;
+            // Validate zoneId or cityCorporationCode presence
+            if (!zoneId && !cityCorporationCode) {
                 return res.status(400).json({
                     success: false,
-                    message: 'zoneId query parameter is required',
+                    message: 'Either zoneId or cityCorporationCode query parameter is required',
                 });
             }
-            const zoneIdNum = parseInt(zoneId);
-            if (isNaN(zoneIdNum)) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Invalid zoneId format',
-                });
+            let zoneIdNum;
+            if (zoneId) {
+                zoneIdNum = parseInt(zoneId);
+                if (isNaN(zoneIdNum)) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Invalid zoneId format',
+                    });
+                }
             }
             // Validate zone access for Super Admins
             const user = req.user;
@@ -73,7 +76,11 @@ class WardController {
                 }
             }
             const validStatus = status;
-            const wards = await ward_service_1.default.getWardsByZone(zoneIdNum, validStatus || 'ALL');
+            const wards = await ward_service_1.default.getWards({
+                zoneId: zoneIdNum,
+                cityCorporationCode: cityCorporationCode,
+                status: validStatus || 'ALL'
+            });
             res.json({
                 success: true,
                 data: wards,
@@ -139,7 +146,7 @@ class WardController {
      */
     async createWard(req, res) {
         try {
-            const { wardNumber, zoneId, inspectorName, inspectorSerialNumber } = req.body;
+            const { wardNumber, zoneId, inspectorName, inspectorSerialNumber, inspectorPhone } = req.body;
             // Validation
             if (!wardNumber || !zoneId) {
                 return res.status(400).json({
@@ -164,6 +171,7 @@ class WardController {
                 zoneId,
                 inspectorName,
                 inspectorSerialNumber,
+                inspectorPhone,
             });
             res.status(201).json({
                 success: true,
@@ -288,12 +296,18 @@ class WardController {
                     message: 'Invalid ward ID',
                 });
             }
-            const { inspectorName, inspectorSerialNumber, status } = req.body;
+            const { wardNumber, zoneId, inspectorName, inspectorSerialNumber, inspectorPhone, status } = req.body;
             const updateData = {};
+            if (wardNumber !== undefined)
+                updateData.wardNumber = wardNumber;
+            if (zoneId !== undefined)
+                updateData.zoneId = zoneId;
             if (inspectorName !== undefined)
                 updateData.inspectorName = inspectorName;
             if (inspectorSerialNumber !== undefined)
                 updateData.inspectorSerialNumber = inspectorSerialNumber;
+            if (inspectorPhone !== undefined)
+                updateData.inspectorPhone = inspectorPhone;
             if (status !== undefined)
                 updateData.status = status;
             if (Object.keys(updateData).length === 0) {
@@ -303,10 +317,11 @@ class WardController {
                 });
             }
             // Validate inspector data if provided
-            if (updateData.inspectorName !== undefined || updateData.inspectorSerialNumber !== undefined) {
+            if (updateData.inspectorName !== undefined || updateData.inspectorSerialNumber !== undefined || updateData.inspectorPhone !== undefined) {
                 const validation = ward_service_1.default.validateInspectorData({
                     inspectorName: updateData.inspectorName,
                     inspectorSerialNumber: updateData.inspectorSerialNumber,
+                    inspectorPhone: updateData.inspectorPhone,
                 });
                 if (!validation.valid) {
                     return res.status(400).json({

@@ -1,4 +1,4 @@
-import { Permissions, PermissionFeatures } from '../components/common/PermissionsModal';
+import type { Permissions, PermissionFeatures } from '../components/common/PermissionsModal';
 
 /**
  * Validate permission structure on frontend
