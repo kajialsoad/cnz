@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ReviewService = void 0;
 const prisma_1 = __importDefault(require("../utils/prisma"));
 const client_1 = require("@prisma/client");
+const notification_service_1 = __importDefault(require("./notification.service"));
 /**
  * ReviewService
  * Handles all review-related operations including submission, retrieval, and analytics
@@ -85,6 +86,8 @@ class ReviewService {
                     }
                 }
             });
+            // Notify admins
+            await notification_service_1.default.notifyAdmins('New Review Submitted', `A new ${rating}-star review has been submitted for a resolved complaint.`, 'SUCCESS', complaintId);
             return review;
         }
         catch (error) {
@@ -99,6 +102,14 @@ class ReviewService {
      */
     async getReviewsByComplaint(complaintId) {
         try {
+            // Check if complaint exists
+            const complaint = await prisma_1.default.complaint.findUnique({
+                where: { id: complaintId },
+                select: { id: true }
+            });
+            if (!complaint) {
+                throw new Error('Complaint not found');
+            }
             const reviews = await prisma_1.default.review.findMany({
                 where: { complaintId },
                 orderBy: {
@@ -119,7 +130,7 @@ class ReviewService {
         }
         catch (error) {
             console.error('Error getting reviews by complaint:', error);
-            throw new Error('Failed to fetch reviews');
+            throw error;
         }
     }
     /**

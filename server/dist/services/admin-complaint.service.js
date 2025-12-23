@@ -47,7 +47,7 @@ class AdminComplaintService {
      */
     async getAdminComplaints(query = {}, assignedZoneIds) {
         try {
-            const { page = 1, limit = 20, status, category, subcategory, ward, zoneId, // specific zone filter requested
+            const { page = 1, limit = 20, status, category, subcategory, othersCategory, othersSubcategory, ward, zoneId, // specific zone filter requested
             wardId, cityCorporationCode, thanaId, // Deprecated but kept for backward compatibility
             search, startDate, endDate, sortBy = 'createdAt', sortOrder = 'desc' } = query;
             const skip = (page - 1) * limit;
@@ -123,6 +123,18 @@ class AdminComplaintService {
                         }
                     });
                 }
+            }
+            // Others Category filter (for OTHERS status)
+            if (othersCategory) {
+                andConditions.push({
+                    othersCategory: othersCategory
+                });
+            }
+            // Others Subcategory filter
+            if (othersSubcategory) {
+                andConditions.push({
+                    othersSubcategory: othersSubcategory
+                });
             }
             // Ward filter (filter through user relationship using wardId)
             if (wardId) {
@@ -240,6 +252,12 @@ class AdminComplaintService {
                                     }
                                 }
                             }
+                        },
+                        reviews: {
+                            select: {
+                                rating: true,
+                                comment: true
+                            }
                         }
                     }
                 }),
@@ -331,6 +349,23 @@ class AdminComplaintService {
                             phone: true,
                             email: true
                         }
+                    },
+                    // Include reviews for display in details view
+                    reviews: {
+                        select: {
+                            id: true,
+                            rating: true,
+                            comment: true,
+                            createdAt: true,
+                            user: {
+                                select: {
+                                    id: true,
+                                    firstName: true,
+                                    lastName: true,
+                                    avatar: true
+                                }
+                            }
+                        }
                     }
                 }
             });
@@ -349,9 +384,30 @@ class AdminComplaintService {
                     take: 10
                 })
             ]);
+            // Fetch details of users who changed status
+            const userIds = [...new Set(statusHistory.map(history => history.changedBy))];
+            const users = await prisma_1.default.user.findMany({
+                where: { id: { in: userIds } },
+                select: {
+                    id: true,
+                    role: true,
+                    firstName: true,
+                    lastName: true
+                }
+            });
+            const userMap = new Map(users.map(user => [user.id, user]));
+            const enrichedStatusHistory = statusHistory.map(history => ({
+                ...history,
+                changer: userMap.get(history.changedBy) ? {
+                    role: userMap.get(history.changedBy)?.role,
+                    firstName: userMap.get(history.changedBy)?.firstName,
+                    lastName: userMap.get(history.changedBy)?.lastName,
+                    name: `${userMap.get(history.changedBy)?.firstName} ${userMap.get(history.changedBy)?.lastName}`
+                } : undefined
+            }));
             return this.formatComplaintResponse({
                 ...complaint,
-                statusHistory,
+                statusHistory: enrichedStatusHistory,
                 chatMessages
             });
         }
@@ -389,6 +445,32 @@ class AdminComplaintService {
                     throw new Error('Resolution note must not exceed 500 characters');
                 }
             }
+            // Upload resolution images to Cloudinary if files are provided
+            let resolutionImageUrls = input.resolutionImages;
+            if (input.resolutionImageFiles && input.resolutionImageFiles.length > 0) {
+                console.log(`📤 Uploading ${input.resolutionImageFiles.length} resolution images to Cloudinary...`);
+                const newResolutionImageUrls = await this.uploadResolutionImages(input.resolutionImageFiles);
+                console.log(`✅ Resolution images uploaded successfully: ${newResolutionImageUrls}`);
+                // Append new images to existing ones (if any)
+                if (resolutionImageUrls) {
+                    resolutionImageUrls = `${resolutionImageUrls},${newResolutionImageUrls}`;
+                }
+                else {
+                    resolutionImageUrls = newResolutionImageUrls;
+                }
+            }
+            // Validation: At least one resolution image is required for RESOLVED status
+            // We check if we have new images OR existing images being preserved
+            if (input.status === client_1.Complaint_status.RESOLVED) {
+                // Determine final images: if resolutionImageUrls is undefined, we are keeping current images
+                // If it is defined (string), that IS the new state.
+                const finalImages = resolutionImageUrls !== undefined
+                    ? resolutionImageUrls
+                    : currentComplaint.resolutionImages;
+                if (!finalImages || finalImages.trim().length === 0) {
+                    throw new Error('At least one resolution image is required when marking complaint as RESOLVED');
+                }
+            }
             // Update complaint status and create status history in a transaction
             const result = await prisma_1.default.$transaction(async (tx) => {
                 // Update complaint status
@@ -397,10 +479,17 @@ class AdminComplaintService {
                     data: {
                         status: input.status,
                         updatedAt: new Date(),
-                        category: input.category, // Update category if provided
-                        subcategory: input.subcategory, // Update subcategory if provided
-                        resolutionImages: input.resolutionImages, // Add resolution images (comma-separated URLs)
-                        resolutionNote: input.resolutionNote // Add resolution note
+                        resolutionImages: resolutionImageUrls, // Add resolution images (comma-separated URLs)
+                        resolutionNote: input.resolutionNote, // Add resolution note
+                        // Intelligent Category Handling
+                        // If status is OTHERS, we map the input category/subcategory to the others* fields
+                        // This preserves the original user-submitted category in the main fields
+                        othersCategory: input.status === client_1.Complaint_status.OTHERS ? input.category : undefined,
+                        othersSubcategory: input.status === client_1.Complaint_status.OTHERS ? input.subcategory : undefined,
+                        // Only update main category/subcategory if status is NOT OTHERS
+                        // This prevents overwriting the original category when marking as others
+                        category: input.status !== client_1.Complaint_status.OTHERS ? input.category : undefined,
+                        subcategory: input.status !== client_1.Complaint_status.OTHERS ? input.subcategory : undefined,
                     },
                     include: {
                         user: {
@@ -431,16 +520,18 @@ class AdminComplaintService {
                 try {
                     if (input.status === client_1.Complaint_status.IN_PROGRESS) {
                         await notification_service_1.default.createStatusChangeNotification(id, currentComplaint.userId, 'IN_PROGRESS', {
-                            adminName: `Admin #${input.adminId}`
+                            adminName: `Admin #${input.adminId}`,
+                            resolutionImages: resolutionImageUrls ? resolutionImageUrls.split(',').map(url => url.trim()) : undefined,
+                            resolutionNote: input.resolutionNote
                         });
                     }
                     else if (input.status === client_1.Complaint_status.RESOLVED) {
                         // Parse resolution images for notification metadata
-                        const resolutionImageUrls = input.resolutionImages
-                            ? input.resolutionImages.split(',').map(url => url.trim())
+                        const resolutionImageUrlsArray = resolutionImageUrls
+                            ? resolutionImageUrls.split(',').map(url => url.trim())
                             : [];
                         await notification_service_1.default.createStatusChangeNotification(id, currentComplaint.userId, 'RESOLVED', {
-                            resolutionImages: resolutionImageUrls,
+                            resolutionImages: resolutionImageUrlsArray,
                             resolutionNote: input.resolutionNote,
                             adminName: `Admin #${input.adminId}`
                         });
@@ -466,7 +557,7 @@ class AdminComplaintService {
                         }),
                         newValue: JSON.stringify({
                             status: input.status,
-                            resolutionImages: input.resolutionImages,
+                            resolutionImages: resolutionImageUrls,
                             resolutionNote: input.resolutionNote
                         })
                     }
@@ -564,6 +655,13 @@ class AdminComplaintService {
             if (!currentComplaint) {
                 throw new Error('Complaint not found');
             }
+            // Upload admin report images to Cloudinary if provided
+            let resolutionImageUrls;
+            if (input.adminReportImages && input.adminReportImages.length > 0) {
+                console.log(`📤 Uploading ${input.adminReportImages.length} admin report images to Cloudinary...`);
+                resolutionImageUrls = await this.uploadResolutionImages(input.adminReportImages);
+                console.log(`✅ Admin report images uploaded successfully: ${resolutionImageUrls}`);
+            }
             // Update complaint and create history in transaction
             const result = await prisma_1.default.$transaction(async (tx) => {
                 // Update complaint to Others status
@@ -573,7 +671,9 @@ class AdminComplaintService {
                         status: client_1.Complaint_status.OTHERS,
                         othersCategory: input.othersCategory,
                         othersSubcategory: input.othersSubcategory,
-                        updatedAt: new Date()
+                        updatedAt: new Date(),
+                        resolutionImages: resolutionImageUrls, // Save uploaded images
+                        resolutionNote: input.note // Save note as resolution note
                     },
                     include: {
                         user: {
@@ -605,7 +705,9 @@ class AdminComplaintService {
                     await notification_service_1.default.createStatusChangeNotification(id, currentComplaint.userId, 'OTHERS', {
                         othersCategory: input.othersCategory,
                         othersSubcategory: input.othersSubcategory,
-                        adminName: `Admin #${input.adminId}`
+                        adminName: `Admin #${input.adminId}`,
+                        // resolutionImages: resolutionImageUrls ? resolutionImageUrls.split(',') : undefined, // Optional: Include images in notification metadata if needed
+                        // resolutionNote: input.note
                     });
                 }
                 catch (notificationError) {
@@ -629,7 +731,9 @@ class AdminComplaintService {
                         newValue: JSON.stringify({
                             status: client_1.Complaint_status.OTHERS,
                             othersCategory: input.othersCategory,
-                            othersSubcategory: input.othersSubcategory
+                            othersSubcategory: input.othersSubcategory,
+                            resolutionImages: resolutionImageUrls,
+                            resolutionNote: input.note
                         })
                     }
                 });
@@ -776,7 +880,7 @@ class AdminComplaintService {
         const whereClause = Object.keys(userFilter).length > 0
             ? { user: userFilter }
             : {};
-        const [pending, inProgress, resolved, rejected] = await Promise.all([
+        const [pending, inProgress, resolved, rejected, others] = await Promise.all([
             prisma_1.default.complaint.count({
                 where: {
                     ...whereClause,
@@ -800,6 +904,12 @@ class AdminComplaintService {
                     ...whereClause,
                     status: client_1.Complaint_status.REJECTED
                 }
+            }),
+            prisma_1.default.complaint.count({
+                where: {
+                    ...whereClause,
+                    status: client_1.Complaint_status.OTHERS
+                }
             })
         ]);
         return {
@@ -807,7 +917,8 @@ class AdminComplaintService {
             inProgress,
             resolved,
             rejected,
-            total: pending + inProgress + resolved + rejected
+            others,
+            total: pending + inProgress + resolved + rejected + others
         };
     }
     /**
@@ -844,11 +955,21 @@ class AdminComplaintService {
         const district = locationParts[1]?.trim() || null;
         const thana = locationParts[2]?.trim() || null;
         const address = locationParts[0]?.trim() || complaint.location;
+        // Debug logging for resolution fields
+        if (complaint.resolutionImages || complaint.resolutionNote) {
+            console.log(`📸 Complaint ${complaint.id} has resolution data:`, {
+                resolutionImages: complaint.resolutionImages,
+                resolutionNote: complaint.resolutionNote
+            });
+        }
         return {
             ...complaint,
             complaintId: `C${String(complaint.id).padStart(6, '0')}`, // Format: C001234
             imageUrls: this.parseFileUrls(complaint.imageUrl),
             audioUrls: this.parseFileUrls(complaint.audioUrl),
+            resolutionImages: complaint.resolutionImages || null, // Include resolution images
+            resolutionNote: complaint.resolutionNote || null, // Include resolution note
+            review: complaint.reviews && complaint.reviews.length > 0 ? complaint.reviews[0] : null, // Extract first review
             locationDetails: {
                 address,
                 district,

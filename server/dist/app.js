@@ -30,14 +30,10 @@ const public_zone_routes_1 = __importDefault(require("./routes/public-zone.route
 const ward_routes_1 = __importDefault(require("./routes/ward.routes"));
 const public_ward_routes_1 = __importDefault(require("./routes/public-ward.routes"));
 const notification_routes_1 = __importDefault(require("./routes/notification.routes"));
+const review_routes_1 = __importDefault(require("./routes/review.routes"));
+const admin_review_routes_1 = __importDefault(require("./routes/admin.review.routes"));
 const security_middleware_1 = require("./middlewares/security.middleware");
 const rate_limit_middleware_1 = require("./middlewares/rate-limit.middleware");
-console.log('🚀 Starting Clean Care API Server...');
-console.log('🔧 Importing admin auth routes...');
-console.log('🔧 Importing admin user routes...');
-console.log('🔧 Importing admin complaint routes...');
-console.log('🔧 Importing admin analytics routes...');
-console.log('🔧 Importing admin chat routes...');
 const app = (0, express_1.default)();
 // Security middleware - Apply first for maximum protection
 app.use(security_middleware_1.helmetConfig); // Security headers
@@ -125,6 +121,10 @@ app.use('/api/auth', auth_routes_1.default);
 console.log('✅ Regular auth routes registered at /api/auth');
 app.use('/api/users', user_routes_1.default);
 console.log('✅ User routes registered at /api/users');
+// Review routes MUST be registered BEFORE complaint routes
+// because complaint routes have authGuard on all routes
+app.use('/api/complaints', review_routes_1.default); // Review routes (nested under complaints)
+console.log('✅ Review routes registered at /api/complaints/:complaintId/review(s)');
 app.use('/api/complaints', complaint_routes_1.default);
 console.log('✅ Complaint routes registered at /api/complaints');
 app.use('/api/uploads', upload_routes_1.default);
@@ -137,6 +137,8 @@ app.use('/api/admin/users', admin_user_routes_1.default); // Admin user manageme
 console.log('✅ Admin user routes registered at /api/admin/users');
 app.use('/api/admin/complaints', admin_complaint_routes_1.default); // Admin complaint management routes
 console.log('✅ Admin complaint routes registered at /api/admin/complaints');
+app.use('/api/admin/complaints', admin_review_routes_1.default); // Admin review analytics routes
+console.log('✅ Admin review analytics routes registered at /api/admin/complaints/analytics/reviews');
 app.use('/api/admin/analytics', admin_analytics_routes_1.default); // Admin analytics routes
 console.log('✅ Admin analytics routes registered at /api/admin/analytics');
 // Redirect /login to /admin/login (helper for common mistake)

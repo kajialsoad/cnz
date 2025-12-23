@@ -11,6 +11,7 @@ const upload_config_1 = require("../config/upload.config");
 const category_service_1 = require("./category.service");
 const cloud_upload_service_1 = require("./cloud-upload.service");
 const cloudinary_config_1 = require("../config/cloudinary.config");
+const notification_service_1 = __importDefault(require("./notification.service"));
 // Custom error for ward image limit
 class WardImageLimitError extends Error {
     constructor(wardId, currentCount, maxAllowed = 1) {
@@ -251,6 +252,8 @@ class ComplaintService {
                     }
                 });
             }
+            // Notify admins
+            await notification_service_1.default.notifyAdmins('New Complaint Submitted', `A new complaint "${complaint.title}" has been submitted.`, 'INFO', complaint.id);
             return this.formatComplaintResponse(complaint);
         }
         catch (error) {

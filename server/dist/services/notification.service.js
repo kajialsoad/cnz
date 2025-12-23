@@ -45,6 +45,51 @@ class NotificationService {
         }
     }
     /**
+     * Notify all admins about an event
+     * @param title - Notification title
+     * @param message - Notification message
+     * @param type - Notification type
+     * @param complaintId - Optional complaint ID
+     * @param metadata - Optional metadata
+     */
+    async notifyAdmins(title, message, type = 'INFO', complaintId, metadata) {
+        try {
+            console.log(`[NotificationService] notifyAdmins called. Title: ${title}`);
+            // Find all admins
+            const admins = await prisma_1.default.user.findMany({
+                where: {
+                    role: { in: ['ADMIN', 'SUPER_ADMIN', 'MASTER_ADMIN'] },
+                    status: 'ACTIVE'
+                },
+                select: { id: true, email: true, role: true }
+            });
+            console.log(`[NotificationService] Found ${admins.length} active admins:`, admins.map(a => `${a.email} (${a.role})`));
+            if (admins.length === 0) {
+                console.log('[NotificationService] No active admins found to notify.');
+                return;
+            }
+            // Create notifications in batch
+            const notificationsData = admins.map(admin => ({
+                userId: admin.id,
+                title,
+                message,
+                type,
+                complaintId,
+                metadata: metadata ? JSON.stringify(metadata) : null,
+                isRead: false,
+                createdAt: new Date()
+            }));
+            const result = await prisma_1.default.notification.createMany({
+                data: notificationsData
+            });
+            console.log(`[NotificationService] Successfully created ${result.count} notifications.`);
+        }
+        catch (error) {
+            console.error('Error notifying admins:', error);
+            // Don't throw to avoid blocking main flow
+        }
+    }
+    /**
      * Get user's notifications with pagination
      * @param userId - ID of the user
      * @param options - Pagination options
@@ -59,6 +104,7 @@ class NotificationService {
             if (unreadOnly) {
                 where.isRead = false;
             }
+            console.log(`[NotificationService] getUserNotifications for UserID: ${userId}, Page: ${page}, UnreadOnly: ${unreadOnly}`);
             // Fetch notifications and counts
             const [notifications, total, unreadCount] = await Promise.all([
                 prisma_1.default.notification.findMany({
@@ -112,10 +158,23 @@ class NotificationService {
     /**
      * Mark a single notification as read
      * @param notificationId - ID of the notification
+     * @param userId - ID of the user (optional, for ownership verification)
      * @returns Updated notification
      */
-    async markAsRead(notificationId) {
+    async markAsRead(notificationId, userId) {
         try {
+            // If userId is provided, verify ownership first
+            if (userId !== undefined) {
+                const notification = await prisma_1.default.notification.findUnique({
+                    where: { id: notificationId }
+                });
+                if (!notification) {
+                    throw new Error('Notification not found');
+                }
+                if (notification.userId !== userId) {
+                    throw new Error('Unauthorized to mark this notification as read');
+                }
+            }
             const notification = await prisma_1.default.notification.update({
                 where: { id: notificationId },
                 data: { isRead: true }
@@ -124,6 +183,10 @@ class NotificationService {
         }
         catch (error) {
             console.error('Error marking notification as read:', error);
+            // Re-throw specific errors
+            if (error.message === 'Notification not found' || error.message === 'Unauthorized to mark this notification as read') {
+                throw error;
+            }
             throw new Error('Failed to mark notification as read');
         }
     }

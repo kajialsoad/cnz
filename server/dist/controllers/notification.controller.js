@@ -79,31 +79,33 @@ async function markNotificationAsRead(req, res) {
                 message: 'Invalid notification ID'
             });
         }
-        // First, verify the notification belongs to the user
-        const notifications = await notification_service_1.default.getUserNotifications(userId, {
-            page: 1,
-            limit: 1,
-            unreadOnly: false
-        });
-        const notification = notifications.notifications.find(n => n.id === notificationId);
-        if (!notification) {
-            return res.status(404).json({
-                success: false,
-                message: 'Notification not found or does not belong to user'
-            });
-        }
-        // Mark as read
-        const updatedNotification = await notification_service_1.default.markAsRead(notificationId);
+        // Mark as read (service will verify ownership and throw error if not found/unauthorized)
+        const updatedNotification = await notification_service_1.default.markAsRead(notificationId, userId);
         return res.status(200).json({
             success: true,
             data: {
-                id: updatedNotification.id,
-                isRead: updatedNotification.isRead
+                notification: {
+                    id: updatedNotification.id,
+                    isRead: updatedNotification.isRead
+                }
             }
         });
     }
     catch (error) {
         console.error('Error in markNotificationAsRead:', error);
+        // Handle specific error cases
+        if (error.message === 'Notification not found') {
+            return res.status(404).json({
+                success: false,
+                message: 'Notification not found'
+            });
+        }
+        if (error.message === 'Unauthorized to mark this notification as read') {
+            return res.status(403).json({
+                success: false,
+                message: 'Unauthorized to mark this notification as read'
+            });
+        }
         return res.status(500).json({
             success: false,
             message: error.message || 'Failed to mark notification as read'
