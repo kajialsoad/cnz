@@ -8,10 +8,12 @@ import 'camera_page.dart';
 
 class PhotoPreviewPage extends StatelessWidget {
   final String imagePath;
+  final String? source; // Track where camera was opened from
 
   const PhotoPreviewPage({
     super.key,
     required this.imagePath,
+    this.source,
   });
 
   @override
@@ -134,12 +136,22 @@ class PhotoPreviewPage extends StatelessWidget {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () {
-                      // Navigate to others page with the photo
-                      Navigator.pushNamed(
-                        context,
-                        '/others',
-                        arguments: {'imagePath': imagePath},
-                      );
+                      // Check source and navigate accordingly
+                      if (source == 'complaint-details') {
+                        // If opened from complaint-details, go back there with photo
+                        Navigator.pushReplacementNamed(
+                          context,
+                          '/complaint-details',
+                          arguments: {'imagePath': imagePath},
+                        );
+                      } else {
+                        // If opened from bottom navbar, go to others page
+                        Navigator.pushReplacementNamed(
+                          context,
+                          '/others',
+                          arguments: {'imagePath': imagePath},
+                        );
+                      }
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF4CAF50),

@@ -208,6 +208,16 @@ class MyApp extends StatelessWidget {
           );
         }
 
+        // Handle /camera route with source parameter
+        if (settings.name == '/camera') {
+          final args = settings.arguments as Map<String, dynamic>?;
+          final source = args?['source'] as String?;
+          return MaterialPageRoute(
+            builder: (_) => AuthGuard(child: CameraPage(source: source)),
+            settings: settings,
+          );
+        }
+
         return null;
       },
       routes: {
@@ -244,7 +254,6 @@ class MyApp extends StatelessWidget {
         '/waste-management': (_) =>
             const AuthGuard(child: WasteManagementPage()),
         '/gallery': (_) => const AuthGuard(child: GalleryPage()),
-        '/camera': (_) => const AuthGuard(child: CameraPage()),
         '/profile-settings': (_) =>
             const AuthGuard(child: ProfileSettingsPage()),
         '/government-calendar': (_) =>

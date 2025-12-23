@@ -39,7 +39,7 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
   // Ward image limit tracking
   UserModel? _currentUser;
   bool _isLoadingUser = true;
-  int _wardImageLimit = 1; // Maximum 1 image per ward
+  int _wardImageLimit = 10; // Maximum 10 images per ward
 
   @override
   void initState() {
@@ -821,8 +821,8 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
       );
 
       if (choice == 'camera') {
-        // Navigate to camera page
-        Navigator.pushNamed(context, '/camera');
+        // Navigate to camera page with source parameter
+        Navigator.pushNamed(context, '/camera', arguments: {'source': 'complaint-details'});
       } else if (choice == 'gallery') {
         // Pick image from gallery
         final file = await _fileHandlingService.pickImage(source: ImageSource.gallery);

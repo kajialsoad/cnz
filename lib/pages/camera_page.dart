@@ -6,7 +6,9 @@ import '../widgets/translated_text.dart';
 import 'photo_preview_page.dart';
 
 class CameraPage extends StatefulWidget {
-  const CameraPage({super.key});
+  final String? source; // Track where camera was opened from
+
+  const CameraPage({super.key, this.source});
 
   @override
   State<CameraPage> createState() => _CameraPageState();
@@ -92,8 +94,9 @@ class _CameraPageState extends State<CameraPage> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => const PhotoPreviewPage(
+          builder: (context) => PhotoPreviewPage(
             imagePath: 'mock_web_image',
+            source: widget.source,
           ),
         ),
       );
@@ -119,6 +122,7 @@ class _CameraPageState extends State<CameraPage> {
         MaterialPageRoute(
           builder: (context) => PhotoPreviewPage(
             imagePath: photo.path,
+            source: widget.source,
           ),
         ),
       );

@@ -573,8 +573,8 @@ class WardService {
             throw new Error('User does not belong to this ward');
         }
 
-        // Check if user has already uploaded the maximum (1 image per ward)
-        return user.wardImageCount < 1;
+        // Check if user has already uploaded the maximum (10 images per ward)
+        return user.wardImageCount < 10;
     }
 
     /**
