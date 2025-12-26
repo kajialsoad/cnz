@@ -64,12 +64,12 @@ class ComplaintService {
                     imageCount = Array.isArray(files.images) ? files.images.length : 1;
                 }
                 // Check if user has reached ward image limit
-                if (imageCount > 0 && user.wardImageCount >= 1) {
-                    throw new WardImageLimitError(user.wardId, user.wardImageCount, 1);
+                if (imageCount > 0 && user.wardImageCount >= 10) {
+                    throw new WardImageLimitError(user.wardId, user.wardImageCount, 10);
                 }
                 // Check if this upload would exceed the limit
-                if (imageCount > 0 && user.wardImageCount + imageCount > 1) {
-                    throw new WardImageLimitError(user.wardId, user.wardImageCount, 1);
+                if (imageCount > 0 && user.wardImageCount + imageCount > 10) {
+                    throw new WardImageLimitError(user.wardId, user.wardImageCount, 10);
                 }
             }
             // Generate tracking number
@@ -779,12 +779,12 @@ class ComplaintService {
             // Check ward image upload limit if user has a ward assigned
             if (user.wardId) {
                 // Check if user has already reached the limit
-                if (user.wardImageCount >= 1) {
-                    throw new WardImageLimitError(user.wardId, user.wardImageCount, 1);
+                if (user.wardImageCount >= 10) {
+                    throw new WardImageLimitError(user.wardId, user.wardImageCount, 10);
                 }
                 // Check if this upload would exceed the limit
-                if (user.wardImageCount + imageCount > 1) {
-                    throw new WardImageLimitError(user.wardId, user.wardImageCount, 1);
+                if (user.wardImageCount + imageCount > 10) {
+                    throw new WardImageLimitError(user.wardId, user.wardImageCount, 10);
                 }
             }
             // Upload images

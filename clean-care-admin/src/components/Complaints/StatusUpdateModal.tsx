@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
+import { API_CONFIG } from '../../config/apiConfig';
 import {
     Dialog,
     DialogTitle,
@@ -230,7 +231,7 @@ const StatusUpdateModal: React.FC<StatusUpdateModalProps> = ({
 
             // Make API call
             const response = await fetch(
-                `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000'}/api/admin/complaints/${complaintId}/status`,
+                `${API_CONFIG.BASE_URL}/api/admin/complaints/${complaintId}/status`,
                 {
                     method: 'PATCH',
                     headers: {

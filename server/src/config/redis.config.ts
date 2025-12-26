@@ -28,8 +28,8 @@ let redisClient: Redis | null = null;
  * Get Redis client instance
  */
 export function getRedisClient(): Redis | null {
-    // If Redis is disabled, return null
-    if (process.env.REDIS_ENABLED === 'false') {
+    // If Redis is not explicitly enabled, return null (disabled by default)
+    if (process.env.REDIS_ENABLED !== 'true') {
         return null;
     }
 
