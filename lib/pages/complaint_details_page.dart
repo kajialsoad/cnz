@@ -11,6 +11,8 @@ import '../models/user_model.dart';
 import '../providers/complaint_provider.dart';
 import '../repositories/user_repository.dart';
 import '../services/api_client.dart';
+import '../services/system_config_service.dart';
+
 import '../services/file_handling_service.dart';
 import '../widgets/translated_text.dart';
 
@@ -39,12 +41,29 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
   // Ward image limit tracking
   UserModel? _currentUser;
   bool _isLoadingUser = true;
-  int _wardImageLimit = 10; // Maximum 10 images per ward
+  int _wardImageLimit = 10; // Default, will be updated from config
 
   @override
   void initState() {
     super.initState();
     _loadUserProfile();
+    _loadSystemConfig();
+  }
+
+  Future<void> _loadSystemConfig() async {
+    try {
+      final apiClient = Provider.of<ApiClient>(context, listen: false);
+      final configService = SystemConfigService(apiClient);
+      final limitStr = await configService.getConfig('ward_image_limit', '10');
+      
+      if (mounted) {
+        setState(() {
+          _wardImageLimit = int.tryParse(limitStr) ?? 10;
+        });
+      }
+    } catch (e) {
+      print('Error loading system config: $e');
+    }
   }
 
   /// Load current user profile to check ward image count
@@ -58,7 +77,7 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
         _currentUser = user;
         _isLoadingUser = false;
       });
-    } catch (e) {
+    } catch (e) { // ... existing error handling
       print('Error loading user profile: $e');
       setState(() {
         _isLoadingUser = false;
@@ -517,6 +536,7 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
         ],
         const SizedBox(height: 8),
         // Show ward image limit info
+        // Show ward image limit info
         if (!_isLoadingUser && _currentUser != null)
           Text(
             limitReached 
@@ -530,7 +550,7 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
           )
         else
           Text(
-            'You can add up to 6 photos',
+            'You can add up to $_wardImageLimit photos',
             style: TextStyle(
               fontSize: 12,
               color: Colors.grey.shade500,
@@ -757,7 +777,7 @@ class _ComplaintDetailsPageState extends State<ComplaintDetailsPage> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'সীমা: প্রতি ওয়ার্ডে ১টি ছবি\nLimit: 1 image per ward',
+                        'সীমা: প্রতি ওয়ার্ডে $_wardImageLimit টি ছবি\nLimit: $_wardImageLimit images per ward',
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.orange.shade900,

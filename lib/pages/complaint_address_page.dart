@@ -73,44 +73,12 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
       _wards = [];
     });
 
-    if (cityCorporation != null) {
-      setState(() => _isLoadingZones = true);
-
-      try {
-        if (cityCorporation.id != null) {
-          final zones = await _auth.getZonesByCityCorporation(cityCorporation.id!);
-          if (mounted) {
-            setState(() {
-              _zones = zones;
-              _isLoadingZones = false;
-            });
-          }
-        } else {
-          setState(() => _isLoadingZones = false);
-        }
-      } catch (e) {
-        if (mounted) {
-          setState(() => _isLoadingZones = false);
-          _showErrorSnackBar(
-            'Failed to load Zones: ${e.toString().replaceAll('Exception: ', '')}',
-          );
-        }
-      }
-    }
-  }
-
-  Future<void> _onZoneChanged(Zone? zone) async {
-    setState(() {
-      _selectedZone = zone;
-      _selectedWard = null;
-      _wards = [];
-    });
-
-    if (zone != null) {
+    if (cityCorporation != null && cityCorporation.code != null) {
       setState(() => _isLoadingWards = true);
 
       try {
-        final wards = await _auth.getWardsByZone(zone.id);
+        // Fetch all wards for the city corporation directly
+        final wards = await _auth.getWardsByCityCorporation(cityCorporation.code!);
         if (mounted) {
           setState(() {
             _wards = wards;
@@ -126,6 +94,22 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
         }
       }
     }
+  }
+
+  // Zone is now auto-selected based on Ward
+  void _onWardChanged(Ward? ward) {
+    setState(() {
+      _selectedWard = ward;
+      if (ward != null && ward.zone != null) {
+        _selectedZone = ward.zone;
+        // Also add to _zones list if needed for dropdown to show it selected
+        if (!_zones.any((z) => z.id == ward.zone!.id)) {
+          _zones = [ward.zone!];
+        }
+      } else {
+        _selectedZone = null;
+      }
+    });
   }
 
   @override
@@ -252,20 +236,20 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
         _buildCityCorporationDropdown(),
         const SizedBox(height: 16),
         
-        // Zone Dropdown (shows only if City Corporation is selected)
+        // Ward Dropdown (Shows after City Corp selected)
         if (_selectedCityCorporation != null) ...[
-          _buildZoneDropdown(),
-          const SizedBox(height: 16),
-        ],
-        
-        // Ward Dropdown (shows only if Zone is selected)
-        if (_selectedZone != null) ...[
           _buildWardDropdown(),
           const SizedBox(height: 16),
         ],
         
-        // Show message if no zones available
-        if (_selectedCityCorporation != null && _zones.isEmpty && !_isLoadingZones) ...[
+        // Zone Dropdown (Read-only, auto-filled)
+        if (_selectedWard != null) ...[
+          _buildZoneDropdown(),
+          const SizedBox(height: 16),
+        ],
+
+        // Show message if no wards available
+        if (_selectedCityCorporation != null && _wards.isEmpty && !_isLoadingWards) ...[
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -279,7 +263,7 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'এই সিটি কর্পোরেশনের জন্য কোন জোন উপলব্ধ নেই',
+                    'No wards available for this city corporation yet.',
                     style: TextStyle(
                       fontSize: 13,
                       color: Colors.orange[900],
@@ -379,7 +363,7 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Zone / জোন',
+          'Zone / জোন (Auto-selected)',
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w500,
@@ -389,7 +373,7 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
         const SizedBox(height: 8),
         Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Colors.grey[100], // Read-only look
             borderRadius: BorderRadius.circular(8),
             boxShadow: [
               BoxShadow(
@@ -399,48 +383,37 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
               ),
             ],
           ),
-          child: _isLoadingZones
-              ? const Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: Center(
-                    child: SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  ),
-                )
-              : DropdownButtonFormField<Zone>(
-                  value: _selectedZone,
-                  decoration: InputDecoration(
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide.none,
-                    ),
-                    fillColor: Colors.white,
-                    filled: true,
-                  ),
-                  hint: Text(
-                    'Select Zone',
-                    style: TextStyle(color: Colors.grey[500], fontSize: 14),
-                  ),
-                  items: _zones.map((zone) {
-                    return DropdownMenuItem<Zone>(
-                      value: zone,
-                      child: Text(
-                        zone.displayName,
-                        style: const TextStyle(fontSize: 14, color: Colors.black87),
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: _onZoneChanged,
-                  icon: Icon(Icons.keyboard_arrow_down, color: Colors.grey[600]),
-                  dropdownColor: Colors.white,
+          child: DropdownButtonFormField<Zone>(
+              value: _selectedZone,
+              decoration: InputDecoration(
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
                 ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide.none,
+                ),
+                fillColor: Colors.grey[100],
+                filled: true,
+              ),
+              hint: Text(
+                'Zone will appear here',
+                style: TextStyle(color: Colors.grey[500], fontSize: 14),
+              ),
+              items: _selectedZone != null 
+                ? [DropdownMenuItem<Zone>(
+                    value: _selectedZone,
+                    child: Text(
+                      _selectedZone!.displayName,
+                      style: const TextStyle(fontSize: 14, color: Colors.black87),
+                    ),
+                  )] 
+                : [],
+              onChanged: null, // Read only
+              icon: Icon(Icons.lock_outline, size: 18, color: Colors.grey[600]),
+              dropdownColor: Colors.white,
+            ),
         ),
       ],
     );
@@ -509,7 +482,7 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
                       ),
                     );
                   }).toList(),
-                  onChanged: (v) => setState(() => _selectedWard = v),
+                  onChanged: _onWardChanged,
                   icon: Icon(Icons.keyboard_arrow_down, color: Colors.grey[600]),
                   dropdownColor: Colors.white,
                 ),
@@ -668,6 +641,15 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
               showReturnButton: true,
             );
           }
+          // Daily complaint limit error
+          else if (errorMessage.contains('Daily complaint limit reached') || 
+              errorMessage.contains('complaints per day')) {
+            _showErrorDialog(
+              'Daily Limit Reached / দৈনিক সীমা শেষ',
+              errorMessage,
+              showReturnButton: false,
+            );
+          }
           // Category validation errors
           else if (errorMessage.contains('category') || errorMessage.contains('subcategory')) {
             _showErrorDialog(
@@ -695,6 +677,15 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
             'আপলোড সীমা পৌঁছেছে (Upload Limit Reached)',
             errorString.replaceFirst('Exception: ', ''),
             showReturnButton: true,
+          );
+        }
+        // Daily complaint limit error
+        else if (errorString.contains('Daily complaint limit reached') || 
+            errorString.contains('complaints per day')) {
+          _showErrorDialog(
+            'Daily Limit Reached / দৈনিক সীমা শেষ',
+            errorString.replaceFirst('Exception: ', ''),
+            showReturnButton: false, // Don't redirect, just show message
           );
         }
         // Category validation errors

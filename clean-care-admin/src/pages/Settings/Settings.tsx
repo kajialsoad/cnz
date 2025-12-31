@@ -7,11 +7,15 @@ import {
   PaymentOutlined,
   PolicyOutlined,
   DescriptionOutlined,
+  SettingsOutlined,
 } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 import MainLayout from '../../components/common/Layout/MainLayout';
 import SettingsCard from '../../components/Settings/SettingsCard';
 
 const Settings: React.FC = () => {
+  const navigate = useNavigate();
+
   return (
     <MainLayout title="সেটিংস">
       <Box sx={{ px: 3, py: 4, background: '#f8faf9' }}>
@@ -88,6 +92,15 @@ const Settings: React.FC = () => {
             color="orange"
             icon={<DescriptionOutlined sx={{ color: '#ff6900' }} />}
             onClick={() => console.log('Terms edit clicked')}
+          />
+
+          <SettingsCard
+            title="সিস্টেম কন্ট্রোল"
+            description="অভিযোগের দৈনিক সীমা এবং অন্যান্য সিস্টেম কনফিগারেশন"
+            buttonLabel="কনফিগার করুন"
+            color="blue"
+            icon={<SettingsOutlined sx={{ color: '#1e2939' }} />}
+            onClick={() => navigate('/settings/system-control')}
           />
         </Box>
 

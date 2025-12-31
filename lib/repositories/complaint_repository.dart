@@ -113,6 +113,16 @@ class ComplaintRepository {
         throw Exception('Please select a category before submitting your complaint.');
       }
       
+      // Daily complaint limit error
+      if (errorString.contains('Daily complaint limit reached')) {
+        // Extract limit from error string if possible
+        final RegExp regExp = RegExp(r'up to (\d+) complaints');
+        final match = regExp.firstMatch(errorString);
+        final limit = match != null ? match.group(1) : '20';
+        
+        throw Exception('আজকের অভিযোগের সীমা শেষ হয়েছে। আপনি প্রতিদিন সর্বোচ্চ $limitটি অভিযোগ করতে পারবেন।\n\nDaily complaint limit reached. You can submit up to $limit complaints per day.');
+      }
+      
       // Re-throw the original exception if not handled above
       rethrow;
     }

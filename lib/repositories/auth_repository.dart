@@ -279,4 +279,25 @@ class AuthRepository {
       throw Exception('Failed to load wards: ${e.toString()}');
     }
   }
+
+  Future<List<Ward>> getWardsByCityCorporation(String cityCorporationCode) async {
+    try {
+      final data = await api.get(
+        '/api/city-corporations/$cityCorporationCode/wards',
+      );
+
+      if (data['data'] != null) {
+        final wards = data['data'] as List;
+        return wards
+            .map((w) => Ward.fromJson(w as Map<String, dynamic>))
+            .toList();
+      } else {
+        throw Exception('Failed to load wards');
+      }
+    } on ApiException catch (e) {
+      throw Exception(e.message);
+    } catch (e) {
+      throw Exception('Failed to load wards: ${e.toString()}');
+    }
+  }
 }

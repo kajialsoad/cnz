@@ -753,23 +753,12 @@ export class AdminUserService {
         });
     }
 
-    // Bulk delete users (soft delete)
+    // Bulk delete users (HARD DELETE - permanently removes from database)
     async bulkDeleteUsers(userIds: number[], deletedBy: number, ipAddress?: string, userAgent?: string): Promise<void> {
         // Filter out invalid IDs
         if (!userIds || userIds.length === 0) return;
 
-        // Soft delete users by setting status to INACTIVE
-        await prisma.user.updateMany({
-            where: {
-                id: { in: userIds },
-                status: { not: UserStatus.INACTIVE }, // Only update if not already inactive
-            },
-            data: {
-                status: UserStatus.INACTIVE,
-            },
-        });
-
-        // Log activity for each user
+        // Log activity for each user BEFORE deleting
         for (const userId of userIds) {
             await activityLogService.logActivity({
                 userId: deletedBy,
@@ -783,6 +772,13 @@ export class AdminUserService {
             // Invalidate cache
             await invalidateRedisCache.user(userId);
         }
+
+        // HARD DELETE - completely remove users from database
+        await prisma.user.deleteMany({
+            where: {
+                id: { in: userIds },
+            },
+        });
     }
 
     // Fetch user statistics (internal method)
@@ -943,19 +939,25 @@ export class AdminUserService {
 
     // Create new user
     async createUser(data: CreateUserDto, createdBy?: number, ipAddress?: string, userAgent?: string): Promise<UserWithStats> {
-        // Check if user exists by phone
-        const existingUserByPhone = await prisma.user.findUnique({
-            where: { phone: data.phone },
+        // Check if user exists by phone (exclude INACTIVE/deleted users)
+        const existingUserByPhone = await prisma.user.findFirst({
+            where: {
+                phone: data.phone,
+                status: { not: UserStatus.INACTIVE } // Exclude soft-deleted users
+            },
         });
 
         if (existingUserByPhone) {
             throw new Error('User already exists with this phone number');
         }
 
-        // Check if user exists by email (if provided)
+        // Check if user exists by email (if provided, exclude INACTIVE/deleted users)
         if (data.email) {
-            const existingUserByEmail = await prisma.user.findUnique({
-                where: { email: data.email },
+            const existingUserByEmail = await prisma.user.findFirst({
+                where: {
+                    email: data.email,
+                    status: { not: UserStatus.INACTIVE } // Exclude soft-deleted users
+                },
             });
 
             if (existingUserByEmail) {
@@ -1066,10 +1068,14 @@ export class AdminUserService {
             throw new Error('User not found');
         }
 
-        // Check for duplicate phone (if changing)
+        // Check for duplicate phone (if changing, exclude current user and INACTIVE users)
         if (data.phone && data.phone !== existingUser.phone) {
-            const duplicatePhone = await prisma.user.findUnique({
-                where: { phone: data.phone },
+            const duplicatePhone = await prisma.user.findFirst({
+                where: {
+                    phone: data.phone,
+                    id: { not: userId }, // Exclude current user being updated
+                    status: { not: UserStatus.INACTIVE } // Exclude soft-deleted users
+                },
             });
 
             if (duplicatePhone) {
@@ -1077,10 +1083,14 @@ export class AdminUserService {
             }
         }
 
-        // Check for duplicate email (if changing)
+        // Check for duplicate email (if changing, exclude current user and INACTIVE users)
         if (data.email && data.email !== existingUser.email) {
-            const duplicateEmail = await prisma.user.findUnique({
-                where: { email: data.email },
+            const duplicateEmail = await prisma.user.findFirst({
+                where: {
+                    email: data.email,
+                    id: { not: userId }, // Exclude current user being updated
+                    status: { not: UserStatus.INACTIVE } // Exclude soft-deleted users
+                },
             });
 
             if (duplicateEmail) {
@@ -1408,7 +1418,7 @@ export class AdminUserService {
         };
     }
 
-    // Delete user (soft delete)
+    // Delete user (HARD DELETE - permanently removes from database)
     async deleteUser(userId: number, deletedBy: number, ipAddress?: string, userAgent?: string): Promise<void> {
         // Check if user exists
         const existingUser = await prisma.user.findUnique({
@@ -1419,16 +1429,14 @@ export class AdminUserService {
             throw new Error('User not found');
         }
 
-        // Soft delete by setting status to INACTIVE
-        await prisma.user.update({
-            where: { id: userId },
-            data: {
-                status: UserStatus.INACTIVE,
-            },
-        });
-
-        // Log activity
+        // Log activity BEFORE deleting (so we have the user data)
         await activityLogService.logUserDeletion(deletedBy, existingUser, ipAddress, userAgent);
+
+        // HARD DELETE - completely remove user from database
+        // This will also cascade delete related records (sessions, tokens, etc.)
+        await prisma.user.delete({
+            where: { id: userId },
+        });
 
         // Invalidate cache (Redis and in-memory)
         await invalidateRedisCache.user(userId);

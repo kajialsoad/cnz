@@ -502,3 +502,13 @@ enum Complaint_status {
   REJECTED
   OTHERS
 }
+
+model SystemConfig {
+  id          Int      @id @default(autoincrement())
+  key         String   @unique
+  value       String
+  description String?
+  updatedAt   DateTime @updatedAt
+
+  @@map("system_configs")
+}

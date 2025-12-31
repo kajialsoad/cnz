@@ -83,12 +83,27 @@ const WardManagement: React.FC<WardManagementProps> = ({ zone }) => {
         setIsFormOpen(true);
     };
 
-    // Handle save wards (bulk creation)
-    const handleSaveWards = async (wardNumbers: number[]) => {
+    // Handle save wards (single with inspector or bulk creation)
+    const handleSaveWards = async (
+        wardNumbers: number[],
+        inspectorData?: { inspectorName?: string; inspectorSerialNumber?: string; inspectorPhone?: string }
+    ) => {
         if (!zone) return;
 
         try {
-            await wardService.createWardsBulk(zone.id, wardNumbers);
+            if (wardNumbers.length === 1 && inspectorData) {
+                // Single ward with inspector data
+                await wardService.createWard({
+                    wardNumber: wardNumbers[0],
+                    zoneId: zone.id,
+                    inspectorName: inspectorData.inspectorName,
+                    inspectorSerialNumber: inspectorData.inspectorSerialNumber,
+                    inspectorPhone: inspectorData.inspectorPhone,
+                });
+            } else {
+                // Bulk creation without inspector data
+                await wardService.createWardsBulk(zone.id, wardNumbers);
+            }
             await fetchWards();
             setIsMultiSelectOpen(false);
         } catch (err: any) {

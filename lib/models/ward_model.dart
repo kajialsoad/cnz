@@ -1,7 +1,10 @@
+import 'zone_model.dart';
+
 class Ward {
   final int id;
   final int wardNumber;
   final int zoneId;
+  final Zone? zone; // Added for auto-selection
   final String? inspectorName;
   final String? inspectorSerialNumber;
   final String status;
@@ -12,6 +15,7 @@ class Ward {
     required this.id,
     required this.wardNumber,
     required this.zoneId,
+    this.zone,
     this.inspectorName,
     this.inspectorSerialNumber,
     this.status = 'ACTIVE',
@@ -24,6 +28,7 @@ class Ward {
       id: json['id'] as int,
       wardNumber: json['wardNumber'] as int,
       zoneId: json['zoneId'] as int,
+      zone: json['zone'] != null ? Zone.fromJson(json['zone'] as Map<String, dynamic>) : null,
       inspectorName: json['inspectorName'] as String?,
       inspectorSerialNumber: json['inspectorSerialNumber'] as String?,
       status: json['status'] as String? ?? 'ACTIVE',

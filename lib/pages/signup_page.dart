@@ -98,52 +98,13 @@ class _SignUpPageState extends State<SignUpPage> {
       _wards = [];
     });
 
-    if (CityCorporation != null) {
-      setState(() => _isLoadingZones = true);
-
-      try {
-        if (CityCorporation.id != null) {
-          final zones = await _auth.getZonesByCityCorporation(
-            CityCorporation.id!,
-          );
-          if (mounted) {
-            setState(() {
-              _zones = zones;
-              _isLoadingZones = false;
-            });
-          }
-        } else {
-          // Fallback or error if ID is null
-          setState(() => _isLoadingZones = false);
-        }
-      } catch (e) {
-        if (mounted) {
-          setState(() => _isLoadingZones = false);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'জোন লোড করতে ব্যর্থ: ${e.toString().replaceAll('Exception: ', '')}',
-              ),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
-    }
-  }
-
-  Future<void> _onZoneChanged(Zone? zone) async {
-    setState(() {
-      _selectedZone = zone;
-      _selectedWard = null;
-      _wards = [];
-    });
-
-    if (zone != null) {
+    if (CityCorporation != null && CityCorporation.code != null) {
       setState(() => _isLoadingWards = true);
 
       try {
-        final wards = await _auth.getWardsByZone(zone.id);
+        final wards = await _auth.getWardsByCityCorporation(
+          CityCorporation.code!,
+        );
         if (mounted) {
           setState(() {
             _wards = wards;
@@ -165,6 +126,24 @@ class _SignUpPageState extends State<SignUpPage> {
       }
     }
   }
+
+  void _onWardChanged(Ward? ward) {
+    setState(() {
+      _selectedWard = ward;
+      if (ward != null && ward.zone != null) {
+        _selectedZone = ward.zone;
+        // Make sure the auto-selected zone is available in the list for dropdown
+        if (!_zones.any((z) => z.id == ward.zone!.id)) {
+           _zones = [ward.zone!];
+        }
+      } else {
+        _selectedZone = null;
+      }
+    });
+  }
+
+  // _onZoneChanged is no longer needed but keeping empty or removing references
+  // Future<void> _onZoneChanged(Zone? zone) async {} 
 
   @override
   void dispose() {
@@ -605,36 +584,11 @@ class _SignUpPageState extends State<SignUpPage> {
                           Padding(
                             padding: const EdgeInsets.symmetric(vertical: 4),
                             child: Text(
-                              'Zone',
-                              style: Theme.of(context).textTheme.bodyMedium,
-                            ),
-                          ),
-                          _isLoadingZones
-                              ? const Center(child: CircularProgressIndicator())
-                              : DropdownButtonFormField<Zone>(
-                                  value: _selectedZone,
-                                  decoration: _dec('Select Zone'),
-                                  items: _zones.map((zone) {
-                                    return DropdownMenuItem<Zone>(
-                                      value: zone,
-                                      child: Text(zone.displayName),
-                                    );
-                                  }).toList(),
-                                  onChanged: _onZoneChanged,
-                                  validator: (v) =>
-                                      v == null ? 'জোন নির্বাচন করুন' : null,
-                                ),
-                          const SizedBox(height: 12),
-                        ],
-                        if (_selectedZone != null) ...[
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 4),
-                            child: Text(
                               'Ward',
                               style: Theme.of(context).textTheme.bodyMedium,
                             ),
                           ),
-                          _isLoadingWards
+                           _isLoadingWards
                               ? const Center(child: CircularProgressIndicator())
                               : DropdownButtonFormField<Ward>(
                                   value: _selectedWard,
@@ -645,21 +599,43 @@ class _SignUpPageState extends State<SignUpPage> {
                                       child: Text(ward.displayName),
                                     );
                                   }).toList(),
-                                  onChanged: (v) =>
-                                      setState(() => _selectedWard = v),
+                                  onChanged: _onWardChanged,
                                   validator: (v) => v == null
                                       ? 'ওয়ার্ড নির্বাচন করুন'
                                       : null,
                                 ),
                           const SizedBox(height: 12),
                         ],
+                        if (_selectedWard != null) ...[
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Text(
+                              'Zone (Auto-selected)',
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                          ),
+                          DropdownButtonFormField<Zone>(
+                            value: _selectedZone,
+                            decoration: _dec('Zone', hint: 'Zone will appear here').copyWith(
+                                fillColor: Colors.grey[200],
+                            ),
+                            items: _selectedZone != null 
+                              ? [DropdownMenuItem<Zone>(
+                                  value: _selectedZone,
+                                  child: Text(_selectedZone!.displayName),
+                                )] 
+                              : [],
+                            onChanged: null, // Read-only
+                          ),
+                          const SizedBox(height: 12),
+                        ],
                         if (_selectedCityCorporation != null &&
-                            _zones.isEmpty &&
-                            !_isLoadingZones) ...[
+                            _wards.isEmpty &&
+                            !_isLoadingWards) ...[
                           Padding(
                             padding: const EdgeInsets.symmetric(vertical: 8),
                             child: Text(
-                              'এই সিটি কর্পোরেশনের জন্য কোন জোন উপলব্ধ নেই',
+                              'No wards available for this city corporation yet.',
                               style: Theme.of(context).textTheme.bodySmall
                                   ?.copyWith(
                                     color: Colors.grey[600],

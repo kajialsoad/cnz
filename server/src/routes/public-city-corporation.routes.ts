@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import cityCorporationService from '../services/city-corporation.service';
+import wardService from '../services/ward.service';
 
 const router = Router();
 
@@ -99,6 +100,44 @@ router.get('/:code/thanas', async (req: Request, res: Response) => {
                 message: 'Failed to fetch thanas',
             });
         }
+    }
+});
+
+/**
+ * GET /api/city-corporations/:code/wards
+ * Get all active wards for a city corporation (no auth required)
+ * Includes zone information for auto-selection
+ */
+router.get('/:code/wards', async (req: Request, res: Response) => {
+    try {
+        const { code } = req.params;
+
+        // Use wardService to fetch wards with city corporation code filter
+        const wards = await wardService.getWards({
+            cityCorporationCode: code,
+            status: 'ACTIVE'
+        });
+
+        res.json({
+            success: true,
+            data: wards.map(ward => ({
+                id: ward.id,
+                wardNumber: ward.wardNumber,
+                zoneId: ward.zoneId,
+                zone: {
+                    id: ward.zone.id,
+                    zoneNumber: ward.zone.zoneNumber,
+                    name: ward.zone.name,
+                    cityCorporationId: ward.zone.cityCorporation.id,
+                },
+            })),
+        });
+    } catch (error: any) {
+        console.error('Error fetching wards by city:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch wards',
+        });
     }
 });
 

@@ -6,6 +6,7 @@ import { categoryService } from './category.service';
 import { cloudUploadService, CloudUploadError } from './cloud-upload.service';
 import { isCloudinaryEnabled } from '../config/cloudinary.config';
 import notificationService from './notification.service';
+import { systemConfigService } from './system-config.service';
 
 // Custom error for ward image limit
 export class WardImageLimitError extends Error {
@@ -29,10 +30,10 @@ export class WardImageLimitError extends Error {
 }
 
 export interface CreateComplaintInput {
-  title?: string; // Optional - will be auto-generated from description
+  title?: string;
   description: string;
-  category: string; // Required
-  subcategory: string; // Required
+  category: string;
+  subcategory: string;
   priority?: number;
   location: {
     address: string;
@@ -41,13 +42,12 @@ export interface CreateComplaintInput {
     ward: string;
     latitude?: number;
     longitude?: number;
-  } | string; // Accept string or object
+  } | string;
   imageUrls?: string[];
   voiceNoteUrl?: string;
-  userId?: number | null; // Nullable for "someone else" complaints
-  forSomeoneElse?: boolean; // Flag to indicate if complaint is for someone else
-  uploadedFiles?: any; // Files from multer
-  // NEW: Geographical ID fields for dynamic system
+  userId?: number | null;
+  forSomeoneElse?: boolean;
+  uploadedFiles?: any;
   cityCorporationCode?: string;
   zoneId?: number;
   wardId?: number;
@@ -70,9 +70,8 @@ export interface UpdateComplaintInput {
   };
   imageUrls?: string[];
   voiceNoteUrl?: string;
-  // New file properties
-  uploadedFiles?: any; // Files from multer
-  replaceFiles?: boolean; // If true, replace existing files instead of appending
+  uploadedFiles?: any;
+  replaceFiles?: boolean;
 }
 
 export interface ComplaintQueryInput {
@@ -84,8 +83,7 @@ export interface ComplaintQueryInput {
   priority?: number;
   sortBy?: 'createdAt' | 'updatedAt' | 'priority' | 'status';
   sortOrder?: 'asc' | 'desc';
-  userId?: number; // For filtering user's own complaints
-  // Geographical filters
+  userId?: number;
   cityCorporationCode?: string;
   zoneId?: number;
   wardId?: number;
@@ -95,6 +93,29 @@ export class ComplaintService {
   // Create a new complaint
   async createComplaint(input: CreateComplaintInput) {
     try {
+      // Check daily complaint limit
+      if (input.userId && !input.forSomeoneElse) {
+        const startOfToday = new Date();
+        startOfToday.setHours(0, 0, 0, 0);
+
+        const dailyCount = await prisma.complaint.count({
+          where: {
+            userId: input.userId,
+            createdAt: {
+              gte: startOfToday
+            }
+          }
+        });
+
+        // Get limit from config, default to 20 if not set
+        const limitStr = await systemConfigService.get('daily_complaint_limit', '20');
+        const limit = parseInt(limitStr, 10) || 20;
+
+        if (dailyCount >= limit) {
+          throw new Error(`Daily complaint limit reached. You can submit up to ${limit} complaints per day.`);
+        }
+      }
+
       // Validate category and subcategory combination
       if (!categoryService.validateCategorySubcategory(input.category, input.subcategory)) {
         const validSubcategories = categoryService.getAllSubcategoryIds(input.category);

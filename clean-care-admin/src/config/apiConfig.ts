@@ -1,5 +1,5 @@
 // Dynamic URL selection based on environment
-const USE_PRODUCTION = import.meta.env.VITE_USE_PRODUCTION === 'true';
+const USE_PRODUCTION = false; // Temporarily set to false for local testing
 const PRODUCTION_API_URL = import.meta.env.VITE_PRODUCTION_API_URL || 'https://munna-production.up.railway.app';
 const LOCAL_API_URL = import.meta.env.VITE_LOCAL_API_URL || 'http://192.168.0.100:4000';
 const PRODUCTION_WS_URL = import.meta.env.VITE_PRODUCTION_WS_URL || 'wss://munna-production.up.railway.app';
