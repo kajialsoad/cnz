@@ -151,6 +151,12 @@ app.use('/api/admin/direct-chat', admin_direct_message_routes_1.default); // Adm
 console.log('✅ Admin direct message routes registered at /api/admin/direct-chat');
 app.use('/api/admin/activity-logs', admin_activity_log_routes_1.default); // Admin activity log routes
 console.log('✅ Admin activity log routes registered at /api/admin/activity-logs');
+const admin_system_config_routes_1 = __importDefault(require("./routes/admin.system-config.routes"));
+const system_config_routes_1 = __importDefault(require("./routes/system-config.routes"));
+app.use('/api/admin/config', admin_system_config_routes_1.default); // Admin system config routes
+console.log('✅ Admin system config routes registered at /api/admin/config');
+app.use('/api/config', system_config_routes_1.default); // Public/App system config routes
+console.log('✅ App system config routes registered at /api/config');
 app.use('/api/dashboard', dashboard_routes_1.default); // Dashboard statistics routes
 console.log('✅ Dashboard routes registered at /api/dashboard');
 app.use('/api/admin/dashboard', dashboard_routes_1.default); // Admin dashboard statistics routes with geographical filtering

@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const city_corporation_service_1 = __importDefault(require("../services/city-corporation.service"));
+const ward_service_1 = __importDefault(require("../services/ward.service"));
 const router = (0, express_1.Router)();
 /**
  * GET /api/city-corporations
@@ -96,6 +97,42 @@ router.get('/:code/thanas', async (req, res) => {
                 message: 'Failed to fetch thanas',
             });
         }
+    }
+});
+/**
+ * GET /api/city-corporations/:code/wards
+ * Get all active wards for a city corporation (no auth required)
+ * Includes zone information for auto-selection
+ */
+router.get('/:code/wards', async (req, res) => {
+    try {
+        const { code } = req.params;
+        // Use wardService to fetch wards with city corporation code filter
+        const wards = await ward_service_1.default.getWards({
+            cityCorporationCode: code,
+            status: 'ACTIVE'
+        });
+        res.json({
+            success: true,
+            data: wards.map(ward => ({
+                id: ward.id,
+                wardNumber: ward.wardNumber,
+                zoneId: ward.zoneId,
+                zone: {
+                    id: ward.zone.id,
+                    zoneNumber: ward.zone.zoneNumber,
+                    name: ward.zone.name,
+                    cityCorporationId: ward.zone.cityCorporation.id,
+                },
+            })),
+        });
+    }
+    catch (error) {
+        console.error('Error fetching wards by city:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch wards',
+        });
     }
 });
 exports.default = router;

@@ -172,9 +172,9 @@ class WardService {
         if (data.wardNumber < minWard || data.wardNumber > maxWard) {
             throw new Error(`Ward number must be between ${minWard} and ${maxWard} for ${zone.cityCorporation.name}`);
         }
-        // Check ward limit (max 12 wards per zone)
-        if (zone._count.wards >= 12) {
-            throw new Error(`Cannot add ward. Zone ${zone.zoneNumber} already has the maximum of 12 wards.`);
+        // Check ward limit (max 999 wards per zone - effectively unlimited)
+        if (zone._count.wards >= 999) {
+            throw new Error(`Cannot add ward. Zone ${zone.zoneNumber} already has the maximum of 999 wards.`);
         }
         // Check if ward number already exists in this city corporation (globally unique)
         const existing = await prisma_1.default.ward.findFirst({
@@ -254,10 +254,10 @@ class WardService {
         if (invalidWards.length > 0) {
             throw new Error(`Ward numbers must be between ${minWard} and ${maxWard} for ${zone.cityCorporation.name}. Invalid: ${invalidWards.join(', ')}`);
         }
-        // Check ward limit (max 12 wards per zone)
+        // Check ward limit (max 999 wards per zone - effectively unlimited)
         const totalWardsAfterAdd = zone._count.wards + uniqueWardNumbers.length;
-        if (totalWardsAfterAdd > 12) {
-            throw new Error(`Cannot add ${uniqueWardNumbers.length} wards. Zone ${zone.zoneNumber} would exceed the maximum of 12 wards (currently has ${zone._count.wards}).`);
+        if (totalWardsAfterAdd > 999) {
+            throw new Error(`Cannot add ${uniqueWardNumbers.length} wards. Zone ${zone.zoneNumber} would exceed the maximum of 999 wards (currently has ${zone._count.wards}).`);
         }
         // Check if any ward numbers already exist in this city corporation (globally unique)
         const existingWards = await prisma_1.default.ward.findMany({
@@ -330,9 +330,9 @@ class WardService {
             if (!newZone) {
                 throw new Error(`Zone with ID ${data.zoneId} not found`);
             }
-            // Check ward limits in new zone
-            if (newZone._count.wards >= 12) {
-                throw new Error(`Cannot move ward to Zone ${newZone.zoneNumber}. It already has the maximum of 12 wards.`);
+            // Check ward limits in new zone (max 999 - effectively unlimited)
+            if (newZone._count.wards >= 999) {
+                throw new Error(`Cannot move ward to Zone ${newZone.zoneNumber}. It already has the maximum of 999 wards.`);
             }
         }
         // If ward number OR zone is changing, validate uniqueness in the TARGET City Corporation

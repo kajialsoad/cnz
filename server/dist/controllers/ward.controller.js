@@ -240,10 +240,10 @@ class WardController {
                     message: 'All ward numbers must be positive integers',
                 });
             }
-            if (wardNumbers.length > 12) {
+            if (wardNumbers.length > 50) {
                 return res.status(400).json({
                     success: false,
-                    message: 'Cannot create more than 12 wards at once',
+                    message: 'Cannot create more than 50 wards at once',
                 });
             }
             const wards = await ward_service_1.default.createWardsBulk(zoneId, wardNumbers);

@@ -12,6 +12,7 @@ const category_service_1 = require("./category.service");
 const cloud_upload_service_1 = require("./cloud-upload.service");
 const cloudinary_config_1 = require("../config/cloudinary.config");
 const notification_service_1 = __importDefault(require("./notification.service"));
+const system_config_service_1 = require("./system-config.service");
 // Custom error for ward image limit
 class WardImageLimitError extends Error {
     constructor(wardId, currentCount, maxAllowed = 1) {
@@ -31,6 +32,25 @@ class ComplaintService {
     // Create a new complaint
     async createComplaint(input) {
         try {
+            // Check daily complaint limit
+            if (input.userId && !input.forSomeoneElse) {
+                const startOfToday = new Date();
+                startOfToday.setHours(0, 0, 0, 0);
+                const dailyCount = await prisma_1.default.complaint.count({
+                    where: {
+                        userId: input.userId,
+                        createdAt: {
+                            gte: startOfToday
+                        }
+                    }
+                });
+                // Get limit from config, default to 20 if not set
+                const limitStr = await system_config_service_1.systemConfigService.get('daily_complaint_limit', '20');
+                const limit = parseInt(limitStr, 10) || 20;
+                if (dailyCount >= limit) {
+                    throw new Error(`Daily complaint limit reached. You can submit up to ${limit} complaints per day.`);
+                }
+            }
             // Validate category and subcategory combination
             if (!category_service_1.categoryService.validateCategorySubcategory(input.category, input.subcategory)) {
                 const validSubcategories = category_service_1.categoryService.getAllSubcategoryIds(input.category);

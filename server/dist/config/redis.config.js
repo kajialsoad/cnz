@@ -32,8 +32,8 @@ let redisClient = null;
  * Get Redis client instance
  */
 function getRedisClient() {
-    // If Redis is disabled, return null
-    if (process.env.REDIS_ENABLED === 'false') {
+    // If Redis is not explicitly enabled, return null (disabled by default)
+    if (process.env.REDIS_ENABLED !== 'true') {
         return null;
     }
     // Create client if it doesn't exist
