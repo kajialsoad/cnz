@@ -20,6 +20,9 @@ export interface AdminComplaintQueryInput {
     endDate?: string;
     sortBy?: 'createdAt' | 'updatedAt' | 'priority' | 'status';
     sortOrder?: 'asc' | 'desc';
+    complaintCityCorporationCode?: string;
+    complaintZoneId?: number;
+    complaintWardId?: number;
 }
 
 export interface UpdateComplaintStatusInput {
@@ -68,7 +71,10 @@ export class AdminComplaintService {
                 startDate,
                 endDate,
                 sortBy = 'createdAt',
-                sortOrder = 'desc'
+                sortOrder = 'desc',
+                complaintCityCorporationCode,
+                complaintZoneId,
+                complaintWardId
             } = query;
 
             const skip = (page - 1) * limit;
@@ -111,41 +117,8 @@ export class AdminComplaintService {
                 }
             }
 
-            // City Corporation filter (filter through user relationship)
-            if (cityCorporationCode) {
-                andConditions.push({
-                    user: {
-                        cityCorporationCode: cityCorporationCode
-                    }
-                });
-            }
-
-            // Zone filter (filter through user relationship)
-            // Multi-zone Logic:
-            if (assignedZoneIds && assignedZoneIds.length > 0) {
-                // If specific zone requested, validate against assigned zones
-                if (zoneId) {
-                    if (!assignedZoneIds.includes(zoneId)) {
-                        // Requested zone not in assigned zones -> Return empty result
-                        andConditions.push({ id: -1 });
-                    } else {
-                        andConditions.push({ user: { zoneId: zoneId } });
-                    }
-                } else {
-                    // No specific zone requested -> Filter by all assigned zones
-                    andConditions.push({ user: { zoneId: { in: assignedZoneIds } } });
-                }
-            } else {
-                // No assigned zones restriction (e.g. Master Admin)
-                // Just use the requested zoneId if present
-                if (zoneId) {
-                    andConditions.push({
-                        user: {
-                            zoneId: zoneId
-                        }
-                    });
-                }
-            }
+            // REMOVED: User location filters - now using complaint location only
+            // City Corporation, Zone, Ward filters are handled by complaint location fields below
 
             // Others Category filter (for OTHERS status)
             if (othersCategory) {
@@ -161,34 +134,9 @@ export class AdminComplaintService {
                 });
             }
 
-            // Ward filter (filter through user relationship using wardId)
-            if (wardId) {
-                andConditions.push({
-                    user: {
-                        wardId: wardId
-                    }
-                });
-            }
-
-            // Legacy ward filter (filter through user relationship using ward string)
-            // Kept for backward compatibility
-            if (ward && !wardId) {
-                andConditions.push({
-                    user: {
-                        ward: ward
-                    }
-                });
-            }
-
-            // Thana filter (filter through user relationship)
-            // Deprecated but kept for backward compatibility
-            if (thanaId) {
-                andConditions.push({
-                    user: {
-                        thanaId: thanaId
-                    }
-                });
-            }
+            // Legacy filters (deprecated - kept for backward compatibility with old API calls)
+            // These are now ignored in favor of complaint location filters
+            // cityCorporationCode, zoneId, wardId, ward, thanaId
 
             // Date range filter
             if (startDate || endDate) {
@@ -229,6 +177,56 @@ export class AdminComplaintService {
                             user: {
                                 email: { contains: search }
                             }
+                        }
+                    ]
+                });
+            }
+
+
+
+            // New: Complaint Direct Location Filters with Fallback
+            // If complaint location fields are provided, use them
+            // Otherwise, fall back to old location fields for backward compatibility
+            if (complaintCityCorporationCode) {
+                andConditions.push({
+                    OR: [
+                        { complaintCityCorporationCode: complaintCityCorporationCode },
+                        // Fallback: If complaintCityCorporationCode is null, check old field
+                        {
+                            AND: [
+                                { complaintCityCorporationCode: null },
+                                { cityCorporationCode: complaintCityCorporationCode }
+                            ]
+                        }
+                    ]
+                });
+            }
+
+            if (complaintZoneId) {
+                andConditions.push({
+                    OR: [
+                        { complaintZoneId: complaintZoneId },
+                        // Fallback: If complaintZoneId is null, check old field
+                        {
+                            AND: [
+                                { complaintZoneId: null },
+                                { zoneId: complaintZoneId }
+                            ]
+                        }
+                    ]
+                });
+            }
+
+            if (complaintWardId) {
+                andConditions.push({
+                    OR: [
+                        { complaintWardId: complaintWardId },
+                        // Fallback: If complaintWardId is null, check old field
+                        {
+                            AND: [
+                                { complaintWardId: null },
+                                { wardId: complaintWardId }
+                            ]
                         }
                     ]
                 });
@@ -294,7 +292,8 @@ export class AdminComplaintService {
                     }
                 }),
                 prisma.complaint.count({ where }),
-                this.getStatusCounts(cityCorporationCode, zoneId, wardId, assignedZoneIds)
+                // Pass complaint location filters to getStatusCounts (not user location)
+                this.getStatusCounts(complaintCityCorporationCode, complaintZoneId, complaintWardId, assignedZoneIds)
             ]);
 
             // Format complaints with parsed file URLs
@@ -942,42 +941,71 @@ export class AdminComplaintService {
 
     /**
      * Get status counts for all complaints
-     * Optionally filtered by city corporation, zone, or ward
-     * multi-zone aware
+     * Uses COMPLAINT LOCATION filters (not user location)
+     * This ensures counts match the filtered complaints
      */
     private async getStatusCounts(cityCorporationCode?: string, zoneId?: number, wardId?: number, assignedZoneIds?: number[]) {
-        // Build where clause for filters
-        const userFilter: any = {};
+        // Build where clause using COMPLAINT LOCATION fields
+        const whereClause: any = {};
 
+        // City Corporation filter - use complaint location with fallback
         if (cityCorporationCode) {
-            userFilter.cityCorporationCode = cityCorporationCode;
-        }
-
-        // Multi-zone Logic for stats
-        if (assignedZoneIds && assignedZoneIds.length > 0) {
-            if (zoneId) {
-                if (!assignedZoneIds.includes(zoneId)) {
-                    // Impossible condition for forbidden access
-                    userFilter.id = -1;
-                } else {
-                    userFilter.zoneId = zoneId;
+            whereClause.OR = [
+                { complaintCityCorporationCode: cityCorporationCode },
+                {
+                    AND: [
+                        { complaintCityCorporationCode: null },
+                        { cityCorporationCode: cityCorporationCode }
+                    ]
                 }
+            ];
+        }
+
+        // Zone filter - use complaint location with fallback
+        if (zoneId) {
+            const zoneFilter = {
+                OR: [
+                    { complaintZoneId: zoneId },
+                    {
+                        AND: [
+                            { complaintZoneId: null },
+                            { zoneId: zoneId }
+                        ]
+                    }
+                ]
+            };
+
+            if (whereClause.OR) {
+                whereClause.AND = [{ OR: whereClause.OR }, zoneFilter];
+                delete whereClause.OR;
             } else {
-                userFilter.zoneId = { in: assignedZoneIds };
-            }
-        } else {
-            if (zoneId) {
-                userFilter.zoneId = zoneId;
+                Object.assign(whereClause, zoneFilter);
             }
         }
 
+        // Ward filter - use complaint location with fallback
         if (wardId) {
-            userFilter.wardId = wardId;
-        }
+            const wardFilter = {
+                OR: [
+                    { complaintWardId: wardId },
+                    {
+                        AND: [
+                            { complaintWardId: null },
+                            { wardId: wardId }
+                        ]
+                    }
+                ]
+            };
 
-        const whereClause = Object.keys(userFilter).length > 0
-            ? { user: userFilter }
-            : {};
+            if (whereClause.AND) {
+                whereClause.AND.push(wardFilter);
+            } else if (whereClause.OR) {
+                whereClause.AND = [{ OR: whereClause.OR }, wardFilter];
+                delete whereClause.OR;
+            } else {
+                Object.assign(whereClause, wardFilter);
+            }
+        }
 
         const [pending, inProgress, resolved, rejected, others] = await Promise.all([
             prisma.complaint.count({
