@@ -437,11 +437,17 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                 profile.ward
             )}
 
-            {profile?.zone && renderInfoRow(
+            {(profile?.assignedZones && profile.assignedZones.length > 0) ? (
+                renderInfoRow(
+                    <LocationIcon fontSize="small" />,
+                    'Assigned Zones',
+                    profile.assignedZones.map(az => az.zone.name).join(', ')
+                )
+            ) : (profile?.zone && renderInfoRow(
                 <LocationIcon fontSize="small" />,
                 'Zone',
-                profile.zone
-            )}
+                typeof profile.zone === 'object' ? (profile.zone as any).name : profile.zone
+            ))}
 
             {profile?.address && renderInfoRow(
                 <LocationIcon fontSize="small" />,
@@ -607,7 +613,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                     px: isMobile ? 2 : 3,
                 }}
             >
-                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                <Typography variant="h6" component="span" sx={{ fontWeight: 600 }}>
                     {isEditMode ? 'Edit Profile' : 'Profile'}
                 </Typography>
                 <IconButton

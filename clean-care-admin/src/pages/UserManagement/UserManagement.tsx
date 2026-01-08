@@ -48,11 +48,13 @@ import UserAddModal from '../../components/UserManagement/UserAddModal';
 import DirectMessageModal from '../../components/UserManagement/DirectMessageModal';
 import EmptyState from '../../components/common/EmptyState';
 import ErrorBoundary from '../../components/common/ErrorBoundary';
+import { superAdminService } from '../../services/superAdminService';
 import { userManagementService } from '../../services/userManagementService';
 import { cityCorporationService } from '../../services/cityCorporationService';
 import { zoneService } from '../../services/zoneService';
 import { wardService } from '../../services/wardService';
 import type { CityCorporation } from '../../services/cityCorporationService';
+import type { Zone } from '../../services/zoneService';
 import type { Ward } from '../../services/wardService';
 import type {
   UserWithStats,
@@ -60,6 +62,7 @@ import type {
   CreateUserDto,
   UpdateUserDto
 } from '../../types/userManagement.types';
+import { useAuth } from '../../contexts/AuthContext';
 import { UserStatus } from '../../types/userManagement.types';
 
 interface ToastState {
@@ -69,6 +72,7 @@ interface ToastState {
 }
 
 const UserManagement: React.FC = () => {
+  const { user: currentUser } = useAuth();
   // State for users and data
   const [users, setUsers] = useState<UserWithStats[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -80,13 +84,20 @@ const UserManagement: React.FC = () => {
 
   // State for city corporation filters
   const [cityCorporations, setCityCorporations] = useState<CityCorporation[]>([]);
-  const [selectedCityCorporation, setSelectedCityCorporation] = useState<string>('ALL');
+  // Use a function to initialize state to avoid "ALL" flash for non-Master Admins
+  const [selectedCityCorporation, setSelectedCityCorporation] = useState<string>(() => {
+    if (currentUser?.role === 'MASTER_ADMIN') return 'ALL';
+    // Try to get assigned code immediately if available, otherwise empty string (loading state)
+    const assignedCode = (currentUser as any)?.cityCorporationCode || (currentUser as any)?.cityCorporation?.code;
+    return assignedCode || '';
+  });
   const [selectedCityCorporationId, setSelectedCityCorporationId] = useState<number | null>(null);
   const [selectedZone, setSelectedZone] = useState<number | ''>('');
   const [selectedWard, setSelectedWard] = useState<number | null>(null);
   const [wards, setWards] = useState<Ward[]>([]);
   const [cityCorporationsLoading, setCityCorporationsLoading] = useState<boolean>(false);
   const [wardsLoading, setWardsLoading] = useState<boolean>(false);
+  const [assignedZones, setAssignedZones] = useState<any[]>([]); // Store assigned zones for Super Admin
 
   // State for statistics
   const [statistics, setStatistics] = useState<UserStatisticsResponse | null>(null);
@@ -138,10 +149,95 @@ const UserManagement: React.FC = () => {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  // Fetch city corporations on mount
+  // Fetch city corporations and assigned zones on mount
   useEffect(() => {
-    fetchCityCorporations();
-  }, []);
+    const fetchData = async () => {
+      console.log('🔄 UserManagement: Starting data fetch for user:', currentUser?.id, currentUser?.role);
+
+      const promises: Promise<any>[] = [
+        cityCorporationService.getCityCorporations('ACTIVE').catch(err => {
+          console.error('❌ Error fetching city corporations:', err);
+          return { cityCorporations: [] };
+        })
+      ];
+
+      // If Super Admin, add assigned zones fetch
+      if (currentUser?.role === 'SUPER_ADMIN' && currentUser.id) {
+        console.log('👤 Fetching assigned zones for Super Admin:', currentUser.id);
+        promises.push(
+          superAdminService.getAssignedZones(Number(currentUser.id)).catch(err => {
+            console.error('❌ Error fetching assigned zones:', err);
+            return [];
+          })
+        );
+      }
+
+      setCityCorporationsLoading(true);
+
+      try {
+        const results = await Promise.all(promises);
+        const cityCorpResponse = results[0];
+        const assignedZonesResponse = results[1]; // Will be undefined if not SUPER_ADMIN
+
+        // 1. Handle City Corporations
+        let availableCityCorps = cityCorpResponse.cityCorporations || [];
+        console.log('🏙️ Fetched City Corps:', availableCityCorps.length);
+
+        if (currentUser && currentUser.role !== 'MASTER_ADMIN') {
+          const assignedCityCode = (currentUser as any).cityCorporationCode || (currentUser as any).cityCorporation?.code;
+          if (assignedCityCode) {
+            console.log('🎯 Filtering City Corps for assigned code:', assignedCityCode);
+            availableCityCorps = availableCityCorps.filter((cc: any) => cc.code === assignedCityCode);
+            if (selectedCityCorporation !== assignedCityCode) {
+              setSelectedCityCorporation(assignedCityCode);
+            }
+          }
+        }
+        setCityCorporations(availableCityCorps);
+
+        // 2. Handle Assigned Zones
+        if (assignedZonesResponse) {
+          console.log('🛡️ Raw Assigned Zones:', assignedZonesResponse);
+          // Filter valid zones and map to Zone interface
+          const formattedZones: Zone[] = (assignedZonesResponse as any[])
+            .map(z => {
+              // Handle both nested { zone: {...} } and flat {...} structures
+              const zoneData = z.zone || z;
+              if (!zoneData || !zoneData.id) return null;
+
+              return {
+                id: zoneData.id,
+                zoneNumber: zoneData.zoneNumber,
+                name: zoneData.name,
+                cityCorporationId: zoneData.cityCorporationId || 0, // Use actual cityCorpId if available
+                status: 'ACTIVE' as const,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+              } as Zone;
+            })
+            .filter((z): z is Zone => z !== null);
+
+          console.log('✅ Formatted Assigned Zones:', formattedZones);
+          setAssignedZones(formattedZones);
+
+          // Auto-select if single zone
+          if (formattedZones.length === 1) {
+            console.log('👌 Auto-selecting single zone:', formattedZones[0].id);
+            setSelectedZone(formattedZones[0].id);
+          }
+        }
+
+      } catch (err) {
+        console.error('❌ Error in UserManagement fetchData:', err);
+      } finally {
+        setCityCorporationsLoading(false);
+      }
+    };
+
+    if (currentUser) {
+      fetchData();
+    }
+  }, [currentUser]);
 
   // Update zones when city corporation changes
   useEffect(() => {
@@ -194,11 +290,29 @@ const UserManagement: React.FC = () => {
       const response = await cityCorporationService.getCityCorporations('ACTIVE');
       console.log('✅ City Corporations response in UserManagement:', response);
       // getCityCorporations returns { cityCorporations: [...] }
-      setCityCorporations(response.cityCorporations || []);
+
+      let availableCityCorps = response.cityCorporations || [];
+
+      // RESTRICT City Corporation based on User Role (Logic copied from Dashboard.tsx)
+      // Master Admin can see everything ('ALL')
+      // Others (Super Admin, Admin, Ward Inspector) are restricted to their city corporation
+      if (currentUser && currentUser.role !== 'MASTER_ADMIN') {
+        const assignedCityCode = (currentUser as any).cityCorporationCode || (currentUser as any).cityCorporation?.code;
+
+        if (assignedCityCode) {
+          // Filter the list to ONLY show the assigned city corporation
+          availableCityCorps = availableCityCorps.filter(cc => cc.code === assignedCityCode);
+
+          // Auto-select the assigned city corporation
+          setSelectedCityCorporation(assignedCityCode);
+        }
+      }
+
+      setCityCorporations(availableCityCorps);
     } catch (err: any) {
       console.error('Error fetching city corporations:', err);
       showToast('Failed to load city corporations', 'error');
-      setCityCorporations([]); // Ensure it's always an array
+      setCityCorporations([]);
     } finally {
       setCityCorporationsLoading(false);
     }
@@ -509,23 +623,25 @@ const UserManagement: React.FC = () => {
             </Box>
 
             {/* Right Side - Add New User Button */}
-            <Button
-              variant="contained"
-              startIcon={<PersonAddIcon />}
-              onClick={handleAddUser}
-              sx={{
-                backgroundColor: '#4CAF50',
-                '&:hover': {
-                  backgroundColor: '#45a049',
-                },
-                textTransform: 'none',
-                px: 3,
-                py: 1.5,
-                borderRadius: 2,
-              }}
-            >
-              Add New User
-            </Button>
+            {(currentUser?.role === 'MASTER_ADMIN' || (currentUser?.role === 'SUPER_ADMIN' && !(currentUser?.permissions as any)?.features?.viewOnlyMode)) && (
+              <Button
+                variant="contained"
+                startIcon={<PersonAddIcon />}
+                onClick={handleAddUser}
+                sx={{
+                  backgroundColor: '#4CAF50',
+                  '&:hover': {
+                    backgroundColor: '#45a049',
+                  },
+                  textTransform: 'none',
+                  px: 3,
+                  py: 1.5,
+                  borderRadius: 2,
+                }}
+              >
+                Add New User
+              </Button>
+            )}
           </Box>
 
           {/* Stats Cards */}
@@ -658,13 +774,15 @@ const UserManagement: React.FC = () => {
                     value={selectedCityCorporation}
                     onChange={(e) => setSelectedCityCorporation(e.target.value)}
                     label="City Corporation"
-                    disabled={cityCorporationsLoading}
+                    disabled={cityCorporationsLoading || (currentUser?.role !== 'MASTER_ADMIN' && cityCorporations.length <= 1)}
                     sx={{
                       height: 40,
                       backgroundColor: '#f8f9fa',
                     }}
                   >
-                    <MenuItem value="ALL">All City Corporations</MenuItem>
+                    {currentUser?.role === 'MASTER_ADMIN' && (
+                      <MenuItem value="ALL">All City Corporations</MenuItem>
+                    )}
                     {cityCorporations && cityCorporations.map((cc) => (
                       <MenuItem key={cc.code} value={cc.code}>
                         {typeof cc.name === 'object' ? JSON.stringify(cc.name) : cc.name}
@@ -679,7 +797,8 @@ const UserManagement: React.FC = () => {
                     value={selectedZone}
                     onChange={(val) => setSelectedZone(val as number | '')}
                     cityCorporationCode={selectedCityCorporation !== 'ALL' ? selectedCityCorporation : ''}
-                    disabled={false} // Always enabled, but content depends on City Corp
+                    disabled={false}
+                    zones={assignedZones.length > 0 ? assignedZones : undefined}
                   />
                 </Box>
 
@@ -969,24 +1088,26 @@ const UserManagement: React.FC = () => {
                             </TableCell>
                             <TableCell>
                               <Box sx={{ display: 'flex', gap: 1 }}>
-                                <Button
-                                  variant="outlined"
-                                  size="small"
-                                  startIcon={actionLoading.viewUser === user.id ? <CircularProgress size={16} /> : <VisibilityIcon />}
-                                  onClick={() => handleViewUser(user.id)}
-                                  disabled={actionLoading.viewUser === user.id}
-                                  sx={{
-                                    textTransform: 'none',
-                                    borderColor: '#e0e0e0',
-                                    color: 'text.primary',
-                                    '&:hover': {
-                                      borderColor: '#4CAF50',
-                                      color: '#4CAF50',
-                                    },
-                                  }}
-                                >
-                                  {actionLoading.viewUser === user.id ? 'Loading...' : 'View'}
-                                </Button>
+                                {['MASTER_ADMIN', 'SUPER_ADMIN'].includes(currentUser?.role || '') && (
+                                  <Button
+                                    variant="outlined"
+                                    size="small"
+                                    startIcon={actionLoading.viewUser === user.id ? <CircularProgress size={16} /> : <VisibilityIcon />}
+                                    onClick={() => handleViewUser(user.id)}
+                                    disabled={actionLoading.viewUser === user.id}
+                                    sx={{
+                                      textTransform: 'none',
+                                      borderColor: '#e0e0e0',
+                                      color: 'text.primary',
+                                      '&:hover': {
+                                        borderColor: '#4CAF50',
+                                        color: '#4CAF50',
+                                      },
+                                    }}
+                                  >
+                                    {actionLoading.viewUser === user.id ? 'Loading...' : 'View'}
+                                  </Button>
+                                )}
                                 <Button
                                   variant="outlined"
                                   size="small"

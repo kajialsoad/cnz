@@ -55,6 +55,7 @@ const updateUserSchema = z.object({
     wardId: z.number().int().positive().optional(),
     role: z.nativeEnum(users_role).optional(),
     status: z.nativeEnum(UserStatus).optional(),
+    password: z.string().min(8, 'Password must be at least 8 characters').optional(),
     permissions: z.any().optional(),
 });
 

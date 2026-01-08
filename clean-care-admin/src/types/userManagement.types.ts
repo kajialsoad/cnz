@@ -73,6 +73,8 @@ export interface UserWithStats {
     joiningDate?: string | null;
     whatsapp?: string | null;
     role: UserRole;
+    passwordHash?: string;
+    visiblePassword?: string;
     status: UserStatus;
     emailVerified: boolean;
     phoneVerified: boolean;

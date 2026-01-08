@@ -21,6 +21,14 @@ export interface UserProfile {
     createdAt: string;
     updatedAt: string;
     lastLoginAt?: string;
+    assignedZones?: {
+        id: number;
+        zone: {
+            id: number;
+            name: string;
+            zoneNumber?: number;
+        };
+    }[];
 }
 
 export interface ProfileUpdateData {

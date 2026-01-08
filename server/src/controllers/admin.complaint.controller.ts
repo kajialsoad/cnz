@@ -26,7 +26,11 @@ export async function getAdminComplaints(req: AuthRequest, res: Response) {
             sortBy,
             sortOrder,
             othersCategory,
-            othersSubcategory
+            othersSubcategory,
+            // New: Complaint location filters
+            complaintCityCorporationCode,
+            complaintZoneId,
+            complaintWardId
         } = req.query;
 
         // Get assigned zone IDs for SUPER_ADMIN users
@@ -51,7 +55,11 @@ export async function getAdminComplaints(req: AuthRequest, res: Response) {
             sortBy: sortBy as any,
             sortOrder: sortOrder as 'asc' | 'desc',
             othersCategory: othersCategory as string,
-            othersSubcategory: othersSubcategory as string
+            othersSubcategory: othersSubcategory as string,
+            // New: Complaint location filters
+            complaintCityCorporationCode: complaintCityCorporationCode as string,
+            complaintZoneId: complaintZoneId ? parseInt(complaintZoneId as string) : undefined,
+            complaintWardId: complaintWardId ? parseInt(complaintWardId as string) : undefined
         }, assignedZoneIds);
 
         res.status(200).json({

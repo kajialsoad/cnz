@@ -21,55 +21,56 @@ import EmailOutlined from '@mui/icons-material/EmailOutlined';
 import PhoneOutlined from '@mui/icons-material/PhoneOutlined';
 import LocationOnOutlined from '@mui/icons-material/LocationOnOutlined';
 import CalendarTodayOutlined from '@mui/icons-material/CalendarTodayOutlined';
-import type { UserWithStats } from '../../types/userManagement.types';
-import { userManagementService } from '../../services/userManagementService';
-import { useAuth } from '../../contexts/AuthContext';
 import LockOutlined from '@mui/icons-material/LockOutlined';
+import type { SuperAdmin } from '../../services/superAdminService';
+import { superAdminService } from '../../services/superAdminService';
+import { useAuth } from '../../contexts/AuthContext';
 
-interface AdminDetailsModalProps {
+interface SuperAdminDetailsModalProps {
     open: boolean;
     onClose: () => void;
-    admin: UserWithStats | null;
+    superAdmin: SuperAdmin | null;
 }
 
-const AdminDetailsModal: React.FC<AdminDetailsModalProps> = ({ open, onClose, admin }) => {
+// Extended interface to include password fields which might come from backend but not in base SuperAdmin type
+interface SuperAdminWithPassword extends SuperAdmin {
+    visiblePassword?: string | null;
+    passwordHash?: string;
+}
+
+const SuperAdminDetailsModal: React.FC<SuperAdminDetailsModalProps> = ({ open, onClose, superAdmin }) => {
     const { user: currentUser } = useAuth();
-    const [adminDetails, setAdminDetails] = useState<UserWithStats | null>(null);
+    const [details, setDetails] = useState<SuperAdminWithPassword | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        if (open && admin?.id) {
-            fetchAdminDetails(admin.id);
+        if (open && superAdmin?.id) {
+            fetchDetails(superAdmin.id);
         } else {
-            setAdminDetails(null);
+            setDetails(null);
             setError(null);
         }
-    }, [open, admin]);
+    }, [open, superAdmin]);
 
-    const fetchAdminDetails = async (id: number) => {
+    const fetchDetails = async (id: number) => {
         try {
             setLoading(true);
             setError(null);
-            // Use the service to fetch fresh details
-            const response = await userManagementService.getUserById(id);
-            setAdminDetails(response.user); // Assuming response structure conforms to GetUserResponse
+            const response = await superAdminService.getSuperAdminById(id);
+            setDetails(response as SuperAdminWithPassword);
         } catch (err: any) {
-            console.error('Error fetching admin details:', err);
+            console.error('Error fetching super admin details:', err);
             setError('Failed to load latest details');
-            // Fallback to the passed prop if fetch fails
-            setAdminDetails(admin);
+            setDetails(superAdmin as SuperAdminWithPassword);
         } finally {
             setLoading(false);
         }
     };
 
-    if (!admin) return null;
+    if (!superAdmin) return null;
 
-    // Use adminDetails if available, otherwise fallback to admin prop (though we usually wait for load)
-    // We can show the 'admin' prop immediately while loading 'adminDetails' to avoid layout shift,
-    // but showing a spinner is explicit. Let's show admin prop data initially and update it.
-    const displayAdmin = adminDetails || admin;
+    const displayAdmin = details || (superAdmin as SuperAdminWithPassword);
 
     const formatDate = (date: Date | string) => {
         if (!date) return 'N/A';
@@ -83,7 +84,7 @@ const AdminDetailsModal: React.FC<AdminDetailsModalProps> = ({ open, onClose, ad
     return (
         <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
             <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Typography sx={{ fontWeight: 700 }}>এডমিন বিস্তারিত</Typography>
+                <Typography sx={{ fontWeight: 700 }}>সুপার এডমিন বিস্তারিত</Typography>
                 <IconButton onClick={onClose}>
                     <Close />
                 </IconButton>
@@ -103,7 +104,7 @@ const AdminDetailsModal: React.FC<AdminDetailsModalProps> = ({ open, onClose, ad
                 )}
 
                 <Stack spacing={3} sx={{ opacity: loading ? 0.6 : 1, transition: 'opacity 0.2s' }}>
-                    {/* Admin Info */}
+                    {/* Header Info */}
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                         <Avatar
                             sx={{
@@ -113,8 +114,9 @@ const AdminDetailsModal: React.FC<AdminDetailsModalProps> = ({ open, onClose, ad
                                 fontSize: 32,
                                 fontWeight: 700,
                             }}
+                            src={displayAdmin.avatar || undefined}
                         >
-                            {displayAdmin.firstName?.charAt(0)}
+                            {displayAdmin.firstName?.charAt(0).toUpperCase()}
                         </Avatar>
                         <Box sx={{ flex: 1 }}>
                             <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5 }}>
@@ -140,7 +142,7 @@ const AdminDetailsModal: React.FC<AdminDetailsModalProps> = ({ open, onClose, ad
 
                     <Divider />
 
-                    {/* Contact Information */}
+                    {/* Contact Info */}
                     <Box>
                         <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
                             যোগাযোগের তথ্য
@@ -179,13 +181,13 @@ const AdminDetailsModal: React.FC<AdminDetailsModalProps> = ({ open, onClose, ad
 
                     <Divider />
 
-                    {/* Location Information */}
+                    {/* Location Info */}
                     <Box>
                         <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
                             এলাকার তথ্য
                         </Typography>
                         <Grid container spacing={2}>
-                            <Grid size={{ xs: 12, sm: 4 }}>
+                            <Grid size={{ xs: 12, sm: 6 }}>
                                 <Stack direction="row" spacing={1} alignItems="center">
                                     <LocationOnOutlined sx={{ color: '#4a5565' }} />
                                     <Box>
@@ -198,44 +200,22 @@ const AdminDetailsModal: React.FC<AdminDetailsModalProps> = ({ open, onClose, ad
                                     </Box>
                                 </Stack>
                             </Grid>
-                            <Grid size={{ xs: 12, sm: 4 }}>
-                                <Box>
-                                    <Typography variant="caption" color="text.secondary">
-                                        জোন
-                                    </Typography>
-                                    <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                                        {displayAdmin.zone?.name || 'প্রযোজ্য নয়'}
-                                    </Typography>
-                                </Box>
-                            </Grid>
-                            {/* Only show "Ward" field if there is a primary ward */}
-                            {displayAdmin.ward && (
-                                <Grid size={{ xs: 12, sm: 4 }}>
-                                    <Box>
-                                        <Typography variant="caption" color="text.secondary">
-                                            ওয়ার্ড
-                                        </Typography>
-                                        <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                                            {`ওয়ার্ড ${displayAdmin.ward.wardNumber}`}
-                                        </Typography>
-                                    </Box>
-                                </Grid>
-                            )}
                         </Grid>
 
-                        {/* Show extra wards list. Title changes based on whether primary ward exists */}
-                        {displayAdmin.extraWards && displayAdmin.extraWards.length > 0 && (
+                        {/* Assigned Zones */}
+                        {displayAdmin.assignedZones && displayAdmin.assignedZones.length > 0 && (
                             <Box sx={{ mt: 2 }}>
                                 <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
-                                    {displayAdmin.ward ? 'অতিরিক্ত ওয়ার্ড' : 'নির্ধারিত ওয়ার্ড সমূহ'}
+                                    নির্ধারিত জোন সমূহ
                                 </Typography>
                                 <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                                    {displayAdmin.extraWards.map((w: any) => (
+                                    {displayAdmin.assignedZones.map((az) => (
                                         <Chip
-                                            key={w.id}
-                                            label={`ওয়ার্ড ${w.wardNumber}`}
+                                            key={az.zone.id}
+                                            label={az.zone.name}
                                             size="small"
                                             variant="outlined"
+                                            color="primary"
                                             sx={{ mb: 0.5 }}
                                         />
                                     ))}
@@ -246,7 +226,7 @@ const AdminDetailsModal: React.FC<AdminDetailsModalProps> = ({ open, onClose, ad
 
                     <Divider />
 
-                    {/* Complaint Statistics */}
+                    {/* Stats */}
                     {displayAdmin.statistics && (
                         <Box>
                             <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
@@ -299,7 +279,7 @@ const AdminDetailsModal: React.FC<AdminDetailsModalProps> = ({ open, onClose, ad
 
                     <Divider />
 
-                    {/* Account Information */}
+                    {/* Account Info & Password */}
                     <Box>
                         <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
                             অ্যাকাউন্ট তথ্য
@@ -318,25 +298,10 @@ const AdminDetailsModal: React.FC<AdminDetailsModalProps> = ({ open, onClose, ad
                                     </Box>
                                 </Stack>
                             </Grid>
-                            {displayAdmin.lastLoginAt && (
-                                <Grid size={{ xs: 12, sm: 6 }}>
-                                    <Stack direction="row" spacing={1} alignItems="center">
-                                        <CalendarTodayOutlined sx={{ color: '#4a5565' }} />
-                                        <Box>
-                                            <Typography variant="caption" color="text.secondary">
-                                                শেষ লগইন
-                                            </Typography>
-                                            <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                                                {formatDate(displayAdmin.lastLoginAt)}
-                                            </Typography>
-                                        </Box>
-                                    </Stack>
-                                </Grid>
-                            )}
 
                             {/* Password Display - ONLY for MASTER_ADMIN */}
                             {currentUser?.role === 'MASTER_ADMIN' && (
-                                <Grid size={{ xs: 12, sm: 12 }}>
+                                <Grid size={{ xs: 12 }}>
                                     <Divider sx={{ my: 1 }} />
                                     <Stack direction="row" spacing={1} alignItems="flex-start" sx={{ mt: 1 }}>
                                         <LockOutlined sx={{ color: '#d32f2f', mt: 0.5 }} />
@@ -362,15 +327,15 @@ const AdminDetailsModal: React.FC<AdminDetailsModalProps> = ({ open, onClose, ad
                         </Grid>
                     </Box>
                 </Stack>
-            </DialogContent >
+            </DialogContent>
 
             <DialogActions>
                 <Button variant="contained" onClick={onClose} sx={{ bgcolor: '#3fa564' }}>
                     বন্ধ করুন
                 </Button>
             </DialogActions>
-        </Dialog >
+        </Dialog>
     );
 };
 
-export default AdminDetailsModal;
+export default SuperAdminDetailsModal;

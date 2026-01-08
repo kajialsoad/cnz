@@ -27,6 +27,7 @@ import {
 import type { UserWithStats, ComplaintSummary } from '../../types/userManagement.types';
 import { format } from 'date-fns';
 import { scaleIn, slideInUp, animationConfig, statusBadgeTransition, fadeIn } from '../../styles/animations';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface UserDetailsModalProps {
     user: UserWithStats | null;
@@ -40,9 +41,12 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
     user,
     recentComplaints,
     open,
+
     onClose,
     onEdit,
 }) => {
+    const { user: currentUser } = useAuth();
+
     if (!user) return null;
 
     const getStatusColor = (status: string) => {
@@ -251,11 +255,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                                             {user.cityCorporation.name}
                                         </Typography>
                                     )}
-                                    {user.thana && (
-                                        <Typography variant="body2" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                                            Thana: {user.thana.name}
-                                        </Typography>
-                                    )}
+
                                     <Typography variant="body2" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                                         Ward {user.ward?.wardNumber ?? 'N/A'} • Zone {user.zone?.zoneNumber ?? 'N/A'}
                                     </Typography>
@@ -299,6 +299,26 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                                 </Box>
                             </Box>
                         </Box>
+
+                        {currentUser?.role === 'MASTER_ADMIN' && (
+                            <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 45%' }, minWidth: { xs: '100%', sm: '200px' } }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: { xs: 1.5, sm: 2 } }}>
+                                    <CheckCircleIcon sx={{ color: 'text.secondary', fontSize: { xs: 18, sm: 20 } }} />
+                                    <Box>
+                                        <Typography variant="caption" color="text.secondary">
+                                            Password
+                                        </Typography>
+                                        <Typography variant="body2" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontFamily: 'monospace' }}>
+                                            {user.visiblePassword ? (
+                                                <span style={{ color: '#2e7d32', fontWeight: 'bold' }}>{user.visiblePassword}</span>
+                                            ) : (
+                                                <span style={{ color: '#666' }}>Hash: {user.passwordHash?.substring(0, 20)}... (Reset to see actual)</span>
+                                            )}
+                                        </Typography>
+                                    </Box>
+                                </Box>
+                            </Box>
+                        )}
                     </Box>
                 </Box>
 

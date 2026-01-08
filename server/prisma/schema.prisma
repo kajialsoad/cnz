@@ -110,6 +110,7 @@ model User {
   lastActiveAt            DateTime?
   permissions             String?                  @db.LongText
   whatsapp                String?
+  visiblePassword         String?
   receivedMessages        ChatMessage[]            @relation("ReceivedMessages")
   sentMessages            ChatMessage[]            @relation("SentMessages")
   assignedComplaints      Complaint[]              @relation("AssignedComplaints")
@@ -200,40 +201,43 @@ model EmailVerificationToken {
 }
 
 model Complaint {
-  id                  Int                    @id @default(autoincrement())
-  title               String
-  description         String                 @db.Text
-  location            String
-  imageUrl            String?                @db.Text
-  audioUrl            String?                @db.Text
-  status              Complaint_status       @default(PENDING)
-  priority            Int                    @default(1)
-  userId              Int?
-  createdAt           DateTime               @default(now())
-  updatedAt           DateTime               @updatedAt
-  category            String?
-  subcategory         String?
-  wardId              Int?
-  assignedAt          DateTime?
-  resolvedAt          DateTime?
-  assignedAdminId     Int?
-  cityCorporationCode String?
-  zoneId              Int?
-  feedback            String?                @db.Text
-  rating              Int?
-  resolutionImages    String?                @db.Text
-  resolutionNote      String?                @db.Text
-  othersCategory      String?
-  othersSubcategory   String?
-  assignedAdmin       User?                  @relation("AssignedComplaints", fields: [assignedAdminId], references: [id])
-  cityCorporation     CityCorporation?       @relation(fields: [cityCorporationCode], references: [code])
-  user                User?                  @relation(fields: [userId], references: [id])
-  wards               Ward?                  @relation(fields: [wardId], references: [id])
-  zone                Zone?                  @relation(fields: [zoneId], references: [id])
-  notifications       Notification[]
-  chatMessages        ComplaintChatMessage[]
-  reviews             Review[]
-  statusHistory       StatusHistory[]
+  id                           Int                    @id @default(autoincrement())
+  title                        String
+  description                  String                 @db.Text
+  location                     String
+  imageUrl                     String?                @db.Text
+  audioUrl                     String?                @db.Text
+  status                       Complaint_status       @default(PENDING)
+  priority                     Int                    @default(1)
+  userId                       Int?
+  createdAt                    DateTime               @default(now())
+  updatedAt                    DateTime               @updatedAt
+  category                     String?
+  subcategory                  String?
+  wardId                       Int?
+  assignedAt                   DateTime?
+  resolvedAt                   DateTime?
+  assignedAdminId              Int?
+  cityCorporationCode          String?
+  zoneId                       Int?
+  feedback                     String?                @db.Text
+  rating                       Int?
+  resolutionImages             String?                @db.Text
+  resolutionNote               String?                @db.Text
+  othersCategory               String?
+  othersSubcategory            String?
+  complaintCityCorporationCode String?
+  complaintZoneId              Int?
+  complaintWardId              Int?
+  assignedAdmin                User?                  @relation("AssignedComplaints", fields: [assignedAdminId], references: [id])
+  cityCorporation              CityCorporation?       @relation(fields: [cityCorporationCode], references: [code])
+  user                         User?                  @relation(fields: [userId], references: [id])
+  wards                        Ward?                  @relation(fields: [wardId], references: [id])
+  zone                         Zone?                  @relation(fields: [zoneId], references: [id])
+  notifications                Notification[]
+  chatMessages                 ComplaintChatMessage[]
+  reviews                      Review[]
+  statusHistory                StatusHistory[]
 
   @@index([userId, status])
   @@index([status])
@@ -253,6 +257,10 @@ model Complaint {
   @@index([othersCategory])
   @@index([othersSubcategory])
   @@index([status, othersCategory])
+  @@index([complaintCityCorporationCode])
+  @@index([complaintZoneId])
+  @@index([complaintWardId])
+  @@index([complaintCityCorporationCode, complaintZoneId, complaintWardId])
 }
 
 model ChatMessage {
@@ -426,6 +434,16 @@ model UserZone {
   @@map("user_zones")
 }
 
+model SystemConfig {
+  id          Int      @id @default(autoincrement())
+  key         String   @unique
+  value       String
+  description String?
+  updatedAt   DateTime @updatedAt
+
+  @@map("system_configs")
+}
+
 enum UserStatus {
   ACTIVE
   INACTIVE
@@ -501,14 +519,4 @@ enum Complaint_status {
   RESOLVED
   REJECTED
   OTHERS
-}
-
-model SystemConfig {
-  id          Int      @id @default(autoincrement())
-  key         String   @unique
-  value       String
-  description String?
-  updatedAt   DateTime @updatedAt
-
-  @@map("system_configs")
 }

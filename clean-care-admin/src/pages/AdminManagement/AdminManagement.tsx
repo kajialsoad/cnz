@@ -55,10 +55,20 @@ import AdminEditModal from '../../components/AdminManagement/AdminEditModal';
 import AdminDetailsModal from '../../components/AdminManagement/AdminDetailsModal';
 import { ZoneFilter } from '../../components/common';
 
+import { superAdminService } from '../../services/superAdminService';
+
 // Interfaces
 interface CityCorporation {
   code: string;
   name: string;
+}
+
+interface Zone {
+  id: number;
+  zoneNumber?: number;
+  name?: string;
+  cityCorporationId?: number;
+  status?: string;
 }
 
 
@@ -130,6 +140,7 @@ const AdminManagement: React.FC = () => {
 
   // Dropdowns data
   const [cityCorporations, setCityCorporations] = useState<CityCorporation[]>([]);
+  const [assignedZones, setAssignedZones] = useState<Zone[]>([]); // Added assignedZones state
 
   const [wards, setWards] = useState<Ward[]>([]);
 
@@ -155,22 +166,75 @@ const AdminManagement: React.FC = () => {
     isSuperAdmin: userRole === 'SUPER_ADMIN',
   });
 
-  // Fetch city corporations
+  // Fetch city corporations and assigned zones
   const fetchCityCorporations = useCallback(async () => {
     try {
-      const response = await cityCorporationService.getCityCorporations();
-      console.log('✅ City Corporations response:', response);
-      if (response && response.cityCorporations && Array.isArray(response.cityCorporations)) {
-        setCityCorporations(response.cityCorporations);
-      } else {
-        console.warn('⚠️ Invalid city corporations response format:', response);
-        setCityCorporations([]);
+      const promises: Promise<any>[] = [
+        cityCorporationService.getCityCorporations().catch(err => {
+          console.error('❌ Error fetching city corporations:', err);
+          return { cityCorporations: [] };
+        })
+      ];
+
+      // If Super Admin, add assigned zones fetch
+      if (userRole === 'SUPER_ADMIN' && user?.id) {
+        console.log('👤 Fetching assigned zones for Super Admin:', user.id);
+        promises.push(
+          superAdminService.getAssignedZones(Number(user.id)).catch(err => {
+            console.error('❌ Error fetching assigned zones:', err);
+            return [];
+          })
+        );
       }
+
+      const results = await Promise.all(promises);
+      const cityCorpResponse = results[0];
+      const assignedZonesResponse = results[1]; // Will be undefined if not SUPER_ADMIN
+
+      // 1. Handle City Corporations
+      let availableCityCorps = cityCorpResponse.cityCorporations || [];
+      console.log('✅ City Corporations fetched:', availableCityCorps.length);
+
+      if (userRole === 'SUPER_ADMIN') {
+        const assignedCityCode = (user as any).cityCorporationCode || (user as any).cityCorporation?.code;
+        if (assignedCityCode) {
+          console.log('🎯 Filtering City Corps for assigned code:', assignedCityCode);
+          availableCityCorps = availableCityCorps.filter((cc: any) => cc.code === assignedCityCode);
+          // Auto-select if not selected
+          if (cityCorporationFilter !== assignedCityCode) {
+            setCityCorporationFilter(assignedCityCode);
+          }
+        }
+      }
+      setCityCorporations(availableCityCorps);
+
+      // 2. Handle Assigned Zones
+      if (assignedZonesResponse) {
+        console.log('🛡️ Raw Assigned Zones:', assignedZonesResponse);
+        // Filter valid zones and map to Zone interface
+        const formattedZones: Zone[] = (assignedZonesResponse as any[])
+          .map(z => {
+            const zoneData = z.zone || z;
+            if (!zoneData || !zoneData.id) return null;
+            return {
+              id: zoneData.id,
+              zoneNumber: zoneData.zoneNumber,
+              name: zoneData.name,
+              cityCorporationId: zoneData.cityCorporationId || 0,
+              status: 'ACTIVE'
+            } as Zone;
+          })
+          .filter((z): z is Zone => z !== null);
+
+        console.log('✅ Formatted Assigned Zones:', formattedZones);
+        setAssignedZones(formattedZones);
+      }
+
     } catch (error) {
-      console.error('❌ Error fetching city corporations:', error);
-      setCityCorporations([]); // Ensure it's always an array
+      console.error('❌ Error in data fetching:', error);
+      setCityCorporations([]);
     }
-  }, []);
+  }, [userRole, user, cityCorporationFilter]);
 
 
 
@@ -423,21 +487,20 @@ const AdminManagement: React.FC = () => {
         {/* Filters and Search */}
         <Card sx={{ borderRadius: 2, boxShadow: '0px 1px 3px 0px #0000001a, 0px 1px 2px -1px #0000001a' }}>
           <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-            {userRole === 'MASTER_ADMIN' && (
-              <FormControl sx={{ minWidth: 180 }}>
-                <InputLabel>সকল সিটি কর্পোরেশন</InputLabel>
-                <Select
-                  label="সকল সিটি কর্পোরেশন"
-                  value={cityCorporationFilter}
-                  onChange={(e) => setCityCorporationFilter(e.target.value)}
-                >
-                  <MenuItem value="">সকল সিটি কর্পোরেশন</MenuItem>
-                  {Array.isArray(cityCorporations) && cityCorporations.map((cc) => (
-                    <MenuItem key={cc.code} value={cc.code}>{cc.name}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            )}
+            <FormControl sx={{ minWidth: 180 }}>
+              <InputLabel>সকল সিটি কর্পোরেশন</InputLabel>
+              <Select
+                label="সকল সিটি কর্পোরেশন"
+                value={cityCorporationFilter}
+                onChange={(e) => setCityCorporationFilter(e.target.value)}
+                disabled={userRole === 'SUPER_ADMIN'} // Optional: disable if auto-selected
+              >
+                <MenuItem value="">সকল সিটি কর্পোরেশন</MenuItem>
+                {Array.isArray(cityCorporations) && cityCorporations.map((cc) => (
+                  <MenuItem key={cc.code} value={cc.code}>{cc.name}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
 
             <Box sx={{ minWidth: 200 }}>
               <ZoneFilter
@@ -445,6 +508,7 @@ const AdminManagement: React.FC = () => {
                 onChange={(val) => setZoneFilter(val as number | '')}
                 cityCorporationCode={cityCorporationFilter}
                 disabled={!cityCorporationFilter && userRole === 'MASTER_ADMIN'}
+                zones={userRole === 'SUPER_ADMIN' ? (assignedZones as any) : undefined}
                 label="সকল জোন"
               />
             </Box>

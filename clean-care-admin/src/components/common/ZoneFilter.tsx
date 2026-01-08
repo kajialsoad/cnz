@@ -9,6 +9,8 @@ import {
 } from '@mui/material';
 import type { SelectChangeEvent } from '@mui/material';
 import { zoneService } from '../../services/zoneService';
+import { superAdminService } from '../../services/superAdminService';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface Zone {
     id: number;
@@ -37,6 +39,7 @@ const ZoneFilter: React.FC<ZoneFilterProps> = ({
     zones: providedZones,
     hideLabel = false
 }) => {
+    const { user } = useAuth();
     const [zones, setZones] = useState<Zone[]>([]);
     const [loading, setLoading] = useState(false);
 
@@ -55,6 +58,32 @@ const ZoneFilter: React.FC<ZoneFilterProps> = ({
 
             try {
                 setLoading(true);
+
+                // For Super Admin, fetch assigned zones
+                if (user?.role === 'SUPER_ADMIN' && user?.id) {
+                    try {
+                        const assignedZones = await superAdminService.getAssignedZones(Number(user.id));
+                        if (assignedZones && assignedZones.length > 0) {
+                            const formattedZones = assignedZones
+                                .map(assignment => {
+                                    const zoneData = (assignment.zone || assignment) as any;
+                                    if (!zoneData || !zoneData.id) return null;
+                                    return {
+                                        id: zoneData.id,
+                                        zoneNumber: zoneData.zoneNumber,
+                                        name: zoneData.name
+                                    };
+                                })
+                                .filter(z => z !== null);
+                            setZones(formattedZones as any[]);
+                            return;
+                        }
+                    } catch (superAdminError) {
+                        console.error('Failed to fetch assigned zones for super admin:', superAdminError);
+                    }
+                }
+
+                // Default / Fallback: fetch all active zones
                 const response = await zoneService.getZones({
                     cityCorporationCode: cityCorporationCode,
                     status: 'ACTIVE'
@@ -71,7 +100,7 @@ const ZoneFilter: React.FC<ZoneFilterProps> = ({
         };
 
         fetchZones();
-    }, [cityCorporationCode, providedZones]);
+    }, [cityCorporationCode, providedZones, user]);
 
     const handleChange = (event: SelectChangeEvent<number | string>) => {
         const val = event.target.value;

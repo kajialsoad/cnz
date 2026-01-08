@@ -35,8 +35,10 @@ import { superAdminService } from '../../services/superAdminService';
 import type { SuperAdmin, SuperAdminStatistics } from '../../services/superAdminService';
 import SuperAdminAddModal from '../../components/SuperAdminManagement/SuperAdminAddModal';
 import SuperAdminEditModal from '../../components/SuperAdminManagement/SuperAdminEditModal';
+import SuperAdminDetailsModal from '../../components/SuperAdminManagement/SuperAdminDetailsModal';
 import ActivityFeed from '../../components/SuperAdminManagement/ActivityFeed';
 import { UserStatus } from '../../types/userManagement.types';
+import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined';
 
 const StatCard: React.FC<{ title: string; value: string | number; bg: string; color: string }> = ({ title, value, bg, color }) => (
   <Card sx={{ borderRadius: 2, boxShadow: '0px 1px 3px 0px #0000001a, 0px 1px 2px -1px #0000001a' }}>
@@ -63,6 +65,7 @@ const StatCardSkeleton: React.FC<{ bg: string }> = ({ bg }) => (
 const SuperAdminManagement: React.FC = () => {
   const [openAdd, setOpenAdd] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
+  const [openView, setOpenView] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [statusFilter, setStatusFilter] = useState<UserStatus | 'ALL'>(UserStatus.ACTIVE);
   const [selectedSuperAdmin, setSelectedSuperAdmin] = useState<SuperAdmin | null>(null);
@@ -200,6 +203,11 @@ const SuperAdminManagement: React.FC = () => {
   const handleEditSuccess = () => {
     loadSuperAdmins();
     loadStatistics();
+  };
+
+  const handleView = (admin: SuperAdmin) => {
+    setSelectedSuperAdmin(admin);
+    setOpenView(true);
   };
 
   return (
@@ -454,6 +462,9 @@ const SuperAdminManagement: React.FC = () => {
                                 </Stack>
                                 <Divider orientation="vertical" flexItem />
                                 <Stack direction="row" spacing={1}>
+                                  <IconButton size="small" onClick={() => handleView(admin)} sx={{ color: '#155dfc' }}>
+                                    <VisibilityOutlined />
+                                  </IconButton>
                                   <IconButton size="small" onClick={() => handleEdit(admin)}>
                                     <EditOutlined />
                                   </IconButton>
@@ -505,6 +516,16 @@ const SuperAdminManagement: React.FC = () => {
               setSelectedSuperAdmin(null);
             }}
             onSuccess={handleEditSuccess}
+            superAdmin={selectedSuperAdmin}
+          />
+
+          {/* View Modal */}
+          <SuperAdminDetailsModal
+            open={openView}
+            onClose={() => {
+              setOpenView(false);
+              setSelectedSuperAdmin(null);
+            }}
             superAdmin={selectedSuperAdmin}
           />
         </Stack>

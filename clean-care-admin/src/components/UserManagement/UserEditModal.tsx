@@ -28,6 +28,8 @@ import { wardService } from '../../services/wardService';
 import type { CityCorporation } from '../../services/cityCorporationService';
 import type { Zone } from '../../services/zoneService';
 import type { Ward } from '../../services/wardService';
+import { useAuth } from '../../contexts/AuthContext';
+import { superAdminService } from '../../services/superAdminService';
 
 interface UserEditModalProps {
     user: UserWithStats | null;
@@ -67,6 +69,7 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
     onClose,
     onSave,
 }) => {
+    const { user: currentUser } = useAuth();
     const [formData, setFormData] = useState<FormData>({
         firstName: '',
         lastName: '',
@@ -138,6 +141,36 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
     const fetchZones = async (cityCorporationCode: string) => {
         try {
             setZonesLoading(true);
+
+            // If SUPER_ADMIN, fetch only assigned zones
+            if (currentUser?.role === 'SUPER_ADMIN') {
+                try {
+                    // Fetch assigned zones
+                    const assignedZones = await superAdminService.getAssignedZones(Number(currentUser.id));
+                    const cc = cityCorporations.find(c => c.code === cityCorporationCode);
+
+                    // Filter and map to Zone interface
+                    const validZones = assignedZones
+                        .filter(az => az.zone.cityCorporationCode === cityCorporationCode)
+                        .map(az => ({
+                            id: az.zone.id,
+                            zoneNumber: az.zone.zoneNumber,
+                            name: az.zone.name,
+                            cityCorporationId: cc?.id || 0,
+                            status: 'ACTIVE' as const,
+                            createdAt: az.assignedAt,
+                            updatedAt: az.assignedAt
+                        } as Zone));
+
+                    setZones(validZones);
+                    return; // Exit early
+                } catch (err) {
+                    console.error('Error fetching assigned zones:', err);
+                    setZones([]);
+                    return;
+                }
+            }
+
             const response = await zoneService.getZones({ cityCorporationCode, status: 'ACTIVE' });
             setZones(response.zones || []);
         } catch (err: any) {
@@ -552,68 +585,72 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
                         </Box>
                     </Box>
 
-                    {/* Change Password (Optional) */}
-                    <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2, mt: 3 }}>
-                        Change Password (Optional)
-                    </Typography>
+                    {/* Change Password (Optional) - Only visible to MASTER_ADMIN */}
+                    {currentUser?.role === 'MASTER_ADMIN' && (
+                        <>
+                            <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2, mt: 3 }}>
+                                Change Password (Optional)
+                            </Typography>
 
-                    <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
-                        <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
-                            <TextField
-                                fullWidth
-                                label="New Password"
-                                type={showPassword ? 'text' : 'password'}
-                                value={formData.newPassword}
-                                onChange={handleChange('newPassword')}
-                                error={!!errors.newPassword}
-                                helperText={errors.newPassword || 'Leave blank to keep current password'}
-                                disabled={loading}
-                                slotProps={{
-                                    input: {
-                                        endAdornment: (
-                                            <InputAdornment position="end">
-                                                <IconButton
-                                                    onClick={() => setShowPassword(!showPassword)}
-                                                    edge="end"
-                                                    size="small"
-                                                >
-                                                    {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                                                </IconButton>
-                                            </InputAdornment>
-                                        ),
-                                    },
-                                }}
-                            />
-                        </Box>
+                            <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+                                <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
+                                    <TextField
+                                        fullWidth
+                                        label="New Password"
+                                        type={showPassword ? 'text' : 'password'}
+                                        value={formData.newPassword}
+                                        onChange={handleChange('newPassword')}
+                                        error={!!errors.newPassword}
+                                        helperText={errors.newPassword || 'Leave blank to keep current password'}
+                                        disabled={loading}
+                                        slotProps={{
+                                            input: {
+                                                endAdornment: (
+                                                    <InputAdornment position="end">
+                                                        <IconButton
+                                                            onClick={() => setShowPassword(!showPassword)}
+                                                            edge="end"
+                                                            size="small"
+                                                        >
+                                                            {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                                                        </IconButton>
+                                                    </InputAdornment>
+                                                ),
+                                            },
+                                        }}
+                                    />
+                                </Box>
 
-                        <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
-                            <TextField
-                                fullWidth
-                                label="Confirm New Password"
-                                type={showConfirmPassword ? 'text' : 'password'}
-                                value={formData.confirmPassword}
-                                onChange={handleChange('confirmPassword')}
-                                error={!!errors.confirmPassword}
-                                helperText={errors.confirmPassword}
-                                disabled={loading}
-                                slotProps={{
-                                    input: {
-                                        endAdornment: (
-                                            <InputAdornment position="end">
-                                                <IconButton
-                                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                                    edge="end"
-                                                    size="small"
-                                                >
-                                                    {showConfirmPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                                                </IconButton>
-                                            </InputAdornment>
-                                        ),
-                                    },
-                                }}
-                            />
-                        </Box>
-                    </Box>
+                                <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
+                                    <TextField
+                                        fullWidth
+                                        label="Confirm New Password"
+                                        type={showConfirmPassword ? 'text' : 'password'}
+                                        value={formData.confirmPassword}
+                                        onChange={handleChange('confirmPassword')}
+                                        error={!!errors.confirmPassword}
+                                        helperText={errors.confirmPassword}
+                                        disabled={loading}
+                                        slotProps={{
+                                            input: {
+                                                endAdornment: (
+                                                    <InputAdornment position="end">
+                                                        <IconButton
+                                                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                                            edge="end"
+                                                            size="small"
+                                                        >
+                                                            {showConfirmPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                                                        </IconButton>
+                                                    </InputAdornment>
+                                                ),
+                                            },
+                                        }}
+                                    />
+                                </Box>
+                            </Box>
+                        </>
+                    )}
 
                     {/* Account Settings */}
                     <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2, mt: 3 }}>

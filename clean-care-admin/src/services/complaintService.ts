@@ -266,7 +266,16 @@ class ComplaintService {
                 }
 
                 if (filters.subcategory) params.subcategory = filters.subcategory;
+
+                // Use complaint location filters (not user profile location)
+                if (filters.complaintCityCorporationCode) params.complaintCityCorporationCode = filters.complaintCityCorporationCode;
+                if (filters.complaintZoneId) params.complaintZoneId = filters.complaintZoneId;
+                if (filters.complaintWardId) params.complaintWardId = filters.complaintWardId;
+
+                // Legacy filters (for backward compatibility)
                 if (filters.cityCorporationCode) params.cityCorporationCode = filters.cityCorporationCode;
+                if (filters.zoneId) params.zoneId = filters.zoneId;
+                if (filters.wardId) params.wardId = filters.wardId;
                 if (filters.ward) params.ward = filters.ward;
                 if (filters.thanaId) params.thanaId = filters.thanaId;
                 if (filters.startDate) params.startDate = filters.startDate;

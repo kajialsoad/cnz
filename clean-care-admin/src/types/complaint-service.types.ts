@@ -133,7 +133,11 @@ export interface ComplaintFilters {
     subcategory?: string;
     /** Filter by city corporation code (e.g., 'DSCC', 'DNCC') */
     cityCorporationCode?: string;
-    /** Filter by ward number */
+    /** Filter by zone ID */
+    zoneId?: number;
+    /** Filter by ward ID */
+    wardId?: number;
+    /** Filter by ward number (Legacy) */
     ward?: string;
     /** Filter by thana ID */
     thanaId?: number;
@@ -145,6 +149,12 @@ export interface ComplaintFilters {
     sortBy?: 'createdAt' | 'updatedAt' | 'priority';
     /** Sort order (ascending or descending) */
     sortOrder?: 'asc' | 'desc';
+    /** Filter by complaint's city corporation code (not user's profile) */
+    complaintCityCorporationCode?: string;
+    /** Filter by complaint's zone ID (not user's profile) */
+    complaintZoneId?: number;
+    /** Filter by complaint's ward ID (not user's profile) */
+    complaintWardId?: number;
 }
 
 export interface ComplaintStats {

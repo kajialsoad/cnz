@@ -82,7 +82,7 @@ const baseMenuItems = [
     label: 'City Corporations',
     icon: adminIcon,
     path: '/city-corporations',
-    roles: ['MASTER_ADMIN', 'SUPER_ADMIN'],
+    roles: ['MASTER_ADMIN'],
   },
   {
     id: 'activity-logs',

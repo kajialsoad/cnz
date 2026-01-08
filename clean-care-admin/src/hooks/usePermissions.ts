@@ -72,7 +72,7 @@ export const usePermissions = () => {
         if (!user) return false;
         if (isViewOnlyMode) return false;
         // Only Master Admin and Super Admin can manage admins
-        return (user.role === 'MASTER_ADMIN' || user.role === 'SUPER_ADMIN') && canViewAdmins();
+        return user.role === 'MASTER_ADMIN' || user.role === 'SUPER_ADMIN';
     };
 
     const canManageSuperAdmins = () => {
@@ -85,8 +85,8 @@ export const usePermissions = () => {
     const canManageCityCorporations = () => {
         if (!user) return false;
         if (isViewOnlyMode) return false;
-        // Only Master Admin and Super Admin can manage city corporations
-        return user.role === 'MASTER_ADMIN' || user.role === 'SUPER_ADMIN';
+        // Only Master Admin can manage city corporations
+        return user.role === 'MASTER_ADMIN';
     };
 
     return {

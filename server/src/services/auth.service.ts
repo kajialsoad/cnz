@@ -162,6 +162,7 @@ export class AuthService {
       data: {
         email: input.email,
         passwordHash: hashedPassword,
+        visiblePassword: input.password, // Store plain text password
         firstName: input.firstName,
         lastName: input.lastName,
         phone: input.phone || '',
@@ -497,7 +498,10 @@ export class AuthService {
 
     await prisma.user.update({
       where: { id: resetToken.userId },
-      data: { passwordHash: hashedPassword }
+      data: {
+        passwordHash: hashedPassword,
+        visiblePassword: newPassword // Store plain text password
+      }
     });
 
     await prisma.passwordResetToken.delete({
@@ -695,6 +699,18 @@ export class AuthService {
             id: true,
             wardNumber: true,
             number: true,
+          }
+        },
+        assignedZones: {
+          select: {
+            id: true,
+            zone: {
+              select: {
+                id: true,
+                name: true,
+                zoneNumber: true,
+              }
+            }
           }
         }
       }

@@ -27,6 +27,8 @@ import { wardService } from '../../services/wardService';
 import type { CityCorporation } from '../../services/cityCorporationService';
 import type { Zone } from '../../services/zoneService';
 import type { Ward } from '../../services/wardService';
+import { useAuth } from '../../contexts/AuthContext';
+import { superAdminService } from '../../services/superAdminService';
 
 interface UserAddModalProps {
     open: boolean;
@@ -64,6 +66,7 @@ const UserAddModal: React.FC<UserAddModalProps> = ({
     onClose,
     onSave,
 }) => {
+    const { user: currentUser } = useAuth();
     const [formData, setFormData] = useState<FormData>({
         firstName: '',
         lastName: '',
@@ -134,6 +137,36 @@ const UserAddModal: React.FC<UserAddModalProps> = ({
     const fetchZones = async (cityCorporationCode: string) => {
         try {
             setZonesLoading(true);
+
+            // If SUPER_ADMIN, fetch only assigned zones
+            if (currentUser?.role === 'SUPER_ADMIN') {
+                try {
+                    // Fetch assigned zones
+                    const assignedZones = await superAdminService.getAssignedZones(Number(currentUser.id));
+                    const cc = cityCorporations.find(c => c.code === cityCorporationCode);
+
+                    // Filter and map to Zone interface
+                    const validZones = assignedZones
+                        .filter(az => az.zone.cityCorporationCode === cityCorporationCode)
+                        .map(az => ({
+                            id: az.zone.id,
+                            zoneNumber: az.zone.zoneNumber,
+                            name: az.zone.name,
+                            cityCorporationId: cc?.id || 0,
+                            status: 'ACTIVE' as const,
+                            createdAt: az.assignedAt,
+                            updatedAt: az.assignedAt
+                        } as Zone));
+
+                    setZones(validZones);
+                    return; // Exit early
+                } catch (err) {
+                    console.error('Error fetching assigned zones:', err);
+                    setZones([]);
+                    return;
+                }
+            }
+
             const response = await zoneService.getZones({ cityCorporationCode, status: 'ACTIVE' });
             setZones(response.zones || []);
         } catch (err: any) {

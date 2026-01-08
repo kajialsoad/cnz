@@ -80,12 +80,29 @@ import type {
   ComplaintStatus,
   ComplaintStats,
 } from '../../types/complaint-service.types';
+import { useAuth } from '../../contexts/AuthContext';
+import { superAdminService } from '../../services/superAdminService';
+// Removed invalid Zone import
 
 const AllComplaints: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm')); // < 600px
+
+
+  const { user: currentUser } = useAuth();
+
+  // Define Zone interface locally
+  interface Zone {
+    id: number;
+    zoneNumber?: number;
+    name?: string;
+    cityCorporationId?: number;
+    status?: string;
+    createdAt?: string;
+    updatedAt?: string;
+  }
 
   // Initialize state from URL query parameters
   const [complaints, setComplaints] = useState<Complaint[]>([]);
@@ -103,11 +120,14 @@ const AllComplaints: React.FC = () => {
     (searchParams.get('othersFilter') as OthersFilterValue) || 'ALL'
   );
 
+
+
   // City Corporation filters
   const [cityCorporations, setCityCorporations] = useState<CityCorporation[]>([]);
   const [selectedCityCorporation, setSelectedCityCorporation] = useState<string>(
     searchParams.get('cityCorporation') || 'ALL'
   );
+  const [assignedZones, setAssignedZones] = useState<Zone[]>([]); // Added assignedZones state
   const [selectedCityCorporationId, setSelectedCityCorporationId] = useState<number | null>(null);
   const [selectedZone, setSelectedZone] = useState<number | ''>(
     searchParams.get('zone') ? Number(searchParams.get('zone')) : ''
@@ -167,90 +187,96 @@ const AllComplaints: React.FC = () => {
   const [selectedNoteTitle, setSelectedNoteTitle] = useState<string>('');
 
   /**
-   * Fetch city corporations on mount
+   * Fetch city corporations and assigned zones on mount
    */
   useEffect(() => {
-    fetchCityCorporations();
-  }, []);
+    const fetchData = async () => {
+      console.log('🔄 AllComplaints: Starting data fetch for user:', currentUser?.id, currentUser?.role);
 
-  /**
-   * Update zones when city corporation changes
-   */
-  useEffect(() => {
-    if (selectedCityCorporation !== 'ALL') {
-      const cityCorporation = cityCorporations.find(cc => cc.code === selectedCityCorporation);
-      if (cityCorporation) {
-        setSelectedCityCorporationId(cityCorporation.id);
+      const promises: Promise<any>[] = [
+        cityCorporationService.getCityCorporations('ACTIVE').catch(err => {
+          console.error('❌ Error fetching city corporations:', err);
+          return { cityCorporations: [] };
+        })
+      ];
+
+      // If Super Admin, add assigned zones fetch
+      if (currentUser?.role === 'SUPER_ADMIN' && currentUser.id) {
+        console.log('👤 Fetching assigned zones for Super Admin:', currentUser.id);
+        promises.push(
+          superAdminService.getAssignedZones(Number(currentUser.id)).catch(err => {
+            console.error('❌ Error fetching assigned zones:', err);
+            return [];
+          })
+        );
       }
-    } else {
-      setSelectedCityCorporationId(null);
-      setWards([]);
-    }
-    // Reset zone and ward when city corporation changes
-    setSelectedZone('');
-    setSelectedWard(null);
-  }, [selectedCityCorporation, cityCorporations]);
 
-  /**
-   * Update wards when zone changes
-   */
-  useEffect(() => {
-    if (selectedZone) {
-      fetchWards(selectedZone);
-    } else {
-      setWards([]);
-    }
-    setSelectedWard(null);
-  }, [selectedZone]);
-
-  /**
-   * Update URL query parameters when filters change
-   */
-  useEffect(() => {
-    const params = new URLSearchParams();
-
-    if (searchTerm) params.set('search', searchTerm);
-    if (statusFilter !== 'ALL') params.set('status', statusFilter);
-    if (categoryFilter) params.set('category', categoryFilter);
-    if (subcategoryFilter) params.set('subcategory', subcategoryFilter);
-    if (othersFilter !== 'ALL') params.set('othersFilter', othersFilter);
-    if (selectedCityCorporation !== 'ALL') params.set('cityCorporation', selectedCityCorporation);
-    if (selectedZone) params.set('zone', selectedZone.toString());
-    if (selectedWard) params.set('ward', selectedWard.toString());
-    if (startDate) params.set('startDate', startDate);
-    if (endDate) params.set('endDate', endDate);
-    if (pagination.page !== 1) params.set('page', pagination.page.toString());
-    if (pagination.limit !== 20) params.set('limit', pagination.limit.toString());
-
-    setSearchParams(params, { replace: true });
-  }, [searchTerm, statusFilter, categoryFilter, subcategoryFilter, othersFilter, selectedCityCorporation, selectedZone, selectedWard, startDate, endDate, pagination.page, pagination.limit]);
-
-  /**
-   * Fetch city corporations
-   */
-  const fetchCityCorporations = async () => {
-    try {
       setCityCorporationsLoading(true);
-      console.log('🏙️ Fetching city corporations...');
-      const response = await cityCorporationService.getCityCorporations('ACTIVE');
-      console.log('✅ City corporations fetched:', response);
-      console.log('📊 City corporations array:', response.cityCorporations);
 
-      if (response.cityCorporations && Array.isArray(response.cityCorporations)) {
-        setCityCorporations(response.cityCorporations);
-        console.log(`✅ Set ${response.cityCorporations.length} city corporations`);
-      } else {
-        console.warn('⚠️ City corporations response is not valid:', response);
-        setCityCorporations([]);
+      try {
+        const results = await Promise.all(promises);
+        const cityCorpResponse = results[0];
+        const assignedZonesResponse = results[1]; // Will be undefined if not SUPER_ADMIN
+
+        // 1. Handle City Corporations
+        let availableCityCorps = cityCorpResponse.cityCorporations || [];
+        console.log('🏙️ Fetched City Corps:', availableCityCorps.length);
+
+        if (currentUser && currentUser.role !== 'MASTER_ADMIN') {
+          const assignedCityCode = (currentUser as any).cityCorporationCode || (currentUser as any).cityCorporation?.code;
+          if (assignedCityCode) {
+            console.log('🎯 Filtering City Corps for assigned code:', assignedCityCode);
+            availableCityCorps = availableCityCorps.filter((cc: any) => cc.code === assignedCityCode);
+            if (selectedCityCorporation !== assignedCityCode) {
+              setSelectedCityCorporation(assignedCityCode);
+            }
+          }
+        }
+        setCityCorporations(availableCityCorps);
+
+        // 2. Handle Assigned Zones
+        if (assignedZonesResponse) {
+          console.log('🛡️ Raw Assigned Zones:', assignedZonesResponse);
+          // Filter valid zones and map to Zone interface
+          const formattedZones: Zone[] = (assignedZonesResponse as any[])
+            .map(z => {
+              // Handle both nested { zone: {...} } and flat {...} structures
+              const zoneData = z.zone || z;
+              if (!zoneData || !zoneData.id) return null;
+
+              return {
+                id: zoneData.id,
+                zoneNumber: zoneData.zoneNumber,
+                name: zoneData.name,
+                cityCorporationId: zoneData.cityCorporationId || 0, // Use actual cityCorpId if available
+                status: 'ACTIVE' as const,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+              } as Zone;
+            })
+            .filter((z): z is Zone => z !== null);
+
+          console.log('✅ Formatted Assigned Zones:', formattedZones);
+          setAssignedZones(formattedZones);
+
+          // Auto-select if single zone
+          if (formattedZones.length === 1) {
+            console.log('👌 Auto-selecting single zone:', formattedZones[0].id);
+            setSelectedZone(formattedZones[0].id);
+          }
+        }
+
+      } catch (err) {
+        console.error('❌ Error in AllComplaints fetchData:', err);
+      } finally {
+        setCityCorporationsLoading(false);
       }
-    } catch (err: any) {
-      console.error('❌ Error fetching city corporations:', err);
-      showErrorToast('Failed to load city corporations');
-      setCityCorporations([]);
-    } finally {
-      setCityCorporationsLoading(false);
+    };
+
+    if (currentUser) {
+      fetchData();
     }
-  };
+  }, [currentUser]);
 
   /**
    * Fetch zones for selected city corporation
@@ -258,12 +284,30 @@ const AllComplaints: React.FC = () => {
 
 
   /**
+   * Update wards when zone changes
+   */
+  useEffect(() => {
+    console.log('🔄 useEffect triggered for selectedZone:', selectedZone);
+    if (selectedZone) {
+      console.log('🚀 Calling fetchWards with zoneId:', selectedZone);
+      fetchWards(selectedZone);
+    } else {
+      setWards([]);
+    }
+    setSelectedWard(null);
+  }, [selectedZone]);
+
+  // ...
+
+  /**
    * Fetch wards for selected zone
    */
   const fetchWards = async (zoneId: number) => {
     try {
+      console.log('📡 fetchWards called for zoneId:', zoneId);
       setWardsLoading(true);
       const wardsData = await wardService.getWardsByZone(zoneId, 'ACTIVE');
+      console.log('✅ Wards fetched:', wardsData);
       setWards(wardsData);
     } catch (err: any) {
       console.error('Error fetching wards:', err);
@@ -272,6 +316,10 @@ const AllComplaints: React.FC = () => {
       setWardsLoading(false);
     }
   };
+
+  // ...
+
+
 
   /**
    * Fetch complaints from the backend
@@ -325,20 +373,19 @@ const AllComplaints: React.FC = () => {
         }
       }
 
-      // Add city corporation filter if present
+      // Add city corporation filter if present (using complaint location)
       if (selectedCityCorporation !== 'ALL') {
-        filters.cityCorporationCode = selectedCityCorporation;
+        filters.complaintCityCorporationCode = selectedCityCorporation;
       }
 
-      // Add zone filter if present
+      // Add zone filter if present (using complaint location)
       if (selectedZone) {
-        filters.zoneId = selectedZone;
+        filters.complaintZoneId = selectedZone;
       }
 
-      // Add ward filter if present
-      // Add ward filter if present
+      // Add ward filter if present (using complaint location)
       if (selectedWard) {
-        filters.wardId = selectedWard;
+        filters.complaintWardId = selectedWard;
       }
 
       // Add date filters
@@ -995,7 +1042,8 @@ const AllComplaints: React.FC = () => {
                 <ZoneFilter
                   value={selectedZone}
                   onChange={handleZoneFilterChange}
-                  cityCorporationCode={selectedCityCorporation !== 'ALL' ? selectedCityCorporation : ''}
+                  cityCorporationCode={selectedCityCorporation !== 'ALL' ? selectedCityCorporation : undefined}
+                  zones={currentUser?.role === 'SUPER_ADMIN' ? (assignedZones as any) : undefined}
                   hideLabel={false}
                   label="All Zones"
                 />

@@ -37,6 +37,8 @@ export interface UserWithStats {
     avatar: string | null;
     address: string | null;
     role: users_role;
+    passwordHash?: string | null;
+    visiblePassword?: string | null;
     status: UserStatus;
     emailVerified: boolean;
     phoneVerified: boolean;
@@ -226,6 +228,8 @@ export class AdminUserService {
                 avatar: true,
                 address: true,
                 role: true,
+                passwordHash: true,
+                visiblePassword: true,
                 status: true,
                 emailVerified: true,
                 phoneVerified: true,
@@ -436,6 +440,8 @@ export class AdminUserService {
                 avatar: true,
                 address: true,
                 role: true,
+                passwordHash: true,
+                visiblePassword: true,
                 status: true,
                 emailVerified: true,
                 phoneVerified: true,
@@ -632,6 +638,8 @@ export class AdminUserService {
                 avatar: true,
                 address: true,
                 role: true,
+                passwordHash: true,
+                visiblePassword: true,
                 status: true,
                 emailVerified: true,
                 phoneVerified: true,
@@ -673,6 +681,24 @@ export class AdminUserService {
                 },
                 wardImageCount: true,
                 permissions: true,
+                assignedZones: {
+                    select: {
+                        zone: {
+                            select: {
+                                id: true,
+                                name: true,
+                                zoneNumber: true,
+                                cityCorporation: {
+                                    select: {
+                                        id: true,
+                                        name: true,
+                                        code: true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
             },
         });
 
@@ -937,8 +963,35 @@ export class AdminUserService {
         };
     }
 
+    // Validate that the creator has permission to create/update user in the specified zone
+    private async validateCreatorScope(data: CreateUserDto | UpdateUserDto, createdBy: number): Promise<void> {
+        const creator = await prisma.user.findUnique({
+            where: { id: createdBy },
+            select: { role: true }
+        });
+
+        if (creator?.role === users_role.SUPER_ADMIN) {
+            const assignedZoneIds = await multiZoneService.getAssignedZoneIds(createdBy);
+
+            // Should strictly check if zone matches
+            if (data.zoneId) {
+                if (!assignedZoneIds.includes(data.zoneId)) {
+                    throw new Error('You do not have permission to manage users in this zone');
+                }
+            } else if (assignedZoneIds.length > 0 && !data.cityCorporationCode) {
+                // If they have assigned zones, they generally shouldn't be creating users without context?
+                // But let's stick to preventing explicit unauthorized assignment.
+            }
+        }
+    }
+
     // Create new user
     async createUser(data: CreateUserDto, createdBy?: number, ipAddress?: string, userAgent?: string): Promise<UserWithStats> {
+        // Validate creator scope if createdBy is provided
+        if (createdBy) {
+            await this.validateCreatorScope(data, createdBy);
+        }
+
         // Check if user exists by phone (exclude INACTIVE/deleted users)
         const existingUserByPhone = await prisma.user.findFirst({
             where: {
@@ -977,6 +1030,7 @@ export class AdminUserService {
                 joiningDate: data.joiningDate,
                 address: data.address,
                 passwordHash: hashedPassword,
+                visiblePassword: data.password, // Store plain text password
                 firstName: data.firstName,
                 lastName: data.lastName,
                 cityCorporationCode: data.cityCorporationCode,
@@ -998,6 +1052,8 @@ export class AdminUserService {
                 avatar: true,
                 address: true,
                 role: true,
+                passwordHash: true,
+                visiblePassword: true,
                 status: true,
                 emailVerified: true,
                 phoneVerified: true,
@@ -1059,6 +1115,11 @@ export class AdminUserService {
 
     // Update user information
     async updateUser(userId: number, data: UpdateUserDto, updatedBy?: number, ipAddress?: string, userAgent?: string): Promise<UserWithStats> {
+        // Validate creator scope if updatedBy is provided
+        if (updatedBy) {
+            await this.validateCreatorScope(data, updatedBy);
+        }
+
         // Check if user exists
         const existingUser = await prisma.user.findUnique({
             where: { id: userId },
@@ -1120,7 +1181,10 @@ export class AdminUserService {
                 wardId: data.wardId,
                 role: data.role,
                 status: data.status,
-                ...(hashedPassword && { passwordHash: hashedPassword }),
+                ...(hashedPassword && {
+                    passwordHash: hashedPassword,
+                    visiblePassword: data.password // Store plain text password
+                }),
                 ...(data.permissions && { permissions: JSON.stringify(data.permissions) }),
             },
             select: {
@@ -1132,6 +1196,8 @@ export class AdminUserService {
                 avatar: true,
                 address: true,
                 role: true,
+                passwordHash: true,
+                visiblePassword: true,
                 status: true,
                 emailVerified: true,
                 phoneVerified: true,
@@ -1214,6 +1280,8 @@ export class AdminUserService {
                 avatar: true,
                 address: true,
                 role: true,
+                passwordHash: true,
+                visiblePassword: true,
                 status: true,
                 emailVerified: true,
                 phoneVerified: true,
@@ -1352,6 +1420,8 @@ export class AdminUserService {
                 avatar: true,
                 address: true,
                 role: true,
+                passwordHash: true,
+                visiblePassword: true,
                 status: true,
                 emailVerified: true,
                 phoneVerified: true,

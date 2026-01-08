@@ -2,9 +2,11 @@ import React from 'react';
 import { Box, Typography, Paper } from '@mui/material';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { useLanguage } from '../../../../contexts/LanguageContext';
+import { useProfile } from '../../../../contexts/ProfileContext';
 
 const WelcomeBanner: React.FC = () => {
     const { user } = useAuth();
+    const { profile } = useProfile();
     const { language } = useLanguage();
 
     if (!user) return null;
@@ -31,6 +33,23 @@ const WelcomeBanner: React.FC = () => {
 
     const welcomeText = language === 'bn' ? 'স্বাগতম' : 'Welcome';
     const roleText = roleDisplay[user.role as keyof typeof roleDisplay]?.[language] || user.role;
+
+    // Use profile data if available (supports assignedZones), otherwise fallback to auth user data
+    const cityCorporationName = profile?.cityCorporationCode || user.cityCorporation?.name;
+    // Note: profile.cityCorporationCode is a string code (e.g. DNCC), user.cityCorporation.name is full name. 
+    // Ideally we want the full name. Let's try to get it from profile.cityCorporationCode if possible, 
+    // but the profile type only has the code string locally unless we fetched the object.
+    // However, looking at ProfileContext, it fetches profile from API which returns cityCorporation object potentially? 
+    // API returns cityCorporationCode string in the root and cityCorporation object nested.
+    // Let's check profile type again. It has cityCorporationCode?: string. 
+    // Actually the API response has cityCorporation object.
+
+    // Let's stick to safe fallbacks.
+    const displayCity = user.cityCorporation?.name || profile?.cityCorporationCode;
+
+    const assignedZones = profile?.assignedZones;
+    const singleZone = profile?.zone || user.zone;
+    const ward = profile?.ward || user.ward;
 
     return (
         <Paper
@@ -66,7 +85,7 @@ const WelcomeBanner: React.FC = () => {
                 >
                     {roleText}
                 </Typography>
-                {user.cityCorporation && (
+                {(displayCity || singleZone || (assignedZones && assignedZones.length > 0)) && (
                     <Typography
                         variant="body2"
                         sx={{
@@ -75,11 +94,18 @@ const WelcomeBanner: React.FC = () => {
                             display: 'flex',
                             alignItems: 'center',
                             gap: 0.5,
+                            flexWrap: 'wrap'
                         }}
                     >
-                        📍 {user.cityCorporation.name}
-                        {user.zone && ` • Zone ${user.zone.zoneNumber}`}
-                        {user.ward && ` • Ward ${user.ward.wardNumber}`}
+                        {displayCity && `📍 ${displayCity}`}
+
+                        {(assignedZones && assignedZones.length > 0) ? (
+                            ` • Zones: ${assignedZones.map(az => az.zone.name).join(', ')}`
+                        ) : (
+                            singleZone && ` • ${typeof singleZone === 'string' ? singleZone : `Zone ${singleZone.zoneNumber}`}`
+                        )}
+
+                        {ward && ` • ${typeof ward === 'string' ? ward : `Ward ${ward.wardNumber}`}`}
                     </Typography>
                 )}
             </Box>

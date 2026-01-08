@@ -34,6 +34,7 @@ import { userManagementService } from '../../services/userManagementService';
 import type { CityCorporation } from '../../services/cityCorporationService';
 import type { Zone } from '../../services/zoneService';
 import type { Ward } from '../../services/wardService';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface AdminEditModalProps {
     admin: UserWithStats | null;
@@ -113,6 +114,7 @@ const AdminEditModal: React.FC<AdminEditModalProps> = ({
     onClose,
     onSuccess,
 }) => {
+    const { user: currentUser } = useAuth();
     const [formData, setFormData] = useState<FormData>({
         firstName: '',
         lastName: '',
@@ -642,25 +644,41 @@ const AdminEditModal: React.FC<AdminEditModalProps> = ({
                             </Grid>
 
                             <Grid size={12}>
-                                <Typography variant="body2" fontWeight="500" mb={0.5}>নতুন পাসওয়ার্ড (অপশনাল)</Typography>
-                                <TextField
-                                    fullWidth
-                                    type={showPassword ? 'text' : 'password'}
-                                    value={formData.newPassword}
-                                    onChange={handleChange('newPassword')}
-                                    error={!!errors.newPassword}
-                                    helperText={errors.newPassword}
-                                    size="small"
-                                    InputProps={{
-                                        endAdornment: (
-                                            <InputAdornment position="end">
-                                                <IconButton onClick={() => setShowPassword(!showPassword)} edge="end" size="small">
-                                                    {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                                                </IconButton>
-                                            </InputAdornment>
-                                        )
-                                    }}
-                                />
+                                {currentUser?.role === 'MASTER_ADMIN' && (
+                                    <>
+                                        <Typography variant="body2" fontWeight="500" mb={0.5}>নতুন পাসওয়ার্ড (অপশনাল)</Typography>
+                                        <TextField
+                                            fullWidth
+                                            type={showPassword ? 'text' : 'password'}
+                                            value={formData.newPassword}
+                                            onChange={handleChange('newPassword')}
+                                            error={!!errors.newPassword}
+                                            helperText={errors.newPassword}
+                                            size="small"
+                                            InputProps={{
+                                                endAdornment: (
+                                                    <InputAdornment position="end">
+                                                        <IconButton onClick={() => setShowPassword(!showPassword)} edge="end" size="small">
+                                                            {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                                                        </IconButton>
+                                                    </InputAdornment>
+                                                )
+                                            }}
+                                        />
+
+                                        <Typography variant="body2" fontWeight="500" mb={0.5} mt={2}>পাসওয়ার্ড নিশ্চিত করুন</Typography>
+                                        <TextField
+                                            fullWidth
+                                            type={showPassword ? 'text' : 'password'}
+                                            value={formData.confirmPassword}
+                                            onChange={handleChange('confirmPassword')}
+                                            error={!!errors.confirmPassword}
+                                            helperText={errors.confirmPassword}
+                                            size="small"
+                                            placeholder="পুনরায় পাসওয়ার্ড লিখুন"
+                                        />
+                                    </>
+                                )}
                             </Grid>
                         </Grid>
                     </Grid>

@@ -662,6 +662,23 @@ const ComplaintDetails: React.FC = () => {
                                                 <Typography variant="body1" sx={{ color: '#1e2939' }}>
                                                     {complaint.location}
                                                 </Typography>
+                                                {/* Added Zone and Ward Info */}
+                                                <Box sx={{ display: 'flex', gap: 2, mt: 1, flexWrap: 'wrap' }}>
+                                                    {(complaint.zone || complaint.user?.zone) && (
+                                                        <Chip
+                                                            label={`Zone: ${complaint.zone?.name || (complaint.user?.zone as any)?.name || 'N/A'}`}
+                                                            size="small"
+                                                            sx={{ bgcolor: '#eff6ff', color: '#1d4ed8', border: '1px solid #dbeafe', fontSize: '0.75rem' }}
+                                                        />
+                                                    )}
+                                                    {(complaint.wards || complaint.user?.ward) && (
+                                                        <Chip
+                                                            label={`Ward: ${(complaint.wards as any)?.wardNumber || (complaint.user?.ward as any)?.wardNumber || 'N/A'}`}
+                                                            size="small"
+                                                            sx={{ bgcolor: '#fdf2f8', color: '#be185d', border: '1px solid #fce7f3', fontSize: '0.75rem' }}
+                                                        />
+                                                    )}
+                                                </Box>
                                             </Box>
                                         </Box>
                                     </Grid>

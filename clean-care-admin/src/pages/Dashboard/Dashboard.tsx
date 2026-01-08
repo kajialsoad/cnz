@@ -38,7 +38,26 @@ const Dashboard: React.FC = () => {
 
         // Fetch city corporations
         const cityResponse = await cityCorporationService.getCityCorporations('ACTIVE');
-        setCityCorps(cityResponse.cityCorporations || []);
+        let availableCityCorps = cityResponse.cityCorporations || [];
+
+        // RESTRICT City Corporation based on User Role
+        // Master Admin can see everything ('ALL')
+        // Others (Super Admin, Admin, Ward Inspector) are restricted to their city corporation
+        if (user && user.role !== UserRole.MASTER_ADMIN) {
+          // Access cityCorporationCode safely
+          // Using 'as any' to bypass strict type check for now if properties are nested or missing in basic User type
+          const assignedCityCode = (user as any).cityCorporationCode || (user as any).cityCorporation?.code;
+
+          if (assignedCityCode) {
+            // Filter the list to ONLY show the assigned city corporation
+            availableCityCorps = availableCityCorps.filter(cc => cc.code === assignedCityCode);
+
+            // Auto-select the assigned city corporation
+            setSelectedCityCorporation(assignedCityCode);
+          }
+        }
+
+        setCityCorps(availableCityCorps);
 
         // Fetch assigned zones if Super Admin
         if (user?.role === UserRole.SUPER_ADMIN) {
@@ -56,7 +75,9 @@ const Dashboard: React.FC = () => {
       }
     };
 
-    fetchData();
+    if (user) {
+      fetchData();
+    }
   }, [user]);
 
   // Auto-refresh every 30 seconds
@@ -95,9 +116,13 @@ const Dashboard: React.FC = () => {
                 value={selectedCityCorporation}
                 onChange={(e) => handleCityCorporationChange(e.target.value)}
                 label="City Corporation"
-                disabled={loading}
+                disabled={loading || (user?.role !== UserRole.MASTER_ADMIN && cityCorps.length <= 1)}
               >
-                <MenuItem value="ALL">All City Corporations</MenuItem>
+                {/* Only Show 'All' for Master Admin */}
+                {user?.role === UserRole.MASTER_ADMIN && (
+                  <MenuItem value="ALL">All City Corporations</MenuItem>
+                )}
+
                 {cityCorps.map((cc) => (
                   <MenuItem key={cc.code} value={cc.code}>
                     {cc.name}
