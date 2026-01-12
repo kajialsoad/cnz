@@ -549,6 +549,7 @@ const AdminEditModal: React.FC<AdminEditModalProps> = ({
                                     value={formData.cityCorporationCode}
                                     onChange={handleChange('cityCorporationCode')}
                                     error={!!errors.cityCorporationCode}
+                                    disabled={currentUser?.role !== 'MASTER_ADMIN'}
                                     size="small"
                                     SelectProps={{ displayEmpty: true }}
                                 >
@@ -572,7 +573,7 @@ const AdminEditModal: React.FC<AdminEditModalProps> = ({
                                     value={formData.zoneId}
                                     onChange={handleChange('zoneId')}
                                     error={!!errors.zoneId}
-                                    disabled={!formData.cityCorporationCode}
+                                    disabled={currentUser?.role !== 'MASTER_ADMIN' || !formData.cityCorporationCode}
                                     size="small"
                                     SelectProps={{ displayEmpty: true }}
                                 >
@@ -600,7 +601,7 @@ const AdminEditModal: React.FC<AdminEditModalProps> = ({
                                     getOptionLabel={(option) => `Ward ${option.wardNumber}${option.zone ? ` (Zone ${option.zone.zoneNumber})` : ''}`}
                                     value={allWards.filter(w => formData.permissions.wards.includes(w.id))}
                                     onChange={handleWardSelection}
-                                    disabled={!formData.cityCorporationCode}
+                                    disabled={currentUser?.role !== 'MASTER_ADMIN' || !formData.cityCorporationCode}
                                     size="small"
                                     renderTags={(value, getTagProps) =>
                                         value.map((option, index) => {
@@ -611,6 +612,7 @@ const AdminEditModal: React.FC<AdminEditModalProps> = ({
                                                     label={`Ward ${option.wardNumber}`}
                                                     size="small"
                                                     {...tagProps}
+                                                    disabled={currentUser?.role !== 'MASTER_ADMIN'} // Disable delete icon on chips
                                                 />
                                             );
                                         })

@@ -4,6 +4,7 @@ import { adminComplaintService } from '../services/admin-complaint.service';
 import { adminComplaintServiceFixed } from '../services/admin-complaint-fixed.service';
 import { Complaint_status } from '@prisma/client';
 import { multiZoneService } from '../services/multi-zone.service';
+import prisma from '../utils/prisma';
 
 /**
  * Get all complaints (admin view)
@@ -77,6 +78,7 @@ export async function getAdminComplaints(req: AuthRequest, res: Response) {
 
 /**
  * Get single complaint by ID (admin view)
+ * 🔒 SECURITY: Super Admins can only view complaints from their assigned zones
  */
 export async function getAdminComplaintById(req: AuthRequest, res: Response) {
     try {
@@ -90,6 +92,41 @@ export async function getAdminComplaintById(req: AuthRequest, res: Response) {
         }
 
         const complaint = await adminComplaintService.getAdminComplaintById(complaintId);
+
+        // 🔒 ZONE-BASED AUTHORIZATION CHECK
+        // Super Admins can only view complaints from their assigned zones
+        if (req.user?.role === 'SUPER_ADMIN') {
+            // Get admin's assigned zones
+            const adminZones = await prisma.userZone.findMany({
+                where: { userId: req.user.id },
+                select: { zoneId: true }
+            });
+
+            const assignedZoneIds = adminZones.map(z => z.zoneId);
+
+            // Get complaint zone (with fallback)
+            const complaintZoneId = complaint.complaintZoneId ?? complaint.zoneId;
+
+            // If complaint has no zone, deny access (safe default)
+            if (!complaintZoneId) {
+                console.log(`[Authorization] ❌ SUPER_ADMIN ${req.user.email} denied access to complaint ${complaintId} - no zone assigned`);
+                return res.status(403).json({
+                    success: false,
+                    message: 'Unauthorized: You do not have access to this complaint'
+                });
+            }
+
+            // Check if complaint zone is in admin's assigned zones
+            if (!assignedZoneIds.includes(complaintZoneId)) {
+                console.log(`[Authorization] ❌ SUPER_ADMIN ${req.user.email} denied access to complaint ${complaintId} - zone ${complaintZoneId} not in assigned zones [${assignedZoneIds.join(', ')}]`);
+                return res.status(403).json({
+                    success: false,
+                    message: 'Unauthorized: This complaint is not in your assigned zones'
+                });
+            }
+
+            console.log(`[Authorization] ✅ SUPER_ADMIN ${req.user.email} granted access to complaint ${complaintId} - zone ${complaintZoneId} in assigned zones`);
+        }
 
         res.status(200).json({
             success: true,

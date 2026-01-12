@@ -502,7 +502,7 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
                                 label="City Corporation"
                                 value={formData.cityCorporationCode}
                                 onChange={handleChange('cityCorporationCode')}
-                                disabled={loading || cityCorporationsLoading}
+                                disabled={loading || cityCorporationsLoading || currentUser?.role !== 'MASTER_ADMIN'}
                                 error={!!errors.cityCorporationCode}
                                 helperText={errors.cityCorporationCode}
                                 required
@@ -525,7 +525,7 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
                                 label="Zone"
                                 value={formData.zoneId}
                                 onChange={handleChange('zoneId')}
-                                disabled={loading || zonesLoading || !formData.cityCorporationCode}
+                                disabled={loading || zonesLoading || !formData.cityCorporationCode || currentUser?.role !== 'MASTER_ADMIN'}
                                 error={!!errors.zoneId}
                                 helperText={
                                     errors.zoneId ||
@@ -559,7 +559,7 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
                                 label="Ward"
                                 value={formData.wardId}
                                 onChange={handleChange('wardId')}
-                                disabled={loading || wardsLoading || !formData.zoneId}
+                                disabled={loading || wardsLoading || !formData.zoneId || currentUser?.role !== 'MASTER_ADMIN'}
                                 error={!!errors.wardId}
                                 helperText={
                                     errors.wardId ||
