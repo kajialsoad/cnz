@@ -54,7 +54,7 @@ const baseMenuItems = [
     icon: chatIcon,
     path: '/chats',
     dynamicBadge: true, // Will be populated from API
-    roles: ['MASTER_ADMIN', 'SUPER_ADMIN', 'ADMIN'],
+    roles: ['MASTER_ADMIN', 'SUPER_ADMIN', 'ADMIN'], // All roles can see Messages
   },
   {
     id: 'super-admins',
@@ -89,14 +89,14 @@ const baseMenuItems = [
     label: 'Activity Logs',
     icon: reportIcon,
     path: '/activity-logs',
-    roles: ['MASTER_ADMIN', 'SUPER_ADMIN'],
+    roles: ['MASTER_ADMIN'], // Only Master Admin can see Activity Logs
   },
   {
     id: 'reports',
     label: 'Reports',
     icon: reportIcon,
     path: '/reports',
-    roles: ['MASTER_ADMIN', 'SUPER_ADMIN', 'ADMIN'],
+    roles: ['MASTER_ADMIN', 'SUPER_ADMIN', 'ADMIN'], // All roles can see Reports
   },
   {
     id: 'notifications',
@@ -111,7 +111,7 @@ const baseMenuItems = [
     label: 'Settings',
     icon: settingsIcon,
     path: '/settings',
-    roles: ['MASTER_ADMIN', 'SUPER_ADMIN', 'ADMIN'],
+    roles: ['MASTER_ADMIN'], // Only Master Admin can see Settings
   },
 ];
 

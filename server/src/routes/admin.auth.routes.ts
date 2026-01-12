@@ -8,7 +8,8 @@ console.log('🔧 Loading admin.auth.routes.ts...');
 const router = Router();
 
 // Admin authentication routes with rate limiting and account lockout protection
-router.post('/login', loginRateLimit, ipRateLimit(100, 60 * 1000), adminLogin);
+// Increased limits for development: 1000 requests per minute
+router.post('/login', loginRateLimit, ipRateLimit(1000, 60 * 1000), adminLogin);
 console.log('🔧 Admin route registered: POST /login (with rate limiting)');
 
 router.post('/logout', adminLogout);

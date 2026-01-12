@@ -202,7 +202,46 @@ export class AdminComplaintService {
                 });
             }
 
-            if (complaintZoneId) {
+            // SUPER_ADMIN Zone Filtering: Filter by assigned zones
+            // This ensures Super Admins only see complaints from their assigned zones
+            if (assignedZoneIds && assignedZoneIds.length > 0) {
+                if (complaintZoneId) {
+                    // If specific zone requested, validate it's in assigned zones
+                    if (!assignedZoneIds.includes(complaintZoneId)) {
+                        // Return empty result - requested zone not in assigned zones
+                        andConditions.push({ id: -1 });
+                    } else {
+                        // Valid zone requested
+                        andConditions.push({
+                            OR: [
+                                { complaintZoneId: complaintZoneId },
+                                // Fallback: If complaintZoneId is null, check old field
+                                {
+                                    AND: [
+                                        { complaintZoneId: null },
+                                        { zoneId: complaintZoneId }
+                                    ]
+                                }
+                            ]
+                        });
+                    }
+                } else {
+                    // No specific zone requested - filter by all assigned zones
+                    andConditions.push({
+                        OR: [
+                            { complaintZoneId: { in: assignedZoneIds } },
+                            // Fallback: If complaintZoneId is null, check old field
+                            {
+                                AND: [
+                                    { complaintZoneId: null },
+                                    { zoneId: { in: assignedZoneIds } }
+                                ]
+                            }
+                        ]
+                    });
+                }
+            } else if (complaintZoneId) {
+                // No assigned zones restriction, just filter by requested zone
                 andConditions.push({
                     OR: [
                         { complaintZoneId: complaintZoneId },
@@ -961,8 +1000,64 @@ export class AdminComplaintService {
             ];
         }
 
-        // Zone filter - use complaint location with fallback
-        if (zoneId) {
+        // SUPER_ADMIN Zone Filtering for status counts
+        if (assignedZoneIds && assignedZoneIds.length > 0) {
+            if (zoneId) {
+                // If specific zone requested, validate it's in assigned zones
+                if (!assignedZoneIds.includes(zoneId)) {
+                    // Return zero counts - requested zone not in assigned zones
+                    return {
+                        pending: 0,
+                        inProgress: 0,
+                        resolved: 0,
+                        rejected: 0,
+                        others: 0,
+                        total: 0
+                    };
+                } else {
+                    // Valid zone requested
+                    const zoneFilter = {
+                        OR: [
+                            { complaintZoneId: zoneId },
+                            {
+                                AND: [
+                                    { complaintZoneId: null },
+                                    { zoneId: zoneId }
+                                ]
+                            }
+                        ]
+                    };
+
+                    if (whereClause.OR) {
+                        whereClause.AND = [{ OR: whereClause.OR }, zoneFilter];
+                        delete whereClause.OR;
+                    } else {
+                        Object.assign(whereClause, zoneFilter);
+                    }
+                }
+            } else {
+                // No specific zone requested - filter by all assigned zones
+                const zoneFilter = {
+                    OR: [
+                        { complaintZoneId: { in: assignedZoneIds } },
+                        {
+                            AND: [
+                                { complaintZoneId: null },
+                                { zoneId: { in: assignedZoneIds } }
+                            ]
+                        }
+                    ]
+                };
+
+                if (whereClause.OR) {
+                    whereClause.AND = [{ OR: whereClause.OR }, zoneFilter];
+                    delete whereClause.OR;
+                } else {
+                    Object.assign(whereClause, zoneFilter);
+                }
+            }
+        } else if (zoneId) {
+            // No assigned zones restriction, just filter by requested zone
             const zoneFilter = {
                 OR: [
                     { complaintZoneId: zoneId },
