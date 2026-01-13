@@ -142,6 +142,11 @@ const AdminEditModal: React.FC<AdminEditModalProps> = ({
     const [zonesLoading, setZonesLoading] = useState(false);
     const [wardsLoading, setWardsLoading] = useState(false);
 
+    // Avatar states
+    const [avatarFile, setAvatarFile] = useState<File | null>(null);
+    const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+    const fileInputRef = React.useRef<HTMLInputElement>(null);
+
     const [showPassword, setShowPassword] = useState(false);
     const [errors, setErrors] = useState<FormErrors>({});
     const [loading, setLoading] = useState(false);
@@ -215,6 +220,10 @@ const AdminEditModal: React.FC<AdminEditModalProps> = ({
 
             setErrors({});
             setSubmitError(null);
+
+            // Reset avatar states
+            setAvatarFile(null);
+            setAvatarPreview(admin.avatar || null);
         }
     }, [open, admin]);
 
@@ -290,7 +299,6 @@ const AdminEditModal: React.FC<AdminEditModalProps> = ({
         }
     };
 
-    // Multi-Ward Selection Handler
     const handleWardSelection = (_: any, selectedWards: Ward[]) => {
         const wardIds = selectedWards.map(w => w.id);
         setFormData(prev => ({
@@ -300,6 +308,18 @@ const AdminEditModal: React.FC<AdminEditModalProps> = ({
                 wards: wardIds
             }
         }));
+    };
+
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            setAvatarFile(file);
+            setAvatarPreview(URL.createObjectURL(file));
+        }
+    };
+
+    const handleAvatarClick = () => {
+        fileInputRef.current?.click();
     };
 
     // Permission toggle handler with logic
@@ -374,6 +394,18 @@ const AdminEditModal: React.FC<AdminEditModalProps> = ({
         setSubmitError(null);
 
         try {
+            let avatarUrl = admin.avatar;
+            if (avatarFile) {
+                try {
+                    avatarUrl = await userManagementService.uploadAvatar(avatarFile);
+                } catch (uploadErr) {
+                    console.error('Error uploading avatar:', uploadErr);
+                    // Decide whether to fail the whole update or proceed without avatar
+                    // For now, let's throw to stop
+                    throw new Error('Failed to upload profile picture');
+                }
+            }
+
             const updateData: UpdateUserDto = {
                 firstName: formData.firstName,
                 lastName: formData.lastName,
@@ -389,6 +421,7 @@ const AdminEditModal: React.FC<AdminEditModalProps> = ({
                 zoneId: parseInt(formData.zoneId) as any,
                 wardId: formData.wardId ? parseInt(formData.wardId) as any : undefined,
                 permissions: formData.permissions,
+                avatar: avatarUrl || undefined,
             };
 
             if (formData.newPassword) {
@@ -434,13 +467,21 @@ const AdminEditModal: React.FC<AdminEditModalProps> = ({
                     {/* Left Column - Profile Image */}
                     <Grid size={{ xs: 12, md: 3 }} display="flex" flexDirection="column" alignItems="center">
                         <Box sx={{ position: 'relative', mb: 2 }}>
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                style={{ display: 'none' }}
+                                accept="image/*"
+                                onChange={handleFileChange}
+                            />
                             <Avatar
-                                src={admin?.avatar || undefined}
+                                src={avatarPreview || undefined}
                                 sx={{ width: 120, height: 120, bgcolor: '#f0f0f0' }}
                             >
                                 <CloudUploadIcon sx={{ fontSize: 50, color: '#bdbdbd' }} />
                             </Avatar>
                             <IconButton
+                                onClick={handleAvatarClick}
                                 sx={{
                                     position: 'absolute',
                                     bottom: 0,

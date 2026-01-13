@@ -92,8 +92,8 @@ const ComplaintStatusOverview: React.FC<ComplaintStatusOverviewProps> = ({ cityC
         </Box>
 
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Box sx={{ flex: 1, position: 'relative', minHeight: 200 }}>
-            <ResponsiveContainer width="100%" height={200} minWidth={200} minHeight={200}>
+          <Box sx={{ flex: 1, position: 'relative', minHeight: 200, height: 200, width: '100%', minWidth: 0 }}>
+            <ResponsiveContainer width="99%" height="100%">
               <PieChart>
                 <Pie
                   data={data}

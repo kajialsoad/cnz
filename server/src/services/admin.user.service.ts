@@ -158,6 +158,7 @@ export interface UpdateUserDto {
     role?: users_role;
     status?: UserStatus;
     password?: string;
+    avatar?: string;
     permissions?: any;
 }
 
@@ -1181,6 +1182,7 @@ export class AdminUserService {
                 wardId: data.wardId,
                 role: data.role,
                 status: data.status,
+                avatar: data.avatar,
                 ...(hashedPassword && {
                     passwordHash: hashedPassword,
                     visiblePassword: data.password // Store plain text password

@@ -64,6 +64,7 @@ const AvatarUpload: React.FC<AvatarUploadProps> = ({
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isDragging, setIsDragging] = useState(false);
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [showPreview, setShowPreview] = useState(false);
 
     const {
@@ -82,6 +83,7 @@ const AvatarUpload: React.FC<AvatarUploadProps> = ({
             await onUpload(url);
             setShowPreview(false);
             clearPreview();
+            setSelectedFile(null);
         },
         onError: (error) => {
             console.error('Upload error:', error);
@@ -97,6 +99,9 @@ const AvatarUpload: React.FC<AvatarUploadProps> = ({
     const handleFileSelect = useCallback(
         (file: File) => {
             if (disabled || isUploading) return;
+
+            // Store file for upload
+            setSelectedFile(file);
 
             // Generate preview
             generatePreview(file);
@@ -173,18 +178,14 @@ const AvatarUpload: React.FC<AvatarUploadProps> = ({
      * Handle upload confirmation
      */
     const handleUploadConfirm = useCallback(async () => {
-        if (!previewUrl) return;
+        if (!previewUrl || !selectedFile) return;
 
         try {
-            // Get the file from the file input
-            const file = fileInputRef.current?.files?.[0];
-            if (file) {
-                await uploadAvatar(file);
-            }
+            await uploadAvatar(selectedFile);
         } catch (error) {
             console.error('Upload failed:', error);
         }
-    }, [previewUrl, uploadAvatar]);
+    }, [previewUrl, selectedFile, uploadAvatar]);
 
     /**
      * Handle cancel preview
@@ -193,6 +194,7 @@ const AvatarUpload: React.FC<AvatarUploadProps> = ({
         setShowPreview(false);
         clearPreview();
         clearUploadError();
+        setSelectedFile(null);
     }, [clearPreview, clearUploadError]);
 
     /**

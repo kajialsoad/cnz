@@ -638,7 +638,11 @@ const AdminManagement: React.FC = () => {
                           </TableCell>
                           <TableCell sx={{ width: '35%' }}>
                             <Stack direction="row" spacing={1.5} alignItems="center">
-                              <Avatar sx={{ bgcolor: '#2b7fff' }}>
+                              <Avatar
+                                src={admin.avatar}
+                                alt={`${admin.firstName} ${admin.lastName}`}
+                                sx={{ bgcolor: '#2b7fff' }}
+                              >
                                 {admin.firstName.charAt(0)}
                               </Avatar>
                               <Box>

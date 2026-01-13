@@ -187,6 +187,7 @@ const SuperAdminEditModal: React.FC<SuperAdminEditModalProps> = ({ open, onClose
                 zoneId: undefined,
                 status: data.status,
                 permissions: data.permissions,
+                avatar: avatarUrl || undefined,
             };
 
             // Only include password if changing

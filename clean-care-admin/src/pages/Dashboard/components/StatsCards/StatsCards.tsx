@@ -12,33 +12,15 @@ import { dashboardService } from '../../../../services/dashboardService';
 import type { DashboardStats } from '../../../../services/dashboardService';
 
 interface StatsCardsProps {
+  stats: DashboardStats | null;
+  loading: boolean;
   cityCorporationCode?: string;
   zoneId?: number;
 }
 
-const StatsCards: React.FC<StatsCardsProps> = ({ cityCorporationCode, zoneId }) => {
+const StatsCards: React.FC<StatsCardsProps> = ({ stats, loading, cityCorporationCode, zoneId }) => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState<DashboardStats | null>(null);
 
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        setLoading(true);
-        const data = await dashboardService.getDashboardStats({
-          cityCorporationCode: cityCorporationCode !== 'ALL' ? cityCorporationCode : undefined,
-          zoneId: zoneId,
-        });
-        setStats(data);
-      } catch (error) {
-        console.error('Error fetching dashboard statistics:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchStats();
-  }, [cityCorporationCode, zoneId]);
 
   const navigateToComplaints = (status?: string) => {
     const params = new URLSearchParams();

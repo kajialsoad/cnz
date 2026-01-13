@@ -193,6 +193,7 @@ export interface UpdateUserDto {
     password?: string;
     zoneId?: number;
     wardId?: number;
+    avatar?: string;
     permissions?: Permissions;
 }
 

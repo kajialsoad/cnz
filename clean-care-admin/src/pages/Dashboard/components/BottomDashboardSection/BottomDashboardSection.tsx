@@ -8,17 +8,26 @@ import { Box } from '@mui/material';
 import { TotalUsersWidget } from '../QuickActions';
 // import { OperationalMonitoring } from '../OperationalMonitoring';
 
+import { UserStats } from '../../../../services/dashboardService';
+
 interface BottomDashboardSectionProps {
+  userStats: UserStats | null;
+  loading: boolean;
   cityCorporationCode?: string;
   zoneId?: number;
 }
 
-const BottomDashboardSection: React.FC<BottomDashboardSectionProps> = ({ cityCorporationCode, zoneId }) => {
+const BottomDashboardSection: React.FC<BottomDashboardSectionProps> = ({ userStats, loading, cityCorporationCode, zoneId }) => {
   return (
     <Box sx={{ mb: 4 }}>
       {/* Total Users Widget - Full Width */}
       <Box sx={{ mb: 3 }}>
-        <TotalUsersWidget cityCorporationCode={cityCorporationCode} zoneId={zoneId} />
+        <TotalUsersWidget
+          userStats={userStats}
+          loading={loading}
+          cityCorporationCode={cityCorporationCode}
+          zoneId={zoneId}
+        />
       </Box>
 
       {/* COMMENTED OUT - Will implement later */}

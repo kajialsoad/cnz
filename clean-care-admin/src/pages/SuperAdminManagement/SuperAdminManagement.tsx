@@ -369,12 +369,12 @@ const SuperAdminManagement: React.FC = () => {
                             </TableCell>
                             <TableCell sx={{ width: '30%' }}>
                               <Stack direction="row" spacing={1.5} alignItems="center">
-                                <Avatar sx={{ bgcolor: '#2b7fff' }}>
-                                  {admin.avatar ? (
-                                    <img src={admin.avatar} alt={admin.firstName} style={{ width: '100%', height: '100%' }} />
-                                  ) : (
-                                    admin.firstName.charAt(0).toUpperCase()
-                                  )}
+                                <Avatar
+                                  src={admin.avatar || undefined}
+                                  alt={`${admin.firstName} ${admin.lastName}`}
+                                  sx={{ bgcolor: '#2b7fff' }}
+                                >
+                                  {admin.firstName.charAt(0).toUpperCase()}
                                 </Avatar>
                                 <Box>
                                   <Typography sx={{ fontSize: 16, fontWeight: 700 }}>

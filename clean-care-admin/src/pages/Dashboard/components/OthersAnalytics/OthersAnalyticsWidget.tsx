@@ -359,8 +359,8 @@ const OthersAnalyticsWidget: React.FC<OthersAnalyticsWidgetProps> = ({
                             </List>
 
                             {/* Bar Chart for Top Subcategories */}
-                            <Box sx={{ mt: 2, height: 200 }}>
-                                <ResponsiveContainer width="100%" height="100%">
+                            <Box sx={{ mt: 2, height: 200, minHeight: 200, position: 'relative', width: '100%', minWidth: 0 }}>
+                                <ResponsiveContainer width="99%" height="100%">
                                     <BarChart data={topSubcategoriesChartData}>
                                         <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
                                         <XAxis
@@ -426,8 +426,8 @@ const OthersAnalyticsWidget: React.FC<OthersAnalyticsWidgetProps> = ({
                             <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#374151', mb: 2 }}>
                                 7-Day Trend
                             </Typography>
-                            <Box sx={{ height: 180 }}>
-                                <ResponsiveContainer width="100%" height="100%">
+                            <Box sx={{ height: 180, minHeight: 180, position: 'relative', width: '100%', minWidth: 0 }}>
+                                <ResponsiveContainer width="99%" height="100%">
                                     <LineChart data={trendChartData}>
                                         <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
                                         <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#6B7280' }} />

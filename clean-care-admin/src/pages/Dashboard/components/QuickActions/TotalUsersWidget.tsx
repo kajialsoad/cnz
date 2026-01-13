@@ -5,36 +5,18 @@ import type { UserStats } from '../../../../services/dashboardService';
 import { useAuth } from '../../../../contexts/AuthContext';
 
 interface TotalUsersWidgetProps {
+  userStats: UserStats | null;
+  loading: boolean;
   cityCorporationCode?: string;
   zoneId?: number;
 }
 
-const TotalUsersWidget: React.FC<TotalUsersWidgetProps> = ({ cityCorporationCode, zoneId }) => {
+const TotalUsersWidget: React.FC<TotalUsersWidgetProps> = ({ userStats, loading, cityCorporationCode, zoneId }) => {
   const { user } = useAuth();
-  const [userStats, setUserStats] = useState<UserStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // const [userStats, setUserStats] = useState<UserStats | null>(null);
+  // const [loading, setLoading] = useState(true);
+  const error = null; // Error handling is now done in parent or ignored here as stats can be null
 
-  useEffect(() => {
-    const fetchUserStats = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const stats = await dashboardService.getDashboardStats({
-          cityCorporationCode,
-          zoneId,
-        });
-        setUserStats(stats.users);
-      } catch (err) {
-        console.error('Error fetching user stats:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load user statistics');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchUserStats();
-  }, [cityCorporationCode, zoneId]);
 
   // Filter user categories based on logged-in user's role
   const userCategories = useMemo(() => {

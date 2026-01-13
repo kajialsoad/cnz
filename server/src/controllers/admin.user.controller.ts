@@ -56,6 +56,7 @@ const updateUserSchema = z.object({
     role: z.nativeEnum(users_role).optional(),
     status: z.nativeEnum(UserStatus).optional(),
     password: z.string().min(8, 'Password must be at least 8 characters').optional(),
+    avatar: z.string().optional(),
     permissions: z.any().optional(),
 });
 

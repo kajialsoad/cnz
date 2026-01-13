@@ -1,3 +1,4 @@
+import fs from 'fs';
 import { v2 as cloudinary, UploadApiResponse, UploadApiErrorResponse } from 'cloudinary';
 import cloudinaryInstance, { getCloudinaryFolder, isCloudinaryEnabled } from '../config/cloudinary.config';
 import { Readable } from 'stream';
@@ -232,8 +233,18 @@ class CloudUploadService {
                 ]
             };
 
-            // Convert buffer to stream
-            const stream = this.bufferToStream(file.buffer);
+            // Convert buffer or file path to stream
+            let stream: Readable;
+            if (file.buffer) {
+                stream = this.bufferToStream(file.buffer);
+            } else if (file.path) {
+                stream = fs.createReadStream(file.path);
+            } else {
+                throw new CloudUploadError(
+                    'File has no buffer or path',
+                    'INVALID_FILE'
+                );
+            }
 
             // Upload with retry logic
             const startTime = Date.now();
@@ -325,8 +336,18 @@ class CloudUploadService {
                 resource_type: 'video', // Cloudinary uses 'video' for audio files
             };
 
-            // Convert buffer to stream
-            const stream = this.bufferToStream(file.buffer);
+            // Convert buffer or file path to stream
+            let stream: Readable;
+            if (file.buffer) {
+                stream = this.bufferToStream(file.buffer);
+            } else if (file.path) {
+                stream = fs.createReadStream(file.path);
+            } else {
+                throw new CloudUploadError(
+                    'File has no buffer or path',
+                    'INVALID_FILE'
+                );
+            }
 
             // Upload with retry logic
             const startTime = Date.now();

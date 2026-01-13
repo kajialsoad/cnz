@@ -128,6 +128,7 @@ export interface UpdateSuperAdminDto {
     status?: UserStatus;
     permissions?: SuperAdminPermissions;
     role?: UserRole;
+    avatar?: string;
 }
 
 export interface ZoneAssignment {

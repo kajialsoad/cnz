@@ -8,6 +8,7 @@ import StatsCards from './components/StatsCards';
 import MiddleDashboardWidgets from './components/MiddleDashboardWidgets';
 import BottomDashboardSection from './components/BottomDashboardSection';
 import { CityCorporationComparison } from './components/CityCorporationComparison';
+import { dashboardService } from '../../services/dashboardService';
 import { cityCorporationService } from '../../services/cityCorporationService';
 import type { CityCorporation } from '../../services/cityCorporationService';
 
@@ -23,72 +24,77 @@ import { UserSatisfactionWidget } from './components/UserSatisfaction';
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const [cityCorps, setCityCorps] = useState<CityCorporation[]>([]);
-  const [selectedCityCorporation, setSelectedCityCorporation] = useState<string>('ALL');
+  const [selectedCityCorporation, setSelectedCityCorporation] = useState<string>('');
   const [selectedZoneId, setSelectedZoneId] = useState<number | ''>('');
   const [assignedZones, setAssignedZones] = useState<Zone[]>([]);
   const [loading, setLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [dashboardStats, setDashboardStats] = useState<any>(null); // Using any to avoid strict type issues during refactor, ideally DashboardStats
   const [refreshKey, setRefreshKey] = useState(0);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
-  // Fetch initial data
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
+  // Fetch data
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
 
-        // Fetch city corporations
-        const cityResponse = await cityCorporationService.getCityCorporations('ACTIVE');
-        let availableCityCorps = cityResponse.cityCorporations || [];
+      // Fetch city corporations
+      const cityResponse = await cityCorporationService.getCityCorporations('ACTIVE');
+      let availableCityCorps = cityResponse.cityCorporations || [];
 
-        // RESTRICT City Corporation based on User Role
-        // Master Admin can see everything ('ALL')
-        // Others (Super Admin, Admin, Ward Inspector) are restricted to their city corporation
-        if (user && user.role !== UserRole.MASTER_ADMIN) {
-          // Access cityCorporationCode safely
-          // Using 'as any' to bypass strict type check for now if properties are nested or missing in basic User type
-          const assignedCityCode = (user as any).cityCorporationCode || (user as any).cityCorporation?.code;
-
-          if (assignedCityCode) {
-            // Filter the list to ONLY show the assigned city corporation
-            availableCityCorps = availableCityCorps.filter(cc => cc.code === assignedCityCode);
-
-            // Auto-select the assigned city corporation
-            setSelectedCityCorporation(assignedCityCode);
-          }
+      if (user && user.role !== UserRole.MASTER_ADMIN) {
+        const assignedCityCode = (user as any).cityCorporationCode || (user as any).cityCorporation?.code;
+        if (assignedCityCode) {
+          availableCityCorps = availableCityCorps.filter(cc => cc.code === assignedCityCode);
+          setSelectedCityCorporation(assignedCityCode);
         }
-
-        setCityCorps(availableCityCorps);
-
-        // Fetch assigned zones if Super Admin
-        if (user?.role === UserRole.SUPER_ADMIN) {
-          try {
-            const zones = await superAdminService.getAssignedZones(Number(user.id));
-            setAssignedZones(zones);
-          } catch (err) {
-            console.error('Error fetching assigned zones:', err);
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-      } finally {
-        setLoading(false);
       }
-    };
+      setCityCorps(availableCityCorps);
 
-    if (user) {
-      fetchData();
+      // Fetch assigned zones if Super Admin
+      if (user?.role === UserRole.SUPER_ADMIN) {
+        try {
+          const zones = await superAdminService.getAssignedZones(Number(user.id));
+          setAssignedZones(zones);
+        } catch (err) {
+          console.error('Error fetching assigned zones:', err);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching dashboard initial data:', error);
+    } finally {
+      setLoading(false);
     }
   }, [user]);
 
-  // Auto-refresh every 30 seconds
+  // Fetch Statistics separately when filters change
   useEffect(() => {
-    const interval = setInterval(() => {
-      setRefreshKey(prev => prev + 1);
-      setLastRefresh(new Date());
-    }, 30000); // 30 seconds
+    const fetchStats = async () => {
+      try {
+        setStatsLoading(true);
+        const stats = await dashboardService.getDashboardStats({
+          cityCorporationCode: selectedCityCorporation !== 'ALL' ? selectedCityCorporation : undefined,
+          zoneId: selectedZoneId || undefined
+        });
+        setDashboardStats(stats);
+      } catch (error) {
+        console.error('Error fetching dashboard stats:', error);
+      } finally {
+        setStatsLoading(false);
+      }
+    };
 
-    return () => clearInterval(interval);
-  }, []);
+    // Only fetch if initial loading is done or if it's a refresh
+    if (!loading) {
+      fetchStats();
+    }
+  }, [selectedCityCorporation, selectedZoneId, refreshKey, loading]);
+
+  useEffect(() => {
+    if (user) {
+      fetchData();
+    }
+  }, [fetchData]); // Remove user from here as it's in useCallback
 
   const handleCityCorporationChange = (value: string) => {
     setSelectedCityCorporation(value);
@@ -179,6 +185,8 @@ const Dashboard: React.FC = () => {
         <ErrorBoundary>
           <StatsCards
             key={`stats-${refreshKey}`}
+            stats={dashboardStats}
+            loading={statsLoading}
             cityCorporationCode={selectedCityCorporation !== 'ALL' ? selectedCityCorporation : undefined}
             // @ts-ignore - Prop might not exist yet
             zoneId={selectedZoneId || undefined}
@@ -202,6 +210,8 @@ const Dashboard: React.FC = () => {
           <ErrorBoundary>
             <BottomDashboardSection
               key={`bottom-${refreshKey}`}
+              userStats={dashboardStats?.users}
+              loading={statsLoading}
               cityCorporationCode={selectedCityCorporation !== 'ALL' ? selectedCityCorporation : undefined}
               // @ts-ignore - Prop might not exist yet
               zoneId={selectedZoneId || undefined}

@@ -220,6 +220,32 @@ class UserManagementService {
         }
     }
 
+    // Upload avatar
+    async uploadAvatar(file: File): Promise<string> {
+        try {
+            const formData = new FormData();
+            formData.append('image', file);
+
+            const response = await this.apiClient.post<{
+                success: boolean;
+                data: { url: string };
+            }>('/api/uploads/avatar', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+            });
+
+            return response.data.data.url;
+        } catch (error) {
+            if (axios.isAxiosError(error)) {
+                throw new Error(
+                    error.response?.data?.message || 'Failed to upload avatar'
+                );
+            }
+            throw error;
+        }
+    }
+
     // Bulk delete users
     async bulkDeleteUsers(userIds: number[]): Promise<void> {
         try {

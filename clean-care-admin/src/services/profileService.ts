@@ -151,7 +151,7 @@ class ProfileService {
             return await retryWithBackoff(
                 async () => {
                     const formData = new FormData();
-                    formData.append('file', file);
+                    formData.append('image', file);
 
                     const response = await this.apiClient.post<AvatarUploadResponse>(
                         '/api/uploads/avatar',
@@ -168,7 +168,7 @@ class ProfileService {
                         throw new Error('Failed to upload avatar');
                     }
 
-                    return response.data.url;
+                    return response.data.data.url;
                 },
                 2, // Only retry once for uploads
                 (attempt, error) => {

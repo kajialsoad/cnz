@@ -195,40 +195,42 @@ const CategoryChart: React.FC<CategoryChartProps> = ({ startDate, endDate, zoneI
             </Box>
 
             {/* Chart */}
-            <ResponsiveContainer
-                width="100%"
-                height={isMobile ? 300 : isTablet ? 350 : 400}
-                minWidth={250}
-                minHeight={isMobile ? 300 : isTablet ? 350 : 400}
-            >
-                <PieChart>
-                    <Pie
-                        data={chartData}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={renderCustomLabel}
-                        outerRadius={isMobile ? 80 : isTablet ? 100 : 120}
-                        fill="#8884d8"
-                        dataKey="value"
-                    >
-                        {chartData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                    </Pie>
-                    <Tooltip content={<CustomTooltip />} />
-                    <Legend
-                        verticalAlign="bottom"
-                        height={36}
-                        iconType="circle"
-                        formatter={(value, entry: any) => (
-                            <span style={{ fontSize: isMobile ? '12px' : '14px' }}>
-                                {value} ({entry.payload.value})
-                            </span>
-                        )}
-                    />
-                </PieChart>
-            </ResponsiveContainer>
+            <Box sx={{
+                height: isMobile ? 300 : isTablet ? 350 : 400,
+                minHeight: isMobile ? 300 : isTablet ? 350 : 400,
+                position: 'relative',
+                width: '100%'
+            }}>
+                <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                        <Pie
+                            data={chartData}
+                            cx="50%"
+                            cy="50%"
+                            labelLine={false}
+                            label={renderCustomLabel}
+                            outerRadius={isMobile ? 80 : isTablet ? 100 : 120}
+                            fill="#8884d8"
+                            dataKey="value"
+                        >
+                            {chartData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.color} />
+                            ))}
+                        </Pie>
+                        <Tooltip content={<CustomTooltip />} />
+                        <Legend
+                            verticalAlign="bottom"
+                            height={36}
+                            iconType="circle"
+                            formatter={(value, entry: any) => (
+                                <span style={{ fontSize: isMobile ? '12px' : '14px' }}>
+                                    {value} ({entry.payload.value})
+                                </span>
+                            )}
+                        />
+                    </PieChart>
+                </ResponsiveContainer>
+            </Box>
         </Box>
     );
 };

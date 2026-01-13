@@ -58,6 +58,10 @@ export interface ProfileUpdateResponse {
 
 export interface AvatarUploadResponse {
     success: boolean;
-    url: string;
-    publicId: string;
+    data: {
+        url: string;
+        publicId?: string;
+        filename?: string;
+    };
+    message?: string;
 }
