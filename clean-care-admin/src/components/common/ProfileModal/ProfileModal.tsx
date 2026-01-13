@@ -437,6 +437,12 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                 profile.ward
             )}
 
+            {(profile?.assignedWards && profile.assignedWards.length > 0) && renderInfoRow(
+                <LocationIcon fontSize="small" />,
+                'Assigned Wards',
+                profile.assignedWards.map(w => `Ward ${w.wardNumber || w.number || w.id}`).join(', ')
+            )}
+
             {(profile?.assignedZones && profile.assignedZones.length > 0) ? (
                 renderInfoRow(
                     <LocationIcon fontSize="small" />,

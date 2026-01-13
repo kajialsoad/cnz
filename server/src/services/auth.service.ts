@@ -712,7 +712,8 @@ export class AuthService {
               }
             }
           }
-        }
+        },
+        permissions: true
       }
     });
 
@@ -720,7 +721,35 @@ export class AuthService {
       throw new Error('User not found');
     }
 
-    return user;
+    // Parse permissions and fetch assigned wards if available
+    let assignedWards: any[] = [];
+    if (user.permissions) {
+      try {
+        const permissionsData = JSON.parse(user.permissions);
+        if (permissionsData.wards && Array.isArray(permissionsData.wards) && permissionsData.wards.length > 0) {
+          assignedWards = await prisma.ward.findMany({
+            where: {
+              id: {
+                in: permissionsData.wards
+              }
+            },
+            select: {
+              id: true,
+              wardNumber: true,
+              number: true,
+              cityCorporationId: true
+            }
+          });
+        }
+      } catch (e) {
+        console.error('Error parsing user permissions:', e);
+      }
+    }
+
+    return {
+      ...user,
+      assignedWards
+    };
   }
 
   // Update profile

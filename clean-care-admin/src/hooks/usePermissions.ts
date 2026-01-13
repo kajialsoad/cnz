@@ -61,7 +61,7 @@ export const usePermissions = () => {
     const canViewMessages = () => {
         if (!user) return false;
         // SUPER_ADMIN and MASTER_ADMIN can always view messages
-        if (user.role === 'MASTER_ADMIN' || user.role === 'SUPER_ADMIN') return true;
+        if (user.role === 'MASTER_ADMIN' || user.role === 'SUPER_ADMIN' || user.role === 'ADMIN') return true;
         return hasPermission('canViewMessages');
     };
     const canSendMessagesToUsers = () => hasPermission('canSendMessagesToUsers');
@@ -71,7 +71,7 @@ export const usePermissions = () => {
     const canViewAnalytics = () => {
         if (!user) return false;
         // SUPER_ADMIN and MASTER_ADMIN can always view analytics/reports
-        if (user.role === 'MASTER_ADMIN' || user.role === 'SUPER_ADMIN') return true;
+        if (user.role === 'MASTER_ADMIN' || user.role === 'SUPER_ADMIN' || user.role === 'ADMIN') return true;
         return hasPermission('canViewAnalytics');
     };
     const canExportData = () => hasPermission('canExportData');

@@ -29,6 +29,12 @@ export interface UserProfile {
             zoneNumber?: number;
         };
     }[];
+    assignedWards?: {
+        id: number;
+        wardNumber?: number;
+        number?: number;
+        cityCorporationId?: number;
+    }[];
 }
 
 export interface ProfileUpdateData {
