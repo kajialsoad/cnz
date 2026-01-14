@@ -1375,11 +1375,47 @@ export class AdminUserService {
             return;
         }
 
-        // ADMIN: Filter by their assigned ward
+        // ADMIN: Filter by their assigned wards (multiple ward support)
+        // ⚠️ CRITICAL: Zone filtering is COMPLETELY IGNORED for ADMIN role
         if (requestingUser.role === users_role.ADMIN) {
-            if (requestingUser.wardId) {
-                where.wardId = requestingUser.wardId;
+            console.log('🔒 ADMIN filtering: Ward-based only, Zone IGNORED');
+
+            // Parse ward IDs from permissions JSON
+            let adminWardIds: number[] = [];
+
+            // Fetch full user data to get permissions
+            const fullUser = await prisma.user.findUnique({
+                where: { id: requestingUser.id },
+                select: { permissions: true }
+            });
+
+            if (fullUser && fullUser.permissions) {
+                try {
+                    const permissionsData = typeof fullUser.permissions === 'string'
+                        ? JSON.parse(fullUser.permissions)
+                        : fullUser.permissions;
+
+                    if (permissionsData.wards && Array.isArray(permissionsData.wards)) {
+                        adminWardIds = permissionsData.wards;
+                    }
+                } catch (error) {
+                    console.error('Error parsing admin permissions:', error);
+                }
             }
+
+            console.log(`🔒 ADMIN assigned wards: [${adminWardIds.join(', ')}]`);
+
+            if (adminWardIds.length > 0) {
+                // Filter by assigned ward IDs (multiple ward support)
+                where.wardId = { in: adminWardIds };
+            } else {
+                // No wards assigned = no users visible
+                console.log('⚠️ ADMIN has no assigned wards - returning empty result');
+                where.id = -1;
+            }
+
+            // ⚠️ CRITICAL: Zone filtering is NOT applied for ADMIN role
+            // Zone is COMPLETELY IGNORED for Admin
             return;
         }
     }

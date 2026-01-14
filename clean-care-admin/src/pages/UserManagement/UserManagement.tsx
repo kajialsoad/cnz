@@ -84,13 +84,7 @@ const UserManagement: React.FC = () => {
 
   // State for city corporation filters
   const [cityCorporations, setCityCorporations] = useState<CityCorporation[]>([]);
-  // Use a function to initialize state to avoid "ALL" flash for non-Master Admins
-  const [selectedCityCorporation, setSelectedCityCorporation] = useState<string>(() => {
-    if (currentUser?.role === 'MASTER_ADMIN') return 'ALL';
-    // Try to get assigned code immediately if available, otherwise empty string (loading state)
-    const assignedCode = (currentUser as any)?.cityCorporationCode || (currentUser as any)?.cityCorporation?.code;
-    return assignedCode || '';
-  });
+  const [selectedCityCorporation, setSelectedCityCorporation] = useState<string>('');
   const [selectedCityCorporationId, setSelectedCityCorporationId] = useState<number | null>(null);
   const [selectedZone, setSelectedZone] = useState<number | ''>('');
   const [selectedWard, setSelectedWard] = useState<number | null>(null);
@@ -183,17 +177,21 @@ const UserManagement: React.FC = () => {
         let availableCityCorps = cityCorpResponse.cityCorporations || [];
         console.log('🏙️ Fetched City Corps:', availableCityCorps.length);
 
+        // Set city corporations FIRST before auto-selecting
+        setCityCorporations(availableCityCorps);
+
+        // Then auto-select for non-MASTER_ADMIN users AFTER city corps are set
         if (currentUser && currentUser.role !== 'MASTER_ADMIN') {
           const assignedCityCode = (currentUser as any).cityCorporationCode || (currentUser as any).cityCorporation?.code;
           if (assignedCityCode) {
-            console.log('🎯 Filtering City Corps for assigned code:', assignedCityCode);
-            availableCityCorps = availableCityCorps.filter((cc: any) => cc.code === assignedCityCode);
-            if (selectedCityCorporation !== assignedCityCode) {
+            console.log('🎯 Auto-selecting City Corp for assigned code:', assignedCityCode);
+            // Verify the city corp exists in the list before selecting
+            const cityCorpExists = availableCityCorps.some((cc: any) => cc.code === assignedCityCode);
+            if (cityCorpExists && selectedCityCorporation !== assignedCityCode) {
               setSelectedCityCorporation(assignedCityCode);
             }
           }
         }
-        setCityCorporations(availableCityCorps);
 
         // 2. Handle Assigned Zones
         if (assignedZonesResponse) {
@@ -227,6 +225,59 @@ const UserManagement: React.FC = () => {
           }
         }
 
+        // 3. Handle Assigned Wards (ADMIN only)
+        if (currentUser?.role === 'ADMIN') {
+          console.log('👤 Loading assigned wards for Admin');
+
+          // Parse ward IDs from permissions
+          let adminWardIds: number[] = [];
+          if ((currentUser as any).permissions) {
+            try {
+              const permissionsData = JSON.parse((currentUser as any).permissions);
+              if (permissionsData.wards && Array.isArray(permissionsData.wards)) {
+                adminWardIds = permissionsData.wards;
+              }
+            } catch (error) {
+              console.error('Error parsing admin permissions:', error);
+            }
+          }
+
+          console.log(`🔒 ADMIN assigned ward IDs: [${adminWardIds.join(', ')}]`);
+
+          // Fetch ward details for assigned ward IDs
+          if (adminWardIds.length > 0) {
+            try {
+              setWardsLoading(true);
+              // Fetch wards by city corporation
+              const assignedCityCode = (currentUser as any).cityCorporationCode || (currentUser as any).cityCorporation?.code;
+              if (assignedCityCode) {
+                const wardsResponse = await wardService.getWards({
+                  cityCorporationCode: assignedCityCode,
+                  status: 'ACTIVE'
+                });
+
+                console.log('📋 All wards from API:', wardsResponse.wards);
+
+                // Filter by assigned ward IDs
+                const assignedWards = wardsResponse.wards.filter((ward: Ward) =>
+                  adminWardIds.includes(ward.id)
+                );
+
+                console.log('✅ Filtered assigned wards:', assignedWards);
+                setWards(assignedWards);
+              }
+            } catch (error) {
+              console.error('❌ Error fetching assigned wards:', error);
+              setWards([]);
+            } finally {
+              setWardsLoading(false);
+            }
+          } else {
+            console.log('⚠️ ADMIN has no assigned wards');
+            setWards([]);
+          }
+        }
+
       } catch (err) {
         console.error('❌ Error in UserManagement fetchData:', err);
       } finally {
@@ -254,15 +305,20 @@ const UserManagement: React.FC = () => {
     setSelectedWard(null);
   }, [selectedCityCorporation, cityCorporations]);
 
-  // Update wards when zone changes
+  // Update wards when zone changes (NOT for ADMIN role)
   useEffect(() => {
+    // Skip for ADMIN role - they have pre-loaded assigned wards
+    if (currentUser?.role === 'ADMIN') {
+      return;
+    }
+
     if (selectedZone) {
       fetchWards(selectedZone);
     } else {
       setWards([]);
     }
     setSelectedWard(null);
-  }, [selectedZone]);
+  }, [selectedZone, currentUser]);
 
   // Fetch users when filters change
   useEffect(() => {
@@ -771,13 +827,26 @@ const UserManagement: React.FC = () => {
                   </InputLabel>
                   <Select
                     labelId="city-corporation-filter-label"
-                    value={selectedCityCorporation}
+                    value={cityCorporationsLoading ? '' : selectedCityCorporation}
                     onChange={(e) => setSelectedCityCorporation(e.target.value)}
                     label="City Corporation"
-                    disabled={cityCorporationsLoading || (currentUser?.role !== 'MASTER_ADMIN' && cityCorporations.length <= 1)}
+                    disabled={currentUser?.role === 'ADMIN' || cityCorporationsLoading || (currentUser?.role !== 'MASTER_ADMIN' && cityCorporations.length <= 1)}
                     sx={{
                       height: 40,
                       backgroundColor: '#f8f9fa',
+                    }}
+                    displayEmpty
+                    renderValue={(value) => {
+                      if (cityCorporationsLoading) {
+                        return <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <CircularProgress size={16} />
+                          <Typography variant="body2">Loading...</Typography>
+                        </Box>;
+                      }
+                      if (!value) return 'Select City Corporation';
+                      if (value === 'ALL') return 'All City Corporations';
+                      const cc = cityCorporations.find(c => c.code === value);
+                      return cc ? (typeof cc.name === 'object' ? JSON.stringify(cc.name) : cc.name) : value;
                     }}
                   >
                     {currentUser?.role === 'MASTER_ADMIN' && (
@@ -791,16 +860,18 @@ const UserManagement: React.FC = () => {
                   </Select>
                 </FormControl>
 
-                {/* Zone Filter */}
-                <Box sx={{ minWidth: 200 }}>
-                  <ZoneFilter
-                    value={selectedZone}
-                    onChange={(val) => setSelectedZone(val as number | '')}
-                    cityCorporationCode={selectedCityCorporation !== 'ALL' ? selectedCityCorporation : ''}
-                    disabled={false}
-                    zones={assignedZones.length > 0 ? assignedZones : undefined}
-                  />
-                </Box>
+                {/* Zone Filter - HIDE for ADMIN role */}
+                {currentUser?.role !== 'ADMIN' && (
+                  <Box sx={{ minWidth: 200 }}>
+                    <ZoneFilter
+                      value={selectedZone}
+                      onChange={(val) => setSelectedZone(val as number | '')}
+                      cityCorporationCode={selectedCityCorporation !== 'ALL' ? selectedCityCorporation : ''}
+                      disabled={false}
+                      zones={assignedZones.length > 0 ? assignedZones : undefined}
+                    />
+                  </Box>
+                )}
 
                 {/* Ward Filter */}
                 <FormControl sx={{ minWidth: 200 }}>
@@ -810,13 +881,18 @@ const UserManagement: React.FC = () => {
                     value={selectedWard || ''}
                     onChange={(e) => setSelectedWard(e.target.value ? Number(e.target.value) : null)}
                     label="Ward"
-                    disabled={!selectedZone || wardsLoading || !wards || wards.length === 0}
+                    disabled={
+                      currentUser?.role === 'ADMIN'
+                        ? (wardsLoading || !wards || wards.length === 0)
+                        : (!selectedZone || wardsLoading || !wards || wards.length === 0)
+                    }
                     sx={{
                       height: 40,
                       backgroundColor: '#f8f9fa',
                     }}
                   >
-                    <MenuItem value="">All Wards</MenuItem>
+                    {/* Show "All Wards" only for non-Admin roles */}
+                    {currentUser?.role !== 'ADMIN' && <MenuItem value="">All Wards</MenuItem>}
                     {wards && wards.map((ward) => (
                       <MenuItem key={ward.id} value={ward.id}>
                         Ward {typeof ward.wardNumber === 'object' ? JSON.stringify(ward.wardNumber) : ward.wardNumber}
