@@ -461,10 +461,10 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                 profile.address
             )}
 
-            {profile?.cityCorporationCode && renderInfoRow(
+            {(profile?.cityCorporation?.name || profile?.cityCorporationCode) && renderInfoRow(
                 <BusinessIcon fontSize="small" />,
                 'City Corporation',
-                profile.cityCorporationCode
+                profile?.cityCorporation?.name || profile?.cityCorporationCode || ''
             )}
         </Paper>
     );

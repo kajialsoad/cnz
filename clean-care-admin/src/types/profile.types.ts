@@ -17,6 +17,10 @@ export interface UserProfile {
     zone?: string;
     address?: string;
     cityCorporationCode?: string;
+    cityCorporation?: {
+        code: string;
+        name: string;
+    };
     thanaId?: number;
     createdAt: string;
     updatedAt: string;

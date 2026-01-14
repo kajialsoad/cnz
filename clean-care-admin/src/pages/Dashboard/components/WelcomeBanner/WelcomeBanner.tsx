@@ -48,6 +48,7 @@ const WelcomeBanner: React.FC = () => {
     const displayCity = user.cityCorporation?.name || profile?.cityCorporationCode;
 
     const assignedZones = profile?.assignedZones;
+    const assignedWards = profile?.assignedWards;
     const singleZone = profile?.zone || user.zone;
     const ward = profile?.ward || user.ward;
 
@@ -85,7 +86,7 @@ const WelcomeBanner: React.FC = () => {
                 >
                     {roleText}
                 </Typography>
-                {(displayCity || singleZone || (assignedZones && assignedZones.length > 0)) && (
+                {(displayCity || singleZone || (assignedZones && assignedZones.length > 0) || (assignedWards && assignedWards.length > 0)) && (
                     <Typography
                         variant="body2"
                         sx={{
@@ -105,7 +106,11 @@ const WelcomeBanner: React.FC = () => {
                             singleZone && ` • ${typeof singleZone === 'string' ? singleZone : `Zone ${singleZone.zoneNumber}`}`
                         )}
 
-                        {ward && ` • ${typeof ward === 'string' ? ward : `Ward ${ward.wardNumber}`}`}
+                        {(assignedWards && assignedWards.length > 0) ? (
+                            ` • Wards: ${assignedWards.map(w => w.wardNumber || w.number).join(', ')}`
+                        ) : (
+                            ward && ` • ${typeof ward === 'string' ? ward : `Ward ${ward.wardNumber}`}`
+                        )}
                     </Typography>
                 )}
             </Box>
