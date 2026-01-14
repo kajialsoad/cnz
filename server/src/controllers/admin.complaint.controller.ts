@@ -40,6 +40,28 @@ export async function getAdminComplaints(req: AuthRequest, res: Response) {
             assignedZoneIds = await multiZoneService.getAssignedZoneIds(req.user.sub);
         }
 
+        // Prepare admin user info for filtering
+        let adminUser: { role: string; cityCorporationCode?: string; permissions?: string } | undefined;
+        if (req.user) {
+            // Fetch full user data to get permissions
+            const fullUser = await prisma.user.findUnique({
+                where: { id: req.user.sub },
+                select: {
+                    role: true,
+                    cityCorporationCode: true,
+                    permissions: true
+                }
+            });
+
+            if (fullUser) {
+                adminUser = {
+                    role: fullUser.role,
+                    cityCorporationCode: fullUser.cityCorporationCode || undefined,
+                    permissions: fullUser.permissions || undefined
+                };
+            }
+        }
+
         const result = await adminComplaintService.getAdminComplaints({
             page: page ? parseInt(page as string) : undefined,
             limit: limit ? parseInt(limit as string) : undefined,
@@ -61,7 +83,7 @@ export async function getAdminComplaints(req: AuthRequest, res: Response) {
             complaintCityCorporationCode: complaintCityCorporationCode as string,
             complaintZoneId: complaintZoneId ? parseInt(complaintZoneId as string) : undefined,
             complaintWardId: complaintWardId ? parseInt(complaintWardId as string) : undefined
-        }, assignedZoneIds);
+        }, assignedZoneIds, adminUser);
 
         res.status(200).json({
             success: true,

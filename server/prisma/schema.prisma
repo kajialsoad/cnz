@@ -227,8 +227,8 @@ model Complaint {
   othersCategory               String?
   othersSubcategory            String?
   complaintCityCorporationCode String?
-  complaintZoneId              Int?
   complaintWardId              Int?
+  complaintZoneId              Int?
   assignedAdmin                User?                  @relation("AssignedComplaints", fields: [assignedAdminId], references: [id])
   cityCorporation              CityCorporation?       @relation(fields: [cityCorporationCode], references: [code])
   user                         User?                  @relation(fields: [userId], references: [id])

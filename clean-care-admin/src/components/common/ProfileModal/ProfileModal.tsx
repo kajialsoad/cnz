@@ -434,7 +434,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
             {profile?.ward && renderInfoRow(
                 <LocationIcon fontSize="small" />,
                 'Ward',
-                profile.ward
+                typeof profile.ward === 'object' ? `Ward ${(profile.ward as any).wardNumber || (profile.ward as any).number || (profile.ward as any).id || 'N/A'}` : profile.ward
             )}
 
             {(profile?.assignedWards && profile.assignedWards.length > 0) && renderInfoRow(

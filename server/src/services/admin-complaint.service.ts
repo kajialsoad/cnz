@@ -51,8 +51,12 @@ export class AdminComplaintService {
     /**
      * Get all complaints with admin-level access (no user restriction)
      * Supports pagination, filtering, and search
+     * 
+     * @param query - Query parameters for filtering
+     * @param assignedZoneIds - For SUPER_ADMIN: assigned zone IDs
+     * @param adminUser - Admin user object with role and permissions
      */
-    async getAdminComplaints(query: AdminComplaintQueryInput = {}, assignedZoneIds?: number[]) {
+    async getAdminComplaints(query: AdminComplaintQueryInput = {}, assignedZoneIds?: number[], adminUser?: { role: string; cityCorporationCode?: string; permissions?: string }) {
         try {
             const {
                 page = 1,
@@ -202,9 +206,71 @@ export class AdminComplaintService {
                 });
             }
 
+            // ========================================
+            // ROLE-BASED FILTERING
+            // ========================================
+
+            // ADMIN Role: Ward-based filtering (Zone IGNORED)
+            if (adminUser && adminUser.role === 'ADMIN') {
+                console.log('🔒 ADMIN filtering: Ward-based only, Zone IGNORED');
+
+                // 1. City Corporation Match (MANDATORY)
+                if (adminUser.cityCorporationCode) {
+                    andConditions.push({
+                        OR: [
+                            { complaintCityCorporationCode: adminUser.cityCorporationCode },
+                            {
+                                AND: [
+                                    { complaintCityCorporationCode: null },
+                                    { cityCorporationCode: adminUser.cityCorporationCode }
+                                ]
+                            }
+                        ]
+                    });
+                }
+
+                // 2. Ward Match (MANDATORY) - Multiple Ward Support
+                let adminWardIds: number[] = [];
+
+                // Parse ward IDs from permissions JSON
+                if (adminUser.permissions) {
+                    try {
+                        const permissionsData = JSON.parse(adminUser.permissions);
+                        if (permissionsData.wards && Array.isArray(permissionsData.wards)) {
+                            adminWardIds = permissionsData.wards;
+                        }
+                    } catch (error) {
+                        console.error('Error parsing admin permissions:', error);
+                    }
+                }
+
+                console.log(`🔒 ADMIN assigned wards: [${adminWardIds.join(', ')}]`);
+
+                if (adminWardIds.length > 0) {
+                    // Filter by assigned ward IDs
+                    andConditions.push({
+                        OR: [
+                            { complaintWardId: { in: adminWardIds } },
+                            {
+                                AND: [
+                                    { complaintWardId: null },
+                                    { wardId: { in: adminWardIds } }
+                                ]
+                            }
+                        ]
+                    });
+                } else {
+                    // No wards assigned = no complaints visible
+                    console.log('⚠️ ADMIN has no assigned wards - returning empty result');
+                    andConditions.push({ id: -1 });
+                }
+
+                // ⚠️ CRITICAL: Zone filtering is NOT applied for ADMIN role
+                // Zone is COMPLETELY IGNORED for Admin
+            }
             // SUPER_ADMIN Zone Filtering: Filter by assigned zones
             // This ensures Super Admins only see complaints from their assigned zones
-            if (assignedZoneIds && assignedZoneIds.length > 0) {
+            else if (assignedZoneIds && assignedZoneIds.length > 0) {
                 if (complaintZoneId) {
                     // If specific zone requested, validate it's in assigned zones
                     if (!assignedZoneIds.includes(complaintZoneId)) {
@@ -332,7 +398,7 @@ export class AdminComplaintService {
                 }),
                 prisma.complaint.count({ where }),
                 // Pass complaint location filters to getStatusCounts (not user location)
-                this.getStatusCounts(complaintCityCorporationCode, complaintZoneId, complaintWardId, assignedZoneIds)
+                this.getStatusCounts(complaintCityCorporationCode, complaintZoneId, complaintWardId, assignedZoneIds, adminUser)
             ]);
 
             // Format complaints with parsed file URLs
@@ -983,46 +1049,128 @@ export class AdminComplaintService {
      * Uses COMPLAINT LOCATION filters (not user location)
      * This ensures counts match the filtered complaints
      */
-    private async getStatusCounts(cityCorporationCode?: string, zoneId?: number, wardId?: number, assignedZoneIds?: number[]) {
+    private async getStatusCounts(cityCorporationCode?: string, zoneId?: number, wardId?: number, assignedZoneIds?: number[], adminUser?: { role: string; cityCorporationCode?: string; permissions?: string }) {
         // Build where clause using COMPLAINT LOCATION fields
         const whereClause: any = {};
 
-        // City Corporation filter - use complaint location with fallback
-        if (cityCorporationCode) {
-            whereClause.OR = [
-                { complaintCityCorporationCode: cityCorporationCode },
-                {
-                    AND: [
-                        { complaintCityCorporationCode: null },
-                        { cityCorporationCode: cityCorporationCode }
-                    ]
-                }
-            ];
-        }
+        // ADMIN Role: Ward-based filtering (Zone IGNORED)
+        if (adminUser && adminUser.role === 'ADMIN') {
+            // City Corporation filter
+            if (adminUser.cityCorporationCode) {
+                whereClause.OR = [
+                    { complaintCityCorporationCode: adminUser.cityCorporationCode },
+                    {
+                        AND: [
+                            { complaintCityCorporationCode: null },
+                            { cityCorporationCode: adminUser.cityCorporationCode }
+                        ]
+                    }
+                ];
+            }
 
-        // SUPER_ADMIN Zone Filtering for status counts
-        if (assignedZoneIds && assignedZoneIds.length > 0) {
-            if (zoneId) {
-                // If specific zone requested, validate it's in assigned zones
-                if (!assignedZoneIds.includes(zoneId)) {
-                    // Return zero counts - requested zone not in assigned zones
-                    return {
-                        pending: 0,
-                        inProgress: 0,
-                        resolved: 0,
-                        rejected: 0,
-                        others: 0,
-                        total: 0
-                    };
+            // Ward filter - Multiple Ward Support
+            let adminWardIds: number[] = [];
+            if (adminUser.permissions) {
+                try {
+                    const permissionsData = JSON.parse(adminUser.permissions);
+                    if (permissionsData.wards && Array.isArray(permissionsData.wards)) {
+                        adminWardIds = permissionsData.wards;
+                    }
+                } catch (error) {
+                    console.error('Error parsing admin permissions:', error);
+                }
+            }
+
+            if (adminWardIds.length > 0) {
+                const wardFilter = {
+                    OR: [
+                        { complaintWardId: { in: adminWardIds } },
+                        {
+                            AND: [
+                                { complaintWardId: null },
+                                { wardId: { in: adminWardIds } }
+                            ]
+                        }
+                    ]
+                };
+
+                if (whereClause.OR) {
+                    whereClause.AND = [{ OR: whereClause.OR }, wardFilter];
+                    delete whereClause.OR;
                 } else {
-                    // Valid zone requested
+                    Object.assign(whereClause, wardFilter);
+                }
+            } else {
+                // No wards assigned = zero counts
+                return {
+                    pending: 0,
+                    inProgress: 0,
+                    resolved: 0,
+                    rejected: 0,
+                    others: 0,
+                    total: 0
+                };
+            }
+        }
+        // SUPER_ADMIN or other roles: existing logic
+        else {
+            // City Corporation filter - use complaint location with fallback
+            if (cityCorporationCode) {
+                whereClause.OR = [
+                    { complaintCityCorporationCode: cityCorporationCode },
+                    {
+                        AND: [
+                            { complaintCityCorporationCode: null },
+                            { cityCorporationCode: cityCorporationCode }
+                        ]
+                    }
+                ];
+            }
+
+            // SUPER_ADMIN Zone Filtering for status counts
+            if (assignedZoneIds && assignedZoneIds.length > 0) {
+                if (zoneId) {
+                    // If specific zone requested, validate it's in assigned zones
+                    if (!assignedZoneIds.includes(zoneId)) {
+                        // Return zero counts - requested zone not in assigned zones
+                        return {
+                            pending: 0,
+                            inProgress: 0,
+                            resolved: 0,
+                            rejected: 0,
+                            others: 0,
+                            total: 0
+                        };
+                    } else {
+                        // Valid zone requested
+                        const zoneFilter = {
+                            OR: [
+                                { complaintZoneId: zoneId },
+                                {
+                                    AND: [
+                                        { complaintZoneId: null },
+                                        { zoneId: zoneId }
+                                    ]
+                                }
+                            ]
+                        };
+
+                        if (whereClause.OR) {
+                            whereClause.AND = [{ OR: whereClause.OR }, zoneFilter];
+                            delete whereClause.OR;
+                        } else {
+                            Object.assign(whereClause, zoneFilter);
+                        }
+                    }
+                } else {
+                    // No specific zone requested - filter by all assigned zones
                     const zoneFilter = {
                         OR: [
-                            { complaintZoneId: zoneId },
+                            { complaintZoneId: { in: assignedZoneIds } },
                             {
                                 AND: [
                                     { complaintZoneId: null },
-                                    { zoneId: zoneId }
+                                    { zoneId: { in: assignedZoneIds } }
                                 ]
                             }
                         ]
@@ -1035,15 +1183,15 @@ export class AdminComplaintService {
                         Object.assign(whereClause, zoneFilter);
                     }
                 }
-            } else {
-                // No specific zone requested - filter by all assigned zones
+            } else if (zoneId) {
+                // No assigned zones restriction, just filter by requested zone
                 const zoneFilter = {
                     OR: [
-                        { complaintZoneId: { in: assignedZoneIds } },
+                        { complaintZoneId: zoneId },
                         {
                             AND: [
                                 { complaintZoneId: null },
-                                { zoneId: { in: assignedZoneIds } }
+                                { zoneId: zoneId }
                             ]
                         }
                     ]
@@ -1056,93 +1204,73 @@ export class AdminComplaintService {
                     Object.assign(whereClause, zoneFilter);
                 }
             }
-        } else if (zoneId) {
-            // No assigned zones restriction, just filter by requested zone
-            const zoneFilter = {
-                OR: [
-                    { complaintZoneId: zoneId },
-                    {
-                        AND: [
-                            { complaintZoneId: null },
-                            { zoneId: zoneId }
-                        ]
-                    }
-                ]
-            };
 
-            if (whereClause.OR) {
-                whereClause.AND = [{ OR: whereClause.OR }, zoneFilter];
-                delete whereClause.OR;
-            } else {
-                Object.assign(whereClause, zoneFilter);
+            // Ward filter - use complaint location with fallback
+            if (wardId) {
+                const wardFilter = {
+                    OR: [
+                        { complaintWardId: wardId },
+                        {
+                            AND: [
+                                { complaintWardId: null },
+                                { wardId: wardId }
+                            ]
+                        }
+                    ]
+                };
+
+                if (whereClause.AND) {
+                    whereClause.AND.push(wardFilter);
+                } else if (whereClause.OR) {
+                    whereClause.AND = [{ OR: whereClause.OR }, wardFilter];
+                    delete whereClause.OR;
+                } else {
+                    Object.assign(whereClause, wardFilter);
+                }
             }
-        }
 
-        // Ward filter - use complaint location with fallback
-        if (wardId) {
-            const wardFilter = {
-                OR: [
-                    { complaintWardId: wardId },
-                    {
-                        AND: [
-                            { complaintWardId: null },
-                            { wardId: wardId }
-                        ]
+            const [pending, inProgress, resolved, rejected, others] = await Promise.all([
+                prisma.complaint.count({
+                    where: {
+                        ...whereClause,
+                        status: Complaint_status.PENDING
                     }
-                ]
+                }),
+                prisma.complaint.count({
+                    where: {
+                        ...whereClause,
+                        status: Complaint_status.IN_PROGRESS
+                    }
+                }),
+                prisma.complaint.count({
+                    where: {
+                        ...whereClause,
+                        status: Complaint_status.RESOLVED
+                    }
+                }),
+                prisma.complaint.count({
+                    where: {
+                        ...whereClause,
+                        status: Complaint_status.REJECTED
+                    }
+                }),
+                prisma.complaint.count({
+                    where: {
+                        ...whereClause,
+                        status: Complaint_status.OTHERS
+                    }
+                })
+            ]);
+
+            return {
+                pending,
+                inProgress,
+                resolved,
+                rejected,
+                others,
+                total: pending + inProgress + resolved + rejected + others
             };
-
-            if (whereClause.AND) {
-                whereClause.AND.push(wardFilter);
-            } else if (whereClause.OR) {
-                whereClause.AND = [{ OR: whereClause.OR }, wardFilter];
-                delete whereClause.OR;
-            } else {
-                Object.assign(whereClause, wardFilter);
-            }
         }
-
-        const [pending, inProgress, resolved, rejected, others] = await Promise.all([
-            prisma.complaint.count({
-                where: {
-                    ...whereClause,
-                    status: Complaint_status.PENDING
-                }
-            }),
-            prisma.complaint.count({
-                where: {
-                    ...whereClause,
-                    status: Complaint_status.IN_PROGRESS
-                }
-            }),
-            prisma.complaint.count({
-                where: {
-                    ...whereClause,
-                    status: Complaint_status.RESOLVED
-                }
-            }),
-            prisma.complaint.count({
-                where: {
-                    ...whereClause,
-                    status: Complaint_status.REJECTED
-                }
-            }),
-            prisma.complaint.count({
-                where: {
-                    ...whereClause,
-                    status: Complaint_status.OTHERS
-                }
-            })
-        ]);
-
-        return {
-            pending,
-            inProgress,
-            resolved,
-            rejected,
-            others,
-            total: pending + inProgress + resolved + rejected + others
-        };
     }
 
     /**

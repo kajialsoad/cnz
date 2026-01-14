@@ -4,28 +4,27 @@ import { authGuard, rbacGuard } from '../middlewares/auth.middleware';
 
 const router = Router();
 
-// All routes require SUPER_ADMIN or MASTER_ADMIN role
-router.use(authGuard, rbacGuard('SUPER_ADMIN', 'MASTER_ADMIN'));
-
+// GET routes - Allow ADMIN, SUPER_ADMIN, and MASTER_ADMIN (read-only for ADMIN)
 // GET /api/admin/zones/available/:cityCorporationId - Get available zone numbers
-router.get('/available/:cityCorporationId', zoneController.getAvailableZoneNumbers);
+router.get('/available/:cityCorporationId', authGuard, rbacGuard('ADMIN', 'SUPER_ADMIN', 'MASTER_ADMIN'), zoneController.getAvailableZoneNumbers);
 
 // GET /api/admin/zones - Get zones by city corporation
-router.get('/', zoneController.getZones);
+router.get('/', authGuard, rbacGuard('ADMIN', 'SUPER_ADMIN', 'MASTER_ADMIN'), zoneController.getZones);
+
+// GET /api/admin/zones/:id/statistics - Get statistics (must be before /:id to avoid route conflict)
+router.get('/:id/statistics', authGuard, rbacGuard('ADMIN', 'SUPER_ADMIN', 'MASTER_ADMIN'), zoneController.getZoneStatistics);
 
 // GET /api/admin/zones/:id - Get single zone
-router.get('/:id', zoneController.getZoneById);
+router.get('/:id', authGuard, rbacGuard('ADMIN', 'SUPER_ADMIN', 'MASTER_ADMIN'), zoneController.getZoneById);
 
+// Write routes - Only SUPER_ADMIN and MASTER_ADMIN
 // POST /api/admin/zones - Create new zone
-router.post('/', zoneController.createZone);
+router.post('/', authGuard, rbacGuard('SUPER_ADMIN', 'MASTER_ADMIN'), zoneController.createZone);
 
 // PUT /api/admin/zones/:id - Update zone
-router.put('/:id', zoneController.updateZone);
+router.put('/:id', authGuard, rbacGuard('SUPER_ADMIN', 'MASTER_ADMIN'), zoneController.updateZone);
 
 // DELETE /api/admin/zones/:id - Delete zone
-router.delete('/:id', zoneController.deleteZone);
-
-// GET /api/admin/zones/:id/statistics - Get statistics
-router.get('/:id/statistics', zoneController.getZoneStatistics);
+router.delete('/:id', authGuard, rbacGuard('SUPER_ADMIN', 'MASTER_ADMIN'), zoneController.deleteZone);
 
 export default router;

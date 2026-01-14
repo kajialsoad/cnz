@@ -234,7 +234,7 @@ const AllComplaints: React.FC = () => {
         }
         setCityCorporations(availableCityCorps);
 
-        // 2. Handle Assigned Zones
+        // 2. Handle Assigned Zones (SUPER_ADMIN only)
         if (assignedZonesResponse) {
           console.log('🛡️ Raw Assigned Zones:', assignedZonesResponse);
           // Filter valid zones and map to Zone interface
@@ -266,6 +266,54 @@ const AllComplaints: React.FC = () => {
           }
         }
 
+        // 3. Handle Assigned Wards (ADMIN only)
+        if (currentUser?.role === 'ADMIN') {
+          console.log('👤 Loading assigned wards for Admin');
+
+          // Parse ward IDs from permissions
+          let adminWardIds: number[] = [];
+          if ((currentUser as any).permissions) {
+            try {
+              const permissionsData = JSON.parse((currentUser as any).permissions);
+              if (permissionsData.wards && Array.isArray(permissionsData.wards)) {
+                adminWardIds = permissionsData.wards;
+              }
+            } catch (error) {
+              console.error('Error parsing admin permissions:', error);
+            }
+          }
+
+          console.log(`🔒 ADMIN assigned ward IDs: [${adminWardIds.join(', ')}]`);
+
+          // Fetch ward details for assigned ward IDs
+          if (adminWardIds.length > 0) {
+            try {
+              // Fetch wards by city corporation
+              const assignedCityCode = (currentUser as any).cityCorporationCode || (currentUser as any).cityCorporation?.code;
+              if (assignedCityCode) {
+                const wardsResponse = await wardService.getWards({
+                  cityCorporationCode: assignedCityCode,
+                  status: 'ACTIVE'
+                });
+
+                // Filter by assigned ward IDs
+                const assignedWards = wardsResponse.wards.filter((ward: Ward) =>
+                  adminWardIds.includes(ward.id)
+                );
+
+                console.log('✅ Loaded assigned wards:', assignedWards);
+                setWards(assignedWards);
+              }
+            } catch (error) {
+              console.error('❌ Error fetching assigned wards:', error);
+              setWards([]);
+            }
+          } else {
+            console.log('⚠️ ADMIN has no assigned wards');
+            setWards([]);
+          }
+        }
+
       } catch (err) {
         console.error('❌ Error in AllComplaints fetchData:', err);
       } finally {
@@ -284,9 +332,14 @@ const AllComplaints: React.FC = () => {
 
 
   /**
-   * Update wards when zone changes
+   * Update wards when zone changes (NOT for ADMIN role)
    */
   useEffect(() => {
+    // Skip for ADMIN role - they have pre-loaded assigned wards
+    if (currentUser?.role === 'ADMIN') {
+      return;
+    }
+
     console.log('🔄 useEffect triggered for selectedZone:', selectedZone);
     if (selectedZone) {
       console.log('🚀 Calling fetchWards with zoneId:', selectedZone);
@@ -295,7 +348,7 @@ const AllComplaints: React.FC = () => {
       setWards([]);
     }
     setSelectedWard(null);
-  }, [selectedZone]);
+  }, [selectedZone, currentUser]);
 
   // ...
 
@@ -411,12 +464,19 @@ const AllComplaints: React.FC = () => {
       console.log('Complaints fetched successfully:', response);
 
       setComplaints(response.complaints);
-      setStatusCounts(response.statusCounts);
+      setStatusCounts(response.statusCounts || {
+        total: 0,
+        pending: 0,
+        inProgress: 0,
+        resolved: 0,
+        rejected: 0,
+        others: 0,
+      });
       setPagination({
-        page: response.pagination.page,
-        limit: response.pagination.limit,
-        total: response.pagination.total,
-        totalPages: response.pagination.totalPages,
+        page: response.pagination?.page || 1,
+        limit: response.pagination?.limit || 20,
+        total: response.pagination?.total || 0,
+        totalPages: response.pagination?.totalPages || 0,
       });
     } catch (err: any) {
       // Log error for debugging
@@ -1026,6 +1086,7 @@ const AllComplaints: React.FC = () => {
                     value={selectedCityCorporation || ''}
                     onChange={(e) => handleCityCorporationFilterChange(e.target.value)}
                     label="All City Corporations"
+                    disabled={currentUser?.role === 'ADMIN'}
                   >
                     <MenuItem value="ALL">All City Corporations</MenuItem>
                     {cityCorporations.map((city) => (
@@ -1037,17 +1098,19 @@ const AllComplaints: React.FC = () => {
                 </FormControl>
               </Grid>
 
-              {/* Zone Filter */}
-              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                <ZoneFilter
-                  value={selectedZone}
-                  onChange={handleZoneFilterChange}
-                  cityCorporationCode={selectedCityCorporation !== 'ALL' ? selectedCityCorporation : undefined}
-                  zones={currentUser?.role === 'SUPER_ADMIN' ? (assignedZones as any) : undefined}
-                  hideLabel={false}
-                  label="All Zones"
-                />
-              </Grid>
+              {/* Zone Filter - HIDE for ADMIN role */}
+              {currentUser?.role !== 'ADMIN' && (
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                  <ZoneFilter
+                    value={selectedZone}
+                    onChange={handleZoneFilterChange}
+                    cityCorporationCode={selectedCityCorporation !== 'ALL' ? selectedCityCorporation : undefined}
+                    zones={currentUser?.role === 'SUPER_ADMIN' ? (assignedZones as any) : undefined}
+                    hideLabel={false}
+                    label="All Zones"
+                  />
+                </Grid>
+              )}
 
               {/* Ward Filter */}
               <Grid size={{ xs: 12, sm: 6, md: 3 }}>
@@ -1186,8 +1249,7 @@ const AllComplaints: React.FC = () => {
                             {complaint.location}
                           </Typography>
                           <Typography variant="caption" color="text.secondary">
-                            Zone: {typeof complaint.user.zone === 'object' && complaint.user.zone !== null ? (complaint.user.zone as any).name || (complaint.user.zone as any).zoneNumber : complaint.user.zone || 'N/A'} |
-                            Ward: {typeof complaint.user.ward === 'object' && complaint.user.ward !== null ? (complaint.user.ward as any).wardNumber || (complaint.user.ward as any).number : complaint.user.ward || 'N/A'}
+                            Zone: {typeof complaint.user.zone === 'object' && complaint.user.zone !== null ? ((complaint.user.zone as any).name || (complaint.user.zone as any).zoneNumber || 'N/A') : (complaint.user.zone || 'N/A')} | Ward: {typeof complaint.user.ward === 'object' && complaint.user.ward !== null ? ((complaint.user.ward as any).wardNumber || (complaint.user.ward as any).number || 'N/A') : (complaint.user.ward || 'N/A')}
                           </Typography>
                         </Box>
                       </TableCell>
@@ -1353,7 +1415,7 @@ const AllComplaints: React.FC = () => {
         )}
 
         {/* Pagination Section */}
-        {!loading && !error && complaints.length > 0 && pagination.total > 0 && (
+        {!loading && !error && complaints.length > 0 && pagination && pagination.total > 0 && (
           <Box sx={{
             mt: { xs: 3, sm: 4 },
             mb: 2,
@@ -1361,8 +1423,8 @@ const AllComplaints: React.FC = () => {
             justifyContent: 'center',
           }}>
             <Pagination
-              count={pagination.totalPages}
-              page={pagination.page}
+              count={pagination.totalPages || 0}
+              page={pagination.page || 1}
               onChange={handlePageChange}
               color="primary"
               size={isMobile ? 'small' : 'large'}
