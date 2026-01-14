@@ -18,6 +18,8 @@ import { UserRole } from '../../types/userManagement.types';
 import { ZoneComparison } from './components/ZoneComparison/ZoneComparison';
 import { ZoneFilter } from '../../components/common';
 import type { Zone } from '../../services/zoneService';
+import { wardService } from '../../services/wardService';
+import type { Ward } from '../../services/wardService';
 import { OthersAnalyticsWidget } from './components/OthersAnalytics';
 import { UserSatisfactionWidget } from './components/UserSatisfaction';
 
@@ -26,7 +28,10 @@ const Dashboard: React.FC = () => {
   const [cityCorps, setCityCorps] = useState<CityCorporation[]>([]);
   const [selectedCityCorporation, setSelectedCityCorporation] = useState<string>('');
   const [selectedZoneId, setSelectedZoneId] = useState<number | ''>('');
+  const [selectedWardId, setSelectedWardId] = useState<number | ''>('');
   const [assignedZones, setAssignedZones] = useState<Zone[]>([]);
+  const [wards, setWards] = useState<Ward[]>([]);
+  const [wardsLoading, setWardsLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [statsLoading, setStatsLoading] = useState(true);
   const [dashboardStats, setDashboardStats] = useState<any>(null); // Using any to avoid strict type issues during refactor, ideally DashboardStats
@@ -37,6 +42,7 @@ const Dashboard: React.FC = () => {
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
+      console.log('🔄 Dashboard: Starting data fetch for user:', user?.id, user?.role);
 
       // Fetch city corporations
       const cityResponse = await cityCorporationService.getCityCorporations('ACTIVE');
@@ -54,10 +60,81 @@ const Dashboard: React.FC = () => {
       // Fetch assigned zones if Super Admin
       if (user?.role === UserRole.SUPER_ADMIN) {
         try {
-          const zones = await superAdminService.getAssignedZones(Number(user.id));
-          setAssignedZones(zones);
+          const zonesResponse = await superAdminService.getAssignedZones(Number(user.id));
+          console.log('✅ Raw assigned zones for Super Admin:', zonesResponse);
+
+          // Map ZoneAssignment[] to Zone[]
+          const formattedZones: Zone[] = (zonesResponse as any[])
+            .map(z => {
+              const zoneData = z.zone || z;
+              if (!zoneData || !zoneData.id) return null;
+
+              return {
+                id: zoneData.id,
+                zoneNumber: zoneData.zoneNumber,
+                name: zoneData.name,
+                cityCorporationId: zoneData.cityCorporationId || 0,
+                status: 'ACTIVE' as const,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+              } as Zone;
+            })
+            .filter((z): z is Zone => z !== null);
+
+          console.log('✅ Formatted assigned zones:', formattedZones);
+          setAssignedZones(formattedZones);
         } catch (err) {
           console.error('Error fetching assigned zones:', err);
+        }
+      }
+
+      // Fetch assigned wards if Admin
+      if (user?.role === UserRole.ADMIN) {
+        console.log('👤 Loading assigned wards for Admin');
+
+        // Parse ward IDs from permissions
+        let adminWardIds: number[] = [];
+        if ((user as any).permissions) {
+          try {
+            const permissionsData = JSON.parse((user as any).permissions);
+            if (permissionsData.wards && Array.isArray(permissionsData.wards)) {
+              adminWardIds = permissionsData.wards;
+            }
+          } catch (error) {
+            console.error('Error parsing admin permissions:', error);
+          }
+        }
+
+        console.log(`🔒 ADMIN assigned ward IDs: [${adminWardIds.join(', ')}]`);
+
+        // Fetch ward details for assigned ward IDs
+        if (adminWardIds.length > 0) {
+          try {
+            setWardsLoading(true);
+            const assignedCityCode = (user as any).cityCorporationCode || (user as any).cityCorporation?.code;
+            if (assignedCityCode) {
+              const wardsResponse = await wardService.getWards({
+                cityCorporationCode: assignedCityCode,
+                status: 'ACTIVE'
+              });
+
+              // Filter by assigned ward IDs
+              const assignedWards = wardsResponse.wards.filter((ward: Ward) =>
+                adminWardIds.includes(ward.id)
+              );
+
+              console.log('✅ Loaded assigned wards:', assignedWards);
+              setWards(assignedWards);
+            }
+          } catch (error) {
+            console.error('❌ Error fetching assigned wards:', error);
+            setWards([]);
+          } finally {
+            setWardsLoading(false);
+          }
+        } else {
+          console.log('⚠️ ADMIN has no assigned wards');
+          setWards([]);
         }
       }
     } catch (error) {
@@ -74,7 +151,8 @@ const Dashboard: React.FC = () => {
         setStatsLoading(true);
         const stats = await dashboardService.getDashboardStats({
           cityCorporationCode: selectedCityCorporation !== 'ALL' ? selectedCityCorporation : undefined,
-          zoneId: selectedZoneId || undefined
+          zoneId: selectedZoneId || undefined,
+          wardId: selectedWardId || undefined
         });
         setDashboardStats(stats);
       } catch (error) {
@@ -88,13 +166,41 @@ const Dashboard: React.FC = () => {
     if (!loading) {
       fetchStats();
     }
-  }, [selectedCityCorporation, selectedZoneId, refreshKey, loading]);
+  }, [selectedCityCorporation, selectedZoneId, selectedWardId, refreshKey, loading]);
 
   useEffect(() => {
     if (user) {
       fetchData();
     }
   }, [fetchData]); // Remove user from here as it's in useCallback
+
+  // Update wards when zone changes (NOT for ADMIN role)
+  useEffect(() => {
+    // Skip for ADMIN role - they have pre-loaded assigned wards
+    if (user?.role === UserRole.ADMIN) {
+      return;
+    }
+
+    const fetchWards = async () => {
+      if (selectedZoneId) {
+        try {
+          setWardsLoading(true);
+          const wardsData = await wardService.getWardsByZone(Number(selectedZoneId), 'ACTIVE');
+          setWards(wardsData);
+        } catch (err) {
+          console.error('Error fetching wards:', err);
+          setWards([]);
+        } finally {
+          setWardsLoading(false);
+        }
+      } else {
+        setWards([]);
+      }
+      setSelectedWardId('');
+    };
+
+    fetchWards();
+  }, [selectedZoneId, user]);
 
   const handleCityCorporationChange = (value: string) => {
     setSelectedCityCorporation(value);
@@ -137,21 +243,42 @@ const Dashboard: React.FC = () => {
               </Select>
             </FormControl>
 
-            {/* Zone Filter */}
-            <Box sx={{ minWidth: 200 }}>
-              <ZoneFilter
-                value={selectedZoneId}
-                onChange={(val) => setSelectedZoneId(val as number | '')}
-                cityCorporationCode={selectedCityCorporation !== 'ALL' ? selectedCityCorporation : undefined}
-                disabled={loading}
-                zones={assignedZones.length > 0 ? assignedZones : undefined}
-              />
-            </Box>
+            {/* Zone Filter - HIDE for ADMIN role */}
+            {user?.role !== UserRole.ADMIN && (
+              <Box sx={{ minWidth: 200 }}>
+                <ZoneFilter
+                  value={selectedZoneId}
+                  onChange={(val) => setSelectedZoneId(val as number | '')}
+                  cityCorporationCode={selectedCityCorporation !== 'ALL' ? selectedCityCorporation : undefined}
+                  disabled={loading}
+                  zones={assignedZones.length > 0 ? assignedZones : undefined}
+                />
+              </Box>
+            )}
+
+            {/* Ward Filter */}
+            <FormControl sx={{ minWidth: 200 }}>
+              <InputLabel>Ward</InputLabel>
+              <Select
+                value={selectedWardId}
+                onChange={(e) => setSelectedWardId(e.target.value as number | '')}
+                label="Ward"
+                disabled={loading || wardsLoading || (user?.role !== UserRole.ADMIN && !selectedZoneId)}
+              >
+                <MenuItem value="">All Wards</MenuItem>
+                {wards.map((ward) => (
+                  <MenuItem key={ward.id} value={ward.id}>
+                    Ward {ward.wardNumber || ward.id}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
 
             {selectedCityCorporation !== 'ALL' && (
               <Typography variant="body2" color="text.secondary">
                 Showing data for {cityCorps.find(cc => cc.code === selectedCityCorporation)?.name}
                 {selectedZoneId && ` (Zone ${selectedZoneId})`}
+                {selectedWardId && ` (Ward ${wards.find(w => w.id === selectedWardId)?.wardNumber || selectedWardId})`}
               </Typography>
             )}
 
@@ -164,6 +291,20 @@ const Dashboard: React.FC = () => {
                 {assignedZones.map(zone => (
                   <Typography key={zone.id} variant="caption" sx={{ bgcolor: '#e3f2fd', px: 1, borderRadius: 1 }}>
                     {zone.name || `Zone ${zone.zoneNumber}`}
+                  </Typography>
+                ))}
+              </Box>
+            )}
+
+            {/* Display Assigned Wards for Admin */}
+            {user?.role === UserRole.ADMIN && wards.length > 0 && (
+              <Box sx={{ mt: 1, width: '100%', display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                  Assigned Wards:
+                </Typography>
+                {wards.map(ward => (
+                  <Typography key={ward.id} variant="caption" sx={{ bgcolor: '#e8f5e9', px: 1, borderRadius: 1 }}>
+                    Ward {ward.wardNumber || ward.id}
                   </Typography>
                 ))}
               </Box>
@@ -190,6 +331,8 @@ const Dashboard: React.FC = () => {
             cityCorporationCode={selectedCityCorporation !== 'ALL' ? selectedCityCorporation : undefined}
             // @ts-ignore - Prop might not exist yet
             zoneId={selectedZoneId || undefined}
+            // @ts-ignore - Prop might not exist yet
+            wardId={selectedWardId || undefined}
           />
         </ErrorBoundary>
 
@@ -201,6 +344,8 @@ const Dashboard: React.FC = () => {
               cityCorporationCode={selectedCityCorporation !== 'ALL' ? selectedCityCorporation : undefined}
               // @ts-ignore - Prop might not exist yet
               zoneId={selectedZoneId || undefined}
+              // @ts-ignore - Prop might not exist yet
+              wardId={selectedWardId || undefined}
             />
           </ErrorBoundary>
         </Box>
@@ -215,6 +360,8 @@ const Dashboard: React.FC = () => {
               cityCorporationCode={selectedCityCorporation !== 'ALL' ? selectedCityCorporation : undefined}
               // @ts-ignore - Prop might not exist yet
               zoneId={selectedZoneId || undefined}
+              // @ts-ignore - Prop might not exist yet
+              wardId={selectedWardId || undefined}
             />
           </ErrorBoundary>
         </Box>
