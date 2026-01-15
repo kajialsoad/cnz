@@ -28,14 +28,14 @@ export function validateFirstName(value: string): string | null {
         return 'First name must not exceed 50 characters';
     }
 
-    // Allow letters, spaces, hyphens, and apostrophes
-    if (!/^[a-zA-Z\s'-]+$/.test(trimmed)) {
-        return 'First name can only contain letters, spaces, hyphens, and apostrophes';
-    }
-
     // Check for excessive spaces
     if (/\s{2,}/.test(trimmed)) {
         return 'First name cannot contain multiple consecutive spaces';
+    }
+
+    // Check for dangerous characters (XSS prevention)
+    if (/<|>|&lt;|&gt;/.test(trimmed)) {
+        return 'First name contains invalid characters';
     }
 
     return null;
@@ -60,14 +60,14 @@ export function validateLastName(value: string): string | null {
         return 'Last name must not exceed 50 characters';
     }
 
-    // Allow letters, spaces, hyphens, and apostrophes
-    if (!/^[a-zA-Z\s'-]+$/.test(trimmed)) {
-        return 'Last name can only contain letters, spaces, hyphens, and apostrophes';
-    }
-
     // Check for excessive spaces
     if (/\s{2,}/.test(trimmed)) {
         return 'Last name cannot contain multiple consecutive spaces';
+    }
+
+    // Check for dangerous characters (XSS prevention)
+    if (/<|>|&lt;|&gt;/.test(trimmed)) {
+        return 'Last name contains invalid characters';
     }
 
     return null;
