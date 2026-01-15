@@ -47,8 +47,10 @@ const ProfileButton: React.FC<ProfileButtonProps> = ({
 }) => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-    const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'md'));
+
+    // Use profile hook - must be within ProfileProvider
     const { profile, isLoading } = useProfile();
+
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [touchStartTime, setTouchStartTime] = useState<number>(0);
 

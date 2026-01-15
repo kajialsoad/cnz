@@ -107,13 +107,16 @@ class ProfileService {
             }
 
             // Sanitize data
+            // Sanitize data
             const sanitizedData: ProfileUpdateData = {};
-            if (data.firstName) sanitizedData.firstName = data.firstName.trim();
-            if (data.lastName) sanitizedData.lastName = data.lastName.trim();
-            if (data.avatar) sanitizedData.avatar = data.avatar.trim();
-            if (data.ward) sanitizedData.ward = data.ward.trim();
-            if (data.zone) sanitizedData.zone = data.zone.trim();
-            if (data.address) sanitizedData.address = data.address.trim();
+            if (data.firstName !== undefined) sanitizedData.firstName = data.firstName.trim();
+            if (data.lastName !== undefined) sanitizedData.lastName = data.lastName.trim();
+            if (data.avatar !== undefined) sanitizedData.avatar = data.avatar.trim();
+            if (data.ward !== undefined) sanitizedData.ward = data.ward ? data.ward.trim() : undefined;
+            if (data.zone !== undefined) sanitizedData.zone = data.zone ? data.zone.trim() : undefined;
+            if (data.address !== undefined) sanitizedData.address = data.address.trim();
+            if (data.email !== undefined) sanitizedData.email = data.email.trim();
+            if (data.phone !== undefined) sanitizedData.phone = data.phone.trim();
 
             const response = await this.apiClient.patch<ProfileUpdateResponse>(
                 '/api/admin/auth/profile',

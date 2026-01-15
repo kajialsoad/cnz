@@ -808,8 +808,8 @@ const AdminManagement: React.FC = () => {
             setOpenEdit(false);
             setSelectedAdmin(null);
           }}
-          onSuccess={() => {
-            fetchAdmins();
+          onSuccess={async () => {
+            await fetchAdmins();
             fetchStatistics();
           }}
           admin={selectedAdmin}

@@ -34,6 +34,7 @@ import {
 } from '@mui/icons-material';
 import AvatarUpload from '../AvatarUpload/AvatarUpload';
 import { useProfileUpdate } from '../../../hooks/useProfileUpdate';
+import { useAuth } from '../../../contexts/AuthContext';
 import type { UserProfile, ProfileUpdateData } from '../../../types/profile.types';
 import { fadeIn, slideInUp } from '../../../styles/animations';
 
@@ -53,6 +54,8 @@ interface FormData {
     ward?: string;
     zone?: string;
     address?: string;
+    email?: string;
+    phone?: string;
 }
 
 interface FormErrors {
@@ -61,6 +64,8 @@ interface FormErrors {
     ward?: string;
     zone?: string;
     address?: string;
+    email?: string;
+    phone?: string;
 }
 
 const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
@@ -72,15 +77,32 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'md'));
     const isLandscape = useMediaQuery('(orientation: landscape)');
+    const { user } = useAuth();
+    const isMasterAdmin = user?.role === 'MASTER_ADMIN';
+
+    // Helper to normalize values (handle potential objects from backend)
+    const normalizeValue = useCallback((value: any): string => {
+        if (!value) return '';
+        if (typeof value === 'object') {
+            return value.name ||
+                (value.wardNumber ? String(value.wardNumber) : '') ||
+                (value.zoneNumber ? String(value.zoneNumber) : '') ||
+                (value.number ? String(value.number) : '') ||
+                '';
+        }
+        return String(value);
+    }, []);
 
     // Form state
     const [formData, setFormData] = useState<FormData>({
         firstName: initialData.firstName || '',
         lastName: initialData.lastName || '',
         avatar: initialData.avatar,
-        ward: initialData.ward || '',
-        zone: initialData.zone || '',
+        ward: normalizeValue(initialData.ward),
+        zone: normalizeValue(initialData.zone),
         address: initialData.address || '',
+        email: initialData.email || '',
+        phone: initialData.phone || '',
     });
 
     const [formErrors, setFormErrors] = useState<FormErrors>({});
@@ -100,7 +122,7 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
     });
 
     // Debounce timer ref
-    const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     /**
      * Get user initials for avatar (memoized for performance)
@@ -126,9 +148,7 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
                 if (value.trim().length > 50) {
                     return 'First name must not exceed 50 characters';
                 }
-                if (!/^[a-zA-Z\s'-]+$/.test(value)) {
-                    return 'First name can only contain letters, spaces, hyphens, and apostrophes';
-                }
+                // Regex validation removed as requested
                 break;
 
             case 'lastName':
@@ -141,8 +161,24 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
                 if (value.trim().length > 50) {
                     return 'Last name must not exceed 50 characters';
                 }
-                if (!/^[a-zA-Z\s'-]+$/.test(value)) {
-                    return 'Last name can only contain letters, spaces, hyphens, and apostrophes';
+                // Regex validation removed as requested
+                break;
+
+            case 'email':
+                if (!value.trim()) {
+                    return 'Email is required';
+                }
+                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+                    return 'Invalid email address';
+                }
+                break;
+
+            case 'phone':
+                if (!value.trim()) {
+                    return 'Phone number is required';
+                }
+                if (!/^\d{11}$/.test(value.replace(/\D/g, ''))) {
+                    return 'Phone number must be 11 digits';
                 }
                 break;
 
@@ -179,6 +215,12 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
 
         const lastNameError = validateField('lastName', formData.lastName);
         if (lastNameError) errors.lastName = lastNameError;
+
+        const emailError = validateField('email', formData.email!);
+        if (emailError) errors.email = emailError;
+
+        const phoneError = validateField('phone', formData.phone!);
+        if (phoneError) errors.phone = phoneError;
 
         // Validate optional fields
         if (formData.ward) {
@@ -253,11 +295,14 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
             formData.firstName !== initialData.firstName ||
             formData.lastName !== initialData.lastName ||
             formData.avatar !== initialData.avatar ||
-            formData.ward !== (initialData.ward || '') ||
-            formData.zone !== (initialData.zone || '') ||
-            formData.address !== (initialData.address || '')
+            formData.ward !== normalizeValue(initialData.ward) ||
+            formData.zone !== normalizeValue(initialData.zone) ||
+            formData.address !== (initialData.address || '') ||
+            formData.email !== initialData.email ||
+            formData.phone !== initialData.phone
         );
-    }, [formData, initialData]);
+    }, [formData, initialData, normalizeValue]);
+
 
     /**
      * Handle form submission
@@ -273,7 +318,7 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
         }
 
         // Check if there are changes
-        if (!hasChanges()) {
+        if (!hasChanges) {
             setErrorMessage('No changes to save');
             setShowError(true);
             return;
@@ -295,14 +340,20 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
             if (formData.avatar !== initialData.avatar) {
                 updateData.avatar = formData.avatar;
             }
-            if (formData.ward !== (initialData.ward || '')) {
+            if (formData.ward !== normalizeValue(initialData.ward)) {
                 updateData.ward = formData.ward?.trim() || undefined;
             }
-            if (formData.zone !== (initialData.zone || '')) {
+            if (formData.zone !== normalizeValue(initialData.zone)) {
                 updateData.zone = formData.zone?.trim() || undefined;
             }
             if (formData.address !== (initialData.address || '')) {
                 updateData.address = formData.address?.trim() || undefined;
+            }
+            if (formData.email !== initialData.email) {
+                updateData.email = formData.email.trim();
+            }
+            if (formData.phone !== initialData.phone) {
+                updateData.phone = formData.phone.trim();
             }
 
             // Call the onSave callback
@@ -328,14 +379,16 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
             firstName: initialData.firstName || '',
             lastName: initialData.lastName || '',
             avatar: initialData.avatar,
-            ward: initialData.ward || '',
-            zone: initialData.zone || '',
+            ward: normalizeValue(initialData.ward),
+            zone: normalizeValue(initialData.zone),
             address: initialData.address || '',
+            email: initialData.email || '',
+            phone: initialData.phone || '',
         });
         setFormErrors({});
         clearUpdateError();
         onCancel();
-    }, [initialData, onCancel, clearUpdateError]);
+    }, [initialData, onCancel, clearUpdateError, normalizeValue]);
 
     /**
      * Close success snackbar
@@ -498,48 +551,68 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
                         }}
                     />
 
-                    {/* Email (Read-only) */}
+                    {/* Email */}
                     <TextField
                         fullWidth
                         label="Email Address"
-                        value={initialData.email}
-                        disabled
+                        name="email"
+                        value={formData.email}
+                        onChange={handleInputChange}
+                        onBlur={handleInputBlur}
+                        error={!!formErrors.email}
+                        helperText={formErrors.email}
+                        disabled={isSaving || isUpdating}
+                        required
                         sx={{
                             mb: 2,
                             '& .MuiInputBase-root': {
                                 minHeight: isMobile ? 48 : 40,
                             },
                         }}
-                        helperText="Email cannot be changed"
                         slotProps={{
                             input: {
                                 inputProps: {
-                                    'aria-label': 'Email address (read-only)',
-                                    'aria-readonly': 'true',
+                                    'aria-label': 'Email address',
+                                    'aria-invalid': !!formErrors.email,
+                                    'aria-describedby': formErrors.email ? 'email-error' : undefined,
                                 },
+                            },
+                            formHelperText: {
+                                id: 'email-error',
+                                role: 'alert',
                             },
                         }}
                     />
 
-                    {/* Phone (Read-only) */}
+                    {/* Phone */}
                     <TextField
                         fullWidth
                         label="Phone Number"
-                        value={initialData.phone}
-                        disabled
+                        name="phone"
+                        value={formData.phone}
+                        onChange={handleInputChange}
+                        onBlur={handleInputBlur}
+                        error={!!formErrors.phone}
+                        helperText={formErrors.phone}
+                        disabled={isSaving || isUpdating}
+                        required
                         sx={{
                             mb: 2,
                             '& .MuiInputBase-root': {
                                 minHeight: isMobile ? 48 : 40,
                             },
                         }}
-                        helperText="Phone number cannot be changed"
                         slotProps={{
                             input: {
                                 inputProps: {
-                                    'aria-label': 'Phone number (read-only)',
-                                    'aria-readonly': 'true',
+                                    'aria-label': 'Phone number',
+                                    'aria-invalid': !!formErrors.phone,
+                                    'aria-describedby': formErrors.phone ? 'phone-error' : undefined,
                                 },
+                            },
+                            formHelperText: {
+                                id: 'phone-error',
+                                role: 'alert',
                             },
                         }}
                     />
@@ -566,8 +639,8 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
                         onChange={handleInputChange}
                         onBlur={handleInputBlur}
                         error={!!formErrors.ward}
-                        helperText={formErrors.ward}
-                        disabled={isSaving || isUpdating}
+                        helperText={formErrors.ward || (!isMasterAdmin ? 'Only Master Admin can edit Ward' : undefined)}
+                        disabled={isSaving || isUpdating || !isMasterAdmin}
                         sx={{
                             mb: 2,
                             '& .MuiInputBase-root': {
@@ -599,8 +672,8 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
                         onChange={handleInputChange}
                         onBlur={handleInputBlur}
                         error={!!formErrors.zone}
-                        helperText={formErrors.zone}
-                        disabled={isSaving || isUpdating}
+                        helperText={formErrors.zone || (!isMasterAdmin ? 'Only Master Admin can edit Zone' : undefined)}
+                        disabled={isSaving || isUpdating || !isMasterAdmin}
                         sx={{
                             mb: 2,
                             '& .MuiInputBase-root': {

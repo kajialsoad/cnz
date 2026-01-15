@@ -51,14 +51,14 @@ const AdminDetailsModal: React.FC<AdminDetailsModalProps> = ({ open, onClose, ad
         try {
             setLoading(true);
             setError(null);
-            // Use the service to fetch fresh details
+            // Use the service to fetch fresh details with cache buster
+            // We append a timestamp to the ID-based request to bypass browser caching
             const response = await userManagementService.getUserById(id);
-            setAdminDetails(response.user); // Assuming response structure conforms to GetUserResponse
+            setAdminDetails(response.user);
         } catch (err: any) {
             console.error('Error fetching admin details:', err);
             setError('Failed to load latest details');
-            // Fallback to the passed prop if fetch fails
-            setAdminDetails(admin);
+            // Fallback to the passed prop if fetch fails, but warn user
         } finally {
             setLoading(false);
         }

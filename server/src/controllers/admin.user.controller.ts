@@ -41,10 +41,10 @@ const createUserSchema = z.object({
 });
 
 const updateUserSchema = z.object({
-    firstName: z.string().min(1).optional(),
+    firstName: z.string().min(1).optional(), // Regex validation handled in frontend, basic length check here
     lastName: z.string().min(1).optional(),
     email: z.string().email().optional().or(z.literal('')),
-    phone: z.string().min(10).optional(),
+    phone: z.string().min(10).optional().or(z.literal('')), // Allow updating phone or keeping it
     whatsapp: z.string().optional(),
     joiningDate: z.string().optional().transform(val => val ? new Date(val) : undefined),
     address: z.string().optional(),

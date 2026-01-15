@@ -372,7 +372,8 @@ const AdminEditModal: React.FC<AdminEditModalProps> = ({
 
     const validateForm = (): boolean => {
         const newErrors: FormErrors = {};
-        if (!formData.firstName.trim()) newErrors.firstName = 'Name is required';
+        if (!formData.firstName.trim()) newErrors.firstName = 'First Name is required';
+        if (!formData.lastName.trim()) newErrors.lastName = 'Last Name is required';
         if (!formData.phone.trim()) newErrors.phone = 'Phone is required';
         if (!formData.cityCorporationCode) newErrors.cityCorporationCode = 'City Corporation is required';
         if (!formData.zoneId) newErrors.zoneId = 'Zone is required';
@@ -503,13 +504,24 @@ const AdminEditModal: React.FC<AdminEditModalProps> = ({
                     <Grid size={{ xs: 12, md: 9 }}>
                         <Grid container spacing={2}>
                             <Grid size={{ xs: 12, md: 6 }}>
-                                <Typography variant="body2" fontWeight="500" mb={0.5}>নাম</Typography>
+                                <Typography variant="body2" fontWeight="500" mb={0.5}>নামের প্রথম অংশ</Typography>
                                 <TextField
                                     fullWidth
-                                    placeholder="নাম লিখুন..."
+                                    placeholder="নামের প্রথম অংশ..."
                                     value={formData.firstName}
                                     onChange={handleChange('firstName')}
                                     error={!!errors.firstName}
+                                    size="small"
+                                />
+                            </Grid>
+                            <Grid size={{ xs: 12, md: 6 }}>
+                                <Typography variant="body2" fontWeight="500" mb={0.5}>নামের শেষ অংশ</Typography>
+                                <TextField
+                                    fullWidth
+                                    placeholder="নামের শেষ অংশ..."
+                                    value={formData.lastName}
+                                    onChange={handleChange('lastName')}
+                                    error={!!errors.lastName}
                                     size="small"
                                 />
                             </Grid>

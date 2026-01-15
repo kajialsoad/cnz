@@ -48,6 +48,8 @@ export interface ProfileUpdateData {
     ward?: string;
     zone?: string;
     address?: string;
+    email?: string;
+    phone?: string;
 }
 
 export interface ProfileContextValue {

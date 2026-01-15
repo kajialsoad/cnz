@@ -158,6 +158,17 @@ export const ProfileProvider: React.FC<ProfileProviderProps> = ({ children }) =>
             setProfile(updatedProfile);
             saveToCache(updatedProfile);
             broadcastUpdate(updatedProfile);
+
+            // Clear all related caches to force refresh everywhere
+            try {
+                localStorage.removeItem('cc_users_cache');
+                localStorage.removeItem('cc_admins_cache');
+                localStorage.removeItem('cc_super_admins_cache');
+                // Trigger a storage event to notify other components
+                window.dispatchEvent(new Event('storage'));
+            } catch (cacheError) {
+                console.error('Failed to clear related caches:', cacheError);
+            }
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Failed to update profile';
             setError(errorMessage);
@@ -217,7 +228,7 @@ export const ProfileProvider: React.FC<ProfileProviderProps> = ({ children }) =>
         isInitialized.current = true;
 
         // Check if user has a token before fetching profile
-        const hasToken = localStorage.getItem('accessToken');
+        const hasToken = localStorage.getItem('accessToken') || localStorage.getItem('token');
         if (!hasToken) {
             setIsLoading(false);
             return;

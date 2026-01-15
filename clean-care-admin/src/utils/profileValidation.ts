@@ -45,8 +45,9 @@ export function validateFirstName(value: string): string | null {
  * Validate last name
  */
 export function validateLastName(value: string): string | null {
+    // Last name is optional - allow empty
     if (!value || !value.trim()) {
-        return 'Last name is required';
+        return null;
     }
 
     const trimmed = value.trim();

@@ -756,6 +756,7 @@ export class AuthService {
   async updateProfile(userId: string, data: {
     firstName?: string;
     lastName?: string;
+    email?: string;
     phone?: string;
     avatar?: string;
     address?: string;

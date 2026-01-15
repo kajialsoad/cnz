@@ -109,7 +109,7 @@ class UserManagementService {
             const response = await this.apiClient.get<{
                 success: boolean;
                 data: GetUserResponse;
-            }>(`/api/admin/users/${userId}`);
+            }>(`/api/admin/users/${userId}?t=${Date.now()}`);
 
             return response.data.data;
         } catch (error) {
