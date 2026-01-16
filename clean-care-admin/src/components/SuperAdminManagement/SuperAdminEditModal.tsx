@@ -45,6 +45,7 @@ interface FormData {
     lastName: string;
     phone: string;
     email: string;
+    address: string;
     password?: string;
     cityCorporationCode: string;
     zoneIds: number[];
@@ -69,6 +70,7 @@ const SuperAdminEditModal: React.FC<SuperAdminEditModalProps> = ({ open, onClose
             lastName: '',
             phone: '',
             email: '',
+            address: '',
             password: '',
             cityCorporationCode: '',
             zoneIds: [],
@@ -102,6 +104,7 @@ const SuperAdminEditModal: React.FC<SuperAdminEditModalProps> = ({ open, onClose
                 setValue('lastName', superAdmin.lastName);
                 setValue('phone', superAdmin.phone);
                 setValue('email', superAdmin.email || '');
+                setValue('address', superAdmin.address || '');
                 setValue('cityCorporationCode', superAdmin.cityCorporationCode || '');
                 setValue('status', superAdmin.status);
                 setValue('role', superAdmin.role);
@@ -181,6 +184,7 @@ const SuperAdminEditModal: React.FC<SuperAdminEditModalProps> = ({ open, onClose
                 lastName: data.lastName,
                 phone: data.phone,
                 email: data.email || undefined,
+                address: data.address || undefined,
                 cityCorporationCode: data.cityCorporationCode || undefined,
                 // Pass undefined for zoneId as we handle it separately, 
                 // but if we need to maintain backward compatibility, we can pass the first one.
@@ -303,6 +307,22 @@ const SuperAdminEditModal: React.FC<SuperAdminEditModalProps> = ({ open, onClose
                                     helperText={errors.email?.message}
                                     disabled={loading}
                                     fullWidth
+                                />
+                            )}
+                        />
+
+                        <Controller
+                            name="address"
+                            control={control}
+                            render={({ field }) => (
+                                <TextField
+                                    {...field}
+                                    label="ঠিকানা (ঐচ্ছিক)"
+                                    placeholder="পূর্ণ ঠিকানা লিখুন..."
+                                    disabled={loading}
+                                    fullWidth
+                                    multiline
+                                    rows={2}
                                 />
                             )}
                         />

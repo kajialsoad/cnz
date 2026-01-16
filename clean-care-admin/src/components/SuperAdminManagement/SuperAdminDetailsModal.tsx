@@ -176,6 +176,21 @@ const SuperAdminDetailsModal: React.FC<SuperAdminDetailsModalProps> = ({ open, o
                                     </Stack>
                                 </Grid>
                             )}
+                            {displayAdmin.address && (
+                                <Grid size={{ xs: 12 }}>
+                                    <Stack direction="row" spacing={1} alignItems="flex-start">
+                                        <LocationOnOutlined sx={{ color: '#4a5565', mt: 0.5 }} />
+                                        <Box>
+                                            <Typography variant="caption" color="text.secondary">
+                                                ঠিকানা
+                                            </Typography>
+                                            <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                                                {displayAdmin.address}
+                                            </Typography>
+                                        </Box>
+                                    </Stack>
+                                </Grid>
+                            )}
                         </Grid>
                     </Box>
 
