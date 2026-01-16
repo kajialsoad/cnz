@@ -1124,6 +1124,27 @@ const UserManagement: React.FC = () => {
                                     N/A
                                   </Typography>
                                 )}
+                                {user.address && (
+                                  <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5, mt: 0.5 }}>
+                                    <LocationIcon sx={{ fontSize: 14, color: 'text.secondary', mt: 0.2 }} />
+                                    <Typography
+                                      variant="caption"
+                                      color="text.secondary"
+                                      sx={{
+                                        fontSize: '0.7rem',
+                                        lineHeight: 1.3,
+                                        maxWidth: '200px',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        display: '-webkit-box',
+                                        WebkitLineClamp: 2,
+                                        WebkitBoxOrient: 'vertical',
+                                      }}
+                                    >
+                                      {typeof user.address === 'object' ? JSON.stringify(user.address) : user.address}
+                                    </Typography>
+                                  </Box>
+                                )}
                               </Box>
                             </TableCell>
                             <TableCell>

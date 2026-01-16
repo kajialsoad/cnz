@@ -124,6 +124,11 @@ export const updateProfileSchema = Joi.object({
       'string.min': 'শেষ নাম কমপক্ষে ২ অক্ষরের হতে হবে',
       'string.max': 'শেষ নাম সর্বোচ্চ ৫০ অক্ষরের হতে হবে',
     }),
+  phone: Joi.string().min(6).max(20).optional()
+    .messages({
+      'string.min': 'ফোন নম্বর কমপক্ষে ৬ অক্ষরের হতে হবে',
+      'string.max': 'ফোন নম্বর সর্বোচ্চ ২০ অক্ষরের হতে হবে',
+    }),
   email: Joi.string().email().optional()
     .messages({
       'string.email': 'বৈধ ইমেইল ঠিকানা প্রয়োজন',
@@ -139,6 +144,20 @@ export const updateProfileSchema = Joi.object({
   ward: Joi.string().optional()
     .messages({
       'string.base': 'ওয়ার্ড নম্বর প্রয়োজন',
+    }),
+  zoneId: Joi.number().integer().positive().optional()
+    .messages({
+      'number.base': 'জোন আইডি একটি সংখ্যা হতে হবে',
+      'number.positive': 'জোন আইডি পজিটিভ হতে হবে',
+    }),
+  wardId: Joi.number().integer().positive().optional()
+    .messages({
+      'number.base': 'ওয়ার্ড আইডি একটি সংখ্যা হতে হবে',
+      'number.positive': 'ওয়ার্ড আইডি পজিটিভ হতে হবে',
+    }),
+  cityCorporationCode: Joi.string().optional()
+    .messages({
+      'string.base': 'সিটি কর্পোরেশন কোড প্রয়োজন',
     }),
   address: Joi.string().max(255).optional()
     .messages({

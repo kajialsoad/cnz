@@ -43,6 +43,7 @@ interface FormData {
     lastName: string;
     email: string;
     phone: string;
+    address: string;
     cityCorporationCode: string;
     zoneId: string;
     wardId: string;
@@ -75,6 +76,7 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
         lastName: '',
         email: '',
         phone: '',
+        address: '',
         cityCorporationCode: '',
         zoneId: '',
         wardId: '',
@@ -202,6 +204,7 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
                 lastName: user.lastName,
                 email: user.email || '',
                 phone: user.phone,
+                address: user.address || '',
                 cityCorporationCode: user.cityCorporation?.code || '',
                 zoneId: user.zone?.id?.toString() || '',
                 wardId: user.ward?.id?.toString() || '',
@@ -341,6 +344,9 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
             }
             if (formData.phone !== user?.phone) {
                 updateData.phone = formData.phone;
+            }
+            if (formData.address !== (user?.address || '')) {
+                updateData.address = formData.address || undefined;
             }
             if (formData.cityCorporationCode !== user?.cityCorporation?.code) {
                 updateData.cityCorporationCode = formData.cityCorporationCode;
@@ -487,6 +493,19 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
                                 required
                             />
                         </Box>
+                    </Box>
+
+                    <Box sx={{ mb: 2 }}>
+                        <TextField
+                            fullWidth
+                            label="Address (ঠিকানা)"
+                            value={formData.address}
+                            onChange={handleChange('address')}
+                            disabled={loading}
+                            multiline
+                            rows={2}
+                            placeholder="Enter full address"
+                        />
                     </Box>
 
                     {/* Location Information */}

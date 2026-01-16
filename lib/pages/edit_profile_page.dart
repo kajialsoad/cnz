@@ -47,7 +47,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _addressController = TextEditingController(text: widget.user.address ?? '');
     
     // Initialize with user's current geographical data
-    if (widget.user.cityCorporation != null) {
+    if (widget.user.cityCorporation != null && widget.user.cityCorporation!['id'] != null) {
       _selectedCityCorporationId = widget.user.cityCorporation!['id'] as int?;
     }
     _selectedZoneId = widget.user.zoneId;
@@ -111,6 +111,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
     
     try {
       final apiClient = ApiClient(ApiConfig.baseUrl);
+      
+      // Use cityCorporationId directly (API expects ID, not code)
       final response = await apiClient.get(
         '/api/zones?cityCorporationId=$cityCorporationId'
       );
@@ -182,6 +184,23 @@ class _EditProfilePageState extends State<EditProfilePage> {
     try {
       final userRepo = UserRepository(ApiClient(ApiConfig.baseUrl));
       
+      // Get cityCorporationCode from selected city corporation
+      String? cityCorporationCode;
+      if (_selectedCityCorporationId != null && _cityCorporations.isNotEmpty) {
+        try {
+          final cityCorp = _cityCorporations.firstWhere(
+            (cc) => cc['id'] == _selectedCityCorporationId,
+            orElse: () => <String, dynamic>{},
+          );
+          
+          if (cityCorp.isNotEmpty && cityCorp.containsKey('code')) {
+            cityCorporationCode = cityCorp['code'] as String?;
+          }
+        } catch (e) {
+          print('Error getting city corporation code: $e');
+        }
+      }
+      
       await userRepo.updateProfile(
         firstName: _firstNameController.text.trim(),
         lastName: _lastNameController.text.trim(),
@@ -189,6 +208,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
         email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
         zoneId: _selectedZoneId,
         wardId: _selectedWardId,
+        cityCorporationCode: cityCorporationCode,
         address: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
       );
 
@@ -459,10 +479,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   : DropdownButtonFormField<int>(
                       value: _selectedCityCorporationId,
                       decoration: _dec('Select City Corporation', icon: Icons.location_city),
+                      isExpanded: true,
                       items: _cityCorporations.map((cc) {
                         return DropdownMenuItem<int>(
                           value: cc['id'] as int,
-                          child: Text(cc['name'] as String),
+                          child: Text(
+                            cc['name'] as String,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         );
                       }).toList(),
                       onChanged: (value) {
@@ -496,11 +520,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   : DropdownButtonFormField<int>(
                       value: _selectedZoneId,
                       decoration: _dec('Select Zone', icon: Icons.map),
+                      isExpanded: true,
                       items: _zones.map((zone) {
                         final zoneName = zone['name'] as String? ?? 'Zone ${zone['zoneNumber']}';
                         return DropdownMenuItem<int>(
                           value: zone['id'] as int,
-                          child: Text(zoneName),
+                          child: Text(
+                            zoneName,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         );
                       }).toList(),
                       onChanged: _selectedCityCorporationId == null
@@ -534,11 +562,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   : DropdownButtonFormField<int>(
                       value: _selectedWardId,
                       decoration: _dec('Select Ward', icon: Icons.place),
+                      isExpanded: true,
                       items: _wards.map((ward) {
                         final wardNumber = ward['wardNumber'] as int?;
                         return DropdownMenuItem<int>(
                           value: ward['id'] as int,
-                          child: Text('Ward ${wardNumber ?? 'N/A'}'),
+                          child: Text(
+                            'Ward ${wardNumber ?? 'N/A'}',
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         );
                       }).toList(),
                       onChanged: _selectedZoneId == null

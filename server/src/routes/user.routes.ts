@@ -59,22 +59,14 @@ router.get('/profile', authGuard, async (req: AuthRequest, res) => {
 router.put('/profile', authGuard, async (req: AuthRequest, res) => {
   try {
     const userId = req.user!.sub.toString();
-    const { error, value } = validateInput(updateProfileSchema, req.body);
-
-    if (error) {
-      return res.status(400).json({
-        success: false,
-        message: 'Validation error',
-        errors: error.details
-      });
-    }
+    const value = validateInput(updateProfileSchema, req.body);
 
     const profile = await authService.updateProfile(userId, value);
 
     res.json({
       success: true,
       message: 'Profile updated successfully',
-      data: profile
+      user: profile
     });
   } catch (error) {
     if (error instanceof Error) {

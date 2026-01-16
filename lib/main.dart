@@ -182,9 +182,8 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2E8B57)),
         useMaterial3: true,
-        textTheme:
-            GoogleFonts.notoSansTextTheme(), // Use Noto Sans which supports Bengali
-        fontFamily: GoogleFonts.notoSans().fontFamily,
+        textTheme: GoogleFonts.notoSansBengaliTextTheme(),
+        fontFamily: GoogleFonts.notoSansBengali().fontFamily,
       ),
       initialRoute: '/',
       onGenerateRoute: (settings) {

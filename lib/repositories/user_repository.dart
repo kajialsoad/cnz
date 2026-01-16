@@ -31,30 +31,43 @@ class UserRepository {
     String? ward, // Deprecated - kept for backward compatibility
     int? zoneId,
     int? wardId,
+    String? cityCorporationCode,
     String? address,
   }) async {
     try {
       final body = <String, dynamic>{};
-      if (firstName != null) body['firstName'] = firstName;
-      if (lastName != null) body['lastName'] = lastName;
-      if (phone != null) body['phone'] = phone;
-      if (email != null) body['email'] = email;
-      if (avatar != null) body['avatar'] = avatar;
+      if (firstName != null && firstName.isNotEmpty) body['firstName'] = firstName;
+      if (lastName != null && lastName.isNotEmpty) body['lastName'] = lastName;
+      if (phone != null && phone.isNotEmpty) body['phone'] = phone;
+      
+      // Only include email if it's not empty, otherwise omit it
+      if (email != null && email.isNotEmpty) {
+        body['email'] = email;
+      }
+      
+      if (avatar != null && avatar.isNotEmpty) body['avatar'] = avatar;
       
       // Use new zoneId/wardId if provided, otherwise fall back to old zone/ward
       if (zoneId != null) {
         body['zoneId'] = zoneId;
-      } else if (zone != null) {
+      } else if (zone != null && zone.isNotEmpty) {
         body['zone'] = zone;
       }
       
       if (wardId != null) {
         body['wardId'] = wardId;
-      } else if (ward != null) {
+      } else if (ward != null && ward.isNotEmpty) {
         body['ward'] = ward;
       }
       
-      if (address != null) body['address'] = address;
+      if (cityCorporationCode != null && cityCorporationCode.isNotEmpty) {
+        body['cityCorporationCode'] = cityCorporationCode;
+      }
+      
+      // Only include address if it's not empty, otherwise omit it
+      if (address != null && address.isNotEmpty) {
+        body['address'] = address;
+      }
 
       final data = await api.put('/api/users/profile', body);
       

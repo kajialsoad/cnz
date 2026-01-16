@@ -185,14 +185,42 @@ export async function verifyEmail(req: AuthRequest, res: Response) {
 }
 
 const updateProfileSchema = z.object({
-  firstName: z.string().min(2).optional(),
-  lastName: z.string().min(2).optional(),
-  phone: z.string().min(6).optional(),
-  address: z.string().optional(),
-  avatar: z.string().url().optional(),
-  ward: z.string().optional(),
-  zone: z.string().optional(),
-  cityCorporationCode: z.string().optional(),
+  firstName: z.preprocess(
+    (val) => (val === '' ? undefined : val),
+    z.string().min(2).optional()
+  ),
+  lastName: z.preprocess(
+    (val) => (val === '' ? undefined : val),
+    z.string().min(2).optional()
+  ),
+  phone: z.preprocess(
+    (val) => (val === '' ? undefined : val),
+    z.string().min(6).optional()
+  ),
+  email: z.preprocess(
+    (val) => (val === '' ? undefined : val),
+    z.string().email().optional()
+  ),
+  address: z.preprocess(
+    (val) => (val === '' ? undefined : val),
+    z.string().optional()
+  ),
+  avatar: z.preprocess(
+    (val) => (val === '' ? undefined : val),
+    z.string().url().optional()
+  ),
+  ward: z.preprocess(
+    (val) => (val === '' ? undefined : val),
+    z.string().optional()
+  ),
+  zone: z.preprocess(
+    (val) => (val === '' ? undefined : val),
+    z.string().optional()
+  ),
+  cityCorporationCode: z.preprocess(
+    (val) => (val === '' ? undefined : val),
+    z.string().optional()
+  ),
   thanaId: z.number().int().positive().optional(),
   zoneId: z.number().int().positive().optional(),
   wardId: z.number().int().positive().optional(),
