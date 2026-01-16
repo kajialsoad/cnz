@@ -337,7 +337,7 @@ const SuperAdminManagement: React.FC = () => {
             <>
               <Card sx={{ borderRadius: 2, boxShadow: '0px 1px 3px 0px #0000001a, 0px 1px 2px -1px #0000001a' }}>
                 <Box sx={{ bgcolor: '#f9fafb', borderBottom: '1px solid #e5e7eb', px: 3, py: 1.5 }}>
-                  <Box sx={{ display: 'grid', gridTemplateColumns: '50px 30% 20% 15% 15% 1fr', gap: 2, alignItems: 'center' }}>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: '50px 25% 20% 15% 12% 1fr', gap: 2, alignItems: 'center' }}>
                     <Checkbox
                       indeterminate={selectedIds.length > 0 && selectedIds.length < superAdmins.length}
                       checked={superAdmins.length > 0 && selectedIds.length === superAdmins.length}
@@ -367,7 +367,7 @@ const SuperAdminManagement: React.FC = () => {
                                 onChange={() => handleSelectOne(admin.id)}
                               />
                             </TableCell>
-                            <TableCell sx={{ width: '30%' }}>
+                            <TableCell sx={{ width: '25%' }}>
                               <Stack direction="row" spacing={1.5} alignItems="center">
                                 <Avatar
                                   src={admin.avatar || undefined}
@@ -411,6 +411,11 @@ const SuperAdminManagement: React.FC = () => {
                                   )}
                                 </Box>
                               )}
+                              {admin.address && (
+                                <Typography sx={{ fontSize: 12, color: '#6b7280', mt: 0.5 }}>
+                                  📍 {admin.address}
+                                </Typography>
+                              )}
                             </TableCell>
                             <TableCell sx={{ width: '15%' }}>
                               <Stack spacing={0.5}>
@@ -433,7 +438,7 @@ const SuperAdminManagement: React.FC = () => {
                                 )}
                               </Stack>
                             </TableCell>
-                            <TableCell sx={{ width: '15%' }}>
+                            <TableCell sx={{ width: '12%' }}>
                               <Stack direction="row" spacing={1} alignItems="center">
                                 <Chip
                                   label={admin.status === UserStatus.ACTIVE ? 'সক্রিয়' : 'নিষ্ক্রিয়'}

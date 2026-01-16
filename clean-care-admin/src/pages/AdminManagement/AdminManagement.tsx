@@ -580,7 +580,7 @@ const AdminManagement: React.FC = () => {
                   onChange={handleSelectAll}
                 />
               </Grid>
-              <Grid item xs={3}>
+              <Grid item xs={2.5}>
                 <Typography sx={{ color: '#364153', fontWeight: 700, fontSize: 14 }}>
                   এডমিন
                 </Typography>
@@ -590,12 +590,12 @@ const AdminManagement: React.FC = () => {
                   এলাকা
                 </Typography>
               </Grid>
-              <Grid item xs={3}>
+              <Grid item xs={2}>
                 <Typography sx={{ color: '#364153', fontWeight: 700, fontSize: 14 }}>
                   স্ট্যাটাস
                 </Typography>
               </Grid>
-              <Grid item xs={2}>
+              <Grid item xs={3.5}>
                 <Typography sx={{ color: '#364153', fontWeight: 700, fontSize: 14 }}>
                   অভিযোগ পরিসংখ্যান
                 </Typography>
@@ -636,7 +636,7 @@ const AdminManagement: React.FC = () => {
                               onChange={() => handleSelectOne(admin.id)}
                             />
                           </TableCell>
-                          <TableCell sx={{ width: '35%' }}>
+                          <TableCell sx={{ width: '25%' }}>
                             <Stack direction="row" spacing={1.5} alignItems="center">
                               <Avatar
                                 src={admin.avatar}
@@ -655,7 +655,7 @@ const AdminManagement: React.FC = () => {
                               </Box>
                             </Stack>
                           </TableCell>
-                          <TableCell sx={{ width: '25%' }}>
+                          <TableCell sx={{ width: '30%' }}>
                             <Stack spacing={0.5}>
                               <Typography sx={{ fontSize: 16, color: '#1e2939' }}>
                                 {admin.cityCorporation?.name || 'N/A'}
@@ -693,9 +693,14 @@ const AdminManagement: React.FC = () => {
                                   </Typography>
                                 )}
                               </Stack>
+                              {admin.address && (
+                                <Typography sx={{ fontSize: 12, color: '#6b7280', mt: 0.5 }}>
+                                  📍 {admin.address}
+                                </Typography>
+                              )}
                             </Stack>
                           </TableCell>
-                          <TableCell sx={{ width: '20%' }}>
+                          <TableCell sx={{ width: '15%' }}>
                             <Stack direction="row" spacing={1} alignItems="center">
                               <Chip
                                 label={admin.status === 'ACTIVE' ? 'সক্রিয়' : 'নিষ্ক্রিয়'}
@@ -710,7 +715,7 @@ const AdminManagement: React.FC = () => {
                               </Typography>
                             </Stack>
                           </TableCell>
-                          <TableCell sx={{ width: '20%' }}>
+                          <TableCell sx={{ width: '30%' }}>
                             <Stack direction="row" spacing={2} alignItems="center">
                               <Stack>
                                 <Typography sx={{ fontSize: 14, color: '#1e2939', fontWeight: 700 }}>
