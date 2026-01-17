@@ -4,5 +4,6 @@
     "kiroAgent.notifications.agent.failure": true,
     "kiroAgent.notifications.agent.success": true,
     "editor.aiStats.enabled": true,
-    "editor.allowVariableFontsInAccessibilityMode": true
+    "editor.allowVariableFontsInAccessibilityMode": true,
+    "java.configuration.updateBuildConfiguration": "interactive"
 }
