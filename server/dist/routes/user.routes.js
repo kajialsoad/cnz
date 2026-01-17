@@ -56,19 +56,12 @@ router.get('/profile', auth_middleware_1.authGuard, async (req, res) => {
 router.put('/profile', auth_middleware_1.authGuard, async (req, res) => {
     try {
         const userId = req.user.sub.toString();
-        const { error, value } = (0, validation_1.validateInput)(validation_2.updateProfileSchema, req.body);
-        if (error) {
-            return res.status(400).json({
-                success: false,
-                message: 'Validation error',
-                errors: error.details
-            });
-        }
+        const value = (0, validation_1.validateInput)(validation_2.updateProfileSchema, req.body);
         const profile = await auth_service_1.authService.updateProfile(userId, value);
         res.json({
             success: true,
             message: 'Profile updated successfully',
-            data: profile
+            user: profile
         });
     }
     catch (error) {

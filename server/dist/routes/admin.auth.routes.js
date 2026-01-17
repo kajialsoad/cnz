@@ -7,7 +7,8 @@ const rate_limit_middleware_1 = require("../middlewares/rate-limit.middleware");
 console.log('🔧 Loading admin.auth.routes.ts...');
 const router = (0, express_1.Router)();
 // Admin authentication routes with rate limiting and account lockout protection
-router.post('/login', rate_limit_middleware_1.loginRateLimit, (0, rate_limit_middleware_1.ipRateLimit)(100, 60 * 1000), admin_auth_controller_1.adminLogin);
+// Increased limits for development: 1000 requests per minute
+router.post('/login', rate_limit_middleware_1.loginRateLimit, (0, rate_limit_middleware_1.ipRateLimit)(1000, 60 * 1000), admin_auth_controller_1.adminLogin);
 console.log('🔧 Admin route registered: POST /login (with rate limiting)');
 router.post('/logout', admin_auth_controller_1.adminLogout);
 console.log('🔧 Admin route registered: POST /logout');

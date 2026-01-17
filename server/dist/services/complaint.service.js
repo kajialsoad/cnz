@@ -242,10 +242,15 @@ class ComplaintService {
                     userId: input.forSomeoneElse ? undefined : (input.userId ?? undefined),
                     location: typeof locationString === 'string' ? locationString : 'Unknown Location',
                     assignedAdminId: assignedAdminId, // NEW: Auto-assign admin
-                    // NEW: Store geographical IDs for dynamic system
-                    cityCorporationCode: input.cityCorporationCode || user?.cityCorporationCode || null,
-                    zoneId: input.zoneId || user?.zoneId || null,
-                    wardId: input.wardId || user?.wardId || null
+                    // User location fields (where user is from)
+                    cityCorporationCode: user?.cityCorporationCode || null,
+                    zoneId: user?.zoneId || null,
+                    wardId: user?.wardId || null,
+                    // ✅ CRITICAL FIX: Complaint location fields (where complaint was submitted)
+                    // These fields are used for Admin filtering
+                    complaintCityCorporationCode: input.cityCorporationCode || user?.cityCorporationCode || null,
+                    complaintZoneId: input.zoneId || user?.zoneId || null,
+                    complaintWardId: input.wardId || user?.wardId || null
                 },
                 include: {
                     user: {

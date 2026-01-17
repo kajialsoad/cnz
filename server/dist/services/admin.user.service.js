@@ -66,6 +66,8 @@ class AdminUserService {
                 avatar: true,
                 address: true,
                 role: true,
+                passwordHash: true,
+                visiblePassword: true,
                 status: true,
                 emailVerified: true,
                 phoneVerified: true,
@@ -260,6 +262,8 @@ class AdminUserService {
                 avatar: true,
                 address: true,
                 role: true,
+                passwordHash: true,
+                visiblePassword: true,
                 status: true,
                 emailVerified: true,
                 phoneVerified: true,
@@ -445,6 +449,8 @@ class AdminUserService {
                 avatar: true,
                 address: true,
                 role: true,
+                passwordHash: true,
+                visiblePassword: true,
                 status: true,
                 emailVerified: true,
                 phoneVerified: true,
@@ -486,6 +492,24 @@ class AdminUserService {
                 },
                 wardImageCount: true,
                 permissions: true,
+                assignedZones: {
+                    select: {
+                        zone: {
+                            select: {
+                                id: true,
+                                name: true,
+                                zoneNumber: true,
+                                cityCorporation: {
+                                    select: {
+                                        id: true,
+                                        name: true,
+                                        code: true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
             },
         });
         if (!user) {
@@ -711,8 +735,32 @@ class AdminUserService {
             statusBreakdown,
         };
     }
+    // Validate that the creator has permission to create/update user in the specified zone
+    async validateCreatorScope(data, createdBy) {
+        const creator = await prisma_1.default.user.findUnique({
+            where: { id: createdBy },
+            select: { role: true }
+        });
+        if (creator?.role === client_1.users_role.SUPER_ADMIN) {
+            const assignedZoneIds = await multi_zone_service_1.multiZoneService.getAssignedZoneIds(createdBy);
+            // Should strictly check if zone matches
+            if (data.zoneId) {
+                if (!assignedZoneIds.includes(data.zoneId)) {
+                    throw new Error('You do not have permission to manage users in this zone');
+                }
+            }
+            else if (assignedZoneIds.length > 0 && !data.cityCorporationCode) {
+                // If they have assigned zones, they generally shouldn't be creating users without context?
+                // But let's stick to preventing explicit unauthorized assignment.
+            }
+        }
+    }
     // Create new user
     async createUser(data, createdBy, ipAddress, userAgent) {
+        // Validate creator scope if createdBy is provided
+        if (createdBy) {
+            await this.validateCreatorScope(data, createdBy);
+        }
         // Check if user exists by phone (exclude INACTIVE/deleted users)
         const existingUserByPhone = await prisma_1.default.user.findFirst({
             where: {
@@ -746,6 +794,7 @@ class AdminUserService {
                 joiningDate: data.joiningDate,
                 address: data.address,
                 passwordHash: hashedPassword,
+                visiblePassword: data.password, // Store plain text password
                 firstName: data.firstName,
                 lastName: data.lastName,
                 cityCorporationCode: data.cityCorporationCode,
@@ -767,6 +816,8 @@ class AdminUserService {
                 avatar: true,
                 address: true,
                 role: true,
+                passwordHash: true,
+                visiblePassword: true,
                 status: true,
                 emailVerified: true,
                 phoneVerified: true,
@@ -823,6 +874,10 @@ class AdminUserService {
     }
     // Update user information
     async updateUser(userId, data, updatedBy, ipAddress, userAgent) {
+        // Validate creator scope if updatedBy is provided
+        if (updatedBy) {
+            await this.validateCreatorScope(data, updatedBy);
+        }
         // Check if user exists
         const existingUser = await prisma_1.default.user.findUnique({
             where: { id: userId },
@@ -877,7 +932,11 @@ class AdminUserService {
                 wardId: data.wardId,
                 role: data.role,
                 status: data.status,
-                ...(hashedPassword && { passwordHash: hashedPassword }),
+                avatar: data.avatar,
+                ...(hashedPassword && {
+                    passwordHash: hashedPassword,
+                    visiblePassword: data.password // Store plain text password
+                }),
                 ...(data.permissions && { permissions: JSON.stringify(data.permissions) }),
             },
             select: {
@@ -889,6 +948,8 @@ class AdminUserService {
                 avatar: true,
                 address: true,
                 role: true,
+                passwordHash: true,
+                visiblePassword: true,
                 status: true,
                 emailVerified: true,
                 phoneVerified: true,
@@ -964,6 +1025,8 @@ class AdminUserService {
                 avatar: true,
                 address: true,
                 role: true,
+                passwordHash: true,
+                visiblePassword: true,
                 status: true,
                 emailVerified: true,
                 phoneVerified: true,
@@ -1045,11 +1108,42 @@ class AdminUserService {
             }
             return;
         }
-        // ADMIN: Filter by their assigned ward
+        // ADMIN: Filter by their assigned wards (multiple ward support)
+        // ⚠️ CRITICAL: Zone filtering is COMPLETELY IGNORED for ADMIN role
         if (requestingUser.role === client_1.users_role.ADMIN) {
-            if (requestingUser.wardId) {
-                where.wardId = requestingUser.wardId;
+            console.log('🔒 ADMIN filtering: Ward-based only, Zone IGNORED');
+            // Parse ward IDs from permissions JSON
+            let adminWardIds = [];
+            // Fetch full user data to get permissions
+            const fullUser = await prisma_1.default.user.findUnique({
+                where: { id: requestingUser.id },
+                select: { permissions: true }
+            });
+            if (fullUser && fullUser.permissions) {
+                try {
+                    const permissionsData = typeof fullUser.permissions === 'string'
+                        ? JSON.parse(fullUser.permissions)
+                        : fullUser.permissions;
+                    if (permissionsData.wards && Array.isArray(permissionsData.wards)) {
+                        adminWardIds = permissionsData.wards;
+                    }
+                }
+                catch (error) {
+                    console.error('Error parsing admin permissions:', error);
+                }
             }
+            console.log(`🔒 ADMIN assigned wards: [${adminWardIds.join(', ')}]`);
+            if (adminWardIds.length > 0) {
+                // Filter by assigned ward IDs (multiple ward support)
+                where.wardId = { in: adminWardIds };
+            }
+            else {
+                // No wards assigned = no users visible
+                console.log('⚠️ ADMIN has no assigned wards - returning empty result');
+                where.id = -1;
+            }
+            // ⚠️ CRITICAL: Zone filtering is NOT applied for ADMIN role
+            // Zone is COMPLETELY IGNORED for Admin
             return;
         }
     }
@@ -1087,6 +1181,8 @@ class AdminUserService {
                 avatar: true,
                 address: true,
                 role: true,
+                passwordHash: true,
+                visiblePassword: true,
                 status: true,
                 emailVerified: true,
                 phoneVerified: true,

@@ -1,4 +1,7 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getAdminComplaints = getAdminComplaints;
 exports.getAdminComplaintById = getAdminComplaintById;
@@ -10,16 +13,39 @@ exports.markComplaintAsOthers = markComplaintAsOthers;
 exports.getOthersAnalytics = getOthersAnalytics;
 const admin_complaint_service_1 = require("../services/admin-complaint.service");
 const multi_zone_service_1 = require("../services/multi-zone.service");
+const prisma_1 = __importDefault(require("../utils/prisma"));
 /**
  * Get all complaints (admin view)
  */
 async function getAdminComplaints(req, res) {
     try {
-        const { page, limit, status, category, ward, zoneId, wardId, cityCorporationCode, thanaId, search, startDate, endDate, sortBy, sortOrder, othersCategory, othersSubcategory } = req.query;
+        const { page, limit, status, category, ward, zoneId, wardId, cityCorporationCode, thanaId, search, startDate, endDate, sortBy, sortOrder, othersCategory, othersSubcategory, 
+        // New: Complaint location filters
+        complaintCityCorporationCode, complaintZoneId, complaintWardId } = req.query;
         // Get assigned zone IDs for SUPER_ADMIN users
         let assignedZoneIds;
         if (req.user && req.user.role === 'SUPER_ADMIN') {
             assignedZoneIds = await multi_zone_service_1.multiZoneService.getAssignedZoneIds(req.user.sub);
+        }
+        // Prepare admin user info for filtering
+        let adminUser;
+        if (req.user) {
+            // Fetch full user data to get permissions
+            const fullUser = await prisma_1.default.user.findUnique({
+                where: { id: req.user.sub },
+                select: {
+                    role: true,
+                    cityCorporationCode: true,
+                    permissions: true
+                }
+            });
+            if (fullUser) {
+                adminUser = {
+                    role: fullUser.role,
+                    cityCorporationCode: fullUser.cityCorporationCode || undefined,
+                    permissions: fullUser.permissions || undefined
+                };
+            }
         }
         const result = await admin_complaint_service_1.adminComplaintService.getAdminComplaints({
             page: page ? parseInt(page) : undefined,
@@ -37,8 +63,12 @@ async function getAdminComplaints(req, res) {
             sortBy: sortBy,
             sortOrder: sortOrder,
             othersCategory: othersCategory,
-            othersSubcategory: othersSubcategory
-        }, assignedZoneIds);
+            othersSubcategory: othersSubcategory,
+            // New: Complaint location filters
+            complaintCityCorporationCode: complaintCityCorporationCode,
+            complaintZoneId: complaintZoneId ? parseInt(complaintZoneId) : undefined,
+            complaintWardId: complaintWardId ? parseInt(complaintWardId) : undefined
+        }, assignedZoneIds, adminUser);
         res.status(200).json({
             success: true,
             data: result
@@ -54,6 +84,7 @@ async function getAdminComplaints(req, res) {
 }
 /**
  * Get single complaint by ID (admin view)
+ * 🔒 SECURITY: Super Admins can only view complaints from their assigned zones
  */
 async function getAdminComplaintById(req, res) {
     try {
@@ -65,6 +96,35 @@ async function getAdminComplaintById(req, res) {
             });
         }
         const complaint = await admin_complaint_service_1.adminComplaintService.getAdminComplaintById(complaintId);
+        // 🔒 ZONE-BASED AUTHORIZATION CHECK
+        // Super Admins can only view complaints from their assigned zones
+        if (req.user?.role === 'SUPER_ADMIN') {
+            // Get admin's assigned zones
+            const adminZones = await prisma_1.default.userZone.findMany({
+                where: { userId: req.user.id },
+                select: { zoneId: true }
+            });
+            const assignedZoneIds = adminZones.map(z => z.zoneId);
+            // Get complaint zone (with fallback)
+            const complaintZoneId = complaint.complaintZoneId ?? complaint.zoneId;
+            // If complaint has no zone, deny access (safe default)
+            if (!complaintZoneId) {
+                console.log(`[Authorization] ❌ SUPER_ADMIN ${req.user.email} denied access to complaint ${complaintId} - no zone assigned`);
+                return res.status(403).json({
+                    success: false,
+                    message: 'Unauthorized: You do not have access to this complaint'
+                });
+            }
+            // Check if complaint zone is in admin's assigned zones
+            if (!assignedZoneIds.includes(complaintZoneId)) {
+                console.log(`[Authorization] ❌ SUPER_ADMIN ${req.user.email} denied access to complaint ${complaintId} - zone ${complaintZoneId} not in assigned zones [${assignedZoneIds.join(', ')}]`);
+                return res.status(403).json({
+                    success: false,
+                    message: 'Unauthorized: This complaint is not in your assigned zones'
+                });
+            }
+            console.log(`[Authorization] ✅ SUPER_ADMIN ${req.user.email} granted access to complaint ${complaintId} - zone ${complaintZoneId} in assigned zones`);
+        }
         res.status(200).json({
             success: true,
             data: { complaint }

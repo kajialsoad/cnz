@@ -7,20 +7,20 @@ const express_1 = require("express");
 const zone_controller_1 = __importDefault(require("../controllers/zone.controller"));
 const auth_middleware_1 = require("../middlewares/auth.middleware");
 const router = (0, express_1.Router)();
-// All routes require SUPER_ADMIN or MASTER_ADMIN role
-router.use(auth_middleware_1.authGuard, (0, auth_middleware_1.rbacGuard)('SUPER_ADMIN', 'MASTER_ADMIN'));
+// GET routes - Allow ADMIN, SUPER_ADMIN, and MASTER_ADMIN (read-only for ADMIN)
 // GET /api/admin/zones/available/:cityCorporationId - Get available zone numbers
-router.get('/available/:cityCorporationId', zone_controller_1.default.getAvailableZoneNumbers);
+router.get('/available/:cityCorporationId', auth_middleware_1.authGuard, (0, auth_middleware_1.rbacGuard)('ADMIN', 'SUPER_ADMIN', 'MASTER_ADMIN'), zone_controller_1.default.getAvailableZoneNumbers);
 // GET /api/admin/zones - Get zones by city corporation
-router.get('/', zone_controller_1.default.getZones);
+router.get('/', auth_middleware_1.authGuard, (0, auth_middleware_1.rbacGuard)('ADMIN', 'SUPER_ADMIN', 'MASTER_ADMIN'), zone_controller_1.default.getZones);
+// GET /api/admin/zones/:id/statistics - Get statistics (must be before /:id to avoid route conflict)
+router.get('/:id/statistics', auth_middleware_1.authGuard, (0, auth_middleware_1.rbacGuard)('ADMIN', 'SUPER_ADMIN', 'MASTER_ADMIN'), zone_controller_1.default.getZoneStatistics);
 // GET /api/admin/zones/:id - Get single zone
-router.get('/:id', zone_controller_1.default.getZoneById);
+router.get('/:id', auth_middleware_1.authGuard, (0, auth_middleware_1.rbacGuard)('ADMIN', 'SUPER_ADMIN', 'MASTER_ADMIN'), zone_controller_1.default.getZoneById);
+// Write routes - Only SUPER_ADMIN and MASTER_ADMIN
 // POST /api/admin/zones - Create new zone
-router.post('/', zone_controller_1.default.createZone);
+router.post('/', auth_middleware_1.authGuard, (0, auth_middleware_1.rbacGuard)('SUPER_ADMIN', 'MASTER_ADMIN'), zone_controller_1.default.createZone);
 // PUT /api/admin/zones/:id - Update zone
-router.put('/:id', zone_controller_1.default.updateZone);
+router.put('/:id', auth_middleware_1.authGuard, (0, auth_middleware_1.rbacGuard)('SUPER_ADMIN', 'MASTER_ADMIN'), zone_controller_1.default.updateZone);
 // DELETE /api/admin/zones/:id - Delete zone
-router.delete('/:id', zone_controller_1.default.deleteZone);
-// GET /api/admin/zones/:id/statistics - Get statistics
-router.get('/:id/statistics', zone_controller_1.default.getZoneStatistics);
+router.delete('/:id', auth_middleware_1.authGuard, (0, auth_middleware_1.rbacGuard)('SUPER_ADMIN', 'MASTER_ADMIN'), zone_controller_1.default.deleteZone);
 exports.default = router;

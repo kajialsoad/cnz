@@ -45,31 +45,110 @@ class NotificationService {
         }
     }
     /**
-     * Notify all admins about an event
+     * Notify admins about an event with zone-based filtering
+     * 🔔 ZONE-BASED NOTIFICATION LOGIC:
+     * - If complaintId is provided, fetch complaint location (zoneId)
+     * - SUPER_ADMIN: Only notify if complaint.zoneId is in their assignedZoneIds
+     * - MASTER_ADMIN: Notify all (can see all zones)
+     * - ADMIN: Notify all (backward compatibility)
+     *
      * @param title - Notification title
      * @param message - Notification message
      * @param type - Notification type
-     * @param complaintId - Optional complaint ID
+     * @param complaintId - Optional complaint ID (used for zone filtering)
      * @param metadata - Optional metadata
      */
     async notifyAdmins(title, message, type = 'INFO', complaintId, metadata) {
         try {
-            console.log(`[NotificationService] notifyAdmins called. Title: ${title}`);
-            // Find all admins
+            console.log(`[NotificationService] notifyAdmins called. Title: ${title}, ComplaintId: ${complaintId}`);
+            // Step 1: Fetch complaint location if complaintId is provided
+            let complaintZoneId = null;
+            let complaintCityCorporationCode = null;
+            if (complaintId) {
+                const complaint = await prisma_1.default.complaint.findUnique({
+                    where: { id: complaintId },
+                    select: {
+                        complaintZoneId: true,
+                        zoneId: true, // Fallback
+                        complaintCityCorporationCode: true,
+                        cityCorporationCode: true // Fallback
+                    }
+                });
+                if (complaint) {
+                    // Use complaint location fields with fallback to old fields
+                    complaintZoneId = complaint.complaintZoneId ?? complaint.zoneId;
+                    complaintCityCorporationCode = complaint.complaintCityCorporationCode ?? complaint.cityCorporationCode;
+                    console.log(`[NotificationService] Complaint location: Zone=${complaintZoneId}, CityCorpCode=${complaintCityCorporationCode}`);
+                }
+            }
+            // Step 2: Find eligible admins based on role and zone assignment
             const admins = await prisma_1.default.user.findMany({
                 where: {
                     role: { in: ['ADMIN', 'SUPER_ADMIN', 'MASTER_ADMIN'] },
                     status: 'ACTIVE'
                 },
-                select: { id: true, email: true, role: true }
+                select: {
+                    id: true,
+                    email: true,
+                    role: true,
+                    cityCorporationCode: true,
+                    assignedZones: {
+                        select: {
+                            zoneId: true
+                        }
+                    }
+                }
             });
-            console.log(`[NotificationService] Found ${admins.length} active admins:`, admins.map(a => `${a.email} (${a.role})`));
+            console.log(`[NotificationService] Found ${admins.length} active admins`);
             if (admins.length === 0) {
                 console.log('[NotificationService] No active admins found to notify.');
                 return;
             }
-            // Create notifications in batch
-            const notificationsData = admins.map(admin => ({
+            // Step 3: Filter admins based on zone assignment
+            const eligibleAdmins = admins.filter(admin => {
+                // MASTER_ADMIN: Can see all complaints
+                if (admin.role === 'MASTER_ADMIN') {
+                    console.log(`[NotificationService] ✅ MASTER_ADMIN ${admin.email} - sees all zones`);
+                    return true;
+                }
+                // ADMIN: Can see all complaints (backward compatibility)
+                if (admin.role === 'ADMIN') {
+                    console.log(`[NotificationService] ✅ ADMIN ${admin.email} - sees all zones`);
+                    return true;
+                }
+                // SUPER_ADMIN: Zone-based filtering
+                if (admin.role === 'SUPER_ADMIN') {
+                    // If no complaint zone, deny access (safe default)
+                    if (!complaintZoneId) {
+                        console.log(`[NotificationService] ❌ SUPER_ADMIN ${admin.email} - complaint has no zone (denied)`);
+                        return false;
+                    }
+                    // Check if complaint zone is in admin's assigned zones
+                    const assignedZoneIds = admin.assignedZones.map(z => z.zoneId);
+                    if (assignedZoneIds.length === 0) {
+                        console.log(`[NotificationService] ❌ SUPER_ADMIN ${admin.email} - no zones assigned (denied)`);
+                        return false;
+                    }
+                    const hasAccess = assignedZoneIds.includes(complaintZoneId);
+                    if (hasAccess) {
+                        console.log(`[NotificationService] ✅ SUPER_ADMIN ${admin.email} - zone ${complaintZoneId} in assigned zones [${assignedZoneIds.join(', ')}]`);
+                    }
+                    else {
+                        console.log(`[NotificationService] ❌ SUPER_ADMIN ${admin.email} - zone ${complaintZoneId} NOT in assigned zones [${assignedZoneIds.join(', ')}]`);
+                    }
+                    return hasAccess;
+                }
+                // Unknown role - deny by default
+                console.log(`[NotificationService] ❌ Unknown role ${admin.role} for ${admin.email} (denied)`);
+                return false;
+            });
+            console.log(`[NotificationService] ${eligibleAdmins.length} admins eligible after zone filtering`);
+            if (eligibleAdmins.length === 0) {
+                console.log('[NotificationService] No eligible admins found after zone filtering.');
+                return;
+            }
+            // Step 4: Create notifications in batch
+            const notificationsData = eligibleAdmins.map(admin => ({
                 userId: admin.id,
                 title,
                 message,
@@ -82,7 +161,7 @@ class NotificationService {
             const result = await prisma_1.default.notification.createMany({
                 data: notificationsData
             });
-            console.log(`[NotificationService] Successfully created ${result.count} notifications.`);
+            console.log(`[NotificationService] ✅ Successfully created ${result.count} notifications for zone-filtered admins`);
         }
         catch (error) {
             console.error('Error notifying admins:', error);

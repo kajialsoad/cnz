@@ -181,14 +181,7 @@ router.post('/logout', async (req, res) => {
 // Forgot password endpoint
 router.post('/forgot-password', authRateLimiter, async (req, res) => {
     try {
-        const { error, value } = (0, validation_1.validateInput)(validation_2.forgotPasswordSchema, req.body);
-        if (error) {
-            return res.status(400).json({
-                success: false,
-                message: 'Validation error',
-                errors: error.details
-            });
-        }
+        const value = (0, validation_1.validateInput)(validation_2.forgotPasswordSchema, req.body);
         const result = await auth_service_1.authService.forgotPassword(value.email);
         res.json(result);
     }
@@ -208,14 +201,7 @@ router.post('/forgot-password', authRateLimiter, async (req, res) => {
 // Reset password endpoint
 router.post('/reset-password', async (req, res) => {
     try {
-        const { error, value } = (0, validation_1.validateInput)(validation_2.resetPasswordSchema, req.body);
-        if (error) {
-            return res.status(400).json({
-                success: false,
-                message: 'Validation error',
-                errors: error.details
-            });
-        }
+        const value = (0, validation_1.validateInput)(validation_2.resetPasswordSchema, req.body);
         const result = await auth_service_1.authService.resetPassword(value.token, value.password);
         res.json(result);
     }

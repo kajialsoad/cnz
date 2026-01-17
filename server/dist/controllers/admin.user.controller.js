@@ -84,10 +84,10 @@ const createUserSchema = zod_1.z.object({
     permissions: zod_1.z.any().optional(),
 });
 const updateUserSchema = zod_1.z.object({
-    firstName: zod_1.z.string().min(1).optional(),
+    firstName: zod_1.z.string().min(1).optional(), // Regex validation handled in frontend, basic length check here
     lastName: zod_1.z.string().min(1).optional(),
     email: zod_1.z.string().email().optional().or(zod_1.z.literal('')),
-    phone: zod_1.z.string().min(10).optional(),
+    phone: zod_1.z.string().min(10).optional().or(zod_1.z.literal('')), // Allow updating phone or keeping it
     whatsapp: zod_1.z.string().optional(),
     joiningDate: zod_1.z.string().optional().transform(val => val ? new Date(val) : undefined),
     address: zod_1.z.string().optional(),
@@ -98,6 +98,8 @@ const updateUserSchema = zod_1.z.object({
     wardId: zod_1.z.number().int().positive().optional(),
     role: zod_1.z.nativeEnum(client_1.users_role).optional(),
     status: zod_1.z.nativeEnum(client_1.UserStatus).optional(),
+    password: zod_1.z.string().min(8, 'Password must be at least 8 characters').optional(),
+    avatar: zod_1.z.string().optional(),
     permissions: zod_1.z.any().optional(),
 });
 const updateStatusSchema = zod_1.z.object({

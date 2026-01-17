@@ -42,6 +42,7 @@ exports.adminLogout = adminLogout;
 exports.adminRefresh = adminRefresh;
 exports.adminUpdateProfile = adminUpdateProfile;
 const auth_service_1 = require("../services/auth.service");
+const notification_service_1 = __importDefault(require("../services/notification.service"));
 const zod_1 = require("zod");
 const env_1 = __importDefault(require("../config/env"));
 const rate_limit_middleware_1 = require("../middlewares/rate-limit.middleware");
@@ -56,13 +57,18 @@ const adminProfileUpdateSchema = zod_1.z.object({
         .transform(val => val?.trim())
         .refine(val => !val || val.length >= 2, 'First name must be at least 2 characters')
         .refine(val => !val || val.length <= 50, 'First name must not exceed 50 characters')
-        .refine(val => !val || /^[a-zA-Z\s'-]+$/.test(val), 'First name can only contain letters, spaces, hyphens, and apostrophes')
         .optional(),
     lastName: zod_1.z.string()
         .transform(val => val?.trim())
         .refine(val => !val || val.length >= 2, 'Last name must be at least 2 characters')
         .refine(val => !val || val.length <= 50, 'Last name must not exceed 50 characters')
-        .refine(val => !val || /^[a-zA-Z\s'-]+$/.test(val), 'Last name can only contain letters, spaces, hyphens, and apostrophes')
+        .optional(),
+    email: zod_1.z.string()
+        .email('Invalid email address')
+        .optional(),
+    phone: zod_1.z.string()
+        .transform(val => val?.trim())
+        .refine(val => !val || /^\d{11}$/.test(val), 'Phone number must be 11 digits')
         .optional(),
     avatar: zod_1.z.string()
         .transform(val => val?.trim())
@@ -277,20 +283,34 @@ async function adminUpdateProfile(req, res) {
         const body = adminProfileUpdateSchema.parse(req.body);
         // Sanitize string inputs
         const sanitizedBody = {};
-        if (body.firstName)
+        if (body.firstName !== undefined)
             sanitizedBody.firstName = body.firstName.trim();
-        if (body.lastName)
+        if (body.lastName !== undefined)
             sanitizedBody.lastName = body.lastName.trim();
-        if (body.avatar)
+        if (body.avatar !== undefined)
             sanitizedBody.avatar = body.avatar.trim();
-        if (body.ward)
-            sanitizedBody.ward = body.ward.trim();
-        if (body.zone)
-            sanitizedBody.zone = body.zone.trim();
-        if (body.address)
+        if (body.ward !== undefined)
+            sanitizedBody.ward = body.ward ? body.ward.trim() : null; // Handle potential null/empty for optional location
+        if (body.zone !== undefined)
+            sanitizedBody.zone = body.zone ? body.zone.trim() : null;
+        if (body.address !== undefined)
             sanitizedBody.address = body.address.trim();
+        if (body.email !== undefined)
+            sanitizedBody.email = body.email.trim();
+        if (body.phone !== undefined)
+            sanitizedBody.phone = body.phone.trim();
         // Update profile
         const updatedUser = await auth_service_1.authService.updateProfile(String(req.user.sub), sanitizedBody);
+        // Send notification to all admins
+        try {
+            const role = req.user.role;
+            const name = `${updatedUser.firstName} ${updatedUser.lastName}`;
+            await notification_service_1.default.notifyAdmins('Admin Profile Update', `[${role}] ${name} updated their profile details.`, 'INFO');
+        }
+        catch (notifError) {
+            console.error('Failed to send profile update notification:', notifError);
+            // Don't fail the request if notification fails
+        }
         return res.status(200).json({
             success: true,
             message: 'Profile updated successfully',

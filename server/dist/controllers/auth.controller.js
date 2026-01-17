@@ -193,14 +193,15 @@ async function verifyEmail(req, res) {
     }
 }
 const updateProfileSchema = zod_1.z.object({
-    firstName: zod_1.z.string().min(2).optional(),
-    lastName: zod_1.z.string().min(2).optional(),
-    phone: zod_1.z.string().min(6).optional(),
-    address: zod_1.z.string().optional(),
-    avatar: zod_1.z.string().url().optional(),
-    ward: zod_1.z.string().optional(),
-    zone: zod_1.z.string().optional(),
-    cityCorporationCode: zod_1.z.string().optional(),
+    firstName: zod_1.z.preprocess((val) => (val === '' ? undefined : val), zod_1.z.string().min(2).optional()),
+    lastName: zod_1.z.preprocess((val) => (val === '' ? undefined : val), zod_1.z.string().min(2).optional()),
+    phone: zod_1.z.preprocess((val) => (val === '' ? undefined : val), zod_1.z.string().min(6).optional()),
+    email: zod_1.z.preprocess((val) => (val === '' ? undefined : val), zod_1.z.string().email().optional()),
+    address: zod_1.z.preprocess((val) => (val === '' ? undefined : val), zod_1.z.string().optional()),
+    avatar: zod_1.z.preprocess((val) => (val === '' ? undefined : val), zod_1.z.string().url().optional()),
+    ward: zod_1.z.preprocess((val) => (val === '' ? undefined : val), zod_1.z.string().optional()),
+    zone: zod_1.z.preprocess((val) => (val === '' ? undefined : val), zod_1.z.string().optional()),
+    cityCorporationCode: zod_1.z.preprocess((val) => (val === '' ? undefined : val), zod_1.z.string().optional()),
     thanaId: zod_1.z.number().int().positive().optional(),
     zoneId: zod_1.z.number().int().positive().optional(),
     wardId: zod_1.z.number().int().positive().optional(),

@@ -32,8 +32,12 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.cloudUploadService = exports.CloudUploadError = void 0;
+const fs_1 = __importDefault(require("fs"));
 const cloudinary_config_1 = __importStar(require("../config/cloudinary.config"));
 const stream_1 = require("stream");
 const file_security_1 = require("../utils/file-security");
@@ -190,8 +194,17 @@ class CloudUploadService {
                     { fetch_format: 'auto' }
                 ]
             };
-            // Convert buffer to stream
-            const stream = this.bufferToStream(file.buffer);
+            // Convert buffer or file path to stream
+            let stream;
+            if (file.buffer) {
+                stream = this.bufferToStream(file.buffer);
+            }
+            else if (file.path) {
+                stream = fs_1.default.createReadStream(file.path);
+            }
+            else {
+                throw new CloudUploadError('File has no buffer or path', 'INVALID_FILE');
+            }
             // Upload with retry logic
             const startTime = Date.now();
             const result = await this.uploadWithRetry(stream, options);
@@ -243,8 +256,17 @@ class CloudUploadService {
                 folder: folderPath,
                 resource_type: 'video', // Cloudinary uses 'video' for audio files
             };
-            // Convert buffer to stream
-            const stream = this.bufferToStream(file.buffer);
+            // Convert buffer or file path to stream
+            let stream;
+            if (file.buffer) {
+                stream = this.bufferToStream(file.buffer);
+            }
+            else if (file.path) {
+                stream = fs_1.default.createReadStream(file.path);
+            }
+            else {
+                throw new CloudUploadError('File has no buffer or path', 'INVALID_FILE');
+            }
             // Upload with retry logic
             const startTime = Date.now();
             const result = await this.uploadWithRetry(stream, options);

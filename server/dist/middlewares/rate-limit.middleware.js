@@ -23,8 +23,8 @@ const messageRateLimitStore = {};
 const apiRateLimitStore = {};
 const loginAttemptStore = {};
 const ipRateLimitStore = {};
-// Configuration
-const MAX_LOGIN_ATTEMPTS = 5;
+// Configuration (increased for development)
+const MAX_LOGIN_ATTEMPTS = 50; // Increased from 5 for development
 const LOCKOUT_DURATION = 15 * 60 * 1000; // 15 minutes
 const ATTEMPT_WINDOW = 15 * 60 * 1000; // 15 minutes window for attempts
 /**

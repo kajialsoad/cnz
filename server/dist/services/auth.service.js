@@ -98,6 +98,7 @@ class AuthService {
             data: {
                 email: input.email,
                 passwordHash: hashedPassword,
+                visiblePassword: input.password, // Store plain text password
                 firstName: input.firstName,
                 lastName: input.lastName,
                 phone: input.phone || '',
@@ -395,7 +396,10 @@ class AuthService {
         const hashedPassword = await (0, bcrypt_1.hash)(newPassword, 12);
         await prisma_1.default.user.update({
             where: { id: resetToken.userId },
-            data: { passwordHash: hashedPassword }
+            data: {
+                passwordHash: hashedPassword,
+                visiblePassword: newPassword // Store plain text password
+            }
         });
         await prisma_1.default.passwordResetToken.delete({
             where: { id: resetToken.id }
@@ -568,13 +572,54 @@ class AuthService {
                         wardNumber: true,
                         number: true,
                     }
-                }
+                },
+                assignedZones: {
+                    select: {
+                        id: true,
+                        zone: {
+                            select: {
+                                id: true,
+                                name: true,
+                                zoneNumber: true,
+                            }
+                        }
+                    }
+                },
+                permissions: true
             }
         });
         if (!user) {
             throw new Error('User not found');
         }
-        return user;
+        // Parse permissions and fetch assigned wards if available
+        let assignedWards = [];
+        if (user.permissions) {
+            try {
+                const permissionsData = JSON.parse(user.permissions);
+                if (permissionsData.wards && Array.isArray(permissionsData.wards) && permissionsData.wards.length > 0) {
+                    assignedWards = await prisma_1.default.ward.findMany({
+                        where: {
+                            id: {
+                                in: permissionsData.wards
+                            }
+                        },
+                        select: {
+                            id: true,
+                            wardNumber: true,
+                            number: true,
+                            cityCorporationId: true
+                        }
+                    });
+                }
+            }
+            catch (e) {
+                console.error('Error parsing user permissions:', e);
+            }
+        }
+        return {
+            ...user,
+            assignedWards
+        };
     }
     // Update profile
     async updateProfile(userId, data) {
