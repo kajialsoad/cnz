@@ -7,7 +7,8 @@ import {
     getComplaintStatsByZone,
     getComplaintStatsByWard,
     markComplaintAsOthers,
-    getOthersAnalytics
+    getOthersAnalytics,
+    updateComplaintAudioUrls
 } from '../controllers/admin.complaint.controller';
 import { authGuard, rbacGuard } from '../middlewares/auth.middleware';
 import { uploadConfig } from '../config/upload.config';
@@ -47,6 +48,10 @@ console.log('🔧 Admin complaint route registered: PATCH /:id/mark-others');
 // Update complaint status (with multipart/form-data support for resolution images)
 router.patch('/:id/status', uploadConfig.array('resolutionImages', 5), updateComplaintStatus);
 console.log('🔧 Admin complaint route registered: PATCH /:id/status (with file upload)');
+
+// Update complaint audio URLs (Master Admin only)
+router.patch('/:id/audio-urls', updateComplaintAudioUrls);
+console.log('🔧 Admin complaint route registered: PATCH /:id/audio-urls (Master Admin only)');
 
 // Note: User complaints route is in admin.user.routes.ts as GET /api/admin/users/:userId/complaints
 

@@ -107,6 +107,17 @@ const ComplaintDetails: React.FC = () => {
     const [editModalOpen, setEditModalOpen] = useState(false);
     const [editModalType, setEditModalType] = useState<'RESOLVED' | 'OTHERS'>('RESOLVED');
 
+    // Delete audio confirmation dialog state
+    const [deleteAudioDialog, setDeleteAudioDialog] = useState<{
+        open: boolean;
+        audioUrl: string | null;
+        index: number;
+    }>({
+        open: false,
+        audioUrl: null,
+        index: 0,
+    });
+
     // Dynamic timeline based on complaint data
     const getTimeline = () => {
         const timeline = [];
@@ -178,6 +189,44 @@ const ComplaintDetails: React.FC = () => {
             console.error('Failed to delete resolution:', error);
             showErrorToast('Failed to delete resolution.');
         }
+    };
+
+    const handleDeleteAudio = async (audioUrl: string, index: number) => {
+        if (!complaint) return;
+
+        // Open confirmation dialog
+        setDeleteAudioDialog({
+            open: true,
+            audioUrl,
+            index,
+        });
+    };
+
+    const confirmDeleteAudio = async () => {
+        if (!complaint || !deleteAudioDialog.audioUrl) return;
+
+        try {
+            // Filter out the audio URL to be deleted
+            const updatedAudioUrls = complaint.audioUrls.filter((url) => url !== deleteAudioDialog.audioUrl);
+
+            // Call API to update complaint with new audio URLs
+            const updatedComplaint = await complaintService.updateComplaintAudioUrls(complaint.id, updatedAudioUrls);
+
+            // Update local state
+            setComplaint(updatedComplaint);
+
+            // Close dialog
+            setDeleteAudioDialog({ open: false, audioUrl: null, index: 0 });
+
+            showSuccessToast('Voice recording deleted successfully.');
+        } catch (error) {
+            console.error('Failed to delete audio recording:', error);
+            showErrorToast('Failed to delete audio recording.');
+        }
+    };
+
+    const cancelDeleteAudio = () => {
+        setDeleteAudioDialog({ open: false, audioUrl: null, index: 0 });
     };
 
     const handleEditSave = async (data: { status: ComplaintStatus; note: string; existingImages: string[]; newImages: File[]; category?: string; subcategory?: string }) => {
@@ -1167,6 +1216,98 @@ const ComplaintDetails: React.FC = () => {
                             </Card>
                         )}
 
+                        {/* Audio Recordings Card */}
+                        {complaint.audioUrls && complaint.audioUrls.length > 0 && (
+                            <Card sx={{
+                                mb: 3,
+                                borderRadius: 2,
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                                border: '1px solid #e5e7eb'
+                            }}>
+                                <Box sx={{ p: 2, borderBottom: '1px solid #f3f4f6', backgroundColor: '#f0fdf4' }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                            <Mic sx={{ color: '#15803d' }} />
+                                            <Typography variant="h6" sx={{ fontWeight: 700, color: '#14532d' }}>
+                                                🎤 ভয়েস রেকর্ডিং ({complaint.audioUrls.length})
+                                            </Typography>
+                                        </Box>
+                                        {user?.role === 'MASTER_ADMIN' && (
+                                            <Tooltip title="Master Admin can delete audio recordings">
+                                                <Chip
+                                                    label="Deletable"
+                                                    size="small"
+                                                    sx={{
+                                                        bgcolor: '#fef3c7',
+                                                        color: '#92400e',
+                                                        fontSize: '0.75rem',
+                                                        fontWeight: 600
+                                                    }}
+                                                />
+                                            </Tooltip>
+                                        )}
+                                    </Box>
+                                </Box>
+                                <Box sx={{ p: 3 }}>
+                                    {complaint.audioUrls.map((audioUrl, index) => (
+                                        <Box
+                                            key={index}
+                                            sx={{
+                                                mb: index < complaint.audioUrls.length - 1 ? 2 : 0,
+                                                p: 2,
+                                                backgroundColor: '#f9fafb',
+                                                borderRadius: 2,
+                                                border: '1px solid #e5e7eb',
+                                                position: 'relative'
+                                            }}
+                                        >
+                                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                                    <Avatar sx={{ bgcolor: '#dcfce7', color: '#15803d', width: 32, height: 32 }}>
+                                                        <Mic fontSize="small" />
+                                                    </Avatar>
+                                                    <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#1e2939' }}>
+                                                        Voice Recording {index + 1}
+                                                    </Typography>
+                                                </Box>
+                                                {user?.role === 'MASTER_ADMIN' && (
+                                                    <Tooltip title="Delete this audio recording">
+                                                        <IconButton
+                                                            size="small"
+                                                            onClick={() => handleDeleteAudio(audioUrl, index)}
+                                                            sx={{
+                                                                color: '#dc2626',
+                                                                '&:hover': {
+                                                                    backgroundColor: '#fee2e2'
+                                                                }
+                                                            }}
+                                                        >
+                                                            <DeleteIcon fontSize="small" />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                )}
+                                            </Box>
+                                            <audio
+                                                controls
+                                                style={{
+                                                    width: '100%',
+                                                    height: 40,
+                                                    borderRadius: 8,
+                                                    outline: 'none'
+                                                }}
+                                                preload="metadata"
+                                            >
+                                                <source src={audioUrl} type="audio/mpeg" />
+                                                <source src={audioUrl} type="audio/wav" />
+                                                <source src={audioUrl} type="audio/ogg" />
+                                                Your browser does not support the audio element.
+                                            </audio>
+                                        </Box>
+                                    ))}
+                                </Box>
+                            </Card>
+                        )}
+
                         {/* Timeline Card */}
                         <Card sx={{
                             mb: 3,
@@ -1921,6 +2062,88 @@ const ComplaintDetails: React.FC = () => {
                     type={editModalType}
                 />
             )}
+
+            {/* Delete Audio Confirmation Dialog */}
+            <Dialog
+                open={deleteAudioDialog.open}
+                onClose={cancelDeleteAudio}
+                maxWidth="sm"
+                fullWidth
+                PaperProps={{
+                    sx: {
+                        borderRadius: 2,
+                        boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+                    }
+                }}
+            >
+                <Box sx={{ p: 3 }}>
+                    {/* Header with Icon */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                        <Box
+                            sx={{
+                                width: 48,
+                                height: 48,
+                                borderRadius: '50%',
+                                bgcolor: 'error.light',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                mr: 2,
+                            }}
+                        >
+                            <DeleteIcon sx={{ color: 'error.main', fontSize: 24 }} />
+                        </Box>
+                        <Box>
+                            <Typography variant="h6" fontWeight={600} color="text.primary">
+                                Delete Voice Recording {deleteAudioDialog.index + 1}?
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                                This action cannot be undone
+                            </Typography>
+                        </Box>
+                    </Box>
+
+                    <Divider sx={{ my: 2 }} />
+
+                    {/* Message */}
+                    <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+                        Are you sure you want to permanently delete this voice recording?
+                        Once deleted, it cannot be recovered.
+                    </Typography>
+
+                    {/* Action Buttons */}
+                    <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
+                        <Button
+                            onClick={cancelDeleteAudio}
+                            variant="outlined"
+                            color="inherit"
+                            sx={{
+                                minWidth: 100,
+                                textTransform: 'none',
+                                fontWeight: 500,
+                            }}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={confirmDeleteAudio}
+                            variant="contained"
+                            color="error"
+                            sx={{
+                                minWidth: 100,
+                                textTransform: 'none',
+                                fontWeight: 500,
+                                boxShadow: 'none',
+                                '&:hover': {
+                                    boxShadow: '0 4px 12px rgba(211, 47, 47, 0.3)',
+                                }
+                            }}
+                        >
+                            Delete
+                        </Button>
+                    </Box>
+                </Box>
+            </Dialog>
         </MainLayout >
     );
 };

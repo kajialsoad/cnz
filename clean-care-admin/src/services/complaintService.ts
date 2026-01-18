@@ -656,6 +656,28 @@ class ComplaintService {
             throw error;
         }
     }
+
+    /**
+     * Update complaint audio URLs (Master Admin only - for deleting audio recordings)
+     */
+    async updateComplaintAudioUrls(
+        id: number,
+        audioUrls: string[]
+    ): Promise<Complaint> {
+        try {
+            const response = await this.apiClient.patch<{ success: boolean; data: { complaint: Complaint } }>(
+                `/api/admin/complaints/${id}/audio-urls`,
+                { audioUrls }
+            );
+
+            // Parse media URLs
+            const complaint = this.parseMediaUrls(response.data.data.complaint);
+
+            return complaint;
+        } catch (error) {
+            throw error;
+        }
+    }
 }
 
 export const complaintService = new ComplaintService();

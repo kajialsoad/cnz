@@ -596,3 +596,78 @@ export async function getOthersAnalytics(req: AuthRequest, res: Response) {
         });
     }
 }
+
+/**
+ * Update complaint audio URLs (Master Admin only - for deleting audio recordings)
+ */
+export async function updateComplaintAudioUrls(req: AuthRequest, res: Response) {
+    try {
+        const complaintId = parseInt(req.params.id);
+
+        if (isNaN(complaintId)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid complaint ID'
+            });
+        }
+
+        // Only MASTER_ADMIN can delete audio recordings
+        if (req.user?.role !== 'MASTER_ADMIN') {
+            return res.status(403).json({
+                success: false,
+                message: 'Only Master Admin can delete audio recordings'
+            });
+        }
+
+        const { audioUrls } = req.body;
+
+        if (!Array.isArray(audioUrls)) {
+            return res.status(400).json({
+                success: false,
+                message: 'audioUrls must be an array'
+            });
+        }
+
+        // Convert array to JSON string for storage (database field is audioUrl, not audioUrls)
+        const audioUrlJson = JSON.stringify(audioUrls);
+
+        // Update complaint with new audio URLs
+        const updatedComplaint = await prisma.complaint.update({
+            where: { id: complaintId },
+            data: {
+                audioUrl: audioUrlJson
+            },
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        email: true,
+                        phone: true,
+                        avatar: true,
+                        ward: true,
+                        zone: true
+                    }
+                },
+                wards: true,
+                zone: true
+            }
+        });
+
+        res.status(200).json({
+            success: true,
+            message: 'Audio URLs updated successfully',
+            data: {
+                complaint: updatedComplaint
+            }
+        });
+    } catch (error) {
+        console.error('Error in updateComplaintAudioUrls:', error);
+        const statusCode = error instanceof Error && error.message.includes('not found') ? 404 : 500;
+        res.status(statusCode).json({
+            success: false,
+            message: error instanceof Error ? error.message : 'Failed to update audio URLs'
+        });
+    }
+}
