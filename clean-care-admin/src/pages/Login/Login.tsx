@@ -62,12 +62,8 @@ const Login: React.FC = () => {
 
     try {
       await login(formData.email, formData.password, rememberMe);
-      // Navigate immediately after state update
-      const from = (location.state as any)?.from?.pathname || '/';
-      // Use setTimeout to ensure state is updated before navigation
-      setTimeout(() => {
-        navigate(from, { replace: true });
-      }, 100);
+      // Navigation will be handled by useEffect when isAuthenticated becomes true
+      // Don't manually navigate here to avoid race conditions
     } catch (err: any) {
       setError(err.message || 'Invalid email or password');
       setFormData(prev => ({ ...prev, password: '' }));

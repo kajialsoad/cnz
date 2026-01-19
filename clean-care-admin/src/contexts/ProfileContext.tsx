@@ -150,8 +150,12 @@ export const ProfileProvider: React.FC<ProfileProviderProps> = ({ children }) =>
 
         try {
             // Validate that we have data to update
+            // Allow empty data when only password is being changed (handled separately in ProfileEditForm)
             if (!data || Object.keys(data).length === 0) {
-                throw new Error('No data provided for update');
+                // Don't throw error - just return current profile
+                // This allows password-only changes to work
+                setIsLoading(false);
+                return;
             }
 
             const updatedProfile = await profileService.updateProfile(data);
@@ -224,31 +228,81 @@ export const ProfileProvider: React.FC<ProfileProviderProps> = ({ children }) =>
      * Initialize profile on mount
      */
     useEffect(() => {
-        if (isInitialized.current) return;
-        isInitialized.current = true;
-
         // Check if user has a token before fetching profile
         const hasToken = localStorage.getItem('accessToken') || localStorage.getItem('token');
+
+        // Reset initialization if no token (after logout)
         if (!hasToken) {
+            isInitialized.current = false;
+            setProfile(null);
             setIsLoading(false);
             return;
         }
+
+        // Only initialize once when token is available
+        if (isInitialized.current) return;
+        isInitialized.current = true;
 
         // Try to load from cache first
         const cachedProfile = loadFromCache();
         if (cachedProfile) {
             setProfile(cachedProfile);
+            setIsLoading(false); // Set loading to false immediately when cache is available
         }
 
         // Then refresh from API in the background
         refreshProfile();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // Run only on mount - token changes handled by storage event
+
+    /**
+     * Listen for auth events (login/logout) from AuthContext
+     */
+    useEffect(() => {
+        const handleLogin = () => {
+            console.log('🔄 ProfileContext: Login event detected, reinitializing profile');
+            isInitialized.current = false; // Reset to allow re-initialization
+
+            // Check if token exists
+            const hasToken = localStorage.getItem('accessToken') || localStorage.getItem('token');
+            if (!hasToken) return;
+
+            isInitialized.current = true;
+
+            // Try to load from cache first
+            const cachedProfile = loadFromCache();
+            if (cachedProfile) {
+                setProfile(cachedProfile);
+                setIsLoading(false);
+            }
+
+            // Then refresh from API
+            refreshProfile();
+        };
+
+        const handleLogout = () => {
+            console.log('🔄 ProfileContext: Logout event detected, clearing profile');
+            isInitialized.current = false;
+            setProfile(null);
+            setIsLoading(false);
+            localStorage.removeItem(CACHE_KEY);
+        };
+
+        window.addEventListener('auth:login', handleLogin);
+        window.addEventListener('auth:logout', handleLogout);
+
+        return () => {
+            window.removeEventListener('auth:login', handleLogin);
+            window.removeEventListener('auth:logout', handleLogout);
+        };
     }, [loadFromCache, refreshProfile]);
 
     /**
-     * Listen for profile updates from other tabs
+     * Listen for logout/login events to clear/reinitialize profile
      */
     useEffect(() => {
         const handleStorageChange = (event: StorageEvent) => {
+            // Handle profile sync from other tabs
             if (event.key === SYNC_EVENT && event.newValue) {
                 try {
                     const { data } = JSON.parse(event.newValue);
@@ -258,11 +312,30 @@ export const ProfileProvider: React.FC<ProfileProviderProps> = ({ children }) =>
                     console.error('Failed to sync profile from other tab:', error);
                 }
             }
+
+            // Handle logout - clear profile when token is removed
+            if (event.key === 'accessToken' && !event.newValue) {
+                isInitialized.current = false;
+                setProfile(null);
+                setIsLoading(false);
+                localStorage.removeItem(CACHE_KEY);
+            }
+
+            // Handle login - reinitialize when token is added
+            if (event.key === 'accessToken' && event.newValue && !isInitialized.current) {
+                isInitialized.current = true;
+                const cachedProfile = loadFromCache();
+                if (cachedProfile) {
+                    setProfile(cachedProfile);
+                    setIsLoading(false);
+                }
+                refreshProfile();
+            }
         };
 
         window.addEventListener('storage', handleStorageChange);
         return () => window.removeEventListener('storage', handleStorageChange);
-    }, [saveToCache]);
+    }, [saveToCache, loadFromCache, refreshProfile]);
 
     const value: ProfileContextValue = {
         profile,

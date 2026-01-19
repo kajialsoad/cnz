@@ -261,6 +261,8 @@ model Complaint {
   @@index([complaintZoneId])
   @@index([complaintWardId])
   @@index([complaintCityCorporationCode, complaintZoneId, complaintWardId])
+  @@index([status, createdAt], name: "idx_complaint_status_date")
+  @@index([userId, createdAt], name: "idx_complaint_user_date")
 }
 
 model ChatMessage {
@@ -277,6 +279,7 @@ model ChatMessage {
 
   @@index([senderId, receiverId, createdAt])
   @@index([receiverId], map: "ChatMessage_receiverId_fkey")
+  @@index([senderId, createdAt], name: "idx_chat_sender_date")
 }
 
 model ComplaintChatMessage {
@@ -293,6 +296,7 @@ model ComplaintChatMessage {
 
   @@index([complaintId])
   @@index([createdAt])
+  @@index([complaintId, createdAt], name: "idx_complaint_chat_date")
   @@map("complaint_chat_messages")
 }
 
@@ -342,6 +346,7 @@ model Notification {
 
   @@index([userId, isRead])
   @@index([complaintId])
+  @@index([userId, isRead, createdAt], name: "idx_notification_user_read_date")
 }
 
 model Review {
@@ -381,6 +386,7 @@ model ActivityLog {
   @@index([timestamp])
   @@index([action])
   @@index([userId, timestamp])
+  @@index([entityType, entityId, timestamp], name: "idx_activity_entity_date")
   @@map("activity_logs")
 }
 

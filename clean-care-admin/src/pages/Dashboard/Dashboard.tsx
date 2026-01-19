@@ -40,8 +40,15 @@ const Dashboard: React.FC = () => {
 
   // Fetch data
   const fetchData = useCallback(async () => {
+    // Don't fetch if user is not loaded yet
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
     try {
-      setLoading(true);
+      // Set loading false immediately - we'll show UI with loading states for individual components
+      setLoading(false);
       console.log('🔄 Dashboard: Starting data fetch for user:', user?.id, user?.role);
 
       // Fetch city corporations
@@ -157,22 +164,27 @@ const Dashboard: React.FC = () => {
         setDashboardStats(stats);
       } catch (error) {
         console.error('Error fetching dashboard stats:', error);
+        // Don't block UI on stats error - show empty state
+        setDashboardStats(null);
       } finally {
         setStatsLoading(false);
       }
     };
 
-    // Only fetch if initial loading is done or if it's a refresh
-    if (!loading) {
+    // Fetch stats immediately when user is available, don't wait for initial loading
+    if (user && !loading) {
       fetchStats();
     }
-  }, [selectedCityCorporation, selectedZoneId, selectedWardId, refreshKey, loading]);
+  }, [selectedCityCorporation, selectedZoneId, selectedWardId, refreshKey, loading, user]);
 
   useEffect(() => {
+    // Only fetch data when user is available
     if (user) {
       fetchData();
+    } else {
+      setLoading(false);
     }
-  }, [fetchData]); // Remove user from here as it's in useCallback
+  }, [user, fetchData]);
 
   // Update wards when zone changes (NOT for ADMIN role)
   useEffect(() => {

@@ -4,7 +4,7 @@
     "scripts": {
         "postinstall": "cd server && npm install && cd ../clean-care-admin && npm install",
         "build": "cd clean-care-admin && npm run build && cd ../server && npm run build",
-        "start": "cd server && npm start"
+        "start": "node server/dist/index.js"
     },
     "engines": {
         "node": "20.x"

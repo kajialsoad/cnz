@@ -185,6 +185,29 @@ class ProfileService {
     }
 
     /**
+     * Change user password
+     */
+    async changePassword(userId: number, newPassword: string): Promise<void> {
+        try {
+            if (!newPassword || newPassword.length < 8) {
+                throw new Error('Password must be at least 8 characters');
+            }
+
+            const response = await this.apiClient.post<{ success: boolean; message: string }>(
+                `/api/admin/users/${userId}/change-password`,
+                { newPassword }
+            );
+
+            if (!response.data.success) {
+                throw new Error(response.data.message || 'Failed to change password');
+            }
+        } catch (error) {
+            const profileError = handleProfileUpdateError(error);
+            throw new Error(profileError.message);
+        }
+    }
+
+    /**
      * Check if profile service is available
      */
     async healthCheck(): Promise<boolean> {

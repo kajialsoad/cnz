@@ -49,11 +49,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const login = async (email: string, password: string, rememberMe: boolean = false) => {
         const response = await authService.login({ email, password, rememberMe });
         setUser(response.user);
+        setIsLoading(false); // Ensure loading is false after successful login
+
+        // Dispatch custom event to notify ProfileContext
+        window.dispatchEvent(new CustomEvent('auth:login'));
     };
 
     const logout = async () => {
         await authService.logout();
         setUser(null);
+        setIsLoading(false); // Reset loading state after logout
+
+        // Dispatch custom event to notify ProfileContext
+        window.dispatchEvent(new CustomEvent('auth:logout'));
     };
 
     const refreshProfile = async () => {

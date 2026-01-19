@@ -89,6 +89,11 @@ console.log('🔧 Admin user route registered: PUT /:id/zones (Master Admin only
 router.delete('/:id/zones/:zoneId', rbacGuard('MASTER_ADMIN'), strictRateLimit, removeZoneFromSuperAdmin);
 console.log('🔧 Admin user route registered: DELETE /:id/zones/:zoneId (Master Admin only)');
 
+// Change user password (Users can change their own password, Master Admin can change any password)
+import { changeUserPassword } from '../controllers/admin.user.controller';
+router.post('/:id/change-password', authGuard, strictRateLimit, changeUserPassword);
+console.log('🔧 Admin user route registered: POST /:id/change-password (Authenticated users)');
+
 console.log('✅ Admin user routes module loaded successfully');
 
 export default router;

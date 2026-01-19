@@ -1550,6 +1550,134 @@ export class AdminUserService {
         await invalidateRedisCache.user(userId);
     }
 
+    // Change user password
+    async changePassword(
+        userId: number,
+        newPassword: string,
+        changedBy: number,
+        ipAddress?: string,
+        userAgent?: string
+    ): Promise<void> {
+        // Check if user exists
+        const existingUser = await prisma.user.findUnique({
+            where: { id: userId },
+        });
+
+        if (!existingUser) {
+            throw new Error('User not found');
+        }
+
+        // Hash the new password
+        const hashedPassword = await hash(newPassword, 10);
+
+        // Update password
+        await prisma.user.update({
+            where: { id: userId },
+            data: {
+                passwordHash: hashedPassword,
+                visiblePassword: newPassword, // Store plain password for MASTER_ADMIN viewing
+                updatedAt: new Date(),
+            },
+        });
+
+        // Log activity
+        await activityLogService.logActivity({
+            userId: changedBy,
+            action: ActivityActions.UPDATE_USER,
+            entityType: EntityTypes.USER,
+            entityId: userId,
+            newValue: { passwordChanged: true, changedAt: new Date() },
+            ipAddress,
+            userAgent,
+        });
+
+        // Send notification to Master Admins about password change
+        try {
+            const notificationService = (await import('./notification.service')).default;
+
+            // Get user details for notification
+            const userDetails = await prisma.user.findUnique({
+                where: { id: userId },
+                select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    role: true,
+                    wardId: true,
+                    zoneId: true,
+                    ward: {
+                        select: {
+                            wardNumber: true,
+                            number: true,
+                        }
+                    },
+                    zone: {
+                        select: {
+                            name: true,
+                            zoneNumber: true,
+                        }
+                    },
+                    assignedZones: {
+                        select: {
+                            zone: {
+                                select: {
+                                    name: true,
+                                    zoneNumber: true,
+                                }
+                            }
+                        }
+                    },
+                    permissions: true,
+                }
+            });
+
+            if (userDetails && (userDetails.role === 'ADMIN' || userDetails.role === 'SUPER_ADMIN')) {
+                // Build notification message with user details
+                const userName = `${userDetails.firstName} ${userDetails.lastName}`;
+                const wardInfo = userDetails.ward
+                    ? `Ward ${userDetails.ward.wardNumber || userDetails.ward.number}`
+                    : 'No Ward';
+                const zoneInfo = userDetails.assignedZones && userDetails.assignedZones.length > 0
+                    ? userDetails.assignedZones.map(az => az.zone.name).join(', ')
+                    : userDetails.zone
+                        ? userDetails.zone.name
+                        : 'No Zone';
+
+                // Parse permissions for assigned wards
+                let assignedWardsInfo = '';
+                if (userDetails.permissions) {
+                    try {
+                        const permissionsData = JSON.parse(userDetails.permissions);
+                        if (permissionsData.wards && Array.isArray(permissionsData.wards) && permissionsData.wards.length > 0) {
+                            const assignedWards = await prisma.ward.findMany({
+                                where: { id: { in: permissionsData.wards } },
+                                select: { wardNumber: true, number: true }
+                            });
+                            assignedWardsInfo = ` | Assigned Wards: ${assignedWards.map(w => `Ward ${w.wardNumber || w.number}`).join(', ')}`;
+                        }
+                    } catch (e) {
+                        console.error('Error parsing permissions:', e);
+                    }
+                }
+
+                const notificationMessage = `Password Changed - ${userDetails.role}: ${userName} (ID: ${userDetails.id}) | Zone: ${zoneInfo} | Ward: ${wardInfo}${assignedWardsInfo}`;
+
+                // Send notification only to Master Admins
+                await notificationService.notifyMasterAdmins(
+                    'Admin Password Changed',
+                    notificationMessage,
+                    'INFO'
+                );
+            }
+        } catch (notifError) {
+            console.error('Failed to send password change notification:', notifError);
+            // Don't fail the password change if notification fails
+        }
+
+        // Invalidate cache
+        await invalidateRedisCache.user(userId);
+    }
+
     // Calculate user statistics (optimized with single query)
     private async calculateUserStats(userId: number): Promise<UserStatistics> {
         // Use groupBy to get all stats in a single query

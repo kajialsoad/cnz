@@ -9,6 +9,7 @@ export interface UserProfile {
     firstName: string;
     lastName: string;
     avatar?: string;
+    visiblePassword?: string; // Plain password for viewing own profile
     role: 'ADMIN' | 'SUPER_ADMIN' | 'MASTER_ADMIN';
     status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'PENDING';
     emailVerified: boolean;

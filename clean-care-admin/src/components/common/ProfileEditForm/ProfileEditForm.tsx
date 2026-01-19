@@ -26,15 +26,22 @@ import {
     useTheme,
     useMediaQuery,
     Snackbar,
+    IconButton,
+    InputAdornment,
+    LinearProgress,
 } from '@mui/material';
 import {
     Save as SaveIcon,
     Cancel as CancelIcon,
     CheckCircle as CheckCircleIcon,
+    Visibility as VisibilityIcon,
+    VisibilityOff as VisibilityOffIcon,
+    Lock as LockIcon,
 } from '@mui/icons-material';
 import AvatarUpload from '../AvatarUpload/AvatarUpload';
 import { useProfileUpdate } from '../../../hooks/useProfileUpdate';
 import { useAuth } from '../../../contexts/AuthContext';
+import { profileService } from '../../../services/profileService';
 import type { UserProfile, ProfileUpdateData } from '../../../types/profile.types';
 import { fadeIn, slideInUp } from '../../../styles/animations';
 
@@ -56,6 +63,8 @@ interface FormData {
     address?: string;
     email?: string;
     phone?: string;
+    newPassword?: string;
+    confirmPassword?: string;
 }
 
 interface FormErrors {
@@ -66,6 +75,8 @@ interface FormErrors {
     address?: string;
     email?: string;
     phone?: string;
+    newPassword?: string;
+    confirmPassword?: string;
 }
 
 const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
@@ -103,6 +114,8 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
         address: initialData.address || '',
         email: initialData.email || '',
         phone: initialData.phone || '',
+        newPassword: '',
+        confirmPassword: '',
     });
 
     const [formErrors, setFormErrors] = useState<FormErrors>({});
@@ -110,6 +123,8 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
     const [showSuccess, setShowSuccess] = useState(false);
     const [showError, setShowError] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string>('');
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     const { isUpdating, updateError, clearUpdateError } = useProfileUpdate({
         onSuccess: () => {
@@ -132,6 +147,56 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
         const lastInitial = formData.lastName?.charAt(0)?.toUpperCase() || '';
         return `${firstInitial}${lastInitial}` || '?';
     }, [formData.firstName, formData.lastName]);
+
+    /**
+     * Calculate password strength
+     */
+    const passwordStrength = useMemo(() => {
+        const password = formData.newPassword || '';
+        if (!password) return { score: 0, label: '', color: '' };
+
+        let score = 0;
+
+        // Length check
+        if (password.length >= 8) score += 25;
+        if (password.length >= 12) score += 25;
+
+        // Character variety checks
+        if (/[a-z]/.test(password)) score += 15;
+        if (/[A-Z]/.test(password)) score += 15;
+        if (/[0-9]/.test(password)) score += 10;
+        if (/[^a-zA-Z0-9]/.test(password)) score += 10;
+
+        let label = '';
+        let color = '';
+
+        if (score < 40) {
+            label = 'Weak';
+            color = theme.palette.error.main;
+        } else if (score < 70) {
+            label = 'Medium';
+            color = theme.palette.warning.main;
+        } else {
+            label = 'Strong';
+            color = theme.palette.success.main;
+        }
+
+        return { score, label, color };
+    }, [formData.newPassword, theme]);
+
+    /**
+     * Toggle password visibility
+     */
+    const handleTogglePasswordVisibility = useCallback(() => {
+        setShowPassword(prev => !prev);
+    }, []);
+
+    /**
+     * Toggle confirm password visibility
+     */
+    const handleToggleConfirmPasswordVisibility = useCallback(() => {
+        setShowConfirmPassword(prev => !prev);
+    }, []);
 
     /**
      * Validate form field
@@ -199,9 +264,26 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
                     return 'Address must not exceed 200 characters';
                 }
                 break;
+
+            case 'newPassword':
+                if (value && value.length > 0) {
+                    if (value.length < 8) {
+                        return 'Password must be at least 8 characters';
+                    }
+                    if (value.length > 100) {
+                        return 'Password must not exceed 100 characters';
+                    }
+                }
+                break;
+
+            case 'confirmPassword':
+                if (formData.newPassword && value !== formData.newPassword) {
+                    return 'Passwords do not match';
+                }
+                break;
         }
         return undefined;
-    }, []);
+    }, [formData.newPassword]);
 
     /**
      * Validate entire form
@@ -299,7 +381,8 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
             formData.zone !== normalizeValue(initialData.zone) ||
             formData.address !== (initialData.address || '') ||
             formData.email !== initialData.email ||
-            formData.phone !== initialData.phone
+            formData.phone !== initialData.phone ||
+            (formData.newPassword && formData.newPassword.length > 0)
         );
     }, [formData, initialData, normalizeValue]);
 
@@ -328,6 +411,19 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
         clearUpdateError();
 
         try {
+            // Check if only password is being changed
+            const isOnlyPasswordChange =
+                formData.newPassword &&
+                formData.newPassword.trim().length > 0 &&
+                formData.firstName === initialData.firstName &&
+                formData.lastName === initialData.lastName &&
+                formData.avatar === initialData.avatar &&
+                formData.ward === normalizeValue(initialData.ward) &&
+                formData.zone === normalizeValue(initialData.zone) &&
+                formData.address === (initialData.address || '') &&
+                formData.email === initialData.email &&
+                formData.phone === initialData.phone;
+
             // Prepare update data (only include changed fields)
             const updateData: ProfileUpdateData = {};
 
@@ -356,8 +452,27 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
                 updateData.phone = formData.phone.trim();
             }
 
-            // Call the onSave callback
-            await onSave(updateData);
+            // Call the onSave callback only if there are profile changes
+            if (Object.keys(updateData).length > 0) {
+                await onSave(updateData);
+            }
+
+            // Handle password change separately if provided
+            if (formData.newPassword && formData.newPassword.trim().length > 0) {
+                if (formData.newPassword !== formData.confirmPassword) {
+                    throw new Error('Passwords do not match');
+                }
+
+                // Change password
+                await profileService.changePassword(initialData.id, formData.newPassword);
+
+                // Clear password fields after successful change
+                setFormData(prev => ({
+                    ...prev,
+                    newPassword: '',
+                    confirmPassword: '',
+                }));
+            }
 
             // Show success message
             setShowSuccess(true);
@@ -368,7 +483,7 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
         } finally {
             setIsSaving(false);
         }
-    }, [formData, initialData, validateForm, hasChanges, onSave, clearUpdateError]);
+    }, [formData, initialData, validateForm, hasChanges, onSave, clearUpdateError, normalizeValue]);
 
     /**
      * Handle cancel
@@ -384,8 +499,12 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
             address: initialData.address || '',
             email: initialData.email || '',
             phone: initialData.phone || '',
+            newPassword: '',
+            confirmPassword: '',
         });
         setFormErrors({});
+        setShowPassword(false);
+        setShowConfirmPassword(false);
         clearUpdateError();
         onCancel();
     }, [initialData, onCancel, clearUpdateError, normalizeValue]);
@@ -720,6 +839,167 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
                             },
                             formHelperText: {
                                 id: 'address-error',
+                                role: 'alert',
+                            },
+                        }}
+                    />
+                </Paper>
+
+                <Divider sx={{ my: 3 }} />
+
+                {/* Password Change Section */}
+                <Paper
+                    elevation={0}
+                    sx={{
+                        p: isMobile ? (isLandscape ? 1.5 : 2) : isTablet ? 2.5 : 3,
+                        backgroundColor: theme.palette.background.default,
+                        borderRadius: 2,
+                        animation: `${slideInUp} 0.5s ease-in-out`,
+                    }}
+                >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                        <LockIcon sx={{ color: theme.palette.primary.main }} />
+                        <Typography
+                            variant="subtitle2"
+                            sx={{
+                                fontWeight: 600,
+                                color: theme.palette.text.primary,
+                            }}
+                        >
+                            Change Password (Optional)
+                        </Typography>
+                    </Box>
+
+                    <Typography
+                        variant="caption"
+                        sx={{
+                            display: 'block',
+                            mb: 2,
+                            color: theme.palette.text.secondary,
+                        }}
+                    >
+                        Leave blank if you don't want to change your password
+                    </Typography>
+
+                    {/* New Password */}
+                    <TextField
+                        fullWidth
+                        label="New Password"
+                        name="newPassword"
+                        type={showPassword ? 'text' : 'password'}
+                        value={formData.newPassword || ''}
+                        onChange={handleInputChange}
+                        onBlur={handleInputBlur}
+                        error={!!formErrors.newPassword}
+                        helperText={formErrors.newPassword || 'Minimum 8 characters'}
+                        disabled={isSaving || isUpdating}
+                        sx={{
+                            mb: 2,
+                            '& .MuiInputBase-root': {
+                                minHeight: isMobile ? 48 : 40,
+                            },
+                        }}
+                        slotProps={{
+                            input: {
+                                endAdornment: (
+                                    <InputAdornment position="end">
+                                        <IconButton
+                                            onClick={handleTogglePasswordVisibility}
+                                            edge="end"
+                                            aria-label={showPassword ? 'Hide password' : 'Show password'}
+                                            disabled={isSaving || isUpdating}
+                                        >
+                                            {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                                        </IconButton>
+                                    </InputAdornment>
+                                ),
+                                inputProps: {
+                                    maxLength: 100,
+                                    'aria-label': 'New password',
+                                    'aria-invalid': !!formErrors.newPassword,
+                                    'aria-describedby': formErrors.newPassword ? 'newPassword-error' : undefined,
+                                },
+                            },
+                            formHelperText: {
+                                id: 'newPassword-error',
+                                role: 'alert',
+                            },
+                        }}
+                    />
+
+                    {/* Password Strength Indicator */}
+                    {formData.newPassword && formData.newPassword.length > 0 && (
+                        <Box sx={{ mb: 2 }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                                <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
+                                    Password Strength:
+                                </Typography>
+                                <Typography
+                                    variant="caption"
+                                    sx={{
+                                        fontWeight: 600,
+                                        color: passwordStrength.color,
+                                    }}
+                                >
+                                    {passwordStrength.label}
+                                </Typography>
+                            </Box>
+                            <LinearProgress
+                                variant="determinate"
+                                value={passwordStrength.score}
+                                sx={{
+                                    height: 6,
+                                    borderRadius: 3,
+                                    backgroundColor: theme.palette.grey[200],
+                                    '& .MuiLinearProgress-bar': {
+                                        backgroundColor: passwordStrength.color,
+                                        borderRadius: 3,
+                                    },
+                                }}
+                            />
+                        </Box>
+                    )}
+
+                    {/* Confirm Password */}
+                    <TextField
+                        fullWidth
+                        label="Confirm New Password"
+                        name="confirmPassword"
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        value={formData.confirmPassword || ''}
+                        onChange={handleInputChange}
+                        onBlur={handleInputBlur}
+                        error={!!formErrors.confirmPassword}
+                        helperText={formErrors.confirmPassword}
+                        disabled={isSaving || isUpdating || !formData.newPassword}
+                        sx={{
+                            '& .MuiInputBase-root': {
+                                minHeight: isMobile ? 48 : 40,
+                            },
+                        }}
+                        slotProps={{
+                            input: {
+                                endAdornment: (
+                                    <InputAdornment position="end">
+                                        <IconButton
+                                            onClick={handleToggleConfirmPasswordVisibility}
+                                            edge="end"
+                                            aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                                            disabled={isSaving || isUpdating || !formData.newPassword}
+                                        >
+                                            {showConfirmPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                                        </IconButton>
+                                    </InputAdornment>
+                                ),
+                                inputProps: {
+                                    maxLength: 100,
+                                    'aria-label': 'Confirm new password',
+                                    'aria-invalid': !!formErrors.confirmPassword,
+                                    'aria-describedby': formErrors.confirmPassword ? 'confirmPassword-error' : undefined,
+                                },
+                            },
+                            formHelperText: {
+                                id: 'confirmPassword-error',
                                 role: 'alert',
                             },
                         }}

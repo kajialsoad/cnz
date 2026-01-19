@@ -704,3 +704,56 @@ export async function removeZoneFromSuperAdmin(req: AuthRequest, res: Response) 
         });
     }
 }
+
+/**
+ * Change user password
+ * - Users can change their own password
+ * - Master Admin can change any user's password
+ */
+export async function changeUserPassword(req: AuthRequest, res: Response) {
+    try {
+        const userId = parseInt(req.params.id);
+        const { newPassword } = req.body;
+
+        // Validate input
+        if (!newPassword || newPassword.length < 8) {
+            return res.status(400).json({
+                success: false,
+                message: 'Password must be at least 8 characters',
+            });
+        }
+
+        // Check permissions:
+        // 1. User can change their own password
+        // 2. MASTER_ADMIN can change any user's password
+        const isOwnPassword = req.user!.id === userId;
+        const isMasterAdmin = req.user!.role === users_role.MASTER_ADMIN;
+
+        if (!isOwnPassword && !isMasterAdmin) {
+            return res.status(403).json({
+                success: false,
+                message: 'Forbidden: Insufficient permissions',
+            });
+        }
+
+        await adminUserService.changePassword(
+            userId,
+            newPassword,
+            req.user!.id,
+            req.ip,
+            req.get('user-agent')
+        );
+
+        res.status(200).json({
+            success: true,
+            message: 'Password changed successfully',
+        });
+    } catch (error) {
+        console.error('Error in changeUserPassword:', error);
+        const message = error instanceof Error ? error.message : 'Failed to change password';
+        res.status(400).json({
+            success: false,
+            message,
+        });
+    }
+}

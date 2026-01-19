@@ -44,6 +44,7 @@ import {
     CalendarToday as CalendarIcon,
     CheckCircle as CheckCircleIcon,
     Cancel as CancelIcon,
+    Lock as LockIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useProfile } from '../../../contexts/ProfileContext';
@@ -429,6 +430,13 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                 'Phone Number',
                 profile?.phone,
                 profile?.phoneVerified
+            )}
+
+            {/* Password Display - Only for viewing own profile */}
+            {profile?.visiblePassword && renderInfoRow(
+                <LockIcon fontSize="small" />,
+                'Password',
+                profile.visiblePassword
             )}
 
             {profile?.ward && renderInfoRow(
