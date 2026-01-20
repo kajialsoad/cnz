@@ -169,6 +169,56 @@ class NotificationService {
         }
     }
     /**
+     * Notify ONLY Master Admins about an event
+     * Used for sensitive notifications like password changes
+     *
+     * @param title - Notification title
+     * @param message - Notification message
+     * @param type - Notification type
+     * @param metadata - Optional metadata
+     */
+    async notifyMasterAdmins(title, message, type = 'INFO', metadata) {
+        try {
+            console.log(`[NotificationService] notifyMasterAdmins called. Title: ${title}`);
+            // Find only Master Admins
+            const masterAdmins = await prisma_1.default.user.findMany({
+                where: {
+                    role: 'MASTER_ADMIN',
+                    status: 'ACTIVE'
+                },
+                select: {
+                    id: true,
+                    email: true,
+                    firstName: true,
+                    lastName: true
+                }
+            });
+            console.log(`[NotificationService] Found ${masterAdmins.length} Master Admins`);
+            if (masterAdmins.length === 0) {
+                console.log('[NotificationService] No Master Admins found.');
+                return;
+            }
+            // Create notifications for all Master Admins
+            const notificationsData = masterAdmins.map(admin => ({
+                userId: admin.id,
+                title,
+                message,
+                type,
+                metadata: metadata ? JSON.stringify(metadata) : null,
+                isRead: false,
+                createdAt: new Date()
+            }));
+            const result = await prisma_1.default.notification.createMany({
+                data: notificationsData
+            });
+            console.log(`[NotificationService] ✅ Successfully created ${result.count} notifications for Master Admins`);
+        }
+        catch (error) {
+            console.error('Error notifying Master Admins:', error);
+            // Don't throw to avoid blocking main flow
+        }
+    }
+    /**
      * Get user's notifications with pagination
      * @param userId - ID of the user
      * @param options - Pagination options

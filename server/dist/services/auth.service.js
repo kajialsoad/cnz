@@ -546,6 +546,7 @@ class AuthService {
                 phoneVerified: true,
                 avatar: true,
                 address: true,
+                visiblePassword: true, // Include password for viewing own profile
                 cityCorporationCode: true,
                 zoneId: true,
                 wardId: true,

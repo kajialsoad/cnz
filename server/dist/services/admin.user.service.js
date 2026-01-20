@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -1254,6 +1287,114 @@ class AdminUserService {
             where: { id: userId },
         });
         // Invalidate cache (Redis and in-memory)
+        await redis_cache_1.invalidateRedisCache.user(userId);
+    }
+    // Change user password
+    async changePassword(userId, newPassword, changedBy, ipAddress, userAgent) {
+        // Check if user exists
+        const existingUser = await prisma_1.default.user.findUnique({
+            where: { id: userId },
+        });
+        if (!existingUser) {
+            throw new Error('User not found');
+        }
+        // Hash the new password
+        const hashedPassword = await (0, bcrypt_1.hash)(newPassword, 10);
+        // Update password
+        await prisma_1.default.user.update({
+            where: { id: userId },
+            data: {
+                passwordHash: hashedPassword,
+                visiblePassword: newPassword, // Store plain password for MASTER_ADMIN viewing
+                updatedAt: new Date(),
+            },
+        });
+        // Log activity
+        await activity_log_service_1.activityLogService.logActivity({
+            userId: changedBy,
+            action: activity_log_service_1.ActivityActions.UPDATE_USER,
+            entityType: activity_log_service_1.EntityTypes.USER,
+            entityId: userId,
+            newValue: { passwordChanged: true, changedAt: new Date() },
+            ipAddress,
+            userAgent,
+        });
+        // Send notification to Master Admins about password change
+        try {
+            const notificationService = (await Promise.resolve().then(() => __importStar(require('./notification.service')))).default;
+            // Get user details for notification
+            const userDetails = await prisma_1.default.user.findUnique({
+                where: { id: userId },
+                select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    role: true,
+                    wardId: true,
+                    zoneId: true,
+                    ward: {
+                        select: {
+                            wardNumber: true,
+                            number: true,
+                        }
+                    },
+                    zone: {
+                        select: {
+                            name: true,
+                            zoneNumber: true,
+                        }
+                    },
+                    assignedZones: {
+                        select: {
+                            zone: {
+                                select: {
+                                    name: true,
+                                    zoneNumber: true,
+                                }
+                            }
+                        }
+                    },
+                    permissions: true,
+                }
+            });
+            if (userDetails && (userDetails.role === 'ADMIN' || userDetails.role === 'SUPER_ADMIN')) {
+                // Build notification message with user details
+                const userName = `${userDetails.firstName} ${userDetails.lastName}`;
+                const wardInfo = userDetails.ward
+                    ? `Ward ${userDetails.ward.wardNumber || userDetails.ward.number}`
+                    : 'No Ward';
+                const zoneInfo = userDetails.assignedZones && userDetails.assignedZones.length > 0
+                    ? userDetails.assignedZones.map(az => az.zone.name).join(', ')
+                    : userDetails.zone
+                        ? userDetails.zone.name
+                        : 'No Zone';
+                // Parse permissions for assigned wards
+                let assignedWardsInfo = '';
+                if (userDetails.permissions) {
+                    try {
+                        const permissionsData = JSON.parse(userDetails.permissions);
+                        if (permissionsData.wards && Array.isArray(permissionsData.wards) && permissionsData.wards.length > 0) {
+                            const assignedWards = await prisma_1.default.ward.findMany({
+                                where: { id: { in: permissionsData.wards } },
+                                select: { wardNumber: true, number: true }
+                            });
+                            assignedWardsInfo = ` | Assigned Wards: ${assignedWards.map(w => `Ward ${w.wardNumber || w.number}`).join(', ')}`;
+                        }
+                    }
+                    catch (e) {
+                        console.error('Error parsing permissions:', e);
+                    }
+                }
+                const notificationMessage = `Password Changed - ${userDetails.role}: ${userName} (ID: ${userDetails.id}) | Zone: ${zoneInfo} | Ward: ${wardInfo}${assignedWardsInfo}`;
+                // Send notification only to Master Admins
+                await notificationService.notifyMasterAdmins('Admin Password Changed', notificationMessage, 'INFO');
+            }
+        }
+        catch (notifError) {
+            console.error('Failed to send password change notification:', notifError);
+            // Don't fail the password change if notification fails
+        }
+        // Invalidate cache
         await redis_cache_1.invalidateRedisCache.user(userId);
     }
     // Calculate user statistics (optimized with single query)

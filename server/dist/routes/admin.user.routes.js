@@ -59,5 +59,9 @@ console.log('🔧 Admin user route registered: PUT /:id/zones (Master Admin only
 // Remove specific zone
 router.delete('/:id/zones/:zoneId', (0, auth_middleware_1.rbacGuard)('MASTER_ADMIN'), rate_limit_middleware_1.strictRateLimit, admin_user_controller_5.removeZoneFromSuperAdmin);
 console.log('🔧 Admin user route registered: DELETE /:id/zones/:zoneId (Master Admin only)');
+// Change user password (Users can change their own password, Master Admin can change any password)
+const admin_user_controller_6 = require("../controllers/admin.user.controller");
+router.post('/:id/change-password', auth_middleware_1.authGuard, rate_limit_middleware_1.strictRateLimit, admin_user_controller_6.changeUserPassword);
+console.log('🔧 Admin user route registered: POST /:id/change-password (Authenticated users)');
 console.log('✅ Admin user routes module loaded successfully');
 exports.default = router;

@@ -47,6 +47,7 @@ exports.assignZonesToSuperAdmin = assignZonesToSuperAdmin;
 exports.getAssignedZones = getAssignedZones;
 exports.updateZoneAssignments = updateZoneAssignments;
 exports.removeZoneFromSuperAdmin = removeZoneFromSuperAdmin;
+exports.changeUserPassword = changeUserPassword;
 const admin_user_service_1 = require("../services/admin.user.service");
 const zod_1 = require("zod");
 const client_1 = require("@prisma/client");
@@ -602,6 +603,48 @@ async function removeZoneFromSuperAdmin(req, res) {
     catch (error) {
         console.error('Error in removeZoneFromSuperAdmin:', error);
         const message = error instanceof Error ? error.message : 'Failed to remove zone';
+        res.status(400).json({
+            success: false,
+            message,
+        });
+    }
+}
+/**
+ * Change user password
+ * - Users can change their own password
+ * - Master Admin can change any user's password
+ */
+async function changeUserPassword(req, res) {
+    try {
+        const userId = parseInt(req.params.id);
+        const { newPassword } = req.body;
+        // Validate input
+        if (!newPassword || newPassword.length < 8) {
+            return res.status(400).json({
+                success: false,
+                message: 'Password must be at least 8 characters',
+            });
+        }
+        // Check permissions:
+        // 1. User can change their own password
+        // 2. MASTER_ADMIN can change any user's password
+        const isOwnPassword = req.user.id === userId;
+        const isMasterAdmin = req.user.role === client_1.users_role.MASTER_ADMIN;
+        if (!isOwnPassword && !isMasterAdmin) {
+            return res.status(403).json({
+                success: false,
+                message: 'Forbidden: Insufficient permissions',
+            });
+        }
+        await admin_user_service_1.adminUserService.changePassword(userId, newPassword, req.user.id, req.ip, req.get('user-agent'));
+        res.status(200).json({
+            success: true,
+            message: 'Password changed successfully',
+        });
+    }
+    catch (error) {
+        console.error('Error in changeUserPassword:', error);
+        const message = error instanceof Error ? error.message : 'Failed to change password';
         res.status(400).json({
             success: false,
             message,
