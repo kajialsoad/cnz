@@ -22,9 +22,9 @@ const EmptyState: React.FC<EmptyStateProps> = ({ type, onAction, actionLabel }) 
             case 'no-chats':
                 return {
                     icon: <ChatIcon sx={{ fontSize: 64, color: 'text.disabled' }} />,
-                    title: 'No conversations yet',
+                    title: 'No users found',
                     description:
-                        'Chat conversations will appear here when citizens message you about their complaints.',
+                        'No users found in your jurisdiction to chat with.',
                     showAction: false,
                 };
 

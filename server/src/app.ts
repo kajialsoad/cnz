@@ -15,6 +15,8 @@ import adminAnalyticsRoutes from './routes/admin.analytics.routes';
 import adminChatRoutes from './routes/admin.chat.routes';
 import adminDirectMessageRoutes from './routes/admin.direct-message.routes';
 import adminActivityLogRoutes from './routes/admin.activity-log.routes';
+import liveChatRoutes from './routes/live-chat.routes';
+import adminLiveChatRoutes from './routes/admin.live-chat.routes';
 import dashboardRoutes from './routes/dashboard.routes';
 import categoryRoutes from './routes/category.routes';
 import cityCorporationRoutes from './routes/city-corporation.routes';
@@ -155,6 +157,9 @@ console.log('✅ Upload routes registered at /api/uploads');
 app.use('/api/notifications', notificationRoutes); // Notification routes
 console.log('✅ Notification routes registered at /api/notifications');
 
+app.use('/api/live-chat', liveChatRoutes); // Live chat routes (mobile app)
+console.log('✅ Live chat routes registered at /api/live-chat');
+
 app.use('/api/admin/auth', adminAuthRoutes); // Admin authentication routes
 console.log('✅ Admin auth routes registered at /api/admin/auth');
 
@@ -180,6 +185,9 @@ console.log('✅ Admin chat routes registered at /api/admin/chat');
 
 app.use('/api/admin/direct-chat', adminDirectMessageRoutes); // Admin direct message routes
 console.log('✅ Admin direct message routes registered at /api/admin/direct-chat');
+
+app.use('/api/admin/live-chat', adminLiveChatRoutes); // Admin live chat routes
+console.log('✅ Admin live chat routes registered at /api/admin/live-chat');
 
 app.use('/api/admin/activity-logs', adminActivityLogRoutes); // Admin activity log routes
 console.log('✅ Admin activity log routes registered at /api/admin/activity-logs');

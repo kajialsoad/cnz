@@ -1,36 +1,25 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
     Box,
     Typography,
     TextField,
     InputAdornment,
-    FormControl,
-    Select,
-    MenuItem,
-    Button,
-    Chip,
+    CircularProgress,
     useTheme,
     useMediaQuery,
 } from '@mui/material';
 import {
     Search as SearchIcon,
-    FilterList as FilterIcon,
-    Clear as ClearIcon,
 } from '@mui/icons-material';
-import { List } from 'react-window';
 import type {
     ChatConversation,
     ChatFilters,
     ChatStatistics,
 } from '../../types/chat-page.types';
-import type { ComplaintStatus } from '../../types/complaint-service.types';
 import { useDebounce } from '../../hooks/useDebounce';
 import ChatListItem from './ChatListItem';
 import ChatListSkeleton from './ChatListSkeleton';
 import EmptyState from './EmptyState';
-import { cityCorporationService, type CityCorporation } from '../../services/cityCorporationService';
-import { wardService, type Ward } from '../../services/wardService';
-import { ZoneFilter } from '../common';
 
 interface ChatListPanelProps {
     chats: ChatConversation[];
@@ -42,13 +31,10 @@ interface ChatListPanelProps {
     onFilterChange: (filters: Partial<ChatFilters>) => void;
     statistics: ChatStatistics;
     loading: boolean;
-    // Pagination props
-    currentPage?: number;
-    totalPages?: number;
+    // Infinite scroll props
+    hasMore?: boolean;
+    onLoadMore?: () => void;
     totalChats?: number;
-    onPageChange?: (page: number) => void;
-    onNextPage?: () => void;
-    onPrevPage?: () => void;
 }
 
 const ChatListPanel: React.FC<ChatListPanelProps> = ({
@@ -57,28 +43,22 @@ const ChatListPanel: React.FC<ChatListPanelProps> = ({
     onChatSelect,
     searchTerm,
     onSearchChange,
-    filters,
-    onFilterChange,
-    statistics,
     loading,
-    currentPage = 1,
-    totalPages = 1,
+    hasMore = false,
+    onLoadMore,
     totalChats = 0,
-    onPageChange,
-    onNextPage,
-    onPrevPage,
 }) => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
     // Local state for search input (before debounce)
     const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
 
-    // State for city corporations, zones, and wards
-    const [cityCorporations, setCityCorporations] = useState<CityCorporation[]>([]);
-    const [wards, setWards] = useState<Ward[]>([]);
-    const [loadingCityCorporations, setLoadingCityCorporations] = useState(false);
-    const [loadingWards, setLoadingWards] = useState(false);
+    // Refs for infinite scroll
+    const listContainerRef = useRef<HTMLDivElement>(null);
+    const observerRef = useRef<IntersectionObserver | null>(null);
+    const loadMoreTriggerRef = useRef<HTMLDivElement>(null);
 
     // Debounce search to avoid excessive filtering
     const debouncedSearchTerm = useDebounce(localSearchTerm, 500);
@@ -88,49 +68,54 @@ const ChatListPanel: React.FC<ChatListPanelProps> = ({
         onSearchChange(debouncedSearchTerm);
     }, [debouncedSearchTerm, onSearchChange]);
 
-    // Fetch city corporations on mount
+    /**
+     * Infinite scroll - Load more when scrolling to bottom
+     */
+    const handleLoadMore = useCallback(() => {
+        if (!loading && !isLoadingMore && hasMore && onLoadMore) {
+            setIsLoadingMore(true);
+            onLoadMore();
+            // Reset loading state after a delay
+            setTimeout(() => setIsLoadingMore(false), 1000);
+        }
+    }, [loading, isLoadingMore, hasMore, onLoadMore]);
+
+    /**
+     * Set up Intersection Observer for infinite scroll
+     */
     useEffect(() => {
-        const fetchCityCorporations = async () => {
-            try {
-                setLoadingCityCorporations(true);
-                const response = await cityCorporationService.getCityCorporations('ACTIVE');
-                setCityCorporations(response.cityCorporations || []);
-            } catch (error) {
-                console.error('Error fetching city corporations:', error);
-                setCityCorporations([]);
-            } finally {
-                setLoadingCityCorporations(false);
+        if (!loadMoreTriggerRef.current) return;
+
+        // Cleanup previous observer
+        if (observerRef.current) {
+            observerRef.current.disconnect();
+        }
+
+        // Create new observer
+        observerRef.current = new IntersectionObserver(
+            (entries) => {
+                const firstEntry = entries[0];
+                if (firstEntry.isIntersecting) {
+                    handleLoadMore();
+                }
+            },
+            {
+                root: listContainerRef.current,
+                rootMargin: '100px', // Load more 100px before reaching bottom
+                threshold: 0.1,
+            }
+        );
+
+        // Observe the trigger element
+        observerRef.current.observe(loadMoreTriggerRef.current);
+
+        // Cleanup on unmount
+        return () => {
+            if (observerRef.current) {
+                observerRef.current.disconnect();
             }
         };
-
-        fetchCityCorporations();
-    }, []);
-
-    // Fetch wards when zone changes
-    useEffect(() => {
-        const fetchWards = async () => {
-            // Ensure zoneId is a valid number before fetching
-            const zoneId = filters.zone ? parseInt(filters.zone, 10) : undefined;
-
-            if (!zoneId) {
-                setWards([]);
-                return;
-            }
-
-            try {
-                setLoadingWards(true);
-                const wardsData = await wardService.getWardsByZone(zoneId, 'ACTIVE');
-                setWards(wardsData);
-            } catch (error) {
-                console.error('Error fetching wards:', error);
-                setWards([]);
-            } finally {
-                setLoadingWards(false);
-            }
-        };
-
-        fetchWards();
-    }, [filters.zone]);
+    }, [handleLoadMore]);
 
     /**
      * Handle local search input change
@@ -139,144 +124,10 @@ const ChatListPanel: React.FC<ChatListPanelProps> = ({
         setLocalSearchTerm(event.target.value);
     };
 
-    /**
-     * Handle district filter change
-     */
-    const handleDistrictChange = (value: string) => {
-        onFilterChange({
-            district: value === 'ALL' ? undefined : value,
-            upazila: undefined, // Reset upazila when district changes
-        });
-    };
-
-    /**
-     * Handle upazila filter change
-     */
-    const handleUpazilaChange = (value: string) => {
-        onFilterChange({
-            upazila: value === 'ALL' ? undefined : value,
-        });
-    };
-
-    /**
-     * Handle ward filter change
-     */
-    const handleWardChange = (value: string) => {
-        onFilterChange({
-            ward: value === 'ALL' ? undefined : value,
-        });
-    };
-
-    /**
-     * Handle zone filter change
-     */
-    /**
-     * Handle zone filter change
-     */
-    const handleZoneChange = (value: number | '') => {
-        onFilterChange({
-            zone: value === '' ? undefined : value.toString(),
-            // Ensure thana is also updated for backward compatibility if needed, though we're focusing on Zone
-        });
-    };
-
-    /**
-     * Handle city corporation filter change
-     */
-    const handleCityCorporationChange = (value: string) => {
-        onFilterChange({
-            cityCorporationCode: value === 'ALL' ? undefined : value,
-            thanaId: undefined, // Reset thana when city corporation changes
-            zone: undefined, // Reset zone when city corporation changes
-            ward: undefined, // Reset ward when city corporation changes
-        });
-    };
-
-    /**
-     * Handle thana filter change
-     */
-
-
-    /**
-     * Handle status filter change
-     */
-    const handleStatusChange = (value: string) => {
-        onFilterChange({
-            status: value === 'ALL' ? undefined : (value as ComplaintStatus),
-        });
-    };
-
-    /**
-     * Handle unread only toggle
-     */
-    const handleUnreadOnlyToggle = () => {
-        onFilterChange({
-            unreadOnly: !filters.unreadOnly,
-        });
-    };
-
-    /**
-     * Clear all filters
-     */
-    const handleClearFilters = () => {
+    const handleClearSearch = () => {
         setLocalSearchTerm('');
         onSearchChange('');
-        onFilterChange({
-            district: undefined,
-            upazila: undefined,
-            ward: undefined,
-            zone: undefined,
-            cityCorporationCode: undefined,
-            thanaId: undefined,
-            status: undefined,
-            unreadOnly: false,
-        });
     };
-
-    /**
-     * Check if any filters are active
-     */
-    const hasActiveFilters = () => {
-        return (
-            localSearchTerm !== '' ||
-            filters.district !== undefined ||
-            filters.upazila !== undefined ||
-            filters.ward !== undefined ||
-            filters.zone !== undefined ||
-            filters.cityCorporationCode !== undefined ||
-            filters.thanaId !== undefined ||
-            filters.status !== undefined ||
-            filters.unreadOnly === true
-        );
-    };
-
-    /**
-     * Get unique districts from statistics
-     */
-    const getDistricts = useCallback(() => {
-        return statistics.byDistrict.map((item) => item.category);
-    }, [statistics.byDistrict]);
-
-    /**
-     * Get unique upazilas from statistics
-     */
-    const getUpazilas = useCallback(() => {
-        return statistics.byUpazila.map((item) => item.category);
-    }, [statistics.byUpazila]);
-
-    /**
-     * Get unique wards from statistics
-     */
-    const getWards = useCallback(() => {
-        return statistics.byWard?.map((item) => item.category) || [];
-    }, [statistics.byWard]);
-
-    /**
-     * Get unique zones from statistics
-     */
-    const getZones = useCallback(() => {
-        return statistics.byZone?.map((item) => Number(item.category)) || [];
-    }, [statistics.byZone]);
 
     return (
         <Box
@@ -303,30 +154,8 @@ const ChatListPanel: React.FC<ChatListPanelProps> = ({
                         fontSize: { xs: '1.1rem', sm: '1.25rem', md: '1.25rem' }
                     }}
                 >
-                    Messages
+                    Inbox
                 </Typography>
-
-                {/* Statistics Badges */}
-                <Box sx={{ display: 'flex', gap: 1.5, mb: 2 }}>
-                    <Chip
-                        label={`${statistics.totalChats} Total`}
-                        size="small"
-                        sx={{
-                            backgroundColor: '#e3f2fd',
-                            color: '#1976d2',
-                            fontWeight: 500,
-                        }}
-                    />
-                    <Chip
-                        label={`${statistics.unreadCount} Unread`}
-                        size="small"
-                        sx={{
-                            backgroundColor: '#4CAF50',
-                            color: 'white',
-                            fontWeight: 500,
-                        }}
-                    />
-                </Box>
 
                 {/* Search Input */}
                 <TextField
@@ -345,364 +174,95 @@ const ChatListPanel: React.FC<ChatListPanelProps> = ({
                         },
                     }}
                     sx={{
-                        mb: 1.5,
                         '& .MuiOutlinedInput-root': {
                             backgroundColor: 'background.default',
                         },
                     }}
                 />
-
-                {/* Filter Dropdowns */}
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    {/* City Corporation Filter */}
-                    <FormControl fullWidth size="small">
-                        <Select
-                            value={filters.cityCorporationCode || 'ALL'}
-                            onChange={(e) => handleCityCorporationChange(e.target.value)}
-                            displayEmpty
-                            disabled={loadingCityCorporations}
-                            startAdornment={
-                                <InputAdornment position="start">
-                                    <FilterIcon sx={{ color: 'text.secondary', fontSize: 18 }} />
-                                </InputAdornment>
-                            }
-                            sx={{
-                                backgroundColor: 'background.default',
-                                '& .MuiSelect-select': {
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    pl: 0,
-                                    fontSize: '0.875rem',
-                                },
-                            }}
-                        >
-                            <MenuItem value="ALL">All City Corporations</MenuItem>
-                            {cityCorporations && cityCorporations.map((cc) => (
-                                <MenuItem key={cc.code} value={cc.code}>
-                                    {cc.name}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-
-
-
-                    {/* District and Upazila filters hidden - not needed for DSCC/DNCC filtering */}
-
-                    {/* Ward Filter */}
-                    <FormControl fullWidth size="small">
-                        <Select
-                            value={filters.ward || 'ALL'}
-                            onChange={(e) => handleWardChange(e.target.value)}
-                            displayEmpty
-                            sx={{
-                                backgroundColor: 'background.default',
-                                fontSize: '0.875rem',
-                            }}
-                        >
-                            <MenuItem value="ALL">All Wards</MenuItem>
-                            {getWards().map((ward) => (
-                                <MenuItem key={ward} value={ward}>
-                                    Ward {ward}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-
-
-                    {/* Zone Filter */}
-                    <ZoneFilter
-                        value={filters.zone ? Number(filters.zone) : ''}
-                        onChange={handleZoneChange}
-                        cityCorporationCode={filters.cityCorporationCode || ''}
-                        disabled={false} // Always render, handles its own empty state
-                    />
-
-                    {/* Status Filter */}
-                    <FormControl fullWidth size="small">
-                        <Select
-                            value={filters.status || 'ALL'}
-                            onChange={(e) => handleStatusChange(e.target.value)}
-                            displayEmpty
-                            sx={{
-                                backgroundColor: 'background.default',
-                                fontSize: '0.875rem',
-                            }}
-                        >
-                            <MenuItem value="ALL">All Status</MenuItem>
-                            <MenuItem value="PENDING">Pending</MenuItem>
-                            <MenuItem value="IN_PROGRESS">In Progress</MenuItem>
-                            <MenuItem value="RESOLVED">Solved</MenuItem>
-                            <MenuItem value="REJECTED">Rejected</MenuItem>
-                        </Select>
-                    </FormControl>
-
-                    {/* Unread Only Toggle */}
-                    <Button
-                        fullWidth
-                        variant={filters.unreadOnly ? 'contained' : 'outlined'}
-                        size="small"
-                        onClick={handleUnreadOnlyToggle}
-                        sx={{
-                            textTransform: 'none',
-                            fontSize: '0.875rem',
-                            backgroundColor: filters.unreadOnly ? '#4CAF50' : 'transparent',
-                            borderColor: filters.unreadOnly ? '#4CAF50' : 'divider',
-                            color: filters.unreadOnly ? 'white' : 'text.primary',
-                            '&:hover': {
-                                backgroundColor: filters.unreadOnly ? '#45a049' : 'action.hover',
-                                borderColor: filters.unreadOnly ? '#45a049' : '#4CAF50',
-                            },
-                        }}
-                    >
-                        {filters.unreadOnly ? '✓ Unread Only' : 'Show Unread Only'}
-                    </Button>
-
-                    {/* Clear Filters Button */}
-                    {hasActiveFilters() && (
-                        <Button
-                            fullWidth
-                            variant="text"
-                            size="small"
-                            startIcon={<ClearIcon />}
-                            onClick={handleClearFilters}
-                            sx={{
-                                textTransform: 'none',
-                                fontSize: '0.875rem',
-                                color: 'text.secondary',
-                                '&:hover': {
-                                    color: 'error.main',
-                                },
-                            }}
-                        >
-                            Clear Filters
-                        </Button>
-                    )}
-                </Box>
             </Box>
 
             {/* Chat List Area */}
             <Box
+                ref={listContainerRef}
                 sx={{
                     flex: 1,
                     overflowY: 'auto',
                     overflowX: 'hidden',
                 }}
             >
-                {/* Loading State */}
-                {loading && <ChatListSkeleton count={5} />}
+                {/* Loading State - Initial Load */}
+                {loading && chats.length === 0 && <ChatListSkeleton count={5} />}
 
                 {/* Empty State - No Results */}
-                {!loading && chats.length === 0 && hasActiveFilters() && (
+                {!loading && chats.length === 0 && localSearchTerm !== '' && (
                     <EmptyState
                         type="no-results"
-                        onAction={handleClearFilters}
-                        actionLabel="Clear Filters"
+                        onAction={handleClearSearch}
+                        actionLabel="Clear Search"
                     />
                 )}
 
                 {/* Empty State - No Chats */}
-                {!loading && chats.length === 0 && !hasActiveFilters() && (
+                {!loading && chats.length === 0 && localSearchTerm === '' && (
                     <EmptyState type="no-chats" />
                 )}
 
-                {/* Chat List Items - Use virtual scrolling for large lists */}
-                {!loading && chats.length > 0 && (
-                    <>
-                        {chats.length > 100 ? (
-                            // Virtual scrolling for large lists (>100 items)
-                            <List
-                                rowCount={chats.length}
-                                rowHeight={isMobile ? 90 : 100}
-                                overscanCount={5}
-                                rowComponent={({ index, style }) => {
-                                    const chat = chats[index];
-                                    return (
-                                        <div style={style}>
-                                            <ChatListItem
-                                                key={chat.complaintId}
-                                                chat={chat}
-                                                isSelected={selectedChatId === chat.complaintId}
-                                                onClick={() => onChatSelect(chat.complaintId)}
-                                            />
-                                        </div>
-                                    );
-                                }}
-                                rowProps={{}}
-                                style={{ height: window.innerHeight - 400 }}
+                {/* Chat List Items */}
+                {chats.length > 0 && (
+                    <Box>
+                        {chats.map((chat) => (
+                            <ChatListItem
+                                key={chat.complaintId || `citizen-${chat.citizen.id}`}
+                                chat={chat}
+                                isSelected={selectedChatId === chat.complaintId}
+                                onClick={() => onChatSelect(chat.complaintId)}
                             />
-                        ) : (
-                            // Regular rendering for smaller lists
-                            <Box>
-                                {chats.map((chat) => (
-                                    <ChatListItem
-                                        key={chat.complaintId}
-                                        chat={chat}
-                                        isSelected={selectedChatId === chat.complaintId}
-                                        onClick={() => onChatSelect(chat.complaintId)}
-                                    />
-                                ))}
+                        ))}
+
+                        {/* Infinite Scroll Trigger */}
+                        {hasMore && (
+                            <Box
+                                ref={loadMoreTriggerRef}
+                                sx={{
+                                    display: 'flex',
+                                    justifyContent: 'center',
+                                    alignItems: 'center',
+                                    p: 2,
+                                    minHeight: 60,
+                                }}
+                            >
+                                {(loading || isLoadingMore) && (
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        <CircularProgress size={20} />
+                                        <Typography variant="body2" color="text.secondary">
+                                            Loading more...
+                                        </Typography>
+                                    </Box>
+                                )}
                             </Box>
                         )}
-                    </>
+
+                        {/* End of List Indicator */}
+                        {!hasMore && chats.length > 0 && (
+                            <Box
+                                sx={{
+                                    display: 'flex',
+                                    justifyContent: 'center',
+                                    alignItems: 'center',
+                                    p: 2,
+                                    color: 'text.secondary',
+                                }}
+                            >
+                                <Typography variant="body2">
+                                    {totalChats > 0
+                                        ? `All ${totalChats} conversations loaded`
+                                        : 'No more conversations'}
+                                </Typography>
+                            </Box>
+                        )}
+                    </Box>
                 )}
             </Box>
-
-            {/* Pagination Controls */}
-            {!loading && chats.length > 0 && totalPages > 1 && (
-                <Box
-                    sx={{
-                        p: 2,
-                        borderTop: '1px solid',
-                        borderColor: 'divider',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 1.5,
-                        backgroundColor: 'background.paper',
-                    }}
-                >
-                    {/* Page Info */}
-                    <Box
-                        sx={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            fontSize: '0.875rem',
-                            color: 'text.secondary',
-                        }}
-                    >
-                        <Typography variant="body2">
-                            Page {currentPage} of {totalPages}
-                        </Typography>
-                        <Typography variant="body2">
-                            Total: {totalChats} chats
-                        </Typography>
-                    </Box>
-
-                    {/* Navigation Buttons */}
-                    <Box
-                        sx={{
-                            display: 'flex',
-                            gap: 1,
-                            justifyContent: 'space-between',
-                        }}
-                    >
-                        <Button
-                            variant="outlined"
-                            size="small"
-                            onClick={onPrevPage}
-                            disabled={currentPage === 1}
-                            sx={{
-                                flex: 1,
-                                textTransform: 'none',
-                                fontSize: '0.875rem',
-                            }}
-                        >
-                            ← Previous
-                        </Button>
-                        <Button
-                            variant="outlined"
-                            size="small"
-                            onClick={onNextPage}
-                            disabled={currentPage === totalPages}
-                            sx={{
-                                flex: 1,
-                                textTransform: 'none',
-                                fontSize: '0.875rem',
-                            }}
-                        >
-                            Next →
-                        </Button>
-                    </Box>
-
-                    {/* Quick Page Jump (for desktop) */}
-                    {!isMobile && totalPages > 3 && (
-                        <Box
-                            sx={{
-                                display: 'flex',
-                                gap: 0.5,
-                                justifyContent: 'center',
-                                flexWrap: 'wrap',
-                            }}
-                        >
-                            {/* First page */}
-                            {currentPage > 2 && (
-                                <>
-                                    <Button
-                                        size="small"
-                                        variant={currentPage === 1 ? 'contained' : 'outlined'}
-                                        onClick={() => onPageChange?.(1)}
-                                        sx={{
-                                            minWidth: 36,
-                                            height: 36,
-                                            p: 0,
-                                            fontSize: '0.75rem',
-                                        }}
-                                    >
-                                        1
-                                    </Button>
-                                    {currentPage > 3 && (
-                                        <Box sx={{ display: 'flex', alignItems: 'center', px: 0.5 }}>
-                                            ...
-                                        </Box>
-                                    )}
-                                </>
-                            )}
-
-                            {/* Current page and neighbors */}
-                            {[currentPage - 1, currentPage, currentPage + 1]
-                                .filter((page) => page > 0 && page <= totalPages)
-                                .map((page) => (
-                                    <Button
-                                        key={page}
-                                        size="small"
-                                        variant={currentPage === page ? 'contained' : 'outlined'}
-                                        onClick={() => onPageChange?.(page)}
-                                        sx={{
-                                            minWidth: 36,
-                                            height: 36,
-                                            p: 0,
-                                            fontSize: '0.75rem',
-                                            backgroundColor:
-                                                currentPage === page ? '#4CAF50' : 'transparent',
-                                            color: currentPage === page ? 'white' : 'text.primary',
-                                            '&:hover': {
-                                                backgroundColor:
-                                                    currentPage === page ? '#45a049' : 'action.hover',
-                                            },
-                                        }}
-                                    >
-                                        {page}
-                                    </Button>
-                                ))}
-
-                            {/* Last page */}
-                            {currentPage < totalPages - 1 && (
-                                <>
-                                    {currentPage < totalPages - 2 && (
-                                        <Box sx={{ display: 'flex', alignItems: 'center', px: 0.5 }}>
-                                            ...
-                                        </Box>
-                                    )}
-                                    <Button
-                                        size="small"
-                                        variant={currentPage === totalPages ? 'contained' : 'outlined'}
-                                        onClick={() => onPageChange?.(totalPages)}
-                                        sx={{
-                                            minWidth: 36,
-                                            height: 36,
-                                            p: 0,
-                                            fontSize: '0.75rem',
-                                        }}
-                                    >
-                                        {totalPages}
-                                    </Button>
-                                </>
-                            )}
-                        </Box>
-                    )}
-                </Box>
-            )}
         </Box>
     );
 };

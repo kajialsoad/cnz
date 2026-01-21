@@ -1,9 +1,23 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:record/record.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/foundation.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
+import 'package:cached_network_image/cached_network_image.dart';
 import '../components/custom_bottom_nav.dart';
 import '../widgets/translated_text.dart';
+import '../widgets/admin_info_card.dart';
+import '../services/live_chat_service.dart';
+import '../models/chat_message.dart' as model;
+import '../config/url_helper.dart';
 
+/// Live Chat page for direct communication with ward/zone admin
+/// Separate from complaint chat - uses different API endpoints
+/// User chats with admin based on their signup location
 class LiveChatPage extends StatefulWidget {
   const LiveChatPage({super.key});
 
@@ -17,17 +31,21 @@ class _LiveChatPageState extends State<LiveChatPage>
   late AnimationController _typingController;
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final LiveChatService _liveChatService = LiveChatService();
+  final ImagePicker _picker = ImagePicker();
+  AudioRecorder? _recorder;
+  final AudioPlayer _audioPlayer = AudioPlayer();
+
+  List<model.ChatMessage> messages = [];
+  Map<String, dynamic>? adminInfo;
+  bool isLoading = true;
+  bool isSending = false;
+  bool isRecording = false;
+  String? _recordedVoiceUrl;
+  bool hasError = false;
+  String errorMessage = '';
+  Timer? _pollingTimer;
   int _currentIndex = 0;
-
-  List<ChatMessage> messages = [
-    ChatMessage(
-      text: 'স্বাগতম! আমি আপনার সহায়তার জন্য এখানে আছি। কিভাবে সাহায্য করতে পারি?',
-      isUser: false,
-      timestamp: DateTime.now().subtract(const Duration(minutes: 2)),
-    ),
-  ];
-
-  bool isTyping = false;
 
   @override
   void initState() {
@@ -41,15 +59,289 @@ class _LiveChatPageState extends State<LiveChatPage>
       duration: const Duration(milliseconds: 1500),
       vsync: this,
     )..repeat();
+
+    if (!kIsWeb) {
+      _recorder = AudioRecorder();
+    }
+
+    // Load admin info and initial messages
+    _loadAdminAndMessages();
+
+    // Start polling for new messages every 5 seconds
+    _startPolling();
   }
 
   @override
   void dispose() {
+    _pollingTimer?.cancel();
     _backgroundController.dispose();
     _typingController.dispose();
     _messageController.dispose();
     _scrollController.dispose();
+    _audioPlayer.dispose();
     super.dispose();
+  }
+
+  /// Load admin info and messages from server
+  Future<void> _loadAdminAndMessages() async {
+    try {
+      setState(() {
+        isLoading = true;
+        hasError = false;
+      });
+
+      // Get admin info
+      final admin = await _liveChatService.getAdmin();
+      
+      // Get messages
+      final fetchedMessages = await _liveChatService.getMessages();
+
+      setState(() {
+        adminInfo = admin;
+        messages = fetchedMessages;
+        isLoading = false;
+      });
+
+      // Mark messages as read
+      await _liveChatService.markAsRead();
+
+      // Scroll to bottom
+      _scrollToBottom();
+    } catch (e) {
+      String userFriendlyError = 'Failed to load chat';
+      
+      final errorString = e.toString();
+      if (errorString.contains('No admin found')) {
+        userFriendlyError = 'আপনার এলাকার জন্য কোনো অ্যাডমিন পাওয়া যায়নি।';
+        _pollingTimer?.cancel();
+      } else if (errorString.contains('Unauthorized')) {
+        userFriendlyError = 'অনুমতি নেই। দয়া করে আবার লগইন করুন।';
+        _pollingTimer?.cancel();
+      } else if (errorString.contains('Network') || errorString.contains('connection')) {
+        userFriendlyError = 'ইন্টারনেট সংযোগ নেই। দয়া করে আপনার সংযোগ পরীক্ষা করুন।';
+      } else if (errorString.contains('timeout')) {
+        userFriendlyError = 'সার্ভার সাড়া দিচ্ছে না। দয়া করে পরে আবার চেষ্টা করুন।';
+      }
+      
+      setState(() {
+        isLoading = false;
+        hasError = true;
+        errorMessage = userFriendlyError;
+      });
+    }
+  }
+
+  /// Start polling for new messages
+  void _startPolling() {
+    _pollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      _loadMessagesQuietly();
+    });
+  }
+
+  /// Load messages without showing loading indicator
+  Future<void> _loadMessagesQuietly() async {
+    try {
+      final fetchedMessages = await _liveChatService.getMessages();
+
+      // Only update if there are new messages
+      if (fetchedMessages.length != messages.length) {
+        setState(() {
+          messages = fetchedMessages;
+        });
+        await _liveChatService.markAsRead();
+        _scrollToBottom();
+      }
+    } catch (e) {
+      final errorString = e.toString();
+      if (errorString.contains('No admin found') || errorString.contains('Unauthorized')) {
+        _pollingTimer?.cancel();
+        setState(() {
+          hasError = true;
+          errorMessage = 'চ্যাট অ্যাক্সেস করতে সমস্যা হয়েছে।';
+        });
+      }
+    }
+  }
+
+  /// Send message to server
+  Future<void> _sendMessage() async {
+    if (_messageController.text.trim().isEmpty || isSending) return;
+
+    final messageText = _messageController.text.trim();
+    _messageController.clear();
+
+    setState(() {
+      isSending = true;
+    });
+
+    try {
+      final sentMessage = await _liveChatService.sendMessage(
+        messageText,
+        voiceUrl: _recordedVoiceUrl,
+      );
+
+      setState(() {
+        messages.add(sentMessage);
+        isSending = false;
+        _recordedVoiceUrl = null;
+      });
+
+      _scrollToBottom();
+    } catch (e) {
+      setState(() {
+        isSending = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: TranslatedText('মেসেজ পাঠাতে ব্যর্থ: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            action: SnackBarAction(
+              label: 'পুনরায় চেষ্টা করুন',
+              textColor: Colors.white,
+              onPressed: () {
+                _messageController.text = messageText;
+              },
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _pickImageAndSend() async {
+    try {
+      final xfile = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+      if (xfile == null) return;
+      
+      setState(() {
+        isSending = true;
+      });
+      
+      final url = await _liveChatService.uploadImage(xfile);
+      final sentMessage = await _liveChatService.sendMessage(
+        _messageController.text.trim().isEmpty ? ' ' : _messageController.text.trim(),
+        imageUrl: url,
+      );
+      
+      setState(() {
+        messages.add(sentMessage);
+        isSending = false;
+        _messageController.clear();
+      });
+      
+      _scrollToBottom();
+    } catch (e) {
+      setState(() {
+        isSending = false;
+      });
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: TranslatedText('ছবি পাঠাতে ব্যর্থ: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _toggleRecord() async {
+    try {
+      if (kIsWeb) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: TranslatedText('ওয়েবে ভয়েস রেকর্ডিং সমর্থিত নয়'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      if (_recorder == null) return;
+
+      if (!isRecording) {
+        final hasPermission = await _recorder!.hasPermission();
+        if (!hasPermission) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: TranslatedText('মাইক্রোফোন অনুমতি প্রয়োজন'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          return;
+        }
+        
+        final dir = await getTemporaryDirectory();
+        final filePath = p.join(dir.path, 'live_chat_voice_${DateTime.now().millisecondsSinceEpoch}.m4a');
+        await _recorder!.start(const RecordConfig(), path: filePath);
+        
+        setState(() {
+          isRecording = true;
+        });
+      } else {
+        final path = await _recorder!.stop();
+        setState(() {
+          isRecording = false;
+        });
+        
+        if (path == null) return;
+        
+        final xfile = XFile(path);
+        setState(() {
+          isSending = true;
+        });
+        
+        final url = await _liveChatService.uploadVoice(xfile);
+        _recordedVoiceUrl = url;
+        
+        final sentMessage = await _liveChatService.sendMessage(
+          _messageController.text.trim().isEmpty ? 'ভয়েস মেসেজ' : _messageController.text.trim(),
+          voiceUrl: url,
+        );
+        
+        setState(() {
+          messages.add(sentMessage);
+          isSending = false;
+          _messageController.clear();
+          _recordedVoiceUrl = null;
+        });
+        
+        _scrollToBottom();
+      }
+    } catch (e) {
+      setState(() {
+        isRecording = false;
+        isSending = false;
+      });
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: TranslatedText('ভয়েস পাঠাতে ব্যর্থ: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _scrollToBottom() {
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   @override
@@ -73,6 +365,7 @@ class _LiveChatPageState extends State<LiveChatPage>
           top: false,
           child: Column(
             children: [
+              if (adminInfo != null) AdminInfoCard(adminInfo: adminInfo!),
               Expanded(
                 child: _buildChatArea(),
               ),
@@ -126,47 +419,46 @@ class _LiveChatPageState extends State<LiveChatPage>
       title: Row(
         children: [
           const SizedBox(width: 4),
-          // Avatar with initials like image 1
-          CircleAvatar(
+          const CircleAvatar(
             radius: 16,
-            backgroundColor: const Color(0xFF2E8B57),
-            child: const Text(
-              'DO',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
+            backgroundColor: Color(0xFF3CB371),
+            child: Icon(
+              Icons.chat_bubble,
+              color: Colors.white,
+              size: 18,
             ),
           ),
           const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: const [
-              TranslatedText(
-                'DSCC Officer',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TranslatedText(
+                  'লাইভ চ্যাট',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
-              SizedBox(height: 2),
-              TranslatedText(
-                'Online',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 12,
+                SizedBox(height: 2),
+                Text(
+                  'আপনার এলাকার অ্যাডমিন',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
       actions: [
         IconButton(
-          icon: const Icon(Icons.call, color: Colors.white),
-          onPressed: () => _makePhoneCall('16263'),
+          icon: const Icon(Icons.refresh, color: Colors.white),
+          onPressed: _loadAdminAndMessages,
         ),
         const SizedBox(width: 8),
       ],
@@ -174,49 +466,127 @@ class _LiveChatPageState extends State<LiveChatPage>
   }
 
   Widget _buildChatArea() {
+    if (isLoading && messages.isEmpty) {
+      return const Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF2E8B57)),
+        ),
+      );
+    }
+
+    if (hasError && messages.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.error_outline,
+                size: 64,
+                color: Colors.red,
+              ),
+              const SizedBox(height: 16),
+              const TranslatedText(
+                'চ্যাট লোড করতে ব্যর্থ',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                errorMessage,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.grey),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.arrow_back),
+                    label: const TranslatedText('ফিরে যান'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton.icon(
+                    onPressed: _loadAdminAndMessages,
+                    icon: const Icon(Icons.refresh),
+                    label: const TranslatedText('পুনরায় চেষ্টা করুন'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2E8B57),
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (messages.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: const [
+              Icon(
+                Icons.chat_bubble_outline,
+                size: 64,
+                color: Colors.grey,
+              ),
+              SizedBox(height: 16),
+              TranslatedText(
+                'এখনো কোনো মেসেজ নেই',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey,
+                ),
+              ),
+              SizedBox(height: 8),
+              TranslatedText(
+                'প্রথম মেসেজ পাঠিয়ে কথোপকথন শুরু করুন',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Container(
       padding: const EdgeInsets.all(16),
       child: ListView.builder(
         controller: _scrollController,
-        itemCount: messages.length + (isTyping ? 1 : 0),
+        itemCount: messages.length,
         itemBuilder: (context, index) {
-          if (index == messages.length && isTyping) {
-            return _buildTypingIndicator();
-          }
           return _buildMessageBubble(messages[index], index);
         },
       ),
     );
   }
 
-  Future<void> _makePhoneCall(String phoneNumber) async {
-    final Uri launchUri = Uri(
-      scheme: 'tel',
-      path: phoneNumber,
-    );
-    if (await canLaunchUrl(launchUri)) {
-      await launchUrl(launchUri);
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: TranslatedText('কল করতে পারছি না: $phoneNumber'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
+  Widget _buildMessageBubble(model.ChatMessage message, int index) {
+    final isUser = message.isUser;
 
-  Widget _buildMessageBubble(ChatMessage message, int index) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       child: Row(
         mainAxisAlignment:
-            message.isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+            isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          if (!message.isUser) ...[
+          if (!isUser) ...[
             Container(
               width: 32,
               height: 32,
@@ -227,7 +597,7 @@ class _LiveChatPageState extends State<LiveChatPage>
                 borderRadius: BorderRadius.circular(16),
               ),
               child: const Icon(
-                Icons.support_agent,
+                Icons.person,
                 color: Colors.white,
                 size: 16,
               ),
@@ -238,23 +608,23 @@ class _LiveChatPageState extends State<LiveChatPage>
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                gradient: message.isUser
+                gradient: isUser
                     ? const LinearGradient(
                         colors: [Color(0xFF2E8B57), Color(0xFF3CB371)],
                       )
                     : null,
-                color: message.isUser ? null : Colors.white,
+                color: isUser ? null : Colors.white,
                 borderRadius: BorderRadius.only(
                   topLeft: const Radius.circular(16),
                   topRight: const Radius.circular(16),
-                  bottomLeft: Radius.circular(message.isUser ? 16 : 4),
-                  bottomRight: Radius.circular(message.isUser ? 4 : 16),
+                  bottomLeft: Radius.circular(isUser ? 16 : 4),
+                  bottomRight: Radius.circular(isUser ? 4 : 16),
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: message.isUser
-                        ? const Color(0xFF2E8B57).withOpacity(0.3)
-                        : Colors.black.withOpacity(0.1),
+                    color: isUser
+                        ? const Color(0xFF2E8B57).withValues(alpha: 0.3)
+                        : Colors.black.withValues(alpha: 0.1),
                     offset: const Offset(0, 2),
                     blurRadius: 8,
                   ),
@@ -263,21 +633,120 @@ class _LiveChatPageState extends State<LiveChatPage>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Sender name for admin messages
+                  if (!isUser) ...[
+                    Text(
+                      message.senderName,
+                      style: const TextStyle(
+                        color: Color(0xFF2E8B57),
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                  ],
+                  // Message text
                   Text(
-                    message.text,
+                    message.message,
                     style: TextStyle(
-                      color: message.isUser ? Colors.white : Colors.black87,
+                      color: isUser ? Colors.white : Colors.black87,
                       fontSize: 14,
                       height: 1.4,
                     ),
                   ),
+                  // Image if present
+                  if (message.imageUrl != null) ...[
+                    const SizedBox(height: 8),
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => _FullScreenChatImage(
+                              imageUrl: UrlHelper.getImageUrl(message.imageUrl!),
+                            ),
+                          ),
+                        );
+                      },
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: CachedNetworkImage(
+                          imageUrl: UrlHelper.getImageUrl(message.imageUrl!),
+                          fit: BoxFit.cover,
+                          maxWidthDiskCache: 800,
+                          maxHeightDiskCache: 600,
+                          placeholder: (context, url) => Container(
+                            height: 200,
+                            color: isUser ? Colors.white.withValues(alpha: 0.2) : Colors.grey[200],
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  isUser ? Colors.white : const Color(0xFF2E8B57),
+                                ),
+                              ),
+                            ),
+                          ),
+                          errorWidget: (context, url, error) => Container(
+                            height: 200,
+                            padding: const EdgeInsets.all(16),
+                            color: isUser ? Colors.white.withValues(alpha: 0.2) : Colors.grey[200],
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.broken_image,
+                                  color: isUser ? Colors.white70 : Colors.grey[600],
+                                  size: 40,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'ছবি লোড করতে ব্যর্থ',
+                                  style: TextStyle(
+                                    color: isUser ? Colors.white70 : Colors.grey[600],
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                  // Voice message if present
+                  if (message.voiceUrl != null) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: Icon(
+                            Icons.play_arrow,
+                            color: isUser ? Colors.white : const Color(0xFF2E8B57),
+                          ),
+                          onPressed: () async {
+                            await _audioPlayer.stop();
+                            await _audioPlayer.play(UrlSource(message.voiceUrl!));
+                          },
+                        ),
+                        IconButton(
+                          icon: Icon(
+                            Icons.pause,
+                            color: isUser ? Colors.white : const Color(0xFF2E8B57),
+                          ),
+                          onPressed: () async {
+                            await _audioPlayer.pause();
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
                   const SizedBox(height: 4),
+                  // Timestamp
                   Text(
-                    _formatTime(message.timestamp),
+                    _formatTime(message.createdAt),
                     style: TextStyle(
-                      color: message.isUser
-                          ? Colors.white70
-                          : Colors.grey.shade600,
+                      color: isUser ? Colors.white70 : Colors.grey.shade600,
                       fontSize: 10,
                     ),
                   ),
@@ -285,7 +754,7 @@ class _LiveChatPageState extends State<LiveChatPage>
               ),
             ),
           ),
-          if (message.isUser) ...[
+          if (isUser) ...[
             const SizedBox(width: 8),
             Container(
               width: 32,
@@ -310,90 +779,6 @@ class _LiveChatPageState extends State<LiveChatPage>
         );
   }
 
-  Widget _buildTypingIndicator() {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      child: Row(
-        children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF2E8B57), Color(0xFF3CB371)],
-              ),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: const Icon(
-              Icons.support_agent,
-              color: Colors.white,
-              size: 16,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(16),
-                topRight: Radius.circular(16),
-                bottomLeft: Radius.circular(4),
-                bottomRight: Radius.circular(16),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  offset: const Offset(0, 2),
-                  blurRadius: 8,
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                AnimatedBuilder(
-                  animation: _typingController,
-                  builder: (context, child) {
-                    return Row(
-                      children: List.generate(3, (index) {
-                        final delay = index * 0.3;
-                        final value = (_typingController.value + delay) % 1.0;
-                        return Container(
-                          margin: const EdgeInsets.only(right: 4),
-                          child: Transform.scale(
-                            scale: 0.5 + (0.5 * (1 - (value - 0.5).abs() * 2)),
-                            child: Container(
-                              width: 8,
-                              height: 8,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF2E8B57),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                            ),
-                          ),
-                        );
-                      }),
-                    );
-                  },
-                ),
-                const SizedBox(width: 8),
-                const TranslatedText(
-                  'টাইপ করছে...',
-                  style: TextStyle(
-                    color: Colors.grey,
-                    fontSize: 12,
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildMessageInput() {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -401,7 +786,7 @@ class _LiveChatPageState extends State<LiveChatPage>
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             offset: const Offset(0, -2),
             blurRadius: 8,
           ),
@@ -409,40 +794,17 @@ class _LiveChatPageState extends State<LiveChatPage>
       ),
       child: Row(
         children: [
-          // Location Share Button
-          GestureDetector(
-            onTap: _shareLocation,
-            child: Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: const Color(0xFF2E8B57).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Icon(
-                Icons.location_on,
-                color: Color(0xFF2E8B57),
-                size: 20,
-              ),
+          IconButton(
+            onPressed: isSending ? null : _pickImageAndSend,
+            icon: const Icon(Icons.image, color: Color(0xFF2E8B57)),
+          ),
+          IconButton(
+            onPressed: isSending ? null : _toggleRecord,
+            icon: Icon(
+              isRecording ? Icons.stop_circle : Icons.mic,
+              color: isRecording ? Colors.red : const Color(0xFF2E8B57),
             ),
           ),
-          const SizedBox(width: 8),
-          // Photo Share Button
-          GestureDetector(
-            onTap: _sharePhoto,
-            child: Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: const Color(0xFF2E8B57).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Icon(
-                Icons.photo_camera,
-                color: Color(0xFF2E8B57),
-                size: 20,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
           Expanded(
             child: Container(
               decoration: BoxDecoration(
@@ -460,32 +822,44 @@ class _LiveChatPageState extends State<LiveChatPage>
                   ),
                 ),
                 onSubmitted: (_) => _sendMessage(),
+                enabled: !isSending,
               ),
             ),
           ),
           const SizedBox(width: 12),
           GestureDetector(
-            onTap: _sendMessage,
+            onTap: isSending ? null : _sendMessage,
             child: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF2E8B57), Color(0xFF3CB371)],
+                gradient: LinearGradient(
+                  colors: isSending
+                      ? [Colors.grey, Colors.grey]
+                      : [const Color(0xFF2E8B57), const Color(0xFF3CB371)],
                 ),
                 borderRadius: BorderRadius.circular(24),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF2E8B57).withOpacity(0.3),
+                    color: const Color(0xFF2E8B57).withValues(alpha: 0.3),
                     offset: const Offset(0, 2),
                     blurRadius: 8,
                   ),
                 ],
               ),
-              child: const Icon(
-                Icons.send,
-                color: Colors.white,
-                size: 20,
-              ),
+              child: isSending
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : const Icon(
+                      Icons.send,
+                      color: Colors.white,
+                      size: 20,
+                    ),
             ),
           ),
         ],
@@ -493,236 +867,75 @@ class _LiveChatPageState extends State<LiveChatPage>
     );
   }
 
-  void _sendMessage() {
-    if (_messageController.text.trim().isEmpty) return;
-
-    final message = ChatMessage(
-      text: _messageController.text.trim(),
-      isUser: true,
-      timestamp: DateTime.now(),
-    );
-
-    setState(() {
-      messages.add(message);
-      isTyping = true;
-    });
-
-    _messageController.clear();
-    _scrollToBottom();
-
-    // Simulate bot response
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() {
-          isTyping = false;
-          messages.add(ChatMessage(
-            text: _getBotResponse(message.text),
-            isUser: false,
-            timestamp: DateTime.now(),
-          ));
-        });
-        _scrollToBottom();
-      }
-    });
-  }
-
-  void _shareLocation() {
-    // Show location sharing confirmation dialog
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const TranslatedText('লোকেশন শেয়ার করুন'),
-          content: const TranslatedText('আপনি কি আপনার বর্তমান লোকেশন শেয়ার করতে চান?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const TranslatedText('বাতিল'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _sendLocationMessage();
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF2E8B57),
-              ),
-              child: const TranslatedText('শেয়ার করুন', style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _sendLocationMessage() {
-    final locationMessage = ChatMessage(
-      text: '📍 আমার বর্তমান লোকেশন: ঢাকা, বাংলাদেশ\n(অক্ষাংশ: 23.8103, দ্রাঘিমাংশ: 90.4125)',
-      isUser: true,
-      timestamp: DateTime.now(),
-    );
-
-    setState(() {
-      messages.add(locationMessage);
-      isTyping = true;
-    });
-
-    _scrollToBottom();
-
-    // Simulate bot response for location
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() {
-          isTyping = false;
-          messages.add(ChatMessage(
-            text: 'ধন্যবাদ আপনার লোকেশন শেয়ার করার জন্য। আমরা আপনার এলাকার সেবা সম্পর্কে তথ্য দিতে পারব।',
-            isUser: false,
-            timestamp: DateTime.now(),
-          ));
-        });
-        _scrollToBottom();
-      }
-    });
-  }
-
-  void _sharePhoto() {
-    // Show photo sharing options dialog
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const TranslatedText('ছবি শেয়ার করুন'),
-          content: const TranslatedText('আপনি কোন উপায়ে ছবি শেয়ার করতে চান?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const TranslatedText('বাতিল'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _selectPhotoFromGallery();
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF2E8B57),
-              ),
-              child: const TranslatedText('গ্যালারি থেকে', style: TextStyle(color: Colors.white)),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _takePhoto();
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF3CB371),
-              ),
-              child: const TranslatedText('ক্যামেরা', style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _selectPhotoFromGallery() {
-    // Simulate photo selection from gallery
-    final photoMessage = ChatMessage(
-      text: '📷 ছবি শেয়ার করা হয়েছে\n(গ্যালারি থেকে নির্বাচিত)',
-      isUser: true,
-      timestamp: DateTime.now(),
-    );
-
-    setState(() {
-      messages.add(photoMessage);
-      isTyping = true;
-    });
-
-    _scrollToBottom();
-
-    // Simulate bot response for photo
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() {
-          isTyping = false;
-          messages.add(ChatMessage(
-            text: 'ছবিটি পেয়েছি। আমরা এটি পর্যালোচনা করে আপনাকে সাহায্য করার চেষ্টা করব।',
-            isUser: false,
-            timestamp: DateTime.now(),
-          ));
-        });
-        _scrollToBottom();
-      }
-    });
-  }
-
-  void _takePhoto() {
-    // Simulate taking photo with camera
-    final photoMessage = ChatMessage(
-      text: '📸 ছবি তোলা হয়েছে\n(ক্যামেরা ব্যবহার করে)',
-      isUser: true,
-      timestamp: DateTime.now(),
-    );
-
-    setState(() {
-      messages.add(photoMessage);
-      isTyping = true;
-    });
-
-    _scrollToBottom();
-
-    // Simulate bot response for photo
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() {
-          isTyping = false;
-          messages.add(ChatMessage(
-            text: 'নতুন ছবিটি পেয়েছি। আমরা এটি বিশ্লেষণ করে আপনাকে উপযুক্ত সাহায্য প্রদান করব।',
-            isUser: false,
-            timestamp: DateTime.now(),
-          ));
-        });
-        _scrollToBottom();
-      }
-    });
-  }
-
-  String _getBotResponse(String userMessage) {
-    final responses = [
-      'ধন্যবাদ আপনার মেসেজের জন্য। আমি আপনার সমস্যা বুঝতে পেরেছি।',
-      'আপনার অনুরোধটি আমাদের টিমের কাছে পাঠানো হয়েছে। শীঘ্রই উত্তর পাবেন।',
-      'এই বিষয়ে আরো তথ্যের জন্য আমাদের হটলাইন ১৬২৬৩ এ যোগাযোগ করতে পারেন।',
-      'আপনার সমস্যার সমাধানের জন্য আমরা কাজ করছি। ধৈর্য ধরুন।',
-    ];
-    return responses[DateTime.now().millisecond % responses.length];
-  }
-
-  void _scrollToBottom() {
-    Future.delayed(const Duration(milliseconds: 100), () {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      }
-    });
-  }
-
   String _formatTime(DateTime time) {
-    final hour = time.hour.toString().padLeft(2, '0');
-    final minute = time.minute.toString().padLeft(2, '0');
-    return '$hour:$minute';
+    final now = DateTime.now();
+    final difference = now.difference(time);
+
+    if (difference.inMinutes < 1) {
+      return 'এখনই';
+    } else if (difference.inHours < 1) {
+      return '${difference.inMinutes} মিনিট আগে';
+    } else if (difference.inDays < 1) {
+      return '${difference.inHours} ঘণ্টা আগে';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays} দিন আগে';
+    } else {
+      final hour = time.hour.toString().padLeft(2, '0');
+      final minute = time.minute.toString().padLeft(2, '0');
+      return '${time.day}/${time.month}/${time.year} $hour:$minute';
+    }
   }
 }
 
-class ChatMessage {
-  final String text;
-  final bool isUser;
-  final DateTime timestamp;
+/// Full screen image viewer for chat images
+class _FullScreenChatImage extends StatelessWidget {
+  final String imageUrl;
 
-  ChatMessage({
-    required this.text,
-    required this.isUser,
-    required this.timestamp,
-  });
+  const _FullScreenChatImage({required this.imageUrl});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        leading: IconButton(
+          icon: const Icon(Icons.close, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: Center(
+        child: InteractiveViewer(
+          minScale: 0.5,
+          maxScale: 4.0,
+          child: CachedNetworkImage(
+            imageUrl: imageUrl,
+            fit: BoxFit.contain,
+            placeholder: (context, url) => const Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            ),
+            errorWidget: (context, url, error) => const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.broken_image,
+                    color: Colors.white,
+                    size: 64,
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    'ছবি লোড করতে ব্যর্থ',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

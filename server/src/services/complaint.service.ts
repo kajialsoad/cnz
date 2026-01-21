@@ -267,8 +267,9 @@ export class ComplaintService {
       let locationString = (typeof input.location === 'object' && input.location.address) ? input.location.address : String(input.location); // Fallback
       let assignedAdminId: number | null = null;
 
-      // New: Improve location string and auto-assign admin based on Ward
-      const targetWardId = input.wardId || user?.wardId;
+      // ✅ FIX: Use complaint's ward (input.wardId), NOT user's ward
+      // This ensures the correct ward inspector is assigned based on where the complaint was submitted
+      const targetWardId = input.wardId;
 
       if (targetWardId) {
         // Fetch Ward details for accurate location
@@ -284,7 +285,7 @@ export class ComplaintService {
         });
 
         if (ward) {
-          // Construct rich location string: "Ward 46, Zone 5, DSCC" + User Address
+          // Construct rich location string: "Ward X, Zone Y, City Corp" + User Address
           const parts = [];
           if (typeof input.location === 'object' && input.location.address) parts.push(input.location.address);
           parts.push(`Ward ${ward.wardNumber}`);
@@ -293,11 +294,11 @@ export class ComplaintService {
 
           locationString = parts.join(', ');
 
-          // Find an ADMIN assigned to this Ward
+          // ✅ FIX: Find ADMIN assigned to COMPLAINT's ward (not user's ward)
           const assignedAdmin = await prisma.user.findFirst({
             where: {
-              wardId: targetWardId,
-              role: 'ADMIN', // Assuming 'ADMIN' role handles ward complaints
+              wardId: targetWardId,  // Use complaint's ward
+              role: 'ADMIN',
               status: 'ACTIVE'
             }
           });
@@ -310,6 +311,13 @@ export class ComplaintService {
         // Legacy/Fallback construction
         locationString = `${input.location.address}, ${input.location.district}, ${input.location.thana}, Ward: ${input.location.ward}`;
       }
+
+      console.log('📍 Complaint Location Data:');
+      console.log('- User Ward ID:', user?.wardId);
+      console.log('- Complaint Ward ID:', input.wardId);
+      console.log('- Complaint Zone ID:', input.zoneId);
+      console.log('- Complaint City Corp:', input.cityCorporationCode);
+      console.log('- Location String:', locationString);
 
       // Create complaint
       const complaint = await prisma.complaint.create({
@@ -324,18 +332,18 @@ export class ComplaintService {
           audioUrl: finalAudioUrls.length > 0 ? JSON.stringify(finalAudioUrls) : null,
           userId: input.forSomeoneElse ? undefined : (input.userId ?? undefined),
           location: typeof locationString === 'string' ? locationString : 'Unknown Location',
-          assignedAdminId: assignedAdminId, // NEW: Auto-assign admin
+          assignedAdminId: assignedAdminId, // Auto-assign admin
 
-          // User location fields (where user is from)
+          // User location fields (where user is from - for reference only)
           cityCorporationCode: user?.cityCorporationCode || null,
           zoneId: user?.zoneId || null,
           wardId: user?.wardId || null,
 
           // ✅ CRITICAL FIX: Complaint location fields (where complaint was submitted)
-          // These fields are used for Admin filtering
-          complaintCityCorporationCode: input.cityCorporationCode || user?.cityCorporationCode || null,
-          complaintZoneId: input.zoneId || user?.zoneId || null,
-          complaintWardId: input.wardId || user?.wardId || null
+          // These fields are used for Admin filtering and ward inspector assignment
+          complaintCityCorporationCode: input.cityCorporationCode || null,
+          complaintZoneId: input.zoneId || null,
+          complaintWardId: input.wardId || null
         },
         include: {
           user: {
@@ -345,10 +353,15 @@ export class ComplaintService {
               ward: true
             }
           },
-          assignedAdmin: true, // NEW: Include assigned admin in response
+          assignedAdmin: true,
+          // ✅ Include user's geographical relations
           cityCorporation: true,
           zone: true,
-          wards: true
+          wards: true,
+          // ✅ Include complaint's geographical relations (for ward inspector info)
+          complaintCityCorporation: true,
+          complaintZone: true,
+          complaintWard: true
         }
       });
 
@@ -456,10 +469,14 @@ export class ComplaintService {
               ward: true
             }
           },
-          // Include complaint's direct relations (has inspector/officer info)
+          // Include user's geographical relations
           cityCorporation: true,
           zone: true,
-          wards: true // This has inspectorName, inspectorPhone
+          wards: true,
+          // ✅ Include complaint's geographical relations (for ward inspector info)
+          complaintCityCorporation: true,
+          complaintZone: true,
+          complaintWard: true
         }
       });
 
@@ -781,11 +798,11 @@ export class ComplaintService {
     const parsedImages = this.parseFileUrls(complaint.imageUrl || '');
     const parsedAudio = this.parseFileUrls(complaint.audioUrl || '');
 
-    // Prioritize complaint's direct relations (complaint.wards has inspector info)
-    // Fall back to user's relations if complaint relations are not available
-    const cityCorporation = complaint.cityCorporation || complaint.user?.cityCorporation || null;
-    const zone = complaint.zone || complaint.user?.zone || null;
-    const ward = complaint.wards || complaint.user?.ward || null; // complaint.wards has inspectorName, inspectorPhone
+    // ✅ FIX: Prioritize complaint's geographical data (where complaint was submitted)
+    // This ensures the correct ward inspector information is displayed
+    const cityCorporation = complaint.complaintCityCorporation || complaint.cityCorporation || complaint.user?.cityCorporation || null;
+    const zone = complaint.complaintZone || complaint.zone || complaint.user?.zone || null;
+    const ward = complaint.complaintWard || complaint.wards || complaint.user?.ward || null;
 
     return {
       ...complaint,
@@ -795,10 +812,11 @@ export class ComplaintService {
       // Keep original fields for backward compatibility
       imageUrl: complaint.imageUrl,
       audioUrl: complaint.audioUrl,
-      // Include city corporation, zone, and ward information
+      // ✅ Include complaint's geographical information (not user's)
       cityCorporation: cityCorporation,
       zone: zone,
-      wards: ward // Use 'wards' to match Prisma relation name and frontend expectations
+      wards: ward, // Use 'wards' to match Prisma relation name and frontend expectations
+      ward: ward   // Also include 'ward' for compatibility
     };
   }
 
@@ -899,10 +917,14 @@ export class ComplaintService {
               ward: true
             }
           },
-          // Include complaint's direct relations
+          // Include user's geographical relations
           cityCorporation: true,
           zone: true,
-          wards: true
+          wards: true,
+          // ✅ Include complaint's geographical relations (for ward inspector info)
+          complaintCityCorporation: true,
+          complaintZone: true,
+          complaintWard: true
         }
       }),
       prisma.complaint.count({ where })

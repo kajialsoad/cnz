@@ -19,7 +19,8 @@ model CityCorporation {
   updatedAt  DateTime              @updatedAt
   minZone    Int                   @default(1)
   maxZone    Int                   @default(20)
-  complaints Complaint[]
+  complaints Complaint[]           @relation("UserCityCorporation")
+  complaintLocations Complaint[]   @relation("ComplaintCityCorporation")
   users      User[]
   zones      Zone[]
 
@@ -43,7 +44,8 @@ model Zone {
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
   officerPhone        String?
-  complaints          Complaint[]
+  complaints          Complaint[]       @relation("UserZone")
+  complaintLocations  Complaint[]       @relation("ComplaintZone")
   assignedUsers       UserZone[]
   users               User[]
   ward_inspectors     ward_inspectors[]
@@ -68,7 +70,8 @@ model Ward {
   createdAt             DateTime          @default(now())
   updatedAt             DateTime          @updatedAt
   inspectorPhone        String?
-  Complaint             Complaint[]
+  Complaint             Complaint[]       @relation("UserWard")
+  complaintLocations    Complaint[]       @relation("ComplaintWard")
   users                 User[]
   ward_inspectors       ward_inspectors[]
   zone                  Zone              @relation(fields: [zoneId], references: [id], onDelete: Cascade)
@@ -230,10 +233,14 @@ model Complaint {
   complaintWardId              Int?
   complaintZoneId              Int?
   assignedAdmin                User?                  @relation("AssignedComplaints", fields: [assignedAdminId], references: [id])
-  cityCorporation              CityCorporation?       @relation(fields: [cityCorporationCode], references: [code])
+  cityCorporation              CityCorporation?       @relation("UserCityCorporation", fields: [cityCorporationCode], references: [code])
   user                         User?                  @relation(fields: [userId], references: [id])
-  wards                        Ward?                  @relation(fields: [wardId], references: [id])
-  zone                         Zone?                  @relation(fields: [zoneId], references: [id])
+  wards                        Ward?                  @relation("UserWard", fields: [wardId], references: [id])
+  zone                         Zone?                  @relation("UserZone", fields: [zoneId], references: [id])
+  // Complaint location relations (where complaint was submitted)
+  complaintCityCorporation     CityCorporation?       @relation("ComplaintCityCorporation", fields: [complaintCityCorporationCode], references: [code])
+  complaintWard                Ward?                  @relation("ComplaintWard", fields: [complaintWardId], references: [id])
+  complaintZone                Zone?                  @relation("ComplaintZone", fields: [complaintZoneId], references: [id])
   notifications                Notification[]
   chatMessages                 ComplaintChatMessage[]
   reviews                      Review[]
@@ -269,7 +276,9 @@ model ChatMessage {
   id         Int             @id @default(autoincrement())
   content    String          @db.Text
   type       ChatMessageType @default(TEXT)
-  fileUrl    String?
+  fileUrl    String?         @db.VarChar(500)
+  voiceUrl   String?         @db.VarChar(500)
+  senderType SenderType      @default(CITIZEN)
   senderId   Int
   receiverId Int
   isRead     Boolean         @default(false)
@@ -280,6 +289,8 @@ model ChatMessage {
   @@index([senderId, receiverId, createdAt])
   @@index([receiverId], map: "ChatMessage_receiverId_fkey")
   @@index([senderId, createdAt], name: "idx_chat_sender_date")
+  @@index([receiverId, isRead], name: "idx_receiver_unread")
+  @@map("chat_messages")
 }
 
 model ComplaintChatMessage {
@@ -468,6 +479,7 @@ enum ChatMessageType {
   TEXT
   IMAGE
   FILE
+  VOICE
 }
 
 enum SenderType {

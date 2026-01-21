@@ -24,6 +24,7 @@ import reportIcon from '../../../../assets/icons/report.svg';
 import notificationIcon from '../../../../assets/icons/notification.svg';
 import settingsIcon from '../../../../assets/icons/Settings.svg';
 import { chatService } from '../../../../services/chatService';
+import { liveChatService } from '../../../../services/liveChatService';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { useProfile } from '../../../../contexts/ProfileContext';
 import { usePermissions } from '../../../../hooks/usePermissions';
@@ -47,6 +48,22 @@ const baseMenuItems = [
     path: '/complaints',
     badge: 12,
     roles: ['MASTER_ADMIN', 'SUPER_ADMIN', 'ADMIN'],
+  },
+  {
+    id: 'complaint-chats',
+    label: 'Complaint Chats',
+    icon: chatIcon,
+    path: '/complaint-chats',
+    dynamicBadge: true, // Will be populated from API
+    roles: ['MASTER_ADMIN', 'SUPER_ADMIN', 'ADMIN'], // All roles can see Complaint Chats
+  },
+  {
+    id: 'live-chat',
+    label: 'Live Chat',
+    icon: chatIcon,
+    path: '/live-chat',
+    dynamicBadge: true, // Will be populated from API
+    roles: ['MASTER_ADMIN', 'SUPER_ADMIN', 'ADMIN'], // All roles can see Live Chat
   },
   {
     id: 'chats',

@@ -100,4 +100,8 @@ export const cacheKeys = {
         `chat-messages-${complaintId}${page ? `-page-${page}` : ''}`,
     chatStatistics: () => 'chat-statistics',
     complaintDetails: (complaintId: number) => `complaint-${complaintId}`,
+    liveChatConversations: (filters?: string) => `live-chat-conversations${filters ? `-${filters}` : ''}`,
+    liveChatMessages: (userId: number, page?: number) =>
+        `live-chat-messages-${userId}${page ? `-page-${page}` : ''}`,
+    liveChatStatistics: () => 'live-chat-statistics',
 };

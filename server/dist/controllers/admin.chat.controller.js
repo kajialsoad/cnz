@@ -9,20 +9,17 @@ const chat_service_1 = require("../services/chat.service");
 const cloud_upload_service_1 = require("../services/cloud-upload.service");
 const cloudinary_config_1 = require("../config/cloudinary.config");
 /**
- * Get all chat conversations
+ * Get all chat conversations - shows ALL citizens for messaging
  */
 async function getChatConversations(req, res) {
     try {
-        const { search, district, upazila, ward, zone, cityCorporationCode, thanaId, status, unreadOnly, page, limit } = req.query;
-        const result = await chat_service_1.chatService.getChatConversations({
+        const { search, ward, zone, cityCorporationCode, unreadOnly, page, limit } = req.query;
+        // Use the new method that shows ALL citizens, not just those with messages
+        const result = await chat_service_1.chatService.getAllCitizensForChat({
             search: search,
-            district: district,
-            upazila: upazila,
             ward: ward,
             zone: zone,
             cityCorporationCode: cityCorporationCode,
-            thanaId: thanaId ? parseInt(thanaId) : undefined,
-            status: status,
             unreadOnly: unreadOnly === 'true',
             page: page ? parseInt(page) : undefined,
             limit: limit ? parseInt(limit) : undefined

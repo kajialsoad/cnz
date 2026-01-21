@@ -3,6 +3,7 @@ import { Box, useTheme, useMediaQuery } from '@mui/material';
 import { useParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import MainLayout from '../../components/common/Layout/MainLayout';
+import ChatFilterPanel from '../../components/Chat/ChatFilterPanel';
 import ChatListPanel from '../../components/Chat/ChatListPanel';
 import ChatConversationPanel from '../../components/Chat/ChatConversationPanel';
 import ErrorDisplay from '../../components/Chat/ErrorDisplay';
@@ -42,11 +43,10 @@ const AdminChatPage: React.FC = () => {
         limit: 20,
     });
 
-    // Pagination state
+    // Infinite scroll state
     const [currentPage, setCurrentPage] = useState<number>(1);
-    const [totalPages, setTotalPages] = useState<number>(1);
+    const [hasMore, setHasMore] = useState<boolean>(true);
     const [totalChats, setTotalChats] = useState<number>(0);
-    const [hasMore, setHasMore] = useState<boolean>(false);
 
     // State for statistics
     const [statistics, setStatistics] = useState<ChatStatistics>({
@@ -178,7 +178,10 @@ const AdminChatPage: React.FC = () => {
 
             if (previousChat) {
                 // Check if last message is different (new message arrived)
+                // Only check if both chats have lastMessage
                 const hasNewMessage =
+                    newChat.lastMessage &&
+                    previousChat.lastMessage &&
                     newChat.lastMessage.id !== previousChat.lastMessage.id &&
                     newChat.lastMessage.senderType === 'CITIZEN' &&
                     newChat.complaintId !== selectedChatId; // Don't show notification for currently open chat
@@ -188,7 +191,7 @@ const AdminChatPage: React.FC = () => {
                 }
             } else {
                 // New chat conversation started
-                if (newChat.lastMessage.senderType === 'CITIZEN') {
+                if (newChat.lastMessage && newChat.lastMessage.senderType === 'CITIZEN') {
                     showNewMessageNotification(newChat);
                 }
             }
@@ -201,9 +204,11 @@ const AdminChatPage: React.FC = () => {
     /**
      * Fetch chat list with current filters
      */
-    const fetchChatList = useCallback(async (showErrorToast: boolean = false, pageNum?: number) => {
+    const fetchChatList = useCallback(async (showErrorToast: boolean = false, pageNum?: number, append: boolean = false) => {
         try {
-            setLoading(true);
+            if (!append) {
+                setLoading(true);
+            }
             setError(null);
 
             const page = pageNum || currentPage;
@@ -218,16 +223,20 @@ const AdminChatPage: React.FC = () => {
             const response = await chatService.getChatConversationsWithPagination(filterParams);
 
             // Detect new messages and show notifications (only on first page)
-            if (page === 1) {
+            if (page === 1 && !append) {
                 detectNewMessages(response.chats);
             }
 
-            setChatList(response.chats);
+            // Append or replace chat list
+            if (append) {
+                setChatList((prev) => [...prev, ...response.chats]);
+            } else {
+                setChatList(response.chats);
+            }
 
             // Update pagination state
             if (response.pagination) {
                 setCurrentPage(response.pagination.page);
-                setTotalPages(response.pagination.totalPages);
                 setTotalChats(response.pagination.total);
                 setHasMore(response.pagination.hasNextPage);
             }
@@ -249,6 +258,17 @@ const AdminChatPage: React.FC = () => {
     }, [filters, searchTerm, detectNewMessages, currentPage]);
 
     /**
+     * Load more chats (infinite scroll)
+     */
+    const handleLoadMore = useCallback(() => {
+        if (hasMore && !loading) {
+            const nextPage = currentPage + 1;
+            setCurrentPage(nextPage);
+            fetchChatList(false, nextPage, true); // append = true
+        }
+    }, [hasMore, loading, currentPage, fetchChatList]);
+
+    /**
      * Fetch chat statistics
      */
     const fetchStatistics = useCallback(async () => {
@@ -267,7 +287,26 @@ const AdminChatPage: React.FC = () => {
     useEffect(() => {
         fetchChatList(true); // Show error toast on initial load
         fetchStatistics();
-    }, [fetchChatList, fetchStatistics]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // Only run on mount
+
+    /**
+     * Fetch when filters or search changes
+     */
+    useEffect(() => {
+        // Skip initial mount (already fetched above)
+        if (isInitialLoadRef.current) {
+            return;
+        }
+
+        // Debounce search to avoid too many requests
+        const timeoutId = setTimeout(() => {
+            fetchChatList(false);
+        }, 500);
+
+        return () => clearTimeout(timeoutId);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [filters, searchTerm]); // Fetch when filters or search changes
 
     /**
      * Handle deep linking - select chat from URL parameter
@@ -285,20 +324,21 @@ const AdminChatPage: React.FC = () => {
     }, [complaintId, isMobile]);
 
     /**
-     * Real-time polling for chat list updates (every 5 seconds)
+     * Real-time polling for chat list updates (every 10 seconds)
      */
     useEffect(() => {
         const pollingInterval = setInterval(() => {
             // Silent polling - don't show errors
             fetchChatList(false);
             fetchStatistics();
-        }, 5000);
+        }, 10000); // Increased to 10 seconds to reduce load
 
         // Cleanup on unmount
         return () => {
             clearInterval(pollingInterval);
         };
-    }, [fetchChatList, fetchStatistics]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // Only set up polling once on mount
 
     /**
      * Handle chat selection
@@ -333,36 +373,9 @@ const AdminChatPage: React.FC = () => {
             ...prev,
             ...newFilters,
         }));
-        // Reset to page 1 when filters change
+        // Reset to page 1 and clear chat list when filters change
         setCurrentPage(1);
-    };
-
-    /**
-     * Handle page change
-     */
-    const handlePageChange = (page: number) => {
-        setCurrentPage(page);
-        fetchChatList(false, page);
-        // Scroll to top of chat list
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    };
-
-    /**
-     * Handle next page
-     */
-    const handleNextPage = () => {
-        if (hasMore) {
-            handlePageChange(currentPage + 1);
-        }
-    };
-
-    /**
-     * Handle previous page
-     */
-    const handlePrevPage = () => {
-        if (currentPage > 1) {
-            handlePageChange(currentPage - 1);
-        }
+        setChatList([]);
     };
 
     /**
@@ -370,12 +383,12 @@ const AdminChatPage: React.FC = () => {
      */
     const getColumnWidths = () => {
         if (isMobile) {
-            return { list: '100%', conversation: '100%' };
+            return { filter: '0%', list: '100%', conversation: '100%' };
         }
         if (isTablet) {
-            return { list: '35%', conversation: '65%' };
+            return { filter: '0%', list: '40%', conversation: '60%' };
         }
-        return { list: '30%', conversation: '70%' };
+        return { filter: '20%', list: '30%', conversation: '50%' };
     };
 
     const columnWidths = getColumnWidths();
@@ -390,7 +403,25 @@ const AdminChatPage: React.FC = () => {
                     overflow: 'hidden',
                 }}
             >
-                {/* Chat List Panel */}
+                {/* Filter Panel - Left Side */}
+                {!isMobile && !isTablet && (
+                    <Box
+                        sx={{
+                            width: columnWidths.filter,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            overflow: 'hidden',
+                        }}
+                    >
+                        <ChatFilterPanel
+                            filters={filters}
+                            onFilterChange={handleFilterChange}
+                            statistics={statistics}
+                        />
+                    </Box>
+                )}
+
+                {/* Chat List Panel - Middle */}
                 {(!isMobile || !showConversation) && (
                     <Box
                         sx={{
@@ -420,18 +451,15 @@ const AdminChatPage: React.FC = () => {
                                 onFilterChange={handleFilterChange}
                                 statistics={statistics}
                                 loading={loading}
-                                currentPage={currentPage}
-                                totalPages={totalPages}
+                                hasMore={hasMore}
+                                onLoadMore={handleLoadMore}
                                 totalChats={totalChats}
-                                onPageChange={handlePageChange}
-                                onNextPage={handleNextPage}
-                                onPrevPage={handlePrevPage}
                             />
                         )}
                     </Box>
                 )}
 
-                {/* Chat Conversation Panel */}
+                {/* Chat Conversation Panel - Right Side */}
                 {(!isMobile || showConversation) && (
                     <Box
                         sx={{

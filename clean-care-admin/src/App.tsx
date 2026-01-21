@@ -24,6 +24,8 @@ const UserManagement = lazy(() => import('./pages/UserManagement'));
 const AdminManagement = lazy(() => import('./pages/AdminManagement/AdminManagement'));
 const SuperAdminManagement = lazy(() => import('./pages/SuperAdminManagement'));
 const AdminChatPage = lazy(() => import('./pages/AdminChatPage'));
+const ComplaintChatsPage = lazy(() => import('./pages/ComplaintChats'));
+const LiveChatPage = lazy(() => import('./pages/LiveChat'));
 const CategoryAnalytics = lazy(() => import('./pages/CategoryAnalytics'));
 const CityCorporationManagement = lazy(() => import('./pages/CityCorporationManagement'));
 const ActivityLogs = lazy(() => import('./pages/ActivityLogs/ActivityLogs'));
@@ -147,6 +149,22 @@ function App() {
                           element={
                             <ProtectedRoute>
                               <AdminChatPage />
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="/complaint-chats"
+                          element={
+                            <ProtectedRoute>
+                              <ComplaintChatsPage />
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="/live-chat"
+                          element={
+                            <ProtectedRoute>
+                              <LiveChatPage />
                             </ProtectedRoute>
                           }
                         />

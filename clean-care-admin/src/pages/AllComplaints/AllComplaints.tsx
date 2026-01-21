@@ -1249,7 +1249,7 @@ const AllComplaints: React.FC = () => {
                             {complaint.location}
                           </Typography>
                           <Typography variant="caption" color="text.secondary">
-                            Zone: {typeof complaint.user.zone === 'object' && complaint.user.zone !== null ? ((complaint.user.zone as any).name || (complaint.user.zone as any).zoneNumber || 'N/A') : (complaint.user.zone || 'N/A')} | Ward: {typeof complaint.user.ward === 'object' && complaint.user.ward !== null ? ((complaint.user.ward as any).wardNumber || (complaint.user.ward as any).number || 'N/A') : (complaint.user.ward || 'N/A')}
+                            Zone: {typeof complaint.zone === 'object' && complaint.zone !== null ? ((complaint.zone as any).name || (complaint.zone as any).zoneNumber || 'N/A') : (complaint.zone || 'N/A')} | Ward: {typeof complaint.wards === 'object' && complaint.wards !== null ? ((complaint.wards as any).wardNumber || (complaint.wards as any).number || 'N/A') : (complaint.wards || 'N/A')}
                           </Typography>
                         </Box>
                       </TableCell>

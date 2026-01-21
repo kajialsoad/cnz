@@ -2,7 +2,7 @@ import '../utils/cloudinary_helper.dart';
 
 class ChatMessage {
   final int id;
-  final int complaintId;
+  final int? complaintId; // Optional - only for Complaint Chat
   final int senderId;
   final String senderType; // 'ADMIN' or 'CITIZEN'
   final String senderName;
@@ -14,7 +14,7 @@ class ChatMessage {
 
   ChatMessage({
     required this.id,
-    required this.complaintId,
+    this.complaintId, // Optional - null for Live Chat, present for Complaint Chat
     required this.senderId,
     required this.senderType,
     required this.senderName,
@@ -29,7 +29,7 @@ class ChatMessage {
   factory ChatMessage.fromJson(Map<String, dynamic> json) {
     return ChatMessage(
       id: json['id'] as int,
-      complaintId: json['complaintId'] as int,
+      complaintId: json['complaintId'] as int?, // Optional - can be null for Live Chat
       senderId: json['senderId'] as int,
       senderType: json['senderType'] as String,
       senderName: json['senderName'] ?? 'Unknown',
@@ -62,6 +62,21 @@ class ChatMessage {
 
   /// Check if message is from admin
   bool get isAdmin => senderType == 'ADMIN';
+
+  /// Check if this is a Complaint Chat message (has complaintId)
+  bool get isComplaintChat => complaintId != null && complaintId! > 0;
+
+  /// Check if this is a Live Chat message (no complaintId)
+  bool get isLiveChat => complaintId == null || complaintId == 0;
+
+  /// Check if message has an image attachment
+  bool get hasImage => imageUrl != null && imageUrl!.isNotEmpty;
+
+  /// Check if message has a voice attachment
+  bool get hasVoice => voiceUrl != null && voiceUrl!.isNotEmpty;
+
+  /// Check if message has any media attachment
+  bool get hasMedia => hasImage || hasVoice;
 
   /// Get optimized thumbnail URL for the image (200x200)
   /// Perfect for chat message previews
@@ -98,7 +113,7 @@ class ChatMessage {
   }) {
     return ChatMessage(
       id: id ?? this.id,
-      complaintId: complaintId ?? this.complaintId,
+      complaintId: complaintId ?? this.complaintId, // Preserves null if not provided
       senderId: senderId ?? this.senderId,
       senderType: senderType ?? this.senderType,
       senderName: senderName ?? this.senderName,
@@ -112,7 +127,8 @@ class ChatMessage {
 
   @override
   String toString() {
-    return 'ChatMessage(id: $id, senderType: $senderType, message: $message, createdAt: $createdAt)';
+    final chatType = isComplaintChat ? 'Complaint' : 'Live';
+    return 'ChatMessage(id: $id, type: $chatType, senderType: $senderType, message: $message, createdAt: $createdAt)';
   }
 
   @override
@@ -121,7 +137,7 @@ class ChatMessage {
 
     return other is ChatMessage &&
         other.id == id &&
-        other.complaintId == complaintId &&
+        other.complaintId == complaintId && // Handles null comparison correctly
         other.senderId == senderId &&
         other.senderType == senderType &&
         other.message == message;
@@ -130,7 +146,7 @@ class ChatMessage {
   @override
   int get hashCode {
     return id.hashCode ^
-        complaintId.hashCode ^
+        (complaintId?.hashCode ?? 0) ^ // Handle null complaintId
         senderId.hashCode ^
         senderType.hashCode ^
         message.hashCode;

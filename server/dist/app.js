@@ -20,6 +20,8 @@ const admin_analytics_routes_1 = __importDefault(require("./routes/admin.analyti
 const admin_chat_routes_1 = __importDefault(require("./routes/admin.chat.routes"));
 const admin_direct_message_routes_1 = __importDefault(require("./routes/admin.direct-message.routes"));
 const admin_activity_log_routes_1 = __importDefault(require("./routes/admin.activity-log.routes"));
+const live_chat_routes_1 = __importDefault(require("./routes/live-chat.routes"));
+const admin_live_chat_routes_1 = __importDefault(require("./routes/admin.live-chat.routes"));
 const dashboard_routes_1 = __importDefault(require("./routes/dashboard.routes"));
 const category_routes_1 = __importDefault(require("./routes/category.routes"));
 const city_corporation_routes_1 = __importDefault(require("./routes/city-corporation.routes"));
@@ -131,6 +133,8 @@ app.use('/api/uploads', upload_routes_1.default);
 console.log('✅ Upload routes registered at /api/uploads');
 app.use('/api/notifications', notification_routes_1.default); // Notification routes
 console.log('✅ Notification routes registered at /api/notifications');
+app.use('/api/live-chat', live_chat_routes_1.default); // Live chat routes (mobile app)
+console.log('✅ Live chat routes registered at /api/live-chat');
 app.use('/api/admin/auth', admin_auth_routes_1.default); // Admin authentication routes
 console.log('✅ Admin auth routes registered at /api/admin/auth');
 app.use('/api/admin/users', admin_user_routes_1.default); // Admin user management routes
@@ -149,6 +153,8 @@ app.use('/api/admin/chat', admin_chat_routes_1.default); // Admin chat routes
 console.log('✅ Admin chat routes registered at /api/admin/chat');
 app.use('/api/admin/direct-chat', admin_direct_message_routes_1.default); // Admin direct message routes
 console.log('✅ Admin direct message routes registered at /api/admin/direct-chat');
+app.use('/api/admin/live-chat', admin_live_chat_routes_1.default); // Admin live chat routes
+console.log('✅ Admin live chat routes registered at /api/admin/live-chat');
 app.use('/api/admin/activity-logs', admin_activity_log_routes_1.default); // Admin activity log routes
 console.log('✅ Admin activity log routes registered at /api/admin/activity-logs');
 const admin_system_config_routes_1 = __importDefault(require("./routes/admin.system-config.routes"));

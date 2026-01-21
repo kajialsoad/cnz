@@ -67,24 +67,32 @@ class Complaint {
     // Handle nested complaint object (from backend response)
     final complaintData = json['complaint'] ?? json;
     
-    // Parse geographical information from user relationship
+    // ✅ FIX: Parse geographical information - PRIORITIZE COMPLAINT LOCATION
+    // The complaint's location (where it was submitted) should be shown, not user's signup location
     Map<String, dynamic>? cityCorporation;
     Map<String, dynamic>? zone;
     Map<String, dynamic>? ward;
     
-    if (complaintData['user'] != null) {
-      final userData = complaintData['user'] as Map<String, dynamic>;
-      cityCorporation = userData['cityCorporation'] as Map<String, dynamic>?;
-      zone = userData['zone'] as Map<String, dynamic>?;
-      ward = userData['ward'] as Map<String, dynamic>?;
-    }
+    // 1. First check for complaint's geographical data (where complaint was submitted)
+    cityCorporation = complaintData['complaintCityCorporation'] as Map<String, dynamic>?;
+    zone = complaintData['complaintZone'] as Map<String, dynamic>?;
+    ward = complaintData['complaintWard'] as Map<String, dynamic>?;
     
-    // Also check for direct geographical fields (from backend response)
+    // 2. Fallback to direct geographical fields (legacy support)
     cityCorporation ??= complaintData['cityCorporation'] as Map<String, dynamic>?;
     zone ??= complaintData['zone'] as Map<String, dynamic>?;
-    // Check for both 'wards' (Prisma relation name) and 'ward' (legacy)
     ward ??= complaintData['wards'] as Map<String, dynamic>?;
     ward ??= complaintData['ward'] as Map<String, dynamic>?;
+    
+    // 3. Last resort: check user's geographical data (where they signed up)
+    if (cityCorporation == null || zone == null || ward == null) {
+      if (complaintData['user'] != null) {
+        final userData = complaintData['user'] as Map<String, dynamic>;
+        cityCorporation ??= userData['cityCorporation'] as Map<String, dynamic>?;
+        zone ??= userData['zone'] as Map<String, dynamic>?;
+        ward ??= userData['ward'] as Map<String, dynamic>?;
+      }
+    }
     
     return Complaint(
       id: complaintData['id'].toString(),

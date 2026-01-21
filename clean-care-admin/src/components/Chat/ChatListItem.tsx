@@ -134,7 +134,7 @@ const ChatListItem: React.FC<ChatListItemProps> = ({ chat, isSelected, onClick }
                                 fontSize: '0.7rem',
                             }}
                         >
-                            {formatTimeAgo(chat.lastMessage.timestamp.toString())}
+                            {chat.lastMessage ? formatTimeAgo(chat.lastMessage.timestamp.toString()) : 'No messages'}
                         </Typography>
                     </Box>
 
@@ -216,7 +216,7 @@ const ChatListItem: React.FC<ChatListItemProps> = ({ chat, isSelected, onClick }
                             mb: 0.5,
                         }}
                     >
-                        {truncateText(chat.lastMessage.text, 50)}
+                        {chat.lastMessage ? truncateText(chat.lastMessage.text, 50) : 'No messages yet'}
                     </Typography>
 
                     {/* Bottom Row: Badges */}

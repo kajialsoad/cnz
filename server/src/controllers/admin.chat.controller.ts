@@ -5,21 +5,19 @@ import { cloudUploadService } from '../services/cloud-upload.service';
 import { isCloudinaryEnabled } from '../config/cloudinary.config';
 
 /**
- * Get all chat conversations
+ * Get all chat conversations - shows ALL complaints for messaging
+ * Each complaint has its own chat entry (complaint-centric view)
  */
 export async function getChatConversations(req: AuthRequest, res: Response) {
     try {
-        const { search, district, upazila, ward, zone, cityCorporationCode, thanaId, status, unreadOnly, page, limit } = req.query;
+        const { search, ward, zone, cityCorporationCode, unreadOnly, page, limit } = req.query;
 
-        const result = await chatService.getChatConversations({
+        // Get all complaints with their chat messages (complaint-centric)
+        const result = await chatService.getAllCitizensForChat({
             search: search as string,
-            district: district as string,
-            upazila: upazila as string,
             ward: ward as string,
             zone: zone as string,
             cityCorporationCode: cityCorporationCode as string,
-            thanaId: thanaId ? parseInt(thanaId as string) : undefined,
-            status: status as string,
             unreadOnly: unreadOnly === 'true',
             page: page ? parseInt(page as string) : undefined,
             limit: limit ? parseInt(limit as string) : undefined

@@ -453,11 +453,11 @@ class ChatService {
             // Transform date strings to Date objects
             const chats = response.data.data.chats.map((chat) => ({
                 ...chat,
-                complaintCreatedAt: new Date(chat.complaintCreatedAt),
-                lastMessage: {
+                complaintCreatedAt: chat.complaintCreatedAt ? new Date(chat.complaintCreatedAt) : null,
+                lastMessage: chat.lastMessage ? {
                     ...chat.lastMessage,
                     timestamp: new Date(chat.lastMessage.timestamp),
-                },
+                } : null,
                 lastActivity: new Date(chat.lastActivity),
             }));
 

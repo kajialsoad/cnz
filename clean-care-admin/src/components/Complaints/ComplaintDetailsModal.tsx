@@ -703,11 +703,15 @@ const ComplaintDetailsModal: React.FC<ComplaintDetailsModalProps> = ({
                                         </Typography>
                                         <Typography variant={isMobile ? 'body2' : 'body1'}>
                                             {complaint.locationDetails?.ward ||
-                                                (complaint.user.ward
-                                                    ? (typeof complaint.user.ward === 'object'
-                                                        ? `Ward ${complaint.user.ward.wardNumber}`
-                                                        : `Ward ${complaint.user.ward}`)
-                                                    : 'N/A')}
+                                                (complaint.wards
+                                                    ? (typeof complaint.wards === 'object'
+                                                        ? `Ward ${complaint.wards.wardNumber || complaint.wards.number}`
+                                                        : `Ward ${complaint.wards}`)
+                                                    : (complaint.user.ward
+                                                        ? (typeof complaint.user.ward === 'object'
+                                                            ? `Ward ${complaint.user.ward.wardNumber}`
+                                                            : `Ward ${complaint.user.ward}`)
+                                                        : 'N/A'))}
                                         </Typography>
                                     </Box>
                                     <Box sx={{ gridColumn: { xs: '1', sm: '1 / -1' } }}>
@@ -798,11 +802,15 @@ const ComplaintDetailsModal: React.FC<ComplaintDetailsModalProps> = ({
                                             Ward Number
                                         </Typography>
                                         <Typography variant={isMobile ? 'body2' : 'body1'}>
-                                            {complaint.user.ward
-                                                ? (typeof complaint.user.ward === 'object'
-                                                    ? `Ward ${complaint.user.ward.wardNumber}`
-                                                    : `Ward ${complaint.user.ward}`)
-                                                : 'N/A'}
+                                            {complaint.wards
+                                                ? (typeof complaint.wards === 'object'
+                                                    ? `Ward ${complaint.wards.wardNumber || complaint.wards.number}`
+                                                    : `Ward ${complaint.wards}`)
+                                                : (complaint.user.ward
+                                                    ? (typeof complaint.user.ward === 'object'
+                                                        ? `Ward ${complaint.user.ward.wardNumber}`
+                                                        : `Ward ${complaint.user.ward}`)
+                                                    : 'N/A')}
                                         </Typography>
                                     </Box>
                                     <Box>

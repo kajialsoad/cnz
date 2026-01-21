@@ -7,7 +7,167 @@ exports.chatService = exports.ChatService = void 0;
 const prisma_1 = __importDefault(require("../utils/prisma"));
 class ChatService {
     /**
+     * Get all citizens (users) for chat - shows ALL users, not just those with messages
+     * This allows admins to initiate conversations with any citizen
+     */
+    async getAllCitizensForChat(query = {}) {
+        try {
+            const { search, ward, zone, cityCorporationCode, unreadOnly = false, page = 1, limit = 20 } = query;
+            const skip = (page - 1) * limit;
+            // Build where clause for users with role CUSTOMER (citizens)
+            const where = {
+                role: 'CUSTOMER' // Only fetch customers (citizens), not admins
+            };
+            // Filter by ward - use relation filtering
+            if (ward) {
+                where.ward = {
+                    wardNumber: parseInt(ward)
+                };
+            }
+            // Filter by zone - use zoneId directly
+            if (zone) {
+                where.zoneId = parseInt(zone);
+            }
+            // Filter by city corporation code
+            if (cityCorporationCode && cityCorporationCode !== 'ALL') {
+                where.cityCorporationCode = cityCorporationCode;
+            }
+            // Search filter
+            if (search) {
+                where.OR = [
+                    { firstName: { contains: search, mode: 'insensitive' } },
+                    { lastName: { contains: search, mode: 'insensitive' } },
+                    { phone: { contains: search } },
+                    { email: { contains: search, mode: 'insensitive' } }
+                ];
+            }
+            // Get total count
+            const total = await prisma_1.default.user.count({ where });
+            // Get users with their latest complaint (for chat context)
+            const users = await prisma_1.default.user.findMany({
+                where,
+                skip,
+                take: limit,
+                include: {
+                    cityCorporation: {
+                        select: {
+                            code: true,
+                            name: true
+                        }
+                    },
+                    zone: {
+                        select: {
+                            id: true,
+                            name: true,
+                            zoneNumber: true
+                        }
+                    },
+                    ward: {
+                        select: {
+                            id: true,
+                            wardNumber: true
+                        }
+                    },
+                    complaints: {
+                        orderBy: {
+                            createdAt: 'desc'
+                        },
+                        take: 1,
+                        include: {
+                            chatMessages: {
+                                orderBy: {
+                                    createdAt: 'desc'
+                                },
+                                take: 1
+                            }
+                        }
+                    }
+                },
+                orderBy: {
+                    createdAt: 'desc'
+                }
+            });
+            // Format the response
+            const conversations = await Promise.all(users.map(async (user) => {
+                const latestComplaint = user.complaints[0];
+                const lastMessage = latestComplaint?.chatMessages[0];
+                // Get unread count for this user's complaints
+                let unreadCount = 0;
+                if (latestComplaint) {
+                    unreadCount = await prisma_1.default.complaintChatMessage.count({
+                        where: {
+                            complaintId: latestComplaint.id,
+                            senderType: 'CITIZEN',
+                            read: false
+                        }
+                    });
+                }
+                return {
+                    complaintId: latestComplaint?.id || null,
+                    trackingNumber: latestComplaint ? `C${String(latestComplaint.id).padStart(6, '0')}` : null,
+                    complaintTitle: latestComplaint?.title || 'No complaints yet',
+                    complaintCategory: latestComplaint ? this.extractCategory(latestComplaint.description) : 'N/A',
+                    complaintStatus: latestComplaint?.status || 'N/A',
+                    complaintCreatedAt: latestComplaint?.createdAt || null,
+                    citizen: {
+                        id: user.id,
+                        firstName: user.firstName,
+                        lastName: user.lastName,
+                        phone: user.phone,
+                        email: user.email || '',
+                        district: '', // Not stored in User model
+                        upazila: '', // Not stored in User model
+                        ward: user.ward?.wardNumber?.toString() || '',
+                        zone: user.zone?.name || user.zone?.zoneNumber?.toString() || '',
+                        cityCorporationCode: user.cityCorporationCode || null,
+                        cityCorporation: user.cityCorporation ? {
+                            code: user.cityCorporation.code,
+                            name: user.cityCorporation.name
+                        } : null,
+                        address: user.address || '',
+                        profilePicture: user.avatar
+                    },
+                    lastMessage: lastMessage ? {
+                        id: lastMessage.id,
+                        text: lastMessage.message,
+                        timestamp: lastMessage.createdAt,
+                        senderType: lastMessage.senderType
+                    } : null,
+                    unreadCount,
+                    totalMessages: 0,
+                    isNew: unreadCount > 0,
+                    lastActivity: lastMessage?.createdAt || latestComplaint?.createdAt || user.createdAt
+                };
+            }));
+            // Filter by unread only if requested
+            let filteredConversations = conversations;
+            if (unreadOnly) {
+                filteredConversations = conversations.filter(c => c.unreadCount > 0);
+            }
+            // Sort by last activity (most recent first)
+            filteredConversations.sort((a, b) => {
+                return new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime();
+            });
+            return {
+                chats: filteredConversations,
+                pagination: {
+                    page,
+                    limit,
+                    total,
+                    totalPages: Math.ceil(total / limit),
+                    hasNextPage: page < Math.ceil(total / limit),
+                    hasPrevPage: page > 1
+                }
+            };
+        }
+        catch (error) {
+            console.error('Error getting all citizens for chat:', error);
+            throw new Error('Failed to fetch citizens for chat');
+        }
+    }
+    /**
      * Get all chat conversations with complaint and citizen details
+     * DEPRECATED: Use getAllCitizensForChat instead
      */
     async getChatConversations(query = {}) {
         try {
@@ -559,66 +719,61 @@ class ChatService {
         }
     }
     /**
-     * Get chat statistics
+     * Get chat statistics - based on ALL customers (citizens), not just those with messages
      */
     async getChatStatistics() {
         try {
             // Test database connection first
             await prisma_1.default.$queryRaw `SELECT 1`;
-            // Get all complaints with chat messages
-            const complaintsWithChats = await prisma_1.default.complaint.findMany({
+            // Get all CUSTOMER users (not admins)
+            const allCitizens = await prisma_1.default.user.findMany({
                 where: {
-                    chatMessages: {
-                        some: {}
-                    }
+                    role: 'CUSTOMER'
                 },
                 include: {
-                    user: {
+                    ward: {
                         select: {
-                            ward: true,
-                            zone: true,
-                            cityCorporation: {
-                                select: {
-                                    name: true
-                                }
-                            }
-                            /* thana: {
-                                select: {
-                                    name: true
-                                }
-                            } */
+                            wardNumber: true
                         }
                     },
-                    chatMessages: {
-                        where: {
-                            senderType: 'CITIZEN',
-                            read: false
+                    zone: {
+                        select: {
+                            id: true,
+                            name: true,
+                            zoneNumber: true
+                        }
+                    },
+                    cityCorporation: {
+                        select: {
+                            name: true
+                        }
+                    },
+                    complaints: {
+                        include: {
+                            chatMessages: {
+                                where: {
+                                    senderType: 'CITIZEN',
+                                    read: false
+                                }
+                            }
                         }
                     }
                 }
             });
-            const totalChats = complaintsWithChats.length;
-            // Calculate unread count
-            const unreadCount = complaintsWithChats.reduce((sum, complaint) => {
-                return sum + complaint.chatMessages.length;
+            const totalChats = allCitizens.length;
+            // Calculate unread count across all complaints
+            const unreadCount = allCitizens.reduce((sum, user) => {
+                const userUnread = user.complaints.reduce((complaintSum, complaint) => {
+                    return complaintSum + complaint.chatMessages.length;
+                }, 0);
+                return sum + userUnread;
             }, 0);
-            // Group by district, upazila, ward, zone, and status
-            const byDistrict = {};
-            const byUpazila = {};
+            // Group by ward, zone
             const byWard = {};
             const byZone = {};
-            const byStatus = {};
-            complaintsWithChats.forEach(complaint => {
-                // Parse location
-                const locationParts = complaint.location?.split(',') || [];
-                const district = locationParts[1]?.trim() || 'Unknown';
-                const upazila = locationParts[2]?.trim() || 'Unknown';
-                const ward = complaint.user?.ward?.wardNumber?.toString() || 'Unknown';
-                const zone = complaint.user?.zone?.name || complaint.user?.zone?.zoneNumber?.toString() || 'Unknown';
-                // Count by district
-                byDistrict[district] = (byDistrict[district] || 0) + 1;
-                // Count by upazila
-                byUpazila[upazila] = (byUpazila[upazila] || 0) + 1;
+            allCitizens.forEach((user) => {
+                const ward = user.ward?.wardNumber?.toString() || 'Unknown';
+                const zone = user.zone?.name || user.zone?.zoneNumber?.toString() || 'Unknown';
                 // Count by ward
                 if (ward && ward !== 'Unknown') {
                     byWard[ward] = (byWard[ward] || 0) + 1;
@@ -627,20 +782,12 @@ class ChatService {
                 if (zone && zone !== 'Unknown') {
                     byZone[zone] = (byZone[zone] || 0) + 1;
                 }
-                // Count by status
-                byStatus[complaint.status] = (byStatus[complaint.status] || 0) + 1;
             });
             return {
                 totalChats,
                 unreadCount,
-                byDistrict: Object.entries(byDistrict).map(([category, count]) => ({
-                    category,
-                    count
-                })),
-                byUpazila: Object.entries(byUpazila).map(([category, count]) => ({
-                    category,
-                    count
-                })),
+                byDistrict: [], // Not used anymore
+                byUpazila: [], // Not used anymore
                 byWard: Object.entries(byWard).map(([category, count]) => ({
                     category,
                     count
@@ -649,10 +796,7 @@ class ChatService {
                     category,
                     count
                 })),
-                byStatus: Object.entries(byStatus).map(([status, count]) => ({
-                    status,
-                    count
-                }))
+                byStatus: [] // Not applicable for user list
             };
         }
         catch (error) {
