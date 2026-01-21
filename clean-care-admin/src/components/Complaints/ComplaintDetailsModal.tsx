@@ -45,6 +45,7 @@ import {
 } from '@mui/icons-material';
 import toast from 'react-hot-toast';
 import { complaintService } from '../../services/complaintService';
+import { wardService } from '../../services/wardService';
 import { handleApiError } from '../../utils/errorHandler';
 import { scaleIn, slideInUp, animationConfig, statusBadgeTransition, fadeIn } from '../../styles/animations';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -73,6 +74,7 @@ const ComplaintDetailsModal: React.FC<ComplaintDetailsModalProps> = ({
     const { canEditComplaints, canViewComplaints } = usePermissions();
 
     const [complaint, setComplaint] = useState<ComplaintDetails | null>(null);
+    const [correctWardData, setCorrectWardData] = useState<any | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -101,6 +103,94 @@ const ComplaintDetailsModal: React.FC<ComplaintDetailsModalProps> = ({
             fetchComplaintDetails();
         }
     }, [open, complaintId]);
+
+    // Fetch correct ward data if mismatch is detected (Ported from ComplaintDetails.tsx)
+    useEffect(() => {
+        const fetchCorrectWard = async () => {
+            if (!complaint) return;
+
+            let targetWardNumber: number | null = null;
+            let locDetails = complaint.locationDetails;
+
+            // Parse locationDetails if it's a string
+            if (typeof locDetails === 'string') {
+                try {
+                    locDetails = JSON.parse(locDetails);
+                } catch (e) {
+                    console.error('Error parsing locationDetails JSON:', e);
+                }
+            }
+
+            // 1. Try to get ward number from locationDetails
+            if (locDetails?.ward) {
+                // Handle "Ward 6" or just "6"
+                const wardStr = String(locDetails.ward);
+                const match = wardStr.match(/\d+/);
+                if (match) targetWardNumber = parseInt(match[0]);
+            }
+
+            // 2. If not found, try to parse from location string (e.g., "Ward 6, ...")
+            if (!targetWardNumber && complaint.location) {
+                const match = complaint.location.match(/Ward\s*(\d+)/i);
+                if (match) targetWardNumber = parseInt(match[1]);
+            }
+
+            // 3. Last Resort: Check the user.ward field if it's an object with wardNumber
+            if (!targetWardNumber && typeof complaint.user?.ward === 'object' && (complaint.user.ward as any).wardNumber) {
+                targetWardNumber = (complaint.user.ward as any).wardNumber;
+            }
+
+            if (!targetWardNumber) return;
+
+            try {
+                // Try to determine City Corporation Code
+                let cityCode = complaint.cityCorporation?.code;
+
+                // Fallback: Infer from location string if missing
+                if (!cityCode && complaint.location) {
+                    if (complaint.location.toLowerCase().includes('south') || complaint.location.includes('দক্ষিণ')) {
+                        cityCode = 'DSCC';
+                    } else if (complaint.location.toLowerCase().includes('north') || complaint.location.includes('উত্তর')) {
+                        cityCode = 'DNCC';
+                    }
+                }
+
+                if (!cityCode) {
+                    // Last resort fallback based on user data if available
+                    const userCityCorp = complaint.user?.cityCorporation as any;
+                    if (typeof userCityCorp === 'string') {
+                        if (userCityCorp.includes('South')) cityCode = 'DSCC';
+                        else if (userCityCorp.includes('North')) cityCode = 'DNCC';
+                    } else if (complaint.user?.cityCorporation?.code) {
+                        cityCode = complaint.user.cityCorporation.code;
+                    }
+                }
+
+                // Final default
+                if (!cityCode) cityCode = 'DNCC';
+
+                const response = await wardService.getWards({ cityCorporationCode: cityCode });
+
+                if (response.wards) {
+                    const found = response.wards.find((w: any) => w.wardNumber === targetWardNumber);
+                    if (found) {
+                        setCorrectWardData(found);
+                    } else {
+                        // Fallback: Try fetching without city code (just in case)
+                        const allWards = await wardService.getWards({ status: 'ACTIVE' });
+                        if (allWards.wards) {
+                            const foundAny = allWards.wards.find((w: any) => w.wardNumber === targetWardNumber);
+                            if (foundAny) setCorrectWardData(foundAny);
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error('Error fetching correct ward data:', err);
+            }
+        };
+
+        fetchCorrectWard();
+    }, [complaint]);
 
     /**
      * Fetch complaint details from API
@@ -724,6 +814,54 @@ const ComplaintDetailsModal: React.FC<ComplaintDetailsModalProps> = ({
                                     </Box>
                                 </Box>
                             </Box>
+
+
+                            {/* Responsible Officials */}
+                            {(correctWardData?.inspectorName || complaint.wards?.inspectorName || complaint.zone?.officerName) && (
+                                <Box sx={{ mb: { xs: 2, sm: 3 } }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', mb: { xs: 1, sm: 1.5 } }}>
+                                        <PersonIcon sx={{ mr: 1, color: 'text.secondary', fontSize: { xs: 18, sm: 20 } }} />
+                                        <Typography
+                                            variant={isMobile ? 'body1' : 'subtitle1'}
+                                            sx={{ fontWeight: 600 }}
+                                        >
+                                            Responsible Officials
+                                        </Typography>
+                                    </Box>
+                                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: { xs: 1.5, sm: 2 } }}>
+                                        {(correctWardData?.inspectorName || complaint.wards?.inspectorName) && (
+                                            <Box>
+                                                <Typography variant={isMobile ? 'caption' : 'body2'} color="text.secondary">
+                                                    Ward Inspector
+                                                </Typography>
+                                                <Typography variant={isMobile ? 'body2' : 'body1'}>
+                                                    {correctWardData?.inspectorName || complaint.wards?.inspectorName}
+                                                </Typography>
+                                                {(correctWardData?.inspectorPhone || complaint.wards?.inspectorPhone) && (
+                                                    <Typography variant="body2" color="text.secondary">
+                                                        {correctWardData?.inspectorPhone || complaint.wards?.inspectorPhone}
+                                                    </Typography>
+                                                )}
+                                            </Box>
+                                        )}
+                                        {complaint.zone?.officerName && (
+                                            <Box>
+                                                <Typography variant={isMobile ? 'caption' : 'body2'} color="text.secondary">
+                                                    Zone Officer
+                                                </Typography>
+                                                <Typography variant={isMobile ? 'body2' : 'body1'}>
+                                                    {complaint.zone.officerName}
+                                                </Typography>
+                                                {complaint.zone.officerPhone && (
+                                                    <Typography variant="body2" color="text.secondary">
+                                                        {complaint.zone.officerPhone}
+                                                    </Typography>
+                                                )}
+                                            </Box>
+                                        )}
+                                    </Box>
+                                </Box>
+                            )}
 
                             <Divider sx={{ my: { xs: 2, sm: 3 } }} />
 

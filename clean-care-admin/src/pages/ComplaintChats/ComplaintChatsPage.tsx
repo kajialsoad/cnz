@@ -9,6 +9,7 @@ import ChatConversationPanel from '../../components/Chat/ChatConversationPanel';
 import ErrorDisplay from '../../components/Chat/ErrorDisplay';
 import { chatService } from '../../services/chatService';
 import { browserNotifications } from '../../utils/browserNotifications';
+import type { ComplaintStatus } from '../../types/complaint-service.types';
 import type {
     ChatConversation,
     ChatFilters,
@@ -372,6 +373,31 @@ const ComplaintChatsPage: React.FC = () => {
     };
 
     /**
+     * Handle status update from chat
+     */
+    /**
+     * Handle status update from chat
+     */
+    const handleStatusUpdate = useCallback((newStatus: ComplaintStatus) => {
+        setChatList((prev) =>
+            prev.map((chat) =>
+                chat.complaintId === selectedChatId
+                    ? { ...chat, complaintStatus: newStatus }
+                    : chat
+            )
+        );
+    }, [selectedChatId]);
+
+    /**
+     * Handle messages read
+     */
+    const handleMessagesRead = useCallback(() => {
+        // Refresh chat list to update unread counts
+        fetchChatList(false);
+        fetchStatistics();
+    }, [fetchChatList, fetchStatistics]);
+
+    /**
      * Handle search change
      */
     const handleSearchChange = (term: string) => {
@@ -488,11 +514,8 @@ const ComplaintChatsPage: React.FC = () => {
                         <ChatConversationPanel
                             complaintId={selectedChatId}
                             onClose={isMobile ? handleBackToList : undefined}
-                            onMessagesRead={() => {
-                                // Refresh chat list to update unread counts
-                                fetchChatList(false);
-                                fetchStatistics();
-                            }}
+                            onMessagesRead={handleMessagesRead}
+                            onStatusUpdate={handleStatusUpdate}
                         />
                     </Box>
                 )}

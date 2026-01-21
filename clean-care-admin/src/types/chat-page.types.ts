@@ -21,6 +21,14 @@ export interface ChatCitizen {
     cityCorporationName?: string;
     thanaId?: number;
     thanaName?: string;
+    wardInspector?: {
+        name: string;
+        phone: string;
+    };
+    zoneOfficer?: {
+        name: string;
+        phone: string;
+    };
 }
 
 /**

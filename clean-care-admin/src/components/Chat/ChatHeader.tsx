@@ -246,16 +246,35 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
                     </Typography>
 
                     {/* Status Badge */}
-                    <Chip
-                        label={getStatusLabel(complaint.status)}
-                        size="small"
-                        sx={{
-                            backgroundColor: getStatusColor(complaint.status),
-                            color: 'white',
-                            fontWeight: 600,
-                            fontSize: '0.75rem',
-                        }}
-                    />
+                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 0.5 }}>
+                        <Chip
+                            label={getStatusLabel(complaint.status)}
+                            size="small"
+                            sx={{
+                                backgroundColor: getStatusColor(complaint.status),
+                                color: 'white',
+                                fontWeight: 600,
+                                fontSize: '0.75rem',
+                            }}
+                        />
+                        {/* Address Display - Always visible */}
+                        {citizen.address && (
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, maxWidth: '60%' }}>
+                                <LocationIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+                                <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                    sx={{
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        whiteSpace: 'nowrap',
+                                    }}
+                                >
+                                    {citizen.address}
+                                </Typography>
+                            </Box>
+                        )}
+                    </Box>
                 </Box>
 
                 {/* Expand/Collapse Button (Mobile) */}

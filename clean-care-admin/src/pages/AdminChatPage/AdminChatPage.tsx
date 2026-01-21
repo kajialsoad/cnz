@@ -9,6 +9,7 @@ import ChatConversationPanel from '../../components/Chat/ChatConversationPanel';
 import ErrorDisplay from '../../components/Chat/ErrorDisplay';
 import { chatService } from '../../services/chatService';
 import { browserNotifications } from '../../utils/browserNotifications';
+import type { ComplaintStatus } from '../../types/complaint-service.types';
 import type {
     ChatConversation,
     ChatFilters,
@@ -359,6 +360,19 @@ const AdminChatPage: React.FC = () => {
     };
 
     /**
+     * Handle status update from chat
+     */
+    const handleStatusUpdate = (newStatus: ComplaintStatus) => {
+        setChatList((prev) =>
+            prev.map((chat) =>
+                chat.complaintId === selectedChatId
+                    ? { ...chat, complaintStatus: newStatus }
+                    : chat
+            )
+        );
+    };
+
+    /**
      * Handle search change
      */
     const handleSearchChange = (term: string) => {
@@ -480,6 +494,7 @@ const AdminChatPage: React.FC = () => {
                                 fetchChatList(false);
                                 fetchStatistics();
                             }}
+                            onStatusUpdate={handleStatusUpdate}
                         />
                     </Box>
                 )}

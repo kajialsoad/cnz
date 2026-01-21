@@ -388,6 +388,36 @@ export class AdminComplaintService {
                                 }
                             }
                         },
+                        // ✅ CRITICAL: Complaint location relations (where complaint was submitted)
+                        complaintCityCorporation: {
+                            select: {
+                                code: true,
+                                name: true
+                            }
+                        },
+                        complaintZone: {
+                            select: {
+                                id: true,
+                                zoneNumber: true,
+                                name: true,
+                                officerName: true,
+                                officerPhone: true,
+                                officerDesignation: true,
+                                officerSerialNumber: true,
+                                supervisorName: true,
+                                supervisorTitle: true
+                            }
+                        },
+                        complaintWard: {
+                            select: {
+                                id: true,
+                                wardNumber: true,
+                                inspectorName: true,
+                                inspectorPhone: true,
+                                inspectorSerialNumber: true,
+                                inspectorCount: true
+                            }
+                        },
                         reviews: {
                             select: {
                                 rating: true,
@@ -477,6 +507,36 @@ export class AdminComplaintService {
                         select: {
                             code: true,
                             name: true
+                        }
+                    },
+                    // ✅ CRITICAL: Complaint location relations (where complaint was submitted)
+                    complaintCityCorporation: {
+                        select: {
+                            code: true,
+                            name: true
+                        }
+                    },
+                    complaintZone: {
+                        select: {
+                            id: true,
+                            zoneNumber: true,
+                            name: true,
+                            officerName: true,
+                            officerPhone: true,
+                            officerDesignation: true,
+                            officerSerialNumber: true,
+                            supervisorName: true,
+                            supervisorTitle: true
+                        }
+                    },
+                    complaintWard: {
+                        select: {
+                            id: true,
+                            wardNumber: true,
+                            inspectorName: true,
+                            inspectorPhone: true,
+                            inspectorSerialNumber: true,
+                            inspectorCount: true
                         }
                     },
                     assignedAdmin: {
@@ -1318,6 +1378,12 @@ export class AdminComplaintService {
             });
         }
 
+        // ✅ CRITICAL: Prioritize complaint's geographical data (where complaint was submitted)
+        // This ensures correct Ward Inspector and Zone Officer info is displayed
+        const cityCorporation = complaint.complaintCityCorporation || complaint.cityCorporation || complaint.user?.cityCorporation || null;
+        const zone = complaint.complaintZone || complaint.zone || complaint.user?.zone || null;
+        const wardInfo = complaint.complaintWard || complaint.wards || complaint.user?.ward || null;
+
         return {
             ...complaint,
             complaintId: `C${String(complaint.id).padStart(6, '0')}`, // Format: C001234
@@ -1333,6 +1399,28 @@ export class AdminComplaintService {
                 ward,
                 full: complaint.location
             },
+            // ✅ Complaint location info (where complaint was submitted)
+            cityCorporation: cityCorporation,
+            zone: zone,
+            ward: wardInfo,
+            // ✅ Ward Inspector info
+            wardInspector: wardInfo ? {
+                name: wardInfo.inspectorName,
+                phone: wardInfo.inspectorPhone,
+                serialNumber: wardInfo.inspectorSerialNumber,
+                wardNumber: wardInfo.wardNumber
+            } : null,
+            // ✅ Zone Officer info
+            zoneOfficer: zone ? {
+                name: zone.officerName,
+                phone: zone.officerPhone,
+                designation: zone.officerDesignation,
+                serialNumber: zone.officerSerialNumber,
+                supervisorName: zone.supervisorName,
+                supervisorTitle: zone.supervisorTitle,
+                zoneNumber: zone.zoneNumber,
+                zoneName: zone.name
+            } : null,
             timeAgo: this.getTimeAgo(complaint.createdAt),
             user: complaint.user ? {
                 ...complaint.user,

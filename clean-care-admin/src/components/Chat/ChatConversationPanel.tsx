@@ -22,12 +22,16 @@ interface ChatConversationPanelProps {
     complaintId: number | null;
     onClose?: () => void; // For mobile view
     onMessagesRead?: () => void; // Callback when messages are marked as read
+    hideHeader?: boolean;
+    onStatusUpdate?: (newStatus: ComplaintStatus) => void;
 }
 
 const ChatConversationPanel: React.FC<ChatConversationPanelProps> = ({
     complaintId,
     onClose,
     onMessagesRead,
+    hideHeader = false,
+    onStatusUpdate,
 }) => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -41,6 +45,9 @@ const ChatConversationPanel: React.FC<ChatConversationPanelProps> = ({
     const [currentPage, setCurrentPage] = useState<number>(1);
     const [loadingMore, setLoadingMore] = useState<boolean>(false);
     const [sending, setSending] = useState<boolean>(false);
+
+    const [detailsLoading, setDetailsLoading] = useState<boolean>(false);
+    const [detailsError, setDetailsError] = useState<string | null>(null);
 
     // Modal state
     const [detailsModalOpen, setDetailsModalOpen] = useState<boolean>(false);
@@ -99,10 +106,15 @@ const ChatConversationPanel: React.FC<ChatConversationPanelProps> = ({
         if (!complaintId) return;
 
         try {
+            setDetailsLoading(true);
+            setDetailsError(null);
             const details = await complaintService.getComplaintById(complaintId);
             setComplaintDetails(details);
         } catch (err) {
             console.error('Error fetching complaint details:', err);
+            setDetailsError('Failed to load details');
+        } finally {
+            setDetailsLoading(false);
         }
     }, [complaintId]);
 
@@ -168,6 +180,10 @@ const ChatConversationPanel: React.FC<ChatConversationPanelProps> = ({
             toast.success(`Status updated to ${newStatus}`, {
                 icon: '✅',
             });
+
+            if (onStatusUpdate) {
+                onStatusUpdate(newStatus);
+            }
         } catch (err) {
             console.error('Error updating status:', err);
             toast.error('Failed to update status', {
@@ -335,7 +351,7 @@ const ChatConversationPanel: React.FC<ChatConversationPanelProps> = ({
             }}
         >
             {/* Chat Header */}
-            {complaintDetails && complaintDetails.user ? (
+            {!hideHeader && (complaintDetails && complaintDetails.user ? (
                 <Box sx={{ position: 'relative' }}>
                     {/* Back button for mobile */}
                     {isMobile && onClose && (
@@ -373,12 +389,20 @@ const ChatConversationPanel: React.FC<ChatConversationPanelProps> = ({
                             lastName: complaintDetails.user.lastName,
                             phone: complaintDetails.user.phone,
                             email: complaintDetails.user.email,
-                            zone: typeof complaintDetails.user.zone === 'string' ? complaintDetails.user.zone : complaintDetails.user.zone?.name || 'N/A',
-                            district: complaintDetails.locationDetails?.district || 'N/A',
-                            upazila: complaintDetails.locationDetails?.thana || 'N/A',
-                            ward: complaintDetails.locationDetails?.ward || 'N/A',
-                            address: complaintDetails.locationDetails?.address || '',
-                            profilePicture: undefined,
+                            zone: complaintDetails.zone?.name || (typeof complaintDetails.user.zone === 'string' ? complaintDetails.user.zone : complaintDetails.user.zone?.name) || 'N/A',
+                            district: complaintDetails.locationDetails?.district || complaintDetails.user.cityCorporation?.name || 'N/A',
+                            upazila: complaintDetails.locationDetails?.thana || complaintDetails.user.thana?.name || 'N/A',
+                            ward: complaintDetails.locationDetails?.ward || complaintDetails.wards?.wardNumber?.toString() || (typeof complaintDetails.user.ward === 'object' ? complaintDetails.user.ward?.wardNumber?.toString() : complaintDetails.user.ward) || 'N/A',
+                            address: complaintDetails.locationDetails?.address || complaintDetails.location || '',
+                            profilePicture: complaintDetails.user.avatar || undefined,
+                            wardInspector: complaintDetails.wards?.inspectorName ? {
+                                name: complaintDetails.wards.inspectorName,
+                                phone: complaintDetails.wards.inspectorPhone || 'N/A'
+                            } : undefined,
+                            zoneOfficer: complaintDetails.zone?.officerName ? {
+                                name: complaintDetails.zone.officerName,
+                                phone: complaintDetails.zone.officerPhone || 'N/A'
+                            } : undefined,
                         }}
                         onViewDetails={handleViewDetails}
                         onStatusChange={handleStatusChange}
@@ -405,15 +429,26 @@ const ChatConversationPanel: React.FC<ChatConversationPanelProps> = ({
                             </IconButton>
                         )}
 
-                        {/* Loading state */}
-                        <Box sx={{ flex: 1 }}>
-                            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                                Loading...
-                            </Typography>
+                        {/* Loading/Error state */}
+                        <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            {detailsError ? (
+                                <>
+                                    <Typography variant="subtitle1" color="error" sx={{ fontWeight: 600 }}>
+                                        Failed to load chat details
+                                    </Typography>
+                                    <IconButton size="small" onClick={fetchComplaintDetails} color="primary">
+                                        <Box component="span" sx={{ fontSize: 14 }}>Retry</Box>
+                                    </IconButton>
+                                </>
+                            ) : (
+                                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                                    Loading...
+                                </Typography>
+                            )}
                         </Box>
                     </Box>
                 </Box>
-            )}
+            ))}
 
             {/* Error Display */}
             {error && !loading ? (

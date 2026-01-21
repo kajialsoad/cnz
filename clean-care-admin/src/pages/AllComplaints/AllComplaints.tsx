@@ -743,6 +743,22 @@ const AllComplaints: React.FC = () => {
   };
 
   /**
+   * Handle status update from chat modal
+   */
+  const handleChatStatusUpdate = useCallback((newStatus: ComplaintStatus) => {
+    if (selectedChatComplaintId) {
+      // Update local state to reflect change immediately
+      setComplaints(prev => prev.map(c =>
+        c.id === selectedChatComplaintId
+          ? { ...c, status: newStatus }
+          : c
+      ));
+      // Also refresh from API to ensure consistency
+      fetchComplaints();
+    }
+  }, [selectedChatComplaintId, fetchComplaints]);
+
+  /**
    * Handle opening chat modal
    */
   const handleOpenChat = (complaint: Complaint) => {
@@ -832,6 +848,54 @@ const AllComplaints: React.FC = () => {
       default:
         return status;
     }
+  };
+
+  // Helper to extract location info safely
+  const getLocationInfo = (complaint: Complaint) => {
+    let ward = 'N/A';
+    let zone = 'N/A';
+
+    // 1. Resolve Ward
+    // Priority 1: locationDetails (User input)
+    if (complaint.locationDetails?.ward) {
+        ward = complaint.locationDetails.ward;
+        // If it's just a number "6", make it "Ward 6"
+        if (/^\d+$/.test(ward.trim())) {
+            ward = `Ward ${ward}`;
+        }
+    } 
+    // Priority 2: Parse from location string "Ward 6"
+    else if (complaint.location) {
+        const match = complaint.location.match(/Ward[\s\W]+(\d+)/i);
+        if (match) ward = `Ward ${match[1]}`;
+    }
+    
+    // Priority 3: System data (if N/A so far)
+    if ((ward === 'N/A' || ward === 'Ward undefined') && complaint.wards) {
+        const w = complaint.wards as any;
+        if (w.wardNumber || w.number) ward = `Ward ${w.wardNumber || w.number}`;
+        else if (w.displayName) ward = w.displayName;
+    }
+
+    // 2. Resolve Zone
+    // Priority 1: Parse from location string (English "Zone 5" or Bengali "অঞ্চল-৫")
+    if (complaint.location) {
+        const enMatch = complaint.location.match(/Zone[\s\W]+(\d+)/i);
+        const bnMatch = complaint.location.match(/অঞ্চল[\s\W]+([\w\u0980-\u09FF]+)/u);
+        
+        if (enMatch) zone = `Zone ${enMatch[1]}`;
+        else if (bnMatch) zone = `Zone ${bnMatch[1]}`;
+    }
+
+    // Priority 2: System data (if N/A so far)
+    if ((zone === 'N/A' || zone === 'Zone undefined') && complaint.zone) {
+        const z = complaint.zone as any;
+        if (z.name) zone = z.name;
+        else if (z.zoneNumber) zone = `Zone ${z.zoneNumber}`;
+        else if (z.displayName) zone = z.displayName;
+    }
+
+    return { ward, zone };
   };
 
   /**
@@ -1249,7 +1313,10 @@ const AllComplaints: React.FC = () => {
                             {complaint.location}
                           </Typography>
                           <Typography variant="caption" color="text.secondary">
-                            Zone: {typeof complaint.zone === 'object' && complaint.zone !== null ? ((complaint.zone as any).name || (complaint.zone as any).zoneNumber || 'N/A') : (complaint.zone || 'N/A')} | Ward: {typeof complaint.wards === 'object' && complaint.wards !== null ? ((complaint.wards as any).wardNumber || (complaint.wards as any).number || 'N/A') : (complaint.wards || 'N/A')}
+                            {(() => {
+                              const loc = getLocationInfo(complaint);
+                              return `${loc.zone} | ${loc.ward}`;
+                            })()}
                           </Typography>
                         </Box>
                       </TableCell>
@@ -1462,6 +1529,7 @@ const AllComplaints: React.FC = () => {
         complaintId={selectedChatComplaintId || 0}
         complaintTitle={selectedChatComplaintTitle}
         citizenName={selectedChatCitizenName}
+        onStatusUpdate={handleChatStatusUpdate}
       />
 
       {/* Admin Note View Modal */}

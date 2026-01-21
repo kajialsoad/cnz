@@ -17,17 +17,22 @@ const formatRelativeTime = (date: Date | string): string => {
     } else if (diffInSeconds < 3600) {
         const minutes = Math.floor(diffInSeconds / 60);
         return `${minutes} min${minutes > 1 ? 's' : ''} ago`;
-    } else if (diffInSeconds < 86400) {
-        const hours = Math.floor(diffInSeconds / 3600);
-        return `${hours} hour${hours > 1 ? 's' : ''} ago`;
-    } else if (diffInSeconds < 604800) {
-        const days = Math.floor(diffInSeconds / 86400);
-        return `${days} day${days > 1 ? 's' : ''} ago`;
+    } else if (diffInSeconds < 86400) { // Less than 24 hours
+        // Show time like "10:30 AM"
+        return messageDate.toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: 'numeric',
+            hour12: true
+        });
     } else {
-        return messageDate.toLocaleDateString([], {
+        // Show full date/time like "Jan 20, 2026, 10:30 AM"
+        return messageDate.toLocaleDateString('en-US', {
             month: 'short',
             day: 'numeric',
-            year: messageDate.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
+            year: 'numeric',
+            hour: 'numeric',
+            minute: 'numeric',
+            hour12: true
         });
     }
 };
