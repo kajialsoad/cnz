@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'dart:async';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:image_picker/image_picker.dart';
@@ -11,7 +13,9 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../components/custom_bottom_nav.dart';
 import '../widgets/translated_text.dart';
 import '../services/chat_service.dart';
+import '../services/chat_cache_service.dart';
 import '../models/chat_message.dart' as model;
+import '../models/cached_complaint_info.dart';
 import '../config/url_helper.dart';
 
 /// Real-time chat page for complaint communication
@@ -37,6 +41,7 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final ChatService _chatService = ChatService();
+  final ChatCacheService _cacheService = ChatCacheService();
   final ImagePicker _picker = ImagePicker();
   AudioRecorder? _recorder; // Initialize only on non-web platforms
   final AudioPlayer _audioPlayer = AudioPlayer();
@@ -46,6 +51,15 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
   bool isSending = false;
   bool isRecording = false;
   String? _recordedVoiceUrl;
+  
+  // New State Variables for Attachments
+  XFile? _attachedImageXFile;
+  Uint8List? _attachedImageBytes; // For web compatibility
+  String? _recordedFilePath;
+  bool _showVoicePreview = false;
+  Duration _recordDuration = Duration.zero;
+  Timer? _recordTimer;
+
   bool hasError = false;
   String errorMessage = '';
   Timer? _pollingTimer;
@@ -101,6 +115,9 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
       
       final fetchedMessages = await _chatService.getChatMessages(complaintIdInt);
       print('✅ Fetched ${fetchedMessages.length} messages');
+      
+      // Cache complaint info for offline access
+      await _cacheComplaintInfo();
 
       setState(() {
         messages = fetchedMessages;
@@ -175,10 +192,8 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
 
   /// Send message to server
   Future<void> _sendMessage() async {
-    if (_messageController.text.trim().isEmpty || isSending) return;
-
-    final messageText = _messageController.text.trim();
-    _messageController.clear();
+    final text = _messageController.text.trim();
+    if ((text.isEmpty && _attachedImageXFile == null && _recordedVoiceUrl == null && _recordedFilePath == null) || isSending) return;
 
     setState(() {
       isSending = true;
@@ -186,16 +201,37 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
 
     try {
       final complaintIdInt = int.parse(widget.complaintId);
+      
+      // Upload image if attached
+      String? imageUrl;
+      if (_attachedImageXFile != null) {
+        imageUrl = await _chatService.uploadImageForComplaint(complaintIdInt, _attachedImageXFile!);
+      }
+
+      // Upload voice if recorded
+       // Note: reusing _recordedVoiceUrl if it was already uploaded (legacy flow) or uploading file
+      String? voiceUrl = _recordedVoiceUrl;
+      if (_recordedFilePath != null && voiceUrl == null) {
+         final xfile = XFile(_recordedFilePath!);
+         voiceUrl = await _chatService.uploadVoice(xfile);
+      }
+
       final sentMessage = await _chatService.sendMessage(
         complaintIdInt,
-        messageText,
-        voiceUrl: _recordedVoiceUrl,
+        text.isEmpty ? (imageUrl != null ? ' ' : (voiceUrl != null ? 'Voice Message' : ' ')) : text,
+        imageUrl: imageUrl,
+        voiceUrl: voiceUrl,
       );
 
       setState(() {
         messages.add(sentMessage);
         isSending = false;
         _recordedVoiceUrl = null;
+        _recordedFilePath = null;
+        _attachedImageXFile = null;
+        _attachedImageBytes = null;
+        _showVoicePreview = false;
+        _messageController.clear();
       });
 
       _scrollToBottom();
@@ -213,9 +249,7 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
             action: SnackBarAction(
               label: 'পুনরায় চেষ্টা করুন',
               textColor: Colors.white,
-              onPressed: () {
-                _messageController.text = messageText;
-              },
+              onPressed: _sendMessage,
             ),
           ),
         );
@@ -223,36 +257,93 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
     }
   }
 
-  Future<void> _pickImageAndSend() async {
+  Future<void> _pickImage() async {
     try {
       final xfile = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
       if (xfile == null) return;
+      
+      // For web, we need to read bytes; for mobile, we can use File
+      Uint8List? imageBytes;
+      if (kIsWeb) {
+        imageBytes = await xfile.readAsBytes();
+      }
+      
       setState(() {
-        isSending = true;
+        _attachedImageXFile = xfile;
+        _attachedImageBytes = imageBytes;
+        // Reset voice if image is picked
+        _recordedFilePath = null;
+        _showVoicePreview = false; 
       });
-      final complaintIdInt = int.parse(widget.complaintId);
-      final url = await _chatService.uploadImageForComplaint(complaintIdInt, xfile);
-      final sentMessage = await _chatService.sendMessage(
-        complaintIdInt,
-        _messageController.text.trim().isEmpty ? ' ' : _messageController.text.trim(),
-        imageUrl: url,
-      );
-      setState(() {
-        messages.add(sentMessage);
-        isSending = false;
-        _messageController.clear();
-      });
-      _scrollToBottom();
     } catch (e) {
-      setState(() {
-        isSending = false;
-      });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: TranslatedText('ছবি পাঠাতে ব্যর্থ: ${e.toString()}'), backgroundColor: Colors.red),
+          SnackBar(content: TranslatedText('ছবি নির্বাচন করতে ব্যর্থ: ${e.toString()}'), backgroundColor: Colors.red),
         );
       }
     }
+  }
+
+  Widget _buildAttachmentPreview() {
+    if (_attachedImageXFile != null) {
+      return Container(
+        margin: const EdgeInsets.only(bottom: 8, left: 16, right: 16),
+        height: 100,
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: kIsWeb && _attachedImageBytes != null
+                    ? Image.memory(
+                        _attachedImageBytes!,
+                        fit: BoxFit.cover,
+                        width: 100,
+                        height: 100,
+                      )
+                    : Image.file(
+                        File(_attachedImageXFile!.path),
+                        fit: BoxFit.cover,
+                        width: 100,
+                        height: 100,
+                      ),
+              ),
+            ),
+            Positioned(
+              top: 4,
+              right: 4,
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _attachedImageXFile = null;
+                    _attachedImageBytes = null;
+                  });
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: const BoxDecoration(
+                    color: Colors.black54,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.close,
+                    size: 16,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    return const SizedBox.shrink();
   }
 
   Future<void> _toggleRecord() async {
@@ -272,6 +363,7 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
       if (_recorder == null) return;
 
       if (!isRecording) {
+        // Start Recording
         final hasPermission = await _recorder!.hasPermission();
         if (!hasPermission) {
           if (mounted) {
@@ -281,42 +373,45 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
           }
           return;
         }
+
         final dir = await getTemporaryDirectory();
         final filePath = p.join(dir.path, 'voice_${DateTime.now().millisecondsSinceEpoch}.m4a');
         await _recorder!.start(const RecordConfig(), path: filePath);
+        
         setState(() {
           isRecording = true;
+          _recordDuration = Duration.zero;
+          _recordTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+            setState(() {
+              _recordDuration += const Duration(seconds: 1);
+            });
+          });
+          // Reset other attachments if recording starts
+          _attachedImageXFile = null;
         });
       } else {
+        // Stop Recording
         final path = await _recorder!.stop();
+        _recordTimer?.cancel();
+        
         setState(() {
           isRecording = false;
+          _recordTimer = null;
         });
+
         if (path == null) return;
-        final xfile = XFile(path);
+        
         setState(() {
-          isSending = true;
+          _recordedFilePath = path;
+          _showVoicePreview = true;
         });
-        final url = await _chatService.uploadVoice(xfile);
-        _recordedVoiceUrl = url;
-        final complaintIdInt = int.parse(widget.complaintId);
-        final sentMessage = await _chatService.sendMessage(
-          complaintIdInt,
-          _messageController.text.trim().isEmpty ? 'ভয়েস মেসেজ' : _messageController.text.trim(),
-          voiceUrl: url,
-        );
-        setState(() {
-          messages.add(sentMessage);
-          isSending = false;
-          _messageController.clear();
-          _recordedVoiceUrl = null;
-        });
-        _scrollToBottom();
       }
     } catch (e) {
+      _recordTimer?.cancel();
       setState(() {
         isRecording = false;
         isSending = false;
+        _recordTimer = null;
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -325,6 +420,103 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
       }
     }
   }
+
+  void _cancelRecording() async {
+     if (isRecording) {
+       await _recorder?.stop();
+     }
+     _recordTimer?.cancel();
+     setState(() {
+       isRecording = false;
+       _recordTimer = null;
+       _showVoicePreview = false;
+       _recordedFilePath = null;
+       _recordDuration = Duration.zero;
+     });
+  }
+
+  Widget _buildVoiceRecorderUI() {
+    if (isRecording) {
+      return Expanded(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          height: 50,
+          decoration: BoxDecoration(
+            color: Colors.red.shade50,
+            borderRadius: BorderRadius.circular(25),
+          ),
+          child: Row(
+            children: [
+               const Icon(Icons.mic, color: Colors.red, size: 20),
+               const SizedBox(width: 8),
+               Text(
+                 '${_recordDuration.inMinutes.toString().padLeft(2, '0')}:${(_recordDuration.inSeconds % 60).toString().padLeft(2, '0')}',
+                 style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+               ),
+               const Spacer(),
+               TextButton(
+                 onPressed: _cancelRecording,
+                 child: const TranslatedText('বাতিল', style: TextStyle(color: Colors.red)),
+               )
+            ],
+          ),
+        ),
+      );
+    } else if (_showVoicePreview) {
+       return Expanded(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          height: 50,
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(25),
+          ),
+          child: Row(
+            children: [
+               IconButton(
+                 icon: const Icon(Icons.play_arrow, color: Color(0xFF2E8B57)),
+                 onPressed: () async {
+                   if (_recordedFilePath != null) {
+                      await _audioPlayer.play(DeviceFileSource(_recordedFilePath!));
+                   }
+                 },
+               ),
+               const Expanded(
+                 child: Text(
+                   'Voice Message', 
+                   style: TextStyle(color: Colors.black87),
+                   overflow: TextOverflow.ellipsis,
+                 ),
+               ),
+               IconButton(
+                 icon: const Icon(Icons.delete, color: Colors.red),
+                 onPressed: _cancelRecording,
+               ),
+            ],
+          ),
+        ),
+      );
+    }
+    return const SizedBox.shrink(); // Should not happen in this logic flow
+  }
+
+  /// Cache complaint information for offline access
+  Future<void> _cacheComplaintInfo() async {
+    try {
+      final complaintIdInt = int.parse(widget.complaintId);
+      final info = CachedComplaintInfo(
+        complaintId: complaintIdInt,
+        complaintTitle: widget.complaintTitle,
+        status: 'Unknown', // We don't have this info in the chat page
+        lastUpdated: DateTime.now(),
+      );
+      await _cacheService.cacheComplaintInfo(info);
+      print('💾 Cached complaint info for #$complaintIdInt');
+    } catch (e) {
+      print('Error caching complaint info: $e');
+    }
+  }
+
 
   void _scrollToBottom() {
     Future.delayed(const Duration(milliseconds: 100), () {
@@ -781,75 +973,74 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
           ),
         ],
       ),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          IconButton(
-            onPressed: isSending ? null : _pickImageAndSend,
-            icon: const Icon(Icons.image, color: Color(0xFF2E8B57)),
-          ),
-          IconButton(
-            onPressed: isSending ? null : _toggleRecord,
-            icon: Icon(
-              isRecording ? Icons.stop_circle : Icons.mic,
-              color: isRecording ? Colors.red : const Color(0xFF2E8B57),
-            ),
-          ),
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: TextField(
-                controller: _messageController,
-                decoration: const InputDecoration(
-                  hintText: 'মেসেজ লিখুন...',
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
+          _buildAttachmentPreview(),
+          Row(
+            children: [
+              if (!isRecording && !_showVoicePreview) ...[ 
+                IconButton(
+                  onPressed: isSending ? null : _pickImage,
+                  icon: const Icon(Icons.image, color: Color(0xFF2E8B57)),
                 ),
-                onSubmitted: (_) => _sendMessage(),
-                enabled: !isSending,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          GestureDetector(
-            onTap: isSending ? null : _sendMessage,
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: isSending
-                      ? [Colors.grey, Colors.grey]
-                      : [const Color(0xFF2E8B57), const Color(0xFF3CB371)],
+                IconButton(
+                  onPressed: isSending ? null : _toggleRecord,
+                  icon: const Icon(Icons.mic, color: Color(0xFF2E8B57)),
                 ),
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF2E8B57).withOpacity(0.3),
-                    offset: const Offset(0, 2),
-                    blurRadius: 8,
-                  ),
-                ],
-              ),
-              child: isSending
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
-                  : const Icon(
-                      Icons.send,
-                      color: Colors.white,
-                      size: 20,
+                Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(24),
                     ),
-            ),
+                    child: TextField(
+                      controller: _messageController,
+                      enabled: !isSending,
+                      decoration: const InputDecoration(
+                        hintText: 'মেসেজ লিখুন...',
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                      ),
+                      minLines: 1,
+                      maxLines: 4,
+                    ),
+                  ),
+                ),
+              ] else ...[
+                 _buildVoiceRecorderUI(),
+                 if (isRecording)
+                   IconButton(
+                     onPressed: _toggleRecord,
+                     icon: const Icon(Icons.stop_circle, color: Colors.red, size: 32),
+                   ),
+              ],
+              const SizedBox(width: 8),
+              if (!isRecording) 
+              Container(
+                decoration: const BoxDecoration(
+                  color: Color(0xFF2E8B57),
+                  shape: BoxShape.circle,
+                ),
+                child: IconButton(
+                  onPressed: isSending ? null : _sendMessage,
+                  icon: isSending
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Icon(Icons.send, color: Colors.white),
+                ),
+              ),
+            ],
           ),
         ],
       ),

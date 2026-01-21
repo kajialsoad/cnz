@@ -8,9 +8,11 @@ import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/chat_message.dart';
 import '../config/api_config.dart';
+import 'chat_cache_service.dart';
 
 class ChatService {
   String get baseUrl => ApiConfig.baseUrl;
+  final ChatCacheService _cacheService = ChatCacheService();
 
   /// Get authentication token from SharedPreferences
   Future<String?> _getToken() async {
@@ -23,7 +25,40 @@ class ChatService {
     int complaintId, {
     int page = 1,
     int limit = 50,
+    bool cacheFirst = true,
   }) async {
+    try {
+      // Try to load from cache first (for offline support)
+      if (cacheFirst) {
+        final cachedMessages = await _cacheService.getCachedMessages(complaintId);
+        if (cachedMessages.isNotEmpty) {
+          print('📦 Loaded ${cachedMessages.length} messages from cache');
+          // Return cached messages immediately, then fetch fresh data in background
+          _fetchAndCacheMessages(complaintId, page, limit);
+          return cachedMessages;
+        }
+      }
+
+      // No cache or cache disabled, fetch from API
+      return await _fetchAndCacheMessages(complaintId, page, limit);
+    } catch (e) {
+      print('Error in getChatMessages: $e');
+      // If API fails, try to return cached messages
+      final cachedMessages = await _cacheService.getCachedMessages(complaintId);
+      if (cachedMessages.isNotEmpty) {
+        print('📦 Returning cached messages due to API error');
+        return cachedMessages;
+      }
+      rethrow;
+    }
+  }
+
+  /// Fetch messages from API and cache them
+  Future<List<ChatMessage>> _fetchAndCacheMessages(
+    int complaintId,
+    int page,
+    int limit,
+  ) async {
     try {
       final token = await _getToken();
       if (token == null) {
@@ -55,6 +90,11 @@ class ChatService {
         final messages = (data['data']['messages'] as List)
             .map((msg) => ChatMessage.fromJson(msg))
             .toList();
+        
+        // Cache the messages
+        await _cacheService.cacheMessages(complaintId, messages);
+        print('💾 Cached ${messages.length} messages');
+        
         return messages;
       } else if (response.statusCode == 401) {
         throw Exception('Unauthorized. Please login again.');
@@ -64,7 +104,7 @@ class ChatService {
         throw Exception('Failed to load messages: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error in getChatMessages: $e');
+      print('Error in _fetchAndCacheMessages: $e');
       rethrow;
     }
   }

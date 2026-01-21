@@ -3,6 +3,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 import 'config/api_config.dart';
 import 'guards/auth_guard.dart';
@@ -40,6 +41,8 @@ import 'repositories/complaint_repository.dart';
 import 'services/api_client.dart';
 import 'services/auth_service.dart';
 import 'services/smart_api_client.dart';
+import 'models/cached_chat_message.dart';
+import 'models/cached_complaint_info.dart';
 
 void main() async {
   // Ensure Flutter is initialized
@@ -47,6 +50,11 @@ void main() async {
 
   // Load environment variables
   await dotenv.load(fileName: ".env");
+
+  // Initialize Hive for offline storage
+  await Hive.initFlutter();
+  Hive.registerAdapter(CachedChatMessageAdapter());
+  Hive.registerAdapter(CachedComplaintInfoAdapter());
 
   // Print current configuration for debugging
   print('🔧 Environment Configuration:');
