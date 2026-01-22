@@ -308,7 +308,79 @@ class ChatService {
     throw Exception('No image returned. Response format: $raw');
   }
 
-  /// Upload voice and return URL
+  /// Upload voice for a specific complaint and return URL
+  Future<String> uploadVoiceForComplaint(int complaintId, XFile xfile) async {
+    final token = await _getToken();
+    if (token == null) {
+      throw Exception('Authentication token not found');
+    }
+
+    final uri = Uri.parse('$baseUrl/api/complaints/$complaintId/upload');
+    final request = http.MultipartRequest('POST', uri);
+    request.headers['Authorization'] = 'Bearer $token';
+
+    if (kIsWeb) {
+      final bytes = await xfile.readAsBytes();
+      final detectedMime = lookupMimeType('', headerBytes: bytes) ?? 'audio/m4a';
+      final ext = detectedMime.contains('mpeg') || detectedMime.contains('mp3')
+          ? 'mp3'
+          : detectedMime.contains('wav')
+              ? 'wav'
+              : detectedMime.contains('ogg')
+                  ? 'ogg'
+                  : 'm4a';
+      var filename = xfile.name;
+      if (filename.isEmpty || filename.startsWith('blob:')) {
+        filename = 'voice_${DateTime.now().millisecondsSinceEpoch}.$ext';
+      }
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'voice',
+          bytes,
+          filename: filename,
+          contentType: MediaType.parse(detectedMime),
+        ),
+      );
+    } else {
+      final file = File(xfile.path);
+      final mimeType = lookupMimeType(file.path) ?? 'application/octet-stream';
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'voice',
+          file.path,
+          contentType: MediaType.parse(mimeType),
+        ),
+      );
+    }
+
+    final streamed = await request.send();
+    final response = await http.Response.fromStream(streamed);
+    if (response.statusCode != 200) {
+      throw Exception('Voice upload failed: ${response.statusCode}');
+    }
+    final raw = response.body;
+    print('🎙️ Upload voice (complaint) response: $raw');
+    final data = json.decode(raw);
+    final payload = data['data'];
+    if (payload == null) {
+      throw Exception('No voice file returned');
+    }
+    
+    // Handle different response formats
+    // Format 1: { data: { voice: { url: "...", filename: "..." } } }
+    if (payload is Map && payload['voice'] is Map && payload['voice']['url'] != null) {
+      return payload['voice']['url'] as String;
+    }
+    
+    // Format 2: { data: { fileUrls: ["url1", "url2"] } }
+    if (payload is Map && payload['fileUrls'] is List && (payload['fileUrls'] as List).isNotEmpty) {
+      return (payload['fileUrls'] as List).first as String;
+    }
+    
+    throw Exception('No voice file returned. Response format: $raw');
+  }
+
+  /// Upload voice and return URL (legacy method - kept for backward compatibility)
   Future<String> uploadVoice(XFile xfile) async {
     final token = await _getToken();
     if (token == null) {

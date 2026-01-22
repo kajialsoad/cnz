@@ -227,7 +227,7 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
       String? voiceUrl = _recordedVoiceUrl;
       if (_recordedFilePath != null && voiceUrl == null) {
          final xfile = XFile(_recordedFilePath!);
-         voiceUrl = await _chatService.uploadVoice(xfile);
+         voiceUrl = await _chatService.uploadVoiceForComplaint(complaintIdInt, xfile);
       }
 
       final sentMessage = await _chatService.sendMessage(

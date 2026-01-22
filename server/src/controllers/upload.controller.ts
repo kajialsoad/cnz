@@ -17,6 +17,8 @@ export class UploadController {
         // Upload to Cloudinary
         const files = req.files as any;
         const fileUrls: string[] = [];
+        const imageUrls: string[] = [];
+        let voiceUrl: string | null = null;
 
         if (files && Array.isArray(files)) {
           // Handle files as array (from multer.any())
@@ -25,9 +27,20 @@ export class UploadController {
               try {
                 const result = await cloudUploadService.uploadImage(file, 'complaints');
                 fileUrls.push(result.secure_url);
-                console.log('✅ Uploaded to Cloudinary:', result.secure_url);
+                imageUrls.push(result.secure_url);
+                console.log('✅ Uploaded image to Cloudinary:', result.secure_url);
               } catch (error) {
-                console.error('❌ Cloudinary upload failed:', error);
+                console.error('❌ Cloudinary image upload failed:', error);
+                throw error;
+              }
+            } else if (file.fieldname === 'voice' || file.fieldname === 'audioFiles') {
+              try {
+                const result = await cloudUploadService.uploadAudio(file, 'complaints/voice');
+                voiceUrl = result.secure_url;
+                fileUrls.push(result.secure_url);
+                console.log('✅ Uploaded voice to Cloudinary:', result.secure_url);
+              } catch (error) {
+                console.error('❌ Cloudinary voice upload failed:', error);
                 throw error;
               }
             }
@@ -37,7 +50,7 @@ export class UploadController {
         if (fileUrls.length === 0) {
           return res.status(400).json({
             success: false,
-            message: 'No images found to upload'
+            message: 'No files found to upload'
           });
         }
 
@@ -46,7 +59,8 @@ export class UploadController {
           message: 'Files uploaded successfully',
           data: {
             fileUrls: fileUrls,
-            images: fileUrls.map(url => ({ url, filename: url.split('/').pop() }))
+            images: imageUrls.map(url => ({ url, filename: url.split('/').pop() })),
+            ...(voiceUrl && { voice: { url: voiceUrl, filename: voiceUrl.split('/').pop() } })
           }
         });
       } else {
