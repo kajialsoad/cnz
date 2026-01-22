@@ -434,7 +434,7 @@ const AdminEditModal: React.FC<AdminEditModalProps> = ({
             onClose();
         } catch (error: any) {
             console.error('Error updating admin:', error);
-            setSubmitError(error.response?.data?.error?.message || 'Failed to update admin');
+            setSubmitError(error.message || 'Failed to update admin');
         } finally {
             setLoading(false);
         }
