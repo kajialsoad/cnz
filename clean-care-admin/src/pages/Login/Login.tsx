@@ -24,6 +24,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import logoImage from '../../assets/images/logo_clean_c.png';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
@@ -41,7 +42,7 @@ const Login: React.FC = () => {
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      const from = (location.state as any)?.from?.pathname || '/';
+      const from = (location.state as any)?.from?.pathname || '/dashboard';
       navigate(from, { replace: true });
     }
   }, [isAuthenticated, navigate, location]);
@@ -125,15 +126,20 @@ const Login: React.FC = () => {
                 width: 80,
                 height: 80,
                 borderRadius: '50%',
-                background: 'linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%)',
+                background: 'white',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 margin: '0 auto 20px',
                 boxShadow: '0 8px 16px rgba(76, 175, 80, 0.3)',
+                padding: 1
               }}
             >
-              <AdminIcon sx={{ fontSize: 40, color: 'white' }} />
+              <img 
+                src={logoImage}
+                alt="Clean Care Logo" 
+                style={{ width: '100%', height: '100%', objectFit: 'contain' }} 
+              />
             </Box>
 
             {/* Title */}
@@ -146,6 +152,17 @@ const Login: React.FC = () => {
               }}
             >
               Clean Care Admin
+            </Typography>
+
+            <Typography
+              variant="h6"
+              sx={{
+                fontWeight: 600,
+                color: '#2E7D32',
+                mb: 1,
+              }}
+            >
+              Dhaka South City Corporation
             </Typography>
 
             <Typography
@@ -282,53 +299,27 @@ const Login: React.FC = () => {
 
             {/* Login Button */}
             <Button
-              type="submit"
               fullWidth
               variant="contained"
+              size="large"
+              type="submit"
               disabled={loading}
               startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <LoginIcon />}
               sx={{
+                mt: 3,
+                mb: 2,
+                height: 48,
                 background: 'linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%)',
-                py: 1.5,
-                borderRadius: 2,
-                textTransform: 'none',
                 fontSize: '1rem',
                 fontWeight: 600,
-                boxShadow: '0 4px 12px rgba(76, 175, 80, 0.4)',
+                textTransform: 'none',
                 '&:hover': {
-                  background: 'linear-gradient(135deg, #45a049 0%, #1b5e20 100%)',
-                  boxShadow: '0 6px 16px rgba(76, 175, 80, 0.5)',
-                },
-                '&:disabled': {
-                  background: 'linear-gradient(135deg, #81C784 0%, #66BB6A 100%)',
-                  color: 'white',
-                  opacity: 0.7,
+                  background: 'linear-gradient(135deg, #43A047 0%, #1B5E20 100%)',
                 },
               }}
             >
-              {loading ? 'Signing In...' : 'Sign In to Dashboard'}
+              {loading ? 'Signing in...' : 'Sign In to Dashboard'}
             </Button>
-          </Box>
-
-          {/* Demo Credentials */}
-          <Box sx={{ mt: 3, p: 2, backgroundColor: '#f5f5f5', borderRadius: 2 }}>
-            <Typography variant="body2" sx={{ fontWeight: 600, mb: 1.5, color: '#4CAF50' }}>
-              🔐 Demo Admin Accounts
-            </Typography>
-            <Box sx={{ textAlign: 'left', fontSize: '0.75rem' }}>
-              <Typography variant="caption" sx={{ fontWeight: 600, color: '#2E7D32', display: 'block' }}>
-                👑 Super Admin:
-              </Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                <strong>superadmin@demo.com</strong> / <strong>Demo123!@#</strong>
-              </Typography>
-              <Typography variant="caption" sx={{ fontWeight: 600, color: '#2E7D32', display: 'block', mt: 1 }}>
-                👨‍💼 Admin:
-              </Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                <strong>admin@demo.com</strong> / <strong>Demo123!@#</strong>
-              </Typography>
-            </Box>
           </Box>
 
           {/* Footer */}

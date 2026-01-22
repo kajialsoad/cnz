@@ -17,6 +17,11 @@ import PageLoadingBar from './components/common/PageLoadingBar';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard/Dashboard';
 
+// Public Pages
+const Home = lazy(() => import('./pages/Public/Home'));
+const About = lazy(() => import('./pages/Public/About'));
+const Blog = lazy(() => import('./pages/Public/Blog'));
+
 // Lazy load management pages for code splitting
 const AllComplaints = lazy(() => import('./pages/AllComplaints'));
 const ComplaintDetails = lazy(() => import('./pages/ComplaintDetails/ComplaintDetails'));
@@ -80,12 +85,16 @@ function App() {
                   >
                     <Suspense fallback={<PageLoadingBar loading={true} />}>
                       <Routes>
-                        {/* Public Route */}
+                        {/* Public Routes */}
                         <Route path="/login" element={<Login />} />
+                        <Route path="/" element={<Home />} />
+                        <Route path="/home" element={<Home />} />
+                        <Route path="/about" element={<About />} />
+                        <Route path="/blog" element={<Blog />} />
 
                         {/* Protected Routes */}
                         <Route
-                          path="/"
+                          path="/dashboard"
                           element={
                             <ProtectedRoute>
                               <Dashboard />

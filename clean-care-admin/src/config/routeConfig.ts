@@ -4,8 +4,13 @@ export const ROUTE_PATHS = {
   FORGOT_PASSWORD: '/forgot-password',
   RESET_PASSWORD: '/reset-password',
   
+  // Public routes
+  HOME: '/home',
+  ABOUT: '/about',
+  BLOG: '/blog',
+  
   // Main app routes
-  DASHBOARD: '/',
+  DASHBOARD: '/dashboard',
   
   // User Management
   USERS: '/users',

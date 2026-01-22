@@ -76,11 +76,10 @@ class AuthService {
                     } catch (refreshError) {
                         this.isRefreshing = false;
                         this.refreshSubscribers = [];
-                        // Avoid reload loop on login page
-                        const loginPath = `${import.meta.env.BASE_URL}login`;
-                        if (window.location.pathname !== loginPath) {
-                            window.location.assign(loginPath);
-                        }
+                        
+                        // Don't redirect here. Let AuthContext handle the state change.
+                        // ProtectedRoute will redirect if necessary.
+                        
                         return Promise.reject(refreshError);
                     }
                 }

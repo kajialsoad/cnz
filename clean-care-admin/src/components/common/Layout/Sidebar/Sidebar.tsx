@@ -38,7 +38,7 @@ const baseMenuItems = [
     id: 'dashboard',
     label: 'Dashboard',
     icon: dashboardIcon,
-    path: '/',
+    path: '/dashboard',
     roles: ['MASTER_ADMIN', 'SUPER_ADMIN', 'ADMIN'], // All roles can see dashboard
   },
   {

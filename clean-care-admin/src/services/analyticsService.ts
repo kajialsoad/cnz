@@ -57,12 +57,7 @@ class AnalyticsService {
         this.apiClient.interceptors.response.use(
             (response) => response,
             (error) => {
-                if (error.response?.status === 401) {
-                    // Token expired or invalid - redirect to login
-                    if (window.location.pathname !== '/login') {
-                        window.location.assign('/login');
-                    }
-                }
+                // Remove auto-redirect for 401. Let AuthContext and ProtectedRoute handle it.
                 return Promise.reject(error);
             }
         );
