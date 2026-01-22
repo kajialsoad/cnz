@@ -323,6 +323,7 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
                   ),
                 )
               : DropdownButtonFormField<CityCorporation>(
+                  isExpanded: true,
                   value: _selectedCityCorporation,
                   decoration: InputDecoration(
                     contentPadding: const EdgeInsets.symmetric(
@@ -384,6 +385,7 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
             ],
           ),
           child: DropdownButtonFormField<Zone>(
+              isExpanded: true,
               value: _selectedZone,
               decoration: InputDecoration(
                 contentPadding: const EdgeInsets.symmetric(
@@ -456,6 +458,7 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
                   ),
                 )
               : DropdownButtonFormField<Ward>(
+                  isExpanded: true,
                   value: _selectedWard,
                   decoration: InputDecoration(
                     contentPadding: const EdgeInsets.symmetric(
