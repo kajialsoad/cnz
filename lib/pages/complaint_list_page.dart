@@ -7,6 +7,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../components/custom_bottom_nav.dart';
 import '../widgets/translated_text.dart';
 import '../widgets/notification_badge.dart';
+import '../widgets/notification_sheet.dart';
 import '../providers/complaint_provider.dart';
 import '../providers/notification_provider.dart';
 import '../models/complaint.dart';
@@ -183,9 +184,13 @@ class _ComplaintListPageState extends State<ComplaintListPage> {
                   ),
                   onPressed: () {
                     HapticFeedback.selectionClick();
-                    // TODO: Navigate to notifications page when implemented
-                    // For now, just refresh the count
-                    notificationProvider.refreshUnreadCount();
+                    // Show notifications bottom sheet
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (context) => const NotificationSheet(),
+                    );
                   },
                   tooltip: 'Notifications',
                 ),
@@ -504,294 +509,296 @@ class _ComplaintListPageState extends State<ComplaintListPage> {
             .getNotificationsByComplaint(complaintId)
             .any((notification) => !notification.isRead);
 
-        return Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: () {
-              // Haptic feedback on tap
-              HapticFeedback.selectionClick();
-              
-              // Load the complaint into provider first
-              final provider = Provider.of<ComplaintProvider>(context, listen: false);
-              provider.loadFormFromComplaint(complaint);
-              
-              // Navigate to complaint detail view
-              Navigator.pushNamed(
-                context,
-                '/complaint-detail-view',
-                arguments: complaint.id,
-              ).then((_) {
-                // Refresh unread count when returning from detail page
-                notificationProvider.refreshUnreadCount();
-              });
-            },
-            borderRadius: BorderRadius.circular(12),
-            child: Ink(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: hasUnreadNotifications
-                    ? Border.all(
-                        color: const Color(0xFF4CAF50).withValues(alpha: 0.3),
-                        width: 2,
-                      )
-                    : null,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    offset: Offset(0, 2),
-                    blurRadius: 8,
-                    spreadRadius: 0,
-                  ),
-                ],
-              ),
-              child: Container(
-                margin: EdgeInsets.only(bottom: 16),
-                padding: EdgeInsets.all(16),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Unread indicator dot
-                    if (hasUnreadNotifications)
-                      Padding(
-                        padding: const EdgeInsets.only(right: 8.0, top: 4.0),
-                        child: UnreadIndicator(
-                          size: 10,
-                          color: const Color(0xFF4CAF50),
-                        ),
-                      ),
-                    
-                    // Thumbnail image if available
-                    if (complaint.imageUrls.isNotEmpty)
-                      Container(
-                        width: 80,
-                        height: 80,
-                        margin: EdgeInsets.only(right: 12),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: CachedNetworkImage(
-                            imageUrl: UrlHelper.getImageUrl(complaint.imageUrls.first),
-                            fit: BoxFit.cover,
-                            placeholder: (context, url) => Container(
-                              color: Colors.grey[200],
-                              child: Center(
-                                child: SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      Color(0xFF4CAF50),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            errorWidget: (context, url, error) => Container(
-                              color: Colors.grey[200],
-                              child: Icon(
-                                Icons.broken_image,
-                                color: Colors.grey[400],
-                                size: 32,
-                              ),
-                            ),
+        return Container(
+          margin: EdgeInsets.only(bottom: 16),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                // Haptic feedback on tap
+                HapticFeedback.selectionClick();
+                
+                // Load the complaint into provider first
+                final provider = Provider.of<ComplaintProvider>(context, listen: false);
+                provider.loadFormFromComplaint(complaint);
+                
+                // Navigate to complaint detail view
+                Navigator.pushNamed(
+                  context,
+                  '/complaint-detail-view',
+                  arguments: complaint.id,
+                ).then((_) {
+                  // Refresh unread count when returning from detail page
+                  notificationProvider.refreshUnreadCount();
+                });
+              },
+              borderRadius: BorderRadius.circular(12),
+              child: Ink(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: hasUnreadNotifications
+                      ? Border.all(
+                          color: const Color(0xFF4CAF50).withValues(alpha: 0.3),
+                          width: 2,
+                        )
+                      : null,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.08),
+                      offset: Offset(0, 2),
+                      blurRadius: 8,
+                      spreadRadius: 0,
+                    ),
+                  ],
+                ),
+                child: Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Unread indicator dot
+                      if (hasUnreadNotifications)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8.0, top: 4.0),
+                          child: UnreadIndicator(
+                            size: 10,
+                            color: const Color(0xFF4CAF50),
                           ),
                         ),
-                      ),
-                    
-                    // Complaint details
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Header: ID and Status
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                '#${complaint.id}',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF4CAF50),
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                              _buildStatusBadge(complaint.status),
-                            ],
-                          ),
-                          SizedBox(height: 8),
-
-                          // Title
-                          Text(
-                            complaint.title,
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.grey[800],
-                              height: 1.3,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          SizedBox(height: 6),
-
-                          // Location
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.location_on_outlined,
-                                size: 14,
-                                color: Colors.grey[600],
-                              ),
-                              SizedBox(width: 4),
-                              Expanded(
-                                child: Text(
-                                  complaint.location,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: Colors.grey[600],
-                                    height: 1.2,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                          SizedBox(height: 6),
-                          
-                          // Geographical Information
-                          if (complaint.geographicalInfo.isNotEmpty)
-                            Container(
-                              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Color(0xFF4CAF50).withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.location_city,
-                                    size: 12,
-                                    color: Color(0xFF4CAF50),
-                                  ),
-                                  SizedBox(width: 4),
-                                  Expanded(
-                                    child: Text(
-                                      complaint.geographicalInfo,
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: Color(0xFF4CAF50),
-                                        fontWeight: FontWeight.w500,
+                      
+                      // Thumbnail image if available
+                      if (complaint.imageUrls.isNotEmpty)
+                        Container(
+                          width: 80,
+                          height: 80,
+                          margin: EdgeInsets.only(right: 12),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: CachedNetworkImage(
+                              imageUrl: UrlHelper.getImageUrl(complaint.imageUrls.first),
+                              fit: BoxFit.cover,
+                              placeholder: (context, url) => Container(
+                                color: Colors.grey[200],
+                                child: Center(
+                                  child: SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Color(0xFF4CAF50),
                                       ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
-                                ],
+                                ),
+                              ),
+                              errorWidget: (context, url, error) => Container(
+                                color: Colors.grey[200],
+                                child: Icon(
+                                  Icons.broken_image,
+                                  color: Colors.grey[400],
+                                  size: 32,
+                                ),
                               ),
                             ),
-                          if (complaint.geographicalInfo.isNotEmpty)
+                          ),
+                        ),
+                      
+                      // Complaint details
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Header: ID and Status
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  '#${complaint.id}',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF4CAF50),
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                                _buildStatusBadge(complaint.status),
+                              ],
+                            ),
+                            SizedBox(height: 8),
+
+                            // Title
+                            Text(
+                              complaint.title,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey[800],
+                                height: 1.3,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                             SizedBox(height: 6),
 
-                          // Time and Media indicators
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.access_time,
-                                    size: 14,
-                                    color: Colors.grey[600],
-                                  ),
-                                  SizedBox(width: 4),
-                                  Text(
-                                    _getTimeAgo(complaint.createdAt),
+                            // Location
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.location_on_outlined,
+                                  size: 14,
+                                  color: Colors.grey[600],
+                                ),
+                                SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    complaint.location,
                                     style: TextStyle(
                                       fontSize: 13,
                                       color: Colors.grey[600],
+                                      height: 1.2,
                                     ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                ],
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: 6),
+                            
+                            // Geographical Information
+                            if (complaint.geographicalInfo.isNotEmpty)
+                              Container(
+                                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Color(0xFF4CAF50).withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.location_city,
+                                      size: 12,
+                                      color: Color(0xFF4CAF50),
+                                    ),
+                                    SizedBox(width: 4),
+                                    Expanded(
+                                      child: Text(
+                                        complaint.geographicalInfo,
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Color(0xFF4CAF50),
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                              Row(
-                                children: [
-                                  // Media indicators
-                                  if (complaint.imageUrls.isNotEmpty || complaint.audioUrls.isNotEmpty)
-                                    Row(
-                                      children: [
-                                        if (complaint.imageUrls.isNotEmpty)
-                                          Row(
+                            if (complaint.geographicalInfo.isNotEmpty)
+                              SizedBox(height: 6),
+
+                            // Time and Media indicators
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.access_time,
+                                      size: 14,
+                                      color: Colors.grey[600],
+                                    ),
+                                    SizedBox(width: 4),
+                                    Text(
+                                      _getTimeAgo(complaint.createdAt),
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Row(
+                                  children: [
+                                    // Media indicators
+                                    if (complaint.imageUrls.isNotEmpty || complaint.audioUrls.isNotEmpty)
+                                      Row(
+                                        children: [
+                                          if (complaint.imageUrls.isNotEmpty)
+                                            Row(
+                                              children: [
+                                                Icon(
+                                                  Icons.image_outlined,
+                                                  size: 14,
+                                                  color: Colors.grey[600],
+                                                ),
+                                                SizedBox(width: 4),
+                                                Text(
+                                                  '${complaint.imageUrls.length}',
+                                                  style: TextStyle(
+                                                    fontSize: 13,
+                                                    color: Colors.grey[600],
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          if (complaint.imageUrls.isNotEmpty && complaint.audioUrls.isNotEmpty)
+                                            SizedBox(width: 8),
+                                          if (complaint.audioUrls.isNotEmpty)
+                                            Icon(
+                                              Icons.mic_outlined,
+                                              size: 14,
+                                              color: Colors.grey[600],
+                                            ),
+                                        ],
+                                      ),
+                                    // New update indicator
+                                    if (hasUnreadNotifications)
+                                      Padding(
+                                        padding: const EdgeInsets.only(left: 8.0),
+                                        child: Container(
+                                          padding: EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF4CAF50).withValues(alpha: 0.1),
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
                                             children: [
                                               Icon(
-                                                Icons.image_outlined,
+                                                Icons.fiber_new,
                                                 size: 14,
-                                                color: Colors.grey[600],
+                                                color: const Color(0xFF4CAF50),
                                               ),
                                               SizedBox(width: 4),
                                               Text(
-                                                '${complaint.imageUrls.length}',
+                                                'Update',
                                                 style: TextStyle(
-                                                  fontSize: 13,
-                                                  color: Colors.grey[600],
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: const Color(0xFF4CAF50),
                                                 ),
                                               ),
                                             ],
                                           ),
-                                        if (complaint.imageUrls.isNotEmpty && complaint.audioUrls.isNotEmpty)
-                                          SizedBox(width: 8),
-                                        if (complaint.audioUrls.isNotEmpty)
-                                          Icon(
-                                            Icons.mic_outlined,
-                                            size: 14,
-                                            color: Colors.grey[600],
-                                          ),
-                                      ],
-                                    ),
-                                  // New update indicator
-                                  if (hasUnreadNotifications)
-                                    Padding(
-                                      padding: const EdgeInsets.only(left: 8.0),
-                                      child: Container(
-                                        padding: EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 4,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFF4CAF50).withValues(alpha: 0.1),
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Icon(
-                                              Icons.fiber_new,
-                                              size: 14,
-                                              color: const Color(0xFF4CAF50),
-                                            ),
-                                            SizedBox(width: 4),
-                                            Text(
-                                              'Update',
-                                              style: TextStyle(
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.w600,
-                                                color: const Color(0xFF4CAF50),
-                                              ),
-                                            ),
-                                          ],
                                         ),
                                       ),
-                                    ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ],
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),

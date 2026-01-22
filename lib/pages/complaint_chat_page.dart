@@ -23,11 +23,15 @@ import '../config/url_helper.dart';
 class ComplaintChatPage extends StatefulWidget {
   final String complaintId;
   final String complaintTitle;
+  final String? responsibleOfficerName;
+  final String? responsibleOfficerPhone;
 
   const ComplaintChatPage({
     super.key,
     required this.complaintId,
     required this.complaintTitle,
+    this.responsibleOfficerName,
+    this.responsibleOfficerPhone,
   });
 
   @override
@@ -68,6 +72,16 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
   @override
   void initState() {
     super.initState();
+    
+    // 🔍 Debug: Log complaint ID to verify correct value
+    print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    print('🔍 ComplaintChatPage initialized');
+    print('   Complaint ID: ${widget.complaintId}');
+    print('   Complaint Title: ${widget.complaintTitle}');
+    print('   Officer Name: ${widget.responsibleOfficerName}');
+    print('   Officer Phone: ${widget.responsibleOfficerPhone}');
+    print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    
     _backgroundController = AnimationController(
       duration: const Duration(seconds: 8),
       vsync: this,
@@ -604,39 +618,69 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
       title: Row(
         children: [
           const SizedBox(width: 4),
-          const CircleAvatar(
-            radius: 16,
-            backgroundColor: Color(0xFF2E8B57),
-            child: Icon(
-              Icons.support_agent,
-              color: Colors.white,
-              size: 18,
-            ),
-          ),
-          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                const TranslatedText(
-                  'DSCC Support',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
+                // Complaint ID - smaller and cleaner
+                Row(
+                  children: [
+                    Text(
+                      'অভিযোগ #${widget.complaintId}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  widget.complaintTitle,
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 12,
+                // Responsible Officer Info
+                if (widget.responsibleOfficerName != null) ...[
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.person,
+                        color: Colors.white70,
+                        size: 12,
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          widget.responsibleOfficerName!,
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 11,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                ],
+                if (widget.responsibleOfficerPhone != null) ...[
+                  const SizedBox(height: 1),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.phone,
+                        color: Colors.white70,
+                        size: 12,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        widget.responsibleOfficerPhone!,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),

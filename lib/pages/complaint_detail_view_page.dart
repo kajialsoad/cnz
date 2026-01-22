@@ -1016,6 +1016,22 @@ class _ComplaintDetailViewPageState extends State<ComplaintDetailViewPage> {
   }
 
   Widget _buildChatButton(Complaint complaint) {
+    // Extract responsible officer info
+    String? officerName;
+    String? officerPhone;
+    
+    // Try to get Ward Inspector info first (they have phone numbers)
+    if (complaint.ward != null) {
+      officerName = complaint.ward!['inspectorName'];
+      officerPhone = complaint.ward!['inspectorPhone'];
+    }
+    
+    // If no ward inspector, try Zone Officer (no phone shown)
+    if (officerName == null && complaint.zone != null) {
+      officerName = complaint.zone!['officerName'];
+      // Note: Zone officers don't have phone numbers displayed
+    }
+    
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(16),
@@ -1039,12 +1055,18 @@ class _ComplaintDetailViewPageState extends State<ComplaintDetailViewPage> {
         child: InkWell(
           onTap: () {
             HapticFeedback.mediumImpact();
+            print('🔍 Opening chat for complaint ID: ${complaint.id}');
+            print('   Officer: $officerName');
+            print('   Phone: $officerPhone');
             Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (context) => ComplaintChatPage(
+                  key: ValueKey('chat_${complaint.id}'), // 🔑 Unique key to force new widget instance
                   complaintId: complaint.id,
                   complaintTitle: complaint.title,
+                  responsibleOfficerName: officerName,
+                  responsibleOfficerPhone: officerPhone,
                 ),
               ),
             );
@@ -1061,12 +1083,15 @@ class _ComplaintDetailViewPageState extends State<ComplaintDetailViewPage> {
                   size: 24,
                 ),
                 SizedBox(width: 12),
-                TranslatedText(
-                  'অ্যাডমিনের সাথে চ্যাট করুন',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
+                Expanded(
+                  child: TranslatedText(
+                    'সংশ্লিষ্ট অভিযোগের জন্য এই অভিযোগের অধীনস্থ কর্মকর্তার সাথে কথা বলতে এই বাটনে ক্লিক করুন',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
                 ),
                 SizedBox(width: 8),
