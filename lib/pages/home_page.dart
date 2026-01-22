@@ -291,9 +291,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               ),
               // Divider
               const PopupMenuDivider(height: 1),
-              // Emergency
+              // Payment Gateway
               PopupMenuItem<String>(
-                value: 'emergency',
+                value: 'payment',
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 8,
@@ -303,14 +303,43 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: Colors.red.withOpacity(0.1),
+                        color: green.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Icon(Icons.emergency, color: Colors.red, size: 20),
+                      child: Icon(Icons.credit_card, color: green, size: 20),
                     ),
                     const SizedBox(width: 12),
                     TranslatedText(
-                      'Emergency',
+                      'Payment Gateway',
+                      style: TextStyle(
+                        color: Colors.black87,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Donation
+              PopupMenuItem<String>(
+                value: 'donation',
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: green.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(Icons.favorite_border, color: green, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    TranslatedText(
+                      'Donation',
                       style: TextStyle(
                         color: Colors.black87,
                         fontWeight: FontWeight.w500,
@@ -386,35 +415,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ],
                 ),
               ),
-              // Waste Management
-              PopupMenuItem<String>(
-                value: 'waste-management',
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: green.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Icon(Icons.recycling, color: green, size: 20),
-                    ),
-                    const SizedBox(width: 12),
-                    TranslatedText(
-                      'Waste Management',
-                      style: TextStyle(
-                        color: Colors.black87,
-                        fontWeight: FontWeight.w500,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+
               // Photo Gallery
               PopupMenuItem<String>(
                 value: 'gallery',
@@ -683,23 +684,23 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               children: [
                 Flexible(
                   child: buildCircleButton(
-                    title: "Payment Gateway",
+                    title: "Waste Management",
                     subtitle: "",
-                    icon: Icons.credit_card,
+                    icon: Icons.recycling,
                     primary: const Color(0xFF36724A),
                     secondary: const Color(0xFF36724A).withOpacity(0.8),
-                    onTap: () => _navigateToPage('/payment'),
+                    onTap: () => _navigateToPage('/waste-management'),
                   ),
                 ),
                 SizedBox(width: 2), // Reduced gap from 12px to 2px
                 Flexible(
                   child: buildCircleButton(
-                    title: "Donation",
+                    title: "Emergency",
                     subtitle: "",
-                    icon: Icons.favorite_border,
+                    icon: Icons.emergency,
                     primary: const Color(0xFFFF2424),
                     secondary: const Color(0xFFFF2424).withOpacity(0.8),
-                    onTap: () => _navigateToPage('/payment'),
+                    onTap: () => _navigateToPage('/emergency'),
                   ),
                 ),
               ],
@@ -1070,17 +1071,17 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       case 'complaints':
         Navigator.pushNamed(context, '/complaint-list');
         return;
-      case 'emergency':
-        Navigator.pushNamed(context, '/emergency');
+      case 'payment':
+        Navigator.pushNamed(context, '/payment');
+        return;
+      case 'donation':
+        Navigator.pushNamed(context, '/payment');
         return;
       case 'calendar':
         Navigator.pushNamed(context, '/government-calendar');
         return;
       case 'notice':
         Navigator.pushNamed(context, '/notice-board');
-        return;
-      case 'waste-management':
-        Navigator.pushNamed(context, '/waste-management');
         return;
       case 'gallery':
         Navigator.pushNamed(context, '/gallery');
