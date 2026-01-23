@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { adminLiveChatController } from '../controllers/admin.live-chat.controller';
 import { authGuard } from '../middlewares/auth.middleware';
 import { messageRateLimit } from '../middlewares/rate-limit.middleware';
+import { uploadConfig } from '../config/upload.config';
 
 const router = Router();
 
@@ -41,12 +42,12 @@ router.get('/:userId', adminLiveChatController.getUserMessages.bind(adminLiveCha
 
 /**
  * @route   POST /api/admin/live-chat/:userId
- * @desc    Send a message to a user
+ * @desc    Send a message to a user (with optional image upload)
  * @access  Private (Admin only)
  * @param   userId - User ID
- * @body    { message, imageUrl? }
+ * @body    { message, imageUrl? } or FormData with image file
  */
-router.post('/:userId', messageRateLimit, adminLiveChatController.sendMessage.bind(adminLiveChatController));
+router.post('/:userId', messageRateLimit, uploadConfig.single('image'), adminLiveChatController.sendMessage.bind(adminLiveChatController));
 
 /**
  * @route   PATCH /api/admin/live-chat/:userId/read

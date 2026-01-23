@@ -180,6 +180,16 @@ export class AdminLiveChatController {
             const adminId = req.user.sub;
             const userId = parseInt(req.params.userId);
             const { message, imageUrl } = req.body;
+            const imageFile = req.file;
+
+            console.log('📨 [LIVE CHAT] Sending message:', {
+                adminId,
+                userId,
+                hasMessage: !!message,
+                hasImageUrl: !!imageUrl,
+                hasImageFile: !!imageFile,
+                imageFileName: imageFile?.originalname
+            });
 
             if (isNaN(userId)) {
                 return res.status(400).json({
@@ -188,33 +198,73 @@ export class AdminLiveChatController {
                 });
             }
 
-            // Validate message content
-            if (!message || message.trim().length === 0) {
+            // Validate message content - must have either message or image
+            const hasMessage = message && message.trim().length > 0;
+            const hasImage = imageUrl || imageFile;
+
+            if (!hasMessage && !hasImage) {
                 return res.status(400).json({
                     success: false,
-                    message: 'Message content is required'
+                    message: 'Message content or image is required'
                 });
             }
 
-            if (message.length > 5000) {
+            if (message && message.length > 5000) {
                 return res.status(400).json({
                     success: false,
                     message: 'Message is too long (max 5000 characters)'
                 });
             }
 
-            // Determine message type
+            // Determine message type and file URL
             let type: ChatMessageType = ChatMessageType.TEXT;
-            if (imageUrl) {
+            let finalFileUrl: string | undefined = imageUrl;
+
+            // If file was uploaded, upload to Cloudinary
+            if (imageFile) {
+                type = ChatMessageType.IMAGE;
+
+                console.log('📤 [LIVE CHAT] Uploading image to Cloudinary...');
+
+                // Import cloud upload service
+                const { cloudUploadService } = await import('../services/cloud-upload.service');
+                const { isCloudinaryEnabled } = await import('../config/upload.config');
+
+                if (isCloudinaryEnabled()) {
+                    try {
+                        // Upload to Cloudinary
+                        const uploadResult = await cloudUploadService.uploadImage(imageFile, 'live-chat');
+                        finalFileUrl = uploadResult.secure_url;
+
+                        console.log('✅ [LIVE CHAT] Image uploaded to Cloudinary:', finalFileUrl);
+                    } catch (uploadError) {
+                        console.error('❌ [LIVE CHAT] Cloudinary upload failed:', uploadError);
+                        // Fall back to local storage
+                        finalFileUrl = imageFile.path || imageFile.filename;
+                        console.log('⚠️  [LIVE CHAT] Using local storage fallback:', finalFileUrl);
+                    }
+                } else {
+                    // Use local storage
+                    finalFileUrl = imageFile.path || imageFile.filename;
+                    console.log('📁 [LIVE CHAT] Using local storage:', finalFileUrl);
+                }
+            } else if (imageUrl) {
                 type = ChatMessageType.IMAGE;
             }
 
+            console.log('💾 [LIVE CHAT] Saving message to database:', {
+                type,
+                fileUrl: finalFileUrl
+            });
+
             // Send message
             const chatMessage = await liveChatService.sendAdminMessage(adminId, userId, {
-                content: message.trim(),
+                content: message ? message.trim() : 'Image',
                 type,
-                fileUrl: imageUrl
+                fileUrl: finalFileUrl
             });
+
+            console.log('✅ [LIVE CHAT] Message saved successfully:', chatMessage.id);
 
             res.status(201).json({
                 success: true,
@@ -224,7 +274,7 @@ export class AdminLiveChatController {
                 }
             });
         } catch (error) {
-            console.error('Error in sendMessage:', error);
+            console.error('❌ [LIVE CHAT] Error in sendMessage:', error);
 
             // Handle access denied errors
             if (error instanceof Error && error.message.includes('does not have access')) {

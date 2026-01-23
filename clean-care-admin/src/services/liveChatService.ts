@@ -263,7 +263,9 @@ class LiveChatService {
             if (imageFile) {
                 // Send with file upload
                 const formData = new FormData();
-                formData.append('message', message);
+                // If no text message, use a default message for image
+                const messageContent = message.trim() || 'Image';
+                formData.append('message', messageContent);
                 formData.append('image', imageFile);
 
                 const token = localStorage.getItem('accessToken');
