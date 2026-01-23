@@ -113,8 +113,8 @@ class LiveChatService {
           'Content-Type': 'application/json',
         },
         body: json.encode({
-          'content': message, // Backend expects 'content'
-          if (imageUrl != null) 'fileUrl': imageUrl, // Backend expects 'fileUrl'
+          'message': message, // Backend expects 'message' field
+          if (imageUrl != null) 'imageUrl': imageUrl, // Backend expects 'imageUrl' field
           if (voiceUrl != null) 'voiceUrl': voiceUrl,
         }),
       );
@@ -214,7 +214,7 @@ class LiveChatService {
         }
         request.files.add(
           http.MultipartFile.fromBytes(
-            'file',
+            'file', // ✅ Changed from 'image' to 'file'
             bytes,
             filename: filename,
             contentType: MediaType.parse(detectedMime),
@@ -225,7 +225,7 @@ class LiveChatService {
         final mimeType = lookupMimeType(file.path) ?? 'application/octet-stream';
         request.files.add(
           await http.MultipartFile.fromPath(
-            'file',
+            'file', // ✅ Changed from 'image' to 'file'
             file.path,
             contentType: MediaType.parse(mimeType),
           ),
@@ -250,20 +250,9 @@ class LiveChatService {
         throw Exception('No image returned');
       }
 
-      // Handle different response formats
-      // Format 1: { data: { url: "..." } }
+      // Handle response format: { data: { url: "..." } }
       if (payload is Map && payload['url'] != null) {
         return payload['url'] as String;
-      }
-
-      // Format 2: { data: { fileUrl: "..." } }
-      if (payload is Map && payload['fileUrl'] != null) {
-        return payload['fileUrl'] as String;
-      }
-
-      // Format 3: { data: { fileUrls: ["url1"] } }
-      if (payload is Map && payload['fileUrls'] is List && (payload['fileUrls'] as List).isNotEmpty) {
-        return (payload['fileUrls'] as List).first as String;
       }
 
       throw Exception('No image URL returned. Response format: $raw');
@@ -304,7 +293,7 @@ class LiveChatService {
         }
         request.files.add(
           http.MultipartFile.fromBytes(
-            'file',
+            'file', // ✅ Changed from 'voice' to 'file'
             bytes,
             filename: filename,
             contentType: MediaType.parse(detectedMime),
@@ -315,7 +304,7 @@ class LiveChatService {
         final mimeType = lookupMimeType(file.path) ?? 'application/octet-stream';
         request.files.add(
           await http.MultipartFile.fromPath(
-            'file',
+            'file', // ✅ Changed from 'voice' to 'file'
             file.path,
             contentType: MediaType.parse(mimeType),
           ),
@@ -340,20 +329,9 @@ class LiveChatService {
         throw Exception('No voice file returned');
       }
 
-      // Handle different response formats
-      // Format 1: { data: { url: "..." } }
+      // Handle response format: { data: { url: "..." } }
       if (payload is Map && payload['url'] != null) {
         return payload['url'] as String;
-      }
-
-      // Format 2: { data: { fileUrl: "..." } }
-      if (payload is Map && payload['fileUrl'] != null) {
-        return payload['fileUrl'] as String;
-      }
-
-      // Format 3: { data: { fileUrls: ["url1"] } }
-      if (payload is Map && payload['fileUrls'] is List && (payload['fileUrls'] as List).isNotEmpty) {
-        return (payload['fileUrls'] as List).first as String;
       }
 
       throw Exception('No voice URL returned. Response format: $raw');

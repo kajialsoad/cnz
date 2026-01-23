@@ -47,13 +47,23 @@ const fileFilter = (req: any, file: any, cb: (error: any, acceptFile: boolean) =
     return cb(new Error('Invalid filename'), false);
   }
 
-  // Image files validation (image, images, or resolutionImages fieldnames)
-  if (file.fieldname === 'image' || file.fieldname === 'images' || file.fieldname === 'resolutionImages') {
+  // Image files validation (image, images, resolutionImages, or file fieldnames)
+  if (file.fieldname === 'image' || file.fieldname === 'images' || file.fieldname === 'resolutionImages' || file.fieldname === 'file') {
     const allowedImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
     if (allowedImageTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Only JPEG, PNG, and WebP images are allowed'), false);
+      // If fieldname is 'file', check if it's an audio file instead
+      if (file.fieldname === 'file') {
+        const allowedAudioTypes = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/ogg', 'audio/m4a', 'audio/aac', 'audio/mp4'];
+        if (allowedAudioTypes.includes(file.mimetype)) {
+          cb(null, true);
+        } else {
+          cb(new Error('Only images (JPEG, PNG, WebP) and audio files (MP3, WAV, OGG, M4A, AAC) are allowed'), false);
+        }
+      } else {
+        cb(new Error('Only JPEG, PNG, and WebP images are allowed'), false);
+      }
     }
   }
   // Audio files validation (voice or audioFiles fieldname)
@@ -81,6 +91,13 @@ const storage = USE_CLOUDINARY
         uploadPath += 'images/';
       } else if (file.fieldname === 'voice' || file.fieldname === 'audioFiles') {
         uploadPath += 'voice/';
+      } else if (file.fieldname === 'file') {
+        // For 'file' fieldname, determine type by mimetype
+        if (file.mimetype.startsWith('image/')) {
+          uploadPath += 'images/';
+        } else if (file.mimetype.startsWith('audio/')) {
+          uploadPath += 'voice/';
+        }
       }
 
       cb(null, uploadPath);

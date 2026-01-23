@@ -44,6 +44,11 @@ class _LiveChatPageState extends State<LiveChatPage>
   bool isSending = false;
   bool isRecording = false;
   
+  // Upload progress tracking
+  double _uploadProgress = 0.0;
+  bool _isUploading = false;
+  String _uploadingType = ''; // 'voice' or 'image'
+  
   // New State Variables for Attachments
   XFile? _attachedImageXFile;
   Uint8List? _attachedImageBytes; // For web compatibility
@@ -193,20 +198,69 @@ class _LiveChatPageState extends State<LiveChatPage>
 
     setState(() {
       isSending = true;
+      _uploadProgress = 0.0;
     });
 
     try {
       // Upload image if attached
       String? imageUrl;
       if (_attachedImageXFile != null) {
+        setState(() {
+          _isUploading = true;
+          _uploadingType = 'image';
+          _uploadProgress = 0.0;
+        });
+        
         imageUrl = await _liveChatService.uploadImage(_attachedImageXFile!);
+        
+        setState(() {
+          _uploadProgress = 1.0;
+          _isUploading = false;
+        });
       }
 
       // Upload voice if recorded
       String? voiceUrl;
       if (_recordedFilePath != null) {
-        final xfile = XFile(_recordedFilePath!);
-        voiceUrl = await _liveChatService.uploadVoice(xfile);
+        setState(() {
+          _isUploading = true;
+          _uploadingType = 'voice';
+          _uploadProgress = 0.0;
+        });
+        
+        try {
+          final xfile = XFile(_recordedFilePath!);
+          voiceUrl = await _liveChatService.uploadVoice(xfile);
+          print('✅ Voice uploaded successfully: $voiceUrl');
+          
+          setState(() {
+            _uploadProgress = 1.0;
+            _isUploading = false;
+          });
+        } catch (e) {
+          // Handle voice upload error specifically
+          setState(() {
+            isSending = false;
+            _isUploading = false;
+            _uploadProgress = 0.0;
+          });
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('ভয়েস আপলোড ব্যর্থ: ${_getErrorMessage(e)}'),
+                backgroundColor: Colors.red,
+                duration: const Duration(seconds: 5),
+                action: SnackBarAction(
+                  label: 'পুনরায় চেষ্টা করুন',
+                  textColor: Colors.white,
+                  onPressed: _sendMessage,
+                ),
+              ),
+            );
+          }
+          return; // Don't proceed with sending message
+        }
       }
 
       final sentMessage = await _liveChatService.sendMessage(
@@ -218,6 +272,8 @@ class _LiveChatPageState extends State<LiveChatPage>
       setState(() {
         messages.add(sentMessage);
         isSending = false;
+        _isUploading = false;
+        _uploadProgress = 0.0;
         _recordedFilePath = null;
         _attachedImageXFile = null;
         _attachedImageBytes = null;
@@ -229,13 +285,16 @@ class _LiveChatPageState extends State<LiveChatPage>
     } catch (e) {
       setState(() {
         isSending = false;
+        _isUploading = false;
+        _uploadProgress = 0.0;
       });
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: TranslatedText('মেসেজ পাঠাতে ব্যর্থ: ${e.toString()}'),
+            content: Text('মেসেজ পাঠাতে ব্যর্থ: ${_getErrorMessage(e)}'),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
             action: SnackBarAction(
               label: 'পুনরায় চেষ্টা করুন',
               textColor: Colors.white,
@@ -244,6 +303,31 @@ class _LiveChatPageState extends State<LiveChatPage>
           ),
         );
       }
+    }
+  }
+
+  /// Get user-friendly error message based on error type
+  String _getErrorMessage(dynamic error) {
+    final errorString = error.toString();
+    
+    if (errorString.contains('500')) {
+      return 'সার্ভার সমস্যা। দয়া করে পরে আবার চেষ্টা করুন।';
+    } else if (errorString.contains('Network') || errorString.contains('connection')) {
+      return 'ইন্টারনেট সংযোগ নেই।';
+    } else if (errorString.contains('timeout')) {
+      return 'সময় শেষ। দয়া করে আবার চেষ্টা করুন।';
+    } else if (errorString.contains('File size') || errorString.contains('10MB')) {
+      return 'ফাইল খুব বড়। সর্বোচ্চ 10MB।';
+    } else if (errorString.contains('Invalid file type')) {
+      return 'অসমর্থিত ফাইল ফরম্যাট।';
+    } else if (errorString.contains('401') || errorString.contains('Unauthorized')) {
+      return 'অনুমতি নেই। দয়া করে আবার লগইন করুন।';
+    } else if (errorString.contains('403') || errorString.contains('Forbidden')) {
+      return 'এই কাজ করার অনুমতি নেই।';
+    } else if (errorString.contains('404') || errorString.contains('Not found')) {
+      return 'সার্ভার খুঁজে পাওয়া যায়নি।';
+    } else {
+      return errorString.length > 100 ? errorString.substring(0, 100) + '...' : errorString;
     }
   }
 
@@ -659,7 +743,7 @@ class _LiveChatPageState extends State<LiveChatPage>
                 ),
                 SizedBox(height: 2),
                 Text(
-                  'আপনার এলাকার অ্যাডমিন',
+                  'Clean Care Support',
                   style: TextStyle(
                     color: Colors.white70,
                     fontSize: 12,
@@ -848,11 +932,11 @@ class _LiveChatPageState extends State<LiveChatPage>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Sender name for admin messages
+                  // Sender name for admin messages - Always show "Clean Care Support"
                   if (!isUser) ...[
-                    Text(
-                      message.senderName,
-                      style: const TextStyle(
+                    const Text(
+                      'Clean Care Support',
+                      style: TextStyle(
                         color: Color(0xFF2E8B57),
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
@@ -1070,6 +1154,63 @@ class _LiveChatPageState extends State<LiveChatPage>
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Upload progress indicator
+          if (_isUploading) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2E8B57).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: const Color(0xFF2E8B57).withOpacity(0.3),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      value: _uploadProgress > 0 ? _uploadProgress : null,
+                      strokeWidth: 2,
+                      valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF2E8B57)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _uploadingType == 'voice' ? 'ভয়েস আপলোড হচ্ছে...' : 'ছবি আপলোড হচ্ছে...',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF2E8B57),
+                          ),
+                        ),
+                        if (_uploadProgress > 0 && _uploadProgress < 1)
+                          Text(
+                            '${(_uploadProgress * 100).toInt()}%',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    _uploadingType == 'voice' ? Icons.mic : Icons.image,
+                    color: const Color(0xFF2E8B57),
+                    size: 20,
+                  ),
+                ],
+              ),
+            ),
+          ],
           _buildAttachmentPreview(),
           Row(
             children: [

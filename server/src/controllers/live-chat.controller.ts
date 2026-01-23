@@ -98,15 +98,20 @@ export class LiveChatController {
             const userId = req.user.sub;
             const { message, imageUrl, voiceUrl } = req.body;
 
-            // Validate message content
-            if (!message || message.trim().length === 0) {
+            // Validate: must have at least one of text, image, or voice
+            const trimmedMessage = message ? message.trim() : '';
+
+            if (!trimmedMessage && !imageUrl && !voiceUrl) {
                 return res.status(400).json({
                     success: false,
-                    message: 'Message content is required'
+                    message: 'Message must contain text, image, or voice'
                 });
             }
 
-            if (message.length > 5000) {
+            // Use default text if only image/voice is provided
+            const content = trimmedMessage || (imageUrl ? 'Image' : (voiceUrl ? 'Voice Message' : ''));
+
+            if (content.length > 5000) {
                 return res.status(400).json({
                     success: false,
                     message: 'Message is too long (max 5000 characters)'
@@ -123,7 +128,7 @@ export class LiveChatController {
 
             // Send message
             const chatMessage = await liveChatService.sendUserMessage(userId, {
-                content: message.trim(),
+                content,
                 type,
                 fileUrl: imageUrl,
                 voiceUrl
@@ -212,18 +217,92 @@ export class LiveChatController {
                 });
             }
 
-            // File URL is constructed by multer middleware
-            const fileUrl = `/uploads/${req.file.filename}`;
-
-            res.status(200).json({
-                success: true,
-                data: {
-                    url: fileUrl,
-                    filename: req.file.filename,
-                    mimetype: req.file.mimetype,
-                    size: req.file.size
-                }
+            console.log('📤 Live Chat file upload:', {
+                fieldname: req.file.fieldname,
+                originalname: req.file.originalname,
+                mimetype: req.file.mimetype,
+                size: req.file.size
             });
+
+            // Validate file type
+            const isImage = req.file.mimetype.startsWith('image/');
+            const isAudio = req.file.mimetype.startsWith('audio/');
+
+            if (!isImage && !isAudio) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid file type. Only images and audio files are allowed.'
+                });
+            }
+
+            // Validate file size (10MB max)
+            const MAX_SIZE = 10 * 1024 * 1024; // 10MB
+            if (req.file.size > MAX_SIZE) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'File size exceeds 10MB limit'
+                });
+            }
+
+            // Check if Cloudinary is enabled
+            const USE_CLOUDINARY = process.env.USE_CLOUDINARY === 'true';
+
+            if (USE_CLOUDINARY) {
+                // Import cloudinary service
+                const { cloudUploadService } = require('../services/cloud-upload.service');
+
+                try {
+                    let result;
+
+                    if (isImage) {
+                        result = await cloudUploadService.uploadImage(req.file, 'live-chat/images');
+                        console.log('✅ Uploaded image to Cloudinary:', result.secure_url);
+                    } else if (isAudio) {
+                        result = await cloudUploadService.uploadAudio(req.file, 'live-chat/voice');
+                        console.log('✅ Uploaded voice to Cloudinary:', result.secure_url);
+                    }
+
+                    return res.status(200).json({
+                        success: true,
+                        data: {
+                            url: result.secure_url,
+                            publicId: result.public_id,
+                            filename: req.file.originalname,
+                            mimetype: req.file.mimetype,
+                            size: req.file.size
+                        }
+                    });
+                } catch (error) {
+                    console.error('❌ Cloudinary upload failed:', error);
+
+                    // Fallback to local storage if Cloudinary fails
+                    const fileUrl = `/uploads/${req.file.filename}`;
+                    console.log('⚠️  Falling back to local storage:', fileUrl);
+
+                    return res.status(200).json({
+                        success: true,
+                        data: {
+                            url: fileUrl,
+                            filename: req.file.filename,
+                            mimetype: req.file.mimetype,
+                            size: req.file.size
+                        }
+                    });
+                }
+            } else {
+                // Local storage
+                const fileUrl = `/uploads/${req.file.filename}`;
+
+                return res.status(200).json({
+                    success: true,
+                    data: {
+                        url: fileUrl,
+                        filename: req.file.filename,
+                        mimetype: req.file.mimetype,
+                        size: req.file.size
+                    }
+                });
+            }
         } catch (error) {
             console.error('Error in uploadFile:', error);
             res.status(500).json({

@@ -15,7 +15,8 @@ class AdminInfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name = adminInfo['name'] ?? 'Admin';
+    // Always show "Clean Care Support" instead of actual admin name
+    final name = 'Clean Care Support';
     final role = adminInfo['role'] ?? 'WARD_ADMIN';
     final ward = adminInfo['ward'];
     final zone = adminInfo['zone'];
