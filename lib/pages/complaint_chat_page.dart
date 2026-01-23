@@ -12,6 +12,7 @@ import 'package:path/path.dart' as p;
 import 'package:cached_network_image/cached_network_image.dart';
 import '../components/custom_bottom_nav.dart';
 import '../widgets/translated_text.dart';
+import '../widgets/voice_message_player.dart';
 import '../services/chat_service.dart';
 import '../services/chat_cache_service.dart';
 import '../models/chat_message.dart' as model;
@@ -55,7 +56,7 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
   bool isSending = false;
   bool isRecording = false;
   String? _recordedVoiceUrl;
-  
+
   // New State Variables for Attachments
   XFile? _attachedImageXFile;
   Uint8List? _attachedImageBytes; // For web compatibility
@@ -63,7 +64,7 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
   bool _showVoicePreview = false;
   Duration _recordDuration = Duration.zero;
   Timer? _recordTimer;
-  
+
   // Voice playback state
   String? _currentPlayingVoiceUrl;
   bool _isVoicePlaying = false;
@@ -76,7 +77,7 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
   @override
   void initState() {
     super.initState();
-    
+
     // 🔍 Debug: Log complaint ID to verify correct value
     print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     print('🔍 ComplaintChatPage initialized');
@@ -85,7 +86,7 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
     print('   Officer Name: ${widget.responsibleOfficerName}');
     print('   Officer Phone: ${widget.responsibleOfficerPhone}');
     print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    
+
     _backgroundController = AnimationController(
       duration: const Duration(seconds: 8),
       vsync: this,
@@ -136,13 +137,15 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
 
       print('🔍 Loading chat for complaint ID: ${widget.complaintId}');
       print('   Complaint title: ${widget.complaintTitle}');
-      
+
       final complaintIdInt = int.parse(widget.complaintId);
       print('   Parsed complaint ID: $complaintIdInt');
-      
-      final fetchedMessages = await _chatService.getChatMessages(complaintIdInt);
+
+      final fetchedMessages = await _chatService.getChatMessages(
+        complaintIdInt,
+      );
       print('✅ Fetched ${fetchedMessages.length} messages');
-      
+
       // Cache complaint info for offline access
       await _cacheComplaintInfo();
 
@@ -158,19 +161,24 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
       _scrollToBottom();
     } catch (e) {
       String userFriendlyError = 'Failed to load messages';
-      
+
       // Parse error message for better user experience
       final errorString = e.toString();
-      if (errorString.contains('Complaint not found') || errorString.contains('Unauthorized')) {
-        userFriendlyError = 'এই অভিযোগটি খুঁজে পাওয়া যায়নি বা আপনার অ্যাক্সেস নেই।';
+      if (errorString.contains('Complaint not found') ||
+          errorString.contains('Unauthorized')) {
+        userFriendlyError =
+            'এই অভিযোগটি খুঁজে পাওয়া যায়নি বা আপনার অ্যাক্সেস নেই।';
         // Stop polling if complaint not found
         _pollingTimer?.cancel();
-      } else if (errorString.contains('Network') || errorString.contains('connection')) {
-        userFriendlyError = 'ইন্টারনেট সংযোগ নেই। দয়া করে আপনার সংযোগ পরীক্ষা করুন।';
+      } else if (errorString.contains('Network') ||
+          errorString.contains('connection')) {
+        userFriendlyError =
+            'ইন্টারনেট সংযোগ নেই। দয়া করে আপনার সংযোগ পরীক্ষা করুন।';
       } else if (errorString.contains('timeout')) {
-        userFriendlyError = 'সার্ভার সাড়া দিচ্ছে না। দয়া করে পরে আবার চেষ্টা করুন।';
+        userFriendlyError =
+            'সার্ভার সাড়া দিচ্ছে না। দয়া করে পরে আবার চেষ্টা করুন।';
       }
-      
+
       setState(() {
         isLoading = false;
         hasError = true;
@@ -191,7 +199,9 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
   Future<void> _loadMessagesQuietly() async {
     try {
       final complaintIdInt = int.parse(widget.complaintId);
-      final fetchedMessages = await _chatService.getChatMessages(complaintIdInt);
+      final fetchedMessages = await _chatService.getChatMessages(
+        complaintIdInt,
+      );
 
       // Only update if there are new messages
       if (fetchedMessages.length != messages.length) {
@@ -203,14 +213,16 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
       }
     } catch (e) {
       print('Error polling messages: $e');
-      
+
       // If complaint not found or unauthorized, stop polling and show error
       final errorString = e.toString();
-      if (errorString.contains('Complaint not found') || errorString.contains('Unauthorized')) {
+      if (errorString.contains('Complaint not found') ||
+          errorString.contains('Unauthorized')) {
         _pollingTimer?.cancel();
         setState(() {
           hasError = true;
-          errorMessage = 'এই অভিযোগটি খুঁজে পাওয়া যায়নি বা আপনার অ্যাক্সেস নেই।';
+          errorMessage =
+              'এই অভিযোগটি খুঁজে পাওয়া যায়নি বা আপনার অ্যাক্সেস নেই।';
         });
       }
       // Don't show error for other polling failures (network issues, etc.)
@@ -220,7 +232,12 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
   /// Send message to server
   Future<void> _sendMessage() async {
     final text = _messageController.text.trim();
-    if ((text.isEmpty && _attachedImageXFile == null && _recordedVoiceUrl == null && _recordedFilePath == null) || isSending) return;
+    if ((text.isEmpty &&
+            _attachedImageXFile == null &&
+            _recordedVoiceUrl == null &&
+            _recordedFilePath == null) ||
+        isSending)
+      return;
 
     setState(() {
       isSending = true;
@@ -228,24 +245,34 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
 
     try {
       final complaintIdInt = int.parse(widget.complaintId);
-      
+
       // Upload image if attached
       String? imageUrl;
       if (_attachedImageXFile != null) {
-        imageUrl = await _chatService.uploadImageForComplaint(complaintIdInt, _attachedImageXFile!);
+        imageUrl = await _chatService.uploadImageForComplaint(
+          complaintIdInt,
+          _attachedImageXFile!,
+        );
       }
 
       // Upload voice if recorded
-       // Note: reusing _recordedVoiceUrl if it was already uploaded (legacy flow) or uploading file
+      // Note: reusing _recordedVoiceUrl if it was already uploaded (legacy flow) or uploading file
       String? voiceUrl = _recordedVoiceUrl;
       if (_recordedFilePath != null && voiceUrl == null) {
-         final xfile = XFile(_recordedFilePath!);
-         voiceUrl = await _chatService.uploadVoiceForComplaint(complaintIdInt, xfile);
+        final xfile = XFile(_recordedFilePath!);
+        voiceUrl = await _chatService.uploadVoiceForComplaint(
+          complaintIdInt,
+          xfile,
+        );
       }
 
       final sentMessage = await _chatService.sendMessage(
         complaintIdInt,
-        text.isEmpty ? (imageUrl != null ? ' ' : (voiceUrl != null ? 'Voice Message' : ' ')) : text,
+        text.isEmpty
+            ? (imageUrl != null
+                  ? ' '
+                  : (voiceUrl != null ? 'Voice Message' : ' '))
+            : text,
         imageUrl: imageUrl,
         voiceUrl: voiceUrl,
       );
@@ -286,26 +313,34 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
 
   Future<void> _pickImage() async {
     try {
-      final xfile = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+      final xfile = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+      );
       if (xfile == null) return;
-      
+
       // For web, we need to read bytes; for mobile, we can use File
       Uint8List? imageBytes;
       if (kIsWeb) {
         imageBytes = await xfile.readAsBytes();
       }
-      
+
       setState(() {
         _attachedImageXFile = xfile;
         _attachedImageBytes = imageBytes;
         // Reset voice if image is picked
         _recordedFilePath = null;
-        _showVoicePreview = false; 
+        _showVoicePreview = false;
       });
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: TranslatedText('ছবি নির্বাচন করতে ব্যর্থ: ${e.toString()}'), backgroundColor: Colors.red),
+          SnackBar(
+            content: TranslatedText(
+              'ছবি নির্বাচন করতে ব্যর্থ: ${e.toString()}',
+            ),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -358,11 +393,7 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
                     color: Colors.black54,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
-                    Icons.close,
-                    size: 16,
-                    color: Colors.white,
-                  ),
+                  child: const Icon(Icons.close, size: 16, color: Colors.white),
                 ),
               ),
             ),
@@ -395,16 +426,22 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
         if (!hasPermission) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: TranslatedText('মাইক্রোফোন অনুমতি প্রয়োজন'), backgroundColor: Colors.red),
+              const SnackBar(
+                content: TranslatedText('মাইক্রোফোন অনুমতি প্রয়োজন'),
+                backgroundColor: Colors.red,
+              ),
             );
           }
           return;
         }
 
         final dir = await getTemporaryDirectory();
-        final filePath = p.join(dir.path, 'voice_${DateTime.now().millisecondsSinceEpoch}.m4a');
+        final filePath = p.join(
+          dir.path,
+          'voice_${DateTime.now().millisecondsSinceEpoch}.m4a',
+        );
         await _recorder!.start(const RecordConfig(), path: filePath);
-        
+
         setState(() {
           isRecording = true;
           _recordDuration = Duration.zero;
@@ -420,14 +457,14 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
         // Stop Recording
         final path = await _recorder!.stop();
         _recordTimer?.cancel();
-        
+
         setState(() {
           isRecording = false;
           _recordTimer = null;
         });
 
         if (path == null) return;
-        
+
         setState(() {
           _recordedFilePath = path;
           _showVoicePreview = true;
@@ -442,24 +479,27 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: TranslatedText('ভয়েস পাঠাতে ব্যর্থ: ${e.toString()}'), backgroundColor: Colors.red),
+          SnackBar(
+            content: TranslatedText('ভয়েস পাঠাতে ব্যর্থ: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
   }
 
   void _cancelRecording() async {
-     if (isRecording) {
-       await _recorder?.stop();
-     }
-     _recordTimer?.cancel();
-     setState(() {
-       isRecording = false;
-       _recordTimer = null;
-       _showVoicePreview = false;
-       _recordedFilePath = null;
-       _recordDuration = Duration.zero;
-     });
+    if (isRecording) {
+      await _recorder?.stop();
+    }
+    _recordTimer?.cancel();
+    setState(() {
+      isRecording = false;
+      _recordTimer = null;
+      _showVoicePreview = false;
+      _recordedFilePath = null;
+      _recordDuration = Duration.zero;
+    });
   }
 
   Widget _buildVoiceRecorderUI() {
@@ -474,46 +514,61 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
           ),
           child: Row(
             children: [
-               const Icon(Icons.fiber_manual_record, color: Colors.red, size: 16),
-               const SizedBox(width: 8),
-               Text(
-                 '${_recordDuration.inMinutes.toString().padLeft(2, '0')}:${(_recordDuration.inSeconds % 60).toString().padLeft(2, '0')}',
-                 style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 14),
-               ),
-               const SizedBox(width: 8),
-               // Animated recording indicator
-               Expanded(
-                 child: Container(
-                   height: 30,
-                   child: Row(
-                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                     crossAxisAlignment: CrossAxisAlignment.center,
-                     children: List.generate(
-                       20,
-                       (index) => AnimatedContainer(
-                         duration: Duration(milliseconds: 300 + (index * 50)),
-                         width: 2,
-                         height: (10 + (_recordDuration.inSeconds % 3) * 5 + (index % 3) * 3).toDouble(),
-                         decoration: BoxDecoration(
-                           color: Colors.red.withOpacity(0.6),
-                           borderRadius: BorderRadius.circular(1),
-                         ),
-                       ),
-                     ),
-                   ),
-                 ),
-               ),
-               const Spacer(),
-               TextButton(
-                 onPressed: _cancelRecording,
-                 child: const TranslatedText('বাতিল', style: TextStyle(color: Colors.red)),
-               )
+              const Icon(
+                Icons.fiber_manual_record,
+                color: Colors.red,
+                size: 16,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '${_recordDuration.inMinutes.toString().padLeft(2, '0')}:${(_recordDuration.inSeconds % 60).toString().padLeft(2, '0')}',
+                style: const TextStyle(
+                  color: Colors.red,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Animated recording indicator
+              Expanded(
+                child: Container(
+                  height: 30,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: List.generate(
+                      20,
+                      (index) => AnimatedContainer(
+                        duration: Duration(milliseconds: 300 + (index * 50)),
+                        width: 2,
+                        height:
+                            (10 +
+                                    (_recordDuration.inSeconds % 3) * 5 +
+                                    (index % 3) * 3)
+                                .toDouble(),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withOpacity(0.6),
+                          borderRadius: BorderRadius.circular(1),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const Spacer(),
+              TextButton(
+                onPressed: _cancelRecording,
+                child: const TranslatedText(
+                  'বাতিল',
+                  style: TextStyle(color: Colors.red),
+                ),
+              ),
             ],
           ),
         ),
       );
     } else if (_showVoicePreview) {
-       return Expanded(
+      return Expanded(
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           height: 50,
@@ -524,58 +579,66 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
           ),
           child: Row(
             children: [
-               GestureDetector(
-                 onTap: () async {
-                   if (_recordedFilePath != null) {
-                      await _audioPlayer.play(DeviceFileSource(_recordedFilePath!));
-                   }
-                 },
-                 child: Container(
-                   padding: const EdgeInsets.all(6),
-                   decoration: const BoxDecoration(
-                     color: Color(0xFF2E8B57),
-                     shape: BoxShape.circle,
-                   ),
-                   child: const Icon(Icons.play_arrow, color: Colors.white, size: 18),
-                 ),
-               ),
-               const SizedBox(width: 8),
-               // Audio waveform visualization
-               Expanded(
-                 child: Container(
-                   height: 30,
-                   child: Row(
-                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                     crossAxisAlignment: CrossAxisAlignment.center,
-                     children: List.generate(
-                       20,
-                       (index) => Container(
-                         width: 2,
-                         height: (index % 3 == 0 ? 18.0 : (index % 2 == 0 ? 12.0 : 8.0)),
-                         decoration: BoxDecoration(
-                           color: const Color(0xFF2E8B57).withOpacity(0.6),
-                           borderRadius: BorderRadius.circular(1),
-                         ),
-                       ),
-                     ),
-                   ),
-                 ),
-               ),
-               const SizedBox(width: 8),
-               Text(
-                 '${_recordDuration.inMinutes}:${(_recordDuration.inSeconds % 60).toString().padLeft(2, '0')}',
-                 style: const TextStyle(
-                   color: Color(0xFF2E8B57),
-                   fontSize: 12,
-                   fontWeight: FontWeight.w600,
-                 ),
-               ),
-               IconButton(
-                 icon: const Icon(Icons.close, color: Colors.red, size: 20),
-                 onPressed: _cancelRecording,
-                 padding: EdgeInsets.zero,
-                 constraints: const BoxConstraints(),
-               ),
+              GestureDetector(
+                onTap: () async {
+                  if (_recordedFilePath != null) {
+                    await _audioPlayer.play(
+                      DeviceFileSource(_recordedFilePath!),
+                    );
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF2E8B57),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.play_arrow,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Audio waveform visualization
+              Expanded(
+                child: Container(
+                  height: 30,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: List.generate(
+                      20,
+                      (index) => Container(
+                        width: 2,
+                        height: (index % 3 == 0
+                            ? 18.0
+                            : (index % 2 == 0 ? 12.0 : 8.0)),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2E8B57).withOpacity(0.6),
+                          borderRadius: BorderRadius.circular(1),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '${_recordDuration.inMinutes}:${(_recordDuration.inSeconds % 60).toString().padLeft(2, '0')}',
+                style: const TextStyle(
+                  color: Color(0xFF2E8B57),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close, color: Colors.red, size: 20),
+                onPressed: _cancelRecording,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
             ],
           ),
         ),
@@ -601,7 +664,6 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
     }
   }
 
-
   void _scrollToBottom() {
     Future.delayed(const Duration(milliseconds: 100), () {
       if (_scrollController.hasClients) {
@@ -624,20 +686,14 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFE9F6EE),
-              Color(0xFFF7FCF9),
-              Color(0xFFF3FAF5),
-            ],
+            colors: [Color(0xFFE9F6EE), Color(0xFFF7FCF9), Color(0xFFF3FAF5)],
           ),
         ),
         child: SafeArea(
           top: false,
           child: Column(
             children: [
-              Expanded(
-                child: _buildChatArea(),
-              ),
+              Expanded(child: _buildChatArea()),
               _buildMessageInput(),
             ],
           ),
@@ -711,11 +767,7 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
                 if (widget.responsibleOfficerName != null) ...[
                   Row(
                     children: [
-                      const Icon(
-                        Icons.person,
-                        color: Colors.white70,
-                        size: 12,
-                      ),
+                      const Icon(Icons.person, color: Colors.white70, size: 12),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
@@ -735,11 +787,7 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
                   const SizedBox(height: 1),
                   Row(
                     children: [
-                      const Icon(
-                        Icons.phone,
-                        color: Colors.white70,
-                        size: 12,
-                      ),
+                      const Icon(Icons.phone, color: Colors.white70, size: 12),
                       const SizedBox(width: 4),
                       Text(
                         widget.responsibleOfficerPhone!,
@@ -782,18 +830,11 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
-                Icons.error_outline,
-                size: 64,
-                color: Colors.red,
-              ),
+              const Icon(Icons.error_outline, size: 64, color: Colors.red),
               const SizedBox(height: 16),
               const TranslatedText(
                 'মেসেজ লোড করতে ব্যর্থ',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               Text(
@@ -839,11 +880,7 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: const [
-              Icon(
-                Icons.chat_bubble_outline,
-                size: 64,
-                color: Colors.grey,
-              ),
+              Icon(Icons.chat_bubble_outline, size: 64, color: Colors.grey),
               SizedBox(height: 16),
               TranslatedText(
                 'এখনো কোনো মেসেজ নেই',
@@ -881,262 +918,206 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
     final isUser = message.isUser;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      child: Row(
-        mainAxisAlignment:
-            isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          if (!isUser) ...[
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF2E8B57), Color(0xFF3CB371)],
-                ),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Icon(
-                Icons.support_agent,
-                color: Colors.white,
-                size: 16,
-              ),
-            ),
-            const SizedBox(width: 8),
-          ],
-          Flexible(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                gradient: isUser
-                    ? const LinearGradient(
-                        colors: [Color(0xFF2E8B57), Color(0xFF3CB371)],
-                      )
-                    : null,
-                color: isUser ? null : Colors.white,
-                borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(16),
-                  topRight: const Radius.circular(16),
-                  bottomLeft: Radius.circular(isUser ? 16 : 4),
-                  bottomRight: Radius.circular(isUser ? 4 : 16),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: isUser
-                        ? const Color(0xFF2E8B57).withOpacity(0.3)
-                        : Colors.black.withOpacity(0.1),
-                    offset: const Offset(0, 2),
-                    blurRadius: 8,
+          margin: const EdgeInsets.only(bottom: 16),
+          child: Row(
+            mainAxisAlignment: isUser
+                ? MainAxisAlignment.end
+                : MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              if (!isUser) ...[
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF2E8B57), Color(0xFF3CB371)],
+                    ),
+                    borderRadius: BorderRadius.circular(16),
                   ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Sender name for admin messages
-                  if (!isUser) ...[
-                    Text(
-                      message.senderName,
-                      style: const TextStyle(
-                        color: Color(0xFF2E8B57),
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
+                  child: const Icon(
+                    Icons.support_agent,
+                    color: Colors.white,
+                    size: 16,
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    gradient: isUser
+                        ? const LinearGradient(
+                            colors: [Color(0xFF2E8B57), Color(0xFF3CB371)],
+                          )
+                        : null,
+                    color: isUser ? null : Colors.white,
+                    borderRadius: BorderRadius.only(
+                      topLeft: const Radius.circular(16),
+                      topRight: const Radius.circular(16),
+                      bottomLeft: Radius.circular(isUser ? 16 : 4),
+                      bottomRight: Radius.circular(isUser ? 4 : 16),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: isUser
+                            ? const Color(0xFF2E8B57).withOpacity(0.3)
+                            : Colors.black.withOpacity(0.1),
+                        offset: const Offset(0, 2),
+                        blurRadius: 8,
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                  ],
-                  // Message text
-                  Text(
-                    message.message,
-                    style: TextStyle(
-                      color: isUser ? Colors.white : Colors.black87,
-                      fontSize: 14,
-                      height: 1.4,
-                    ),
+                    ],
                   ),
-                  // Image if present
-                  if (message.imageUrl != null) ...[
-                    const SizedBox(height: 8),
-                    GestureDetector(
-                      onTap: () {
-                        // View full image
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => _FullScreenChatImage(
-                              imageUrl: UrlHelper.getImageUrl(message.imageUrl!),
-                            ),
-                          ),
-                        );
-                      },
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: CachedNetworkImage(
-                          imageUrl: UrlHelper.getImageUrl(message.imageUrl!),
-                          fit: BoxFit.cover,
-                          maxWidthDiskCache: 800,
-                          maxHeightDiskCache: 600,
-                          placeholder: (context, url) => Container(
-                            height: 200,
-                            color: isUser ? Colors.white.withOpacity(0.2) : Colors.grey[200],
-                            child: Center(
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  isUser ? Colors.white : Color(0xFF2E8B57),
-                                ),
-                              ),
-                            ),
-                          ),
-                          errorWidget: (context, url, error) => Container(
-                            height: 200,
-                            padding: const EdgeInsets.all(16),
-                            color: isUser ? Colors.white.withOpacity(0.2) : Colors.grey[200],
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.broken_image,
-                                  color: isUser ? Colors.white70 : Colors.grey[600],
-                                  size: 40,
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'ছবি লোড করতে ব্যর্থ',
-                                  style: TextStyle(
-                                    color: isUser ? Colors.white70 : Colors.grey[600],
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Sender name for admin messages
+                      if (!isUser) ...[
+                        Text(
+                          message.senderName == 'Unknown'
+                              ? 'অভিযোগের দায়িত্বপ্রাপ্ত কর্মকর্তা'
+                              : message.senderName,
+                          style: const TextStyle(
+                            color: Color(0xFF2E8B57),
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
+                        const SizedBox(height: 4),
+                      ],
+                      // Message text
+                      Text(
+                        message.message,
+                        style: TextStyle(
+                          color: isUser ? Colors.white : Colors.black87,
+                          fontSize: 14,
+                          height: 1.4,
+                        ),
                       ),
-                    ),
-                  ],
-                  if (message.voiceUrl != null) ...[
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: isUser 
-                            ? Colors.white.withOpacity(0.2) 
-                            : Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          GestureDetector(
-                            onTap: () async {
-                              // Toggle play/pause for this voice message
-                              if (_currentPlayingVoiceUrl == message.voiceUrl && _isVoicePlaying) {
-                                // Pause if currently playing this message
-                                await _audioPlayer.pause();
-                                setState(() {
-                                  _isVoicePlaying = false;
-                                });
-                              } else {
-                                // Play this voice message
-                                await _audioPlayer.stop();
-                                await _audioPlayer.play(UrlSource(message.voiceUrl!));
-                                setState(() {
-                                  _currentPlayingVoiceUrl = message.voiceUrl;
-                                  _isVoicePlaying = true;
-                                });
-                              }
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: isUser ? Colors.white : const Color(0xFF2E8B57),
-                                shape: BoxShape.circle,
+                      // Image if present
+                      if (message.imageUrl != null) ...[
+                        const SizedBox(height: 8),
+                        GestureDetector(
+                          onTap: () {
+                            // View full image
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => _FullScreenChatImage(
+                                  imageUrl: UrlHelper.getImageUrl(
+                                    message.imageUrl!,
+                                  ),
+                                ),
                               ),
-                              child: Icon(
-                                // Show pause icon if this message is currently playing, otherwise show play
-                                (_currentPlayingVoiceUrl == message.voiceUrl && _isVoicePlaying)
-                                    ? Icons.pause
-                                    : Icons.play_arrow,
-                                color: isUser ? const Color(0xFF2E8B57) : Colors.white,
-                                size: 20,
+                            );
+                          },
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: CachedNetworkImage(
+                              imageUrl: UrlHelper.getImageUrl(
+                                message.imageUrl!,
                               ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          // Audio waveform visualization (simplified)
-                          Expanded(
-                            child: Container(
-                              height: 30,
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: List.generate(
-                                  25,
-                                  (index) => Container(
-                                    width: 2,
-                                    height: (index % 3 == 0 ? 20.0 : (index % 2 == 0 ? 15.0 : 10.0)),
-                                    decoration: BoxDecoration(
-                                      color: isUser 
-                                          ? Colors.white.withOpacity(0.7)
-                                          : Colors.grey.shade400,
-                                      borderRadius: BorderRadius.circular(1),
+                              fit: BoxFit.cover,
+                              maxWidthDiskCache: 800,
+                              maxHeightDiskCache: 600,
+                              placeholder: (context, url) => Container(
+                                height: 200,
+                                color: isUser
+                                    ? Colors.white.withOpacity(0.2)
+                                    : Colors.grey[200],
+                                child: Center(
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      isUser ? Colors.white : Color(0xFF2E8B57),
                                     ),
                                   ),
                                 ),
                               ),
+                              errorWidget: (context, url, error) => Container(
+                                height: 200,
+                                padding: const EdgeInsets.all(16),
+                                color: isUser
+                                    ? Colors.white.withOpacity(0.2)
+                                    : Colors.grey[200],
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.broken_image,
+                                      color: isUser
+                                          ? Colors.white70
+                                          : Colors.grey[600],
+                                      size: 40,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'ছবি লোড করতে ব্যর্থ',
+                                      style: TextStyle(
+                                        color: isUser
+                                            ? Colors.white70
+                                            : Colors.grey[600],
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Voice',
-                            style: TextStyle(
-                              color: isUser ? Colors.white70 : Colors.grey.shade600,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
+                        ),
+                      ],
+                      if (message.voiceUrl != null) ...[
+                        const SizedBox(height: 8),
+                        VoiceMessagePlayer(
+                          voiceUrl: message.voiceUrl!,
+                          isUser: isUser,
+                          onPlayStateChanged: (url, isPlaying) {
+                            if (isPlaying) {
+                              // Stop other players logic can be added here if needed
+                            }
+                          },
+                        ),
+                      ],
+                      const SizedBox(height: 4),
+                      // Timestamp
+                      Text(
+                        _formatTime(message.createdAt),
+                        style: TextStyle(
+                          color: isUser ? Colors.white70 : Colors.grey.shade600,
+                          fontSize: 10,
+                        ),
                       ),
-                    ),
-                  ],
-                  const SizedBox(height: 4),
-                  // Timestamp
-                  Text(
-                    _formatTime(message.createdAt),
-                    style: TextStyle(
-                      color: isUser ? Colors.white70 : Colors.grey.shade600,
-                      fontSize: 10,
-                    ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
+              if (isUser) ...[
+                const SizedBox(width: 8),
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF6D66B),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(
+                    Icons.person,
+                    color: Colors.white,
+                    size: 16,
+                  ),
+                ),
+              ],
+            ],
           ),
-          if (isUser) ...[
-            const SizedBox(width: 8),
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF6D66B),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Icon(
-                Icons.person,
-                color: Colors.white,
-                size: 16,
-              ),
-            ),
-          ],
-        ],
-      ),
-    ).animate(delay: (index * 100).ms).fadeIn(duration: 400.ms).slideY(
-          begin: 0.3,
-          duration: 300.ms,
-          curve: Curves.easeOut,
-        );
+        )
+        .animate(delay: (index * 100).ms)
+        .fadeIn(duration: 400.ms)
+        .slideY(begin: 0.3, duration: 300.ms, curve: Curves.easeOut);
   }
 
   Widget _buildMessageInput() {
@@ -1159,7 +1140,7 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
           _buildAttachmentPreview(),
           Row(
             children: [
-              if (!isRecording && !_showVoicePreview) ...[ 
+              if (!isRecording && !_showVoicePreview) ...[
                 IconButton(
                   onPressed: isSending ? null : _pickImage,
                   icon: const Icon(Icons.image, color: Color(0xFF2E8B57)),
@@ -1191,34 +1172,38 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
                   ),
                 ),
               ] else ...[
-                 _buildVoiceRecorderUI(),
-                 if (isRecording)
-                   IconButton(
-                     onPressed: _toggleRecord,
-                     icon: const Icon(Icons.stop_circle, color: Colors.red, size: 32),
-                   ),
+                _buildVoiceRecorderUI(),
+                if (isRecording)
+                  IconButton(
+                    onPressed: _toggleRecord,
+                    icon: const Icon(
+                      Icons.stop_circle,
+                      color: Colors.red,
+                      size: 32,
+                    ),
+                  ),
               ],
               const SizedBox(width: 8),
-              if (!isRecording) 
-              Container(
-                decoration: const BoxDecoration(
-                  color: Color(0xFF2E8B57),
-                  shape: BoxShape.circle,
+              if (!isRecording)
+                Container(
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF2E8B57),
+                    shape: BoxShape.circle,
+                  ),
+                  child: IconButton(
+                    onPressed: isSending ? null : _sendMessage,
+                    icon: isSending
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Icon(Icons.send, color: Colors.white),
+                  ),
                 ),
-                child: IconButton(
-                  onPressed: isSending ? null : _sendMessage,
-                  icon: isSending
-                      ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : const Icon(Icons.send, color: Colors.white),
-                ),
-              ),
             ],
           ),
         ],
@@ -1281,11 +1266,7 @@ class _FullScreenChatImage extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: const [
-                  Icon(
-                    Icons.broken_image,
-                    color: Colors.white,
-                    size: 60,
-                  ),
+                  Icon(Icons.broken_image, color: Colors.white, size: 60),
                   SizedBox(height: 16),
                   TranslatedText(
                     'ছবি লোড করতে ব্যর্থ',
