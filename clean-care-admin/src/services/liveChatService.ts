@@ -263,7 +263,7 @@ class LiveChatService {
             if (imageFile) {
                 // Send with file upload
                 const formData = new FormData();
-                formData.append('content', message);
+                formData.append('message', message);
                 formData.append('image', imageFile);
 
                 const token = localStorage.getItem('accessToken');
@@ -293,7 +293,7 @@ class LiveChatService {
                     success: boolean;
                     data: { message: LiveChatMessage };
                 }>(`/api/admin/live-chat/${userId}`, {
-                    content: message,
+                    message: message,
                 });
 
                 // Invalidate cache

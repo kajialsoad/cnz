@@ -159,17 +159,31 @@ const MessageInput: React.FC<MessageInputProps> = ({
      * Handle send message
      */
     const handleSend = async () => {
-        // Validate input
+        // Validate input - CRITICAL: Check both text and image
         const trimmedText = text.trim();
+
+        console.log('🔍 Validation check:', {
+            text: text,
+            trimmedText: trimmedText,
+            uploadedImageUrl: uploadedImageUrl,
+            imageFile: imageFile?.name,
+            hasText: !!trimmedText,
+            hasImage: !!uploadedImageUrl
+        });
+
+        // MUST have either text OR image
         if (!trimmedText && !uploadedImageUrl) {
+            console.error('❌ Validation failed: No text and no image');
             toast.error('Please enter a message or select an image', {
                 icon: '⚠️',
+                duration: 3000,
             });
             return;
         }
 
         // Ensure image is uploaded before sending
         if (imageFile && !uploadedImageUrl) {
+            console.error('❌ Validation failed: Image not uploaded yet');
             toast.error('Please wait for image to finish uploading', {
                 icon: '⏳',
             });
@@ -194,8 +208,18 @@ const MessageInput: React.FC<MessageInputProps> = ({
                 return; // Don't send at all
             } else {
                 console.log('✅ Sending text only (no image)');
-                // Send text only
-                await onSend(trimmedText, undefined);
+                console.log('✅ Text content:', trimmedText);
+                // Send text only - ONLY if we have text
+                if (trimmedText) {
+                    await onSend(trimmedText, undefined);
+                } else {
+                    console.error('❌ Cannot send: No text content');
+                    toast.error('Please enter a message', {
+                        icon: '⚠️',
+                        duration: 3000,
+                    });
+                    return;
+                }
             }
 
             // Clear input after successful send
@@ -218,8 +242,34 @@ const MessageInput: React.FC<MessageInputProps> = ({
     const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
         if (event.key === 'Enter' && !event.shiftKey) {
             event.preventDefault();
+
+            console.log('⌨️ Enter key pressed');
+
+            // Validate input before sending
+            const trimmedText = text.trim();
+
+            console.log('🔍 Enter validation:', {
+                text: text,
+                trimmedText: trimmedText,
+                uploadedImageUrl: uploadedImageUrl,
+                hasText: !!trimmedText,
+                hasImage: !!uploadedImageUrl
+            });
+
+            if (!trimmedText && !uploadedImageUrl) {
+                console.error('❌ Enter validation failed: No text and no image');
+                toast.error('Please enter a message or select an image', {
+                    icon: '⚠️',
+                    duration: 2000,
+                });
+                return;
+            }
+
             if (!sending && !uploading && !disabled) {
+                console.log('✅ Enter validation passed, calling handleSend');
                 handleSend();
+            } else {
+                console.log('⏸️ Cannot send: sending=', sending, 'uploading=', uploading, 'disabled=', disabled);
             }
         }
     };

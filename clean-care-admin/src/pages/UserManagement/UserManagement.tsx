@@ -1186,25 +1186,25 @@ const UserManagement: React.FC = () => {
                             <TableCell>
                               <Box sx={{ display: 'flex', gap: 1 }}>
                                 {['MASTER_ADMIN', 'SUPER_ADMIN', 'ADMIN'].includes(currentUser?.role || '') && (
-                                <Button
-                                  variant="outlined"
-                                  size="small"
-                                  startIcon={actionLoading.viewUser === user.id ? <CircularProgress size={16} /> : <VisibilityIcon />}
-                                  onClick={() => handleViewUser(user.id)}
-                                  disabled={actionLoading.viewUser === user.id}
-                                  sx={{
-                                    textTransform: 'none',
-                                    borderColor: '#e0e0e0',
-                                    color: 'text.primary',
-                                    '&:hover': {
-                                      borderColor: '#4CAF50',
-                                      color: '#4CAF50',
-                                    },
-                                  }}
-                                >
-                                  {actionLoading.viewUser === user.id ? 'Loading...' : 'View'}
-                                </Button>
-                              )}
+                                  <Button
+                                    variant="outlined"
+                                    size="small"
+                                    startIcon={actionLoading.viewUser === user.id ? <CircularProgress size={16} /> : <VisibilityIcon />}
+                                    onClick={() => handleViewUser(user.id)}
+                                    disabled={actionLoading.viewUser === user.id}
+                                    sx={{
+                                      textTransform: 'none',
+                                      borderColor: '#e0e0e0',
+                                      color: 'text.primary',
+                                      '&:hover': {
+                                        borderColor: '#4CAF50',
+                                        color: '#4CAF50',
+                                      },
+                                    }}
+                                  >
+                                    {actionLoading.viewUser === user.id ? 'Loading...' : 'View'}
+                                  </Button>
+                                )}
                                 <Button
                                   variant="outlined"
                                   size="small"
@@ -1398,6 +1398,7 @@ const UserManagement: React.FC = () => {
           <DirectMessageModal
             userId={selectedChatUser.id}
             userName={`${selectedChatUser.firstName} ${selectedChatUser.lastName}`}
+            userDetails={selectedChatUser}
             open={isChatModalOpen}
             onClose={handleCloseChat}
           />

@@ -54,14 +54,17 @@ export interface UserInfo {
     lastName: string;
     avatar?: string | null;
     phone?: string | null;
+    cityCorporationCode?: string | null;
+    wardId?: number | null;
+    zoneId?: number | null;
     ward?: {
         id: number;
-        number: string;
-        wardNumber?: string | null;
+        number: number;
+        wardNumber?: number | null;
     } | null;
     zone?: {
         id: number;
-        number: string;
+        number: number;
         name?: string | null;
     } | null;
 }
@@ -86,7 +89,6 @@ export interface LiveChatFilters {
     wardId?: number;
     unreadOnly?: boolean;
     search?: string;
-    status?: string;
     page?: number;
     limit?: number;
 }
@@ -150,12 +152,12 @@ export interface AdminInfo {
     phone?: string | null;
     ward?: {
         id: number;
-        number: string;
-        wardNumber?: string | null;
+        number: number;
+        wardNumber?: number | null;
     } | null;
     zone?: {
         id: number;
-        number: string;
+        number: number;
         name?: string | null;
     } | null;
 }

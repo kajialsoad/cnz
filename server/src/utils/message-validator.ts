@@ -134,7 +134,7 @@ export function validateVoiceUrl(url: string): { valid: boolean; error?: string 
             return { valid: false, error: 'Invalid voice URL protocol' };
         }
 
-        const validExtensions = ['.mp3', '.wav', '.ogg', '.m4a', '.aac'];
+        const validExtensions = ['.mp3', '.wav', '.ogg', '.m4a', '.aac', '.mp4'];
         const hasValidExtension = validExtensions.some(ext => url.toLowerCase().endsWith(ext));
         if (!hasValidExtension) {
             return { valid: false, error: 'Invalid voice format' };

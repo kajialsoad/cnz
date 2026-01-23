@@ -32,9 +32,12 @@ export class ChatService {
     /**
      * Get all complaints for chat - shows ALL complaints with chat messages
      * This lists chats by complaint ID, not by user ID
+     * ✅ FIXED: Better error handling and logging
      */
     async getAllCitizensForChat(query: ChatListQueryInput = {}) {
         try {
+            console.log('📥 getAllCitizensForChat called with query:', JSON.stringify(query, null, 2));
+
             const {
                 search,
                 ward,
@@ -52,39 +55,52 @@ export class ChatService {
 
             // Filter by ward - use complaintWardId
             if (ward) {
-                where.complaintWardId = parseInt(ward);
+                const wardId = parseInt(ward);
+                if (!isNaN(wardId)) {
+                    where.complaintWardId = wardId;
+                    console.log('🔍 Filtering by ward:', wardId);
+                }
             }
 
             // Filter by zone - use complaintZoneId
             if (zone) {
-                where.complaintZoneId = parseInt(zone);
+                const zoneId = parseInt(zone);
+                if (!isNaN(zoneId)) {
+                    where.complaintZoneId = zoneId;
+                    console.log('🔍 Filtering by zone:', zoneId);
+                }
             }
 
             // Filter by city corporation code - use complaintCityCorporationCode
             if (cityCorporationCode && cityCorporationCode !== 'ALL') {
                 where.complaintCityCorporationCode = cityCorporationCode;
+                console.log('🔍 Filtering by city corp:', cityCorporationCode);
             }
 
             // Search filter - search in complaint title, description, or user details
-            if (search) {
+            if (search && search.trim().length > 0) {
                 where.OR = [
-                    { title: { contains: search, mode: 'insensitive' } },
-                    { description: { contains: search, mode: 'insensitive' } },
+                    { title: { contains: search.trim() } },
+                    { description: { contains: search.trim() } },
                     {
                         user: {
                             OR: [
-                                { firstName: { contains: search, mode: 'insensitive' } },
-                                { lastName: { contains: search, mode: 'insensitive' } },
-                                { phone: { contains: search } },
-                                { email: { contains: search, mode: 'insensitive' } }
+                                { firstName: { contains: search.trim() } },
+                                { lastName: { contains: search.trim() } },
+                                { phone: { contains: search.trim() } },
+                                { email: { contains: search.trim() } }
                             ]
                         }
                     }
                 ];
+                console.log('🔍 Searching for:', search.trim());
             }
+
+            console.log('📊 Query where clause:', JSON.stringify(where, null, 2));
 
             // Get total count
             const total = await prisma.complaint.count({ where });
+            console.log(`📊 Total complaints found: ${total}`);
 
             // Get complaints with their chat messages and user details
             const complaints = await prisma.complaint.findMany({
@@ -156,6 +172,8 @@ export class ChatService {
                 }
             });
 
+            console.log(`📊 Fetched ${complaints.length} complaints for page ${page}`);
+
             // Format the response
             const conversations = await Promise.all(complaints.map(async (complaint) => {
                 const lastMessage = complaint.chatMessages[0];
@@ -223,12 +241,15 @@ export class ChatService {
             let filteredConversations = conversations;
             if (unreadOnly) {
                 filteredConversations = conversations.filter(c => c.unreadCount > 0);
+                console.log(`📊 Filtered to ${filteredConversations.length} unread conversations`);
             }
 
             // Sort by last activity (most recent first)
             filteredConversations.sort((a, b) => {
                 return new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime();
             });
+
+            console.log(`✅ Returning ${filteredConversations.length} conversations`);
 
             return {
                 chats: filteredConversations,
@@ -242,8 +263,14 @@ export class ChatService {
                 }
             };
         } catch (error) {
-            console.error('Error getting complaints for chat:', error);
-            throw new Error('Failed to fetch complaints for chat');
+            console.error('❌ Error getting complaints for chat:', error);
+            console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+            console.error('❌ Error details:', {
+                message: error instanceof Error ? error.message : 'Unknown error',
+                name: error instanceof Error ? error.name : 'Unknown',
+                query
+            });
+            throw new Error(`Failed to fetch complaints for chat: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }
 

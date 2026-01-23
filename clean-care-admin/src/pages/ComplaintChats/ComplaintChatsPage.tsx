@@ -57,9 +57,9 @@ const ComplaintChatsPage: React.FC = () => {
         limit: 20,
     });
 
-    // Infinite scroll state
+    // Simple pagination state
     const [currentPage, setCurrentPage] = useState<number>(1);
-    const [hasMore, setHasMore] = useState<boolean>(true);
+    const [totalPages, setTotalPages] = useState<number>(1);
     const [totalChats, setTotalChats] = useState<number>(0);
 
     // State for statistics
@@ -218,14 +218,12 @@ const ComplaintChatsPage: React.FC = () => {
     /**
      * Fetch chat list with current filters
      */
-    const fetchChatList = useCallback(async (showErrorToast: boolean = false, pageNum?: number, append: boolean = false) => {
+    const fetchChatList = useCallback(async (showErrorToast: boolean = false, pageNum?: number) => {
         try {
-            if (!append) {
-                setLoading(true);
-            }
+            setLoading(true);
             setError(null);
 
-            const page = pageNum || currentPage;
+            const page = pageNum !== undefined ? pageNum : currentPage;
 
             const filterParams: ChatFilters = {
                 ...filters,
@@ -237,27 +235,23 @@ const ComplaintChatsPage: React.FC = () => {
             const response = await chatService.getChatConversationsWithPagination(filterParams);
 
             // Detect new messages and show notifications (only on first page)
-            if (page === 1 && !append) {
+            if (page === 1) {
                 detectNewMessages(response.chats);
             }
 
-            // Append or replace chat list
-            if (append) {
-                setChatList((prev) => [...prev, ...response.chats]);
-            } else {
-                setChatList(response.chats);
-            }
+            // Replace chat list (no appending)
+            setChatList(response.chats);
 
             // Update pagination state
             if (response.pagination) {
                 setCurrentPage(response.pagination.page);
                 setTotalChats(response.pagination.total);
-                setHasMore(response.pagination.hasNextPage);
+                setTotalPages(Math.ceil(response.pagination.total / 20));
             }
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Failed to load chats';
             setError(errorMessage);
-            console.error('Error fetching chat list:', err);
+            console.error('📥 Error fetching chat list:', err);
 
             // Show toast notification for network errors
             if (showErrorToast) {
@@ -272,15 +266,13 @@ const ComplaintChatsPage: React.FC = () => {
     }, [filters, searchTerm, detectNewMessages, currentPage]);
 
     /**
-     * Load more chats (infinite scroll)
+     * Handle page change
      */
-    const handleLoadMore = useCallback(() => {
-        if (hasMore && !loading) {
-            const nextPage = currentPage + 1;
-            setCurrentPage(nextPage);
-            fetchChatList(false, nextPage, true); // append = true
-        }
-    }, [hasMore, loading, currentPage, fetchChatList]);
+    const handlePageChange = useCallback((page: number) => {
+        setSelectedChatId(null); // Clear selection when changing pages
+        setCurrentPage(page);
+        fetchChatList(false, page);
+    }, [fetchChatList]);
 
     /**
      * Fetch chat statistics
@@ -313,9 +305,13 @@ const ComplaintChatsPage: React.FC = () => {
             return;
         }
 
+        // Reset pagination when filters change
+        setCurrentPage(1);
+        setChatList([]);
+
         // Debounce search to avoid too many requests
         const timeoutId = setTimeout(() => {
-            fetchChatList(false);
+            fetchChatList(false, 1); // Start from page 1
         }, 500);
 
         return () => clearTimeout(timeoutId);
@@ -402,6 +398,10 @@ const ComplaintChatsPage: React.FC = () => {
      */
     const handleSearchChange = (term: string) => {
         setSearchTerm(term);
+        // Only clear selection if search term actually changed (not empty)
+        if (term && term !== searchTerm) {
+            setSelectedChatId(null);
+        }
     };
 
     /**
@@ -490,8 +490,9 @@ const ComplaintChatsPage: React.FC = () => {
                                 onFilterChange={handleFilterChange}
                                 statistics={statistics}
                                 loading={loading}
-                                hasMore={hasMore}
-                                onLoadMore={handleLoadMore}
+                                currentPage={currentPage}
+                                totalPages={totalPages}
+                                onPageChange={handlePageChange}
                                 totalChats={totalChats}
                             />
                         )}

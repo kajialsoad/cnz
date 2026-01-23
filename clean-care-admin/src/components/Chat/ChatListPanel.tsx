@@ -1,15 +1,17 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
     Box,
     Typography,
     TextField,
     InputAdornment,
-    CircularProgress,
+    Button,
     useTheme,
     useMediaQuery,
 } from '@mui/material';
 import {
     Search as SearchIcon,
+    NavigateNext as NavigateNextIcon,
+    NavigateBefore as NavigateBeforeIcon,
 } from '@mui/icons-material';
 import type {
     ChatConversation,
@@ -31,9 +33,10 @@ interface ChatListPanelProps {
     onFilterChange: (filters: Partial<ChatFilters>) => void;
     statistics: ChatStatistics;
     loading: boolean;
-    // Infinite scroll props
-    hasMore?: boolean;
-    onLoadMore?: () => void;
+    // Simple pagination props
+    currentPage?: number;
+    totalPages?: number;
+    onPageChange?: (page: number) => void;
     totalChats?: number;
 }
 
@@ -44,8 +47,9 @@ const ChatListPanel: React.FC<ChatListPanelProps> = ({
     searchTerm,
     onSearchChange,
     loading,
-    hasMore = false,
-    onLoadMore,
+    currentPage = 1,
+    totalPages = 1,
+    onPageChange,
     totalChats = 0,
 }) => {
     const theme = useTheme();
@@ -53,12 +57,6 @@ const ChatListPanel: React.FC<ChatListPanelProps> = ({
 
     // Local state for search input (before debounce)
     const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm);
-    const [isLoadingMore, setIsLoadingMore] = useState(false);
-
-    // Refs for infinite scroll
-    const listContainerRef = useRef<HTMLDivElement>(null);
-    const observerRef = useRef<IntersectionObserver | null>(null);
-    const loadMoreTriggerRef = useRef<HTMLDivElement>(null);
 
     // Debounce search to avoid excessive filtering
     const debouncedSearchTerm = useDebounce(localSearchTerm, 500);
@@ -67,55 +65,6 @@ const ChatListPanel: React.FC<ChatListPanelProps> = ({
     React.useEffect(() => {
         onSearchChange(debouncedSearchTerm);
     }, [debouncedSearchTerm, onSearchChange]);
-
-    /**
-     * Infinite scroll - Load more when scrolling to bottom
-     */
-    const handleLoadMore = useCallback(() => {
-        if (!loading && !isLoadingMore && hasMore && onLoadMore) {
-            setIsLoadingMore(true);
-            onLoadMore();
-            // Reset loading state after a delay
-            setTimeout(() => setIsLoadingMore(false), 1000);
-        }
-    }, [loading, isLoadingMore, hasMore, onLoadMore]);
-
-    /**
-     * Set up Intersection Observer for infinite scroll
-     */
-    useEffect(() => {
-        if (!loadMoreTriggerRef.current) return;
-
-        // Cleanup previous observer
-        if (observerRef.current) {
-            observerRef.current.disconnect();
-        }
-
-        // Create new observer
-        observerRef.current = new IntersectionObserver(
-            (entries) => {
-                const firstEntry = entries[0];
-                if (firstEntry.isIntersecting) {
-                    handleLoadMore();
-                }
-            },
-            {
-                root: listContainerRef.current,
-                rootMargin: '100px', // Load more 100px before reaching bottom
-                threshold: 0.1,
-            }
-        );
-
-        // Observe the trigger element
-        observerRef.current.observe(loadMoreTriggerRef.current);
-
-        // Cleanup on unmount
-        return () => {
-            if (observerRef.current) {
-                observerRef.current.disconnect();
-            }
-        };
-    }, [handleLoadMore]);
 
     /**
      * Handle local search input change
@@ -127,6 +76,21 @@ const ChatListPanel: React.FC<ChatListPanelProps> = ({
     const handleClearSearch = () => {
         setLocalSearchTerm('');
         onSearchChange('');
+    };
+
+    /**
+     * Handle pagination
+     */
+    const handlePreviousPage = () => {
+        if (onPageChange && currentPage > 1) {
+            onPageChange(currentPage - 1);
+        }
+    };
+
+    const handleNextPage = () => {
+        if (onPageChange && currentPage < totalPages) {
+            onPageChange(currentPage + 1);
+        }
     };
 
     return (
@@ -183,7 +147,6 @@ const ChatListPanel: React.FC<ChatListPanelProps> = ({
 
             {/* Chat List Area */}
             <Box
-                ref={listContainerRef}
                 sx={{
                     flex: 1,
                     overflowY: 'auto',
@@ -218,51 +181,51 @@ const ChatListPanel: React.FC<ChatListPanelProps> = ({
                                 onClick={() => onChatSelect(chat.complaintId)}
                             />
                         ))}
-
-                        {/* Infinite Scroll Trigger */}
-                        {hasMore && (
-                            <Box
-                                ref={loadMoreTriggerRef}
-                                sx={{
-                                    display: 'flex',
-                                    justifyContent: 'center',
-                                    alignItems: 'center',
-                                    p: 2,
-                                    minHeight: 60,
-                                }}
-                            >
-                                {(loading || isLoadingMore) && (
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                        <CircularProgress size={20} />
-                                        <Typography variant="body2" color="text.secondary">
-                                            Loading more...
-                                        </Typography>
-                                    </Box>
-                                )}
-                            </Box>
-                        )}
-
-                        {/* End of List Indicator */}
-                        {!hasMore && chats.length > 0 && (
-                            <Box
-                                sx={{
-                                    display: 'flex',
-                                    justifyContent: 'center',
-                                    alignItems: 'center',
-                                    p: 2,
-                                    color: 'text.secondary',
-                                }}
-                            >
-                                <Typography variant="body2">
-                                    {totalChats > 0
-                                        ? `All ${totalChats} conversations loaded`
-                                        : 'No more conversations'}
-                                </Typography>
-                            </Box>
-                        )}
                     </Box>
                 )}
             </Box>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+                <Box
+                    sx={{
+                        p: 2,
+                        borderTop: '1px solid',
+                        borderColor: 'divider',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        gap: 2,
+                    }}
+                >
+                    <Button
+                        variant="outlined"
+                        size="small"
+                        startIcon={<NavigateBeforeIcon />}
+                        onClick={handlePreviousPage}
+                        disabled={currentPage === 1 || loading}
+                        sx={{ minWidth: 100 }}
+                    >
+                        Previous
+                    </Button>
+
+                    <Typography variant="body2" color="text.secondary">
+                        Page {currentPage} of {totalPages}
+                        {totalChats > 0 && ` (${totalChats} total)`}
+                    </Typography>
+
+                    <Button
+                        variant="outlined"
+                        size="small"
+                        endIcon={<NavigateNextIcon />}
+                        onClick={handleNextPage}
+                        disabled={currentPage === totalPages || loading}
+                        sx={{ minWidth: 100 }}
+                    >
+                        Next
+                    </Button>
+                </Box>
+            )}
         </Box>
     );
 };

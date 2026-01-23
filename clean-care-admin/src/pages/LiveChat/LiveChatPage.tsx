@@ -48,7 +48,6 @@ const LiveChatPage: React.FC = () => {
         zoneId: undefined,
         wardId: undefined,
         unreadOnly: false,
-        status: 'ALL',
         page: 1,
         limit: 20,
     });
@@ -426,19 +425,27 @@ const LiveChatPage: React.FC = () => {
                         <ChatFilterPanel
                             filters={{
                                 cityCorporationCode: filters.cityCorporationCode,
-                                zone: filters.zoneId?.toString(),
-                                ward: filters.wardId?.toString(),
+                                zone: filters.zoneId?.toString() || undefined,
+                                ward: filters.wardId?.toString() || undefined,
                                 unreadOnly: filters.unreadOnly,
-                                status: filters.status,
                             }}
                             onFilterChange={(newFilters) => {
-                                handleFilterChange({
+                                const converted: Partial<LiveChatFilters> = {
                                     cityCorporationCode: newFilters.cityCorporationCode,
-                                    zoneId: newFilters.zone ? parseInt(newFilters.zone) : undefined,
-                                    wardId: newFilters.ward ? parseInt(newFilters.ward) : undefined,
                                     unreadOnly: newFilters.unreadOnly,
-                                    status: newFilters.status,
-                                });
+                                };
+
+                                // Convert zone string to zoneId number
+                                if (newFilters.zone !== undefined) {
+                                    converted.zoneId = newFilters.zone ? parseInt(newFilters.zone) : undefined;
+                                }
+
+                                // Convert ward string to wardId number
+                                if (newFilters.ward !== undefined) {
+                                    converted.wardId = newFilters.ward ? parseInt(newFilters.ward) : undefined;
+                                }
+
+                                handleFilterChange(converted);
                             }}
                             statistics={{
                                 totalChats: statistics.totalConversations,
@@ -449,12 +456,7 @@ const LiveChatPage: React.FC = () => {
                                 byZone: [],
                                 byStatus: [],
                             }}
-                            showStatusFilter={true}
-                            statusOptions={[
-                                { label: 'Active', value: 'ACTIVE' },
-                                { label: 'Inactive', value: 'INACTIVE' },
-                                { label: 'Banned', value: 'BANNED' },
-                            ]}
+                            showStatusFilter={false}
                         />
                     </Box>
                 )}
@@ -512,6 +514,7 @@ const LiveChatPage: React.FC = () => {
                     >
                         <LiveChatConversationPanel
                             userId={selectedUserId}
+                            userInfo={conversationList.find(conv => conv.user.id === selectedUserId)?.user}
                             onClose={isMobile ? handleBackToList : undefined}
                             onMessagesRead={() => {
                                 // Refresh conversation list to update unread counts

@@ -69,6 +69,7 @@ const ChatListItem: React.FC<ChatListItemProps> = ({ chat, isSelected, onClick }
 
     return (
         <Box
+            data-chat-id={chat.complaintId}
             onClick={onClick}
             sx={{
                 p: { xs: 1.5, sm: 2, md: 2 },

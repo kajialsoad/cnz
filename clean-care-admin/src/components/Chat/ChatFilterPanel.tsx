@@ -53,7 +53,7 @@ const ChatFilterPanel: React.FC<ChatFilterPanelProps> = ({
         const fetchData = async () => {
             try {
                 setLoadingCityCorporations(true);
-                
+
                 // Fetch City Corporations
                 const response = await cityCorporationService.getCityCorporations('ACTIVE');
                 let availableCityCorps = response.cityCorporations || [];
@@ -91,7 +91,7 @@ const ChatFilterPanel: React.FC<ChatFilterPanelProps> = ({
                             })
                             .filter((z): z is Zone => z !== null);
                         setAssignedZones(formattedZones);
-                        
+
                         // Auto-select if single zone
                         if (formattedZones.length === 1 && !filters.zone) {
                             onFilterChange({ zone: formattedZones[0].id.toString() });
@@ -119,7 +119,7 @@ const ChatFilterPanel: React.FC<ChatFilterPanelProps> = ({
         const fetchWards = async () => {
             // Skip for ADMIN role - they have pre-loaded assigned wards (handled below)
             // But we need to handle ADMIN role logic here too similar to UserManagement
-            
+
             if (filters.zone) {
                 try {
                     setWardsLoading(true);
@@ -142,22 +142,22 @@ const ChatFilterPanel: React.FC<ChatFilterPanelProps> = ({
     // Handle Admin assigned wards logic
     useEffect(() => {
         if (currentUser?.role === 'ADMIN') {
-             // Parse ward IDs from permissions
-             let adminWardIds: number[] = [];
-             if ((currentUser as any).permissions) {
-                 try {
-                     const permissionsData = JSON.parse((currentUser as any).permissions);
-                     if (permissionsData.wards && Array.isArray(permissionsData.wards)) {
-                         adminWardIds = permissionsData.wards;
-                     }
-                 } catch (error) {
-                     console.error('Error parsing admin permissions:', error);
-                 }
-             }
+            // Parse ward IDs from permissions
+            let adminWardIds: number[] = [];
+            if ((currentUser as any).permissions) {
+                try {
+                    const permissionsData = JSON.parse((currentUser as any).permissions);
+                    if (permissionsData.wards && Array.isArray(permissionsData.wards)) {
+                        adminWardIds = permissionsData.wards;
+                    }
+                } catch (error) {
+                    console.error('Error parsing admin permissions:', error);
+                }
+            }
 
-             if (adminWardIds.length > 0) {
-                 const fetchAdminWards = async () => {
-                     try {
+            if (adminWardIds.length > 0) {
+                const fetchAdminWards = async () => {
+                    try {
                         setWardsLoading(true);
                         const assignedCityCode = (currentUser as any).cityCorporationCode || (currentUser as any).cityCorporation?.code;
                         if (assignedCityCode) {
@@ -170,14 +170,14 @@ const ChatFilterPanel: React.FC<ChatFilterPanelProps> = ({
                             );
                             setWards(assignedWards);
                         }
-                     } catch (err) {
-                         console.error('Error fetching admin wards:', err);
-                     } finally {
+                    } catch (err) {
+                        console.error('Error fetching admin wards:', err);
+                    } finally {
                         setWardsLoading(false);
-                     }
-                 };
-                 fetchAdminWards();
-             }
+                    }
+                };
+                fetchAdminWards();
+            }
         }
     }, [currentUser]);
 
@@ -218,15 +218,11 @@ const ChatFilterPanel: React.FC<ChatFilterPanelProps> = ({
     const handleClearFilters = () => {
         // Reset to defaults based on role
         let defaultCityCorp = undefined;
-        let defaultZone = undefined;
 
         if (currentUser?.role !== 'MASTER_ADMIN') {
-             defaultCityCorp = (currentUser as any).cityCorporationCode || (currentUser as any).cityCorporation?.code;
+            defaultCityCorp = (currentUser as any).cityCorporationCode || (currentUser as any).cityCorporation?.code;
         }
-        
-        // Note: We don't auto-reset to default zone for Super Admin here to keep it simple, 
-        // but UserManagement does. For now, clear means clear.
-        
+
         onFilterChange({
             cityCorporationCode: defaultCityCorp,
             ward: undefined,
@@ -329,7 +325,7 @@ const ChatFilterPanel: React.FC<ChatFilterPanelProps> = ({
                         }}
                     >
                         {currentUser?.role === 'MASTER_ADMIN' && (
-                             <MenuItem value="ALL">All City Corporations</MenuItem>
+                            <MenuItem value="ALL">All City Corporations</MenuItem>
                         )}
                         {cityCorporations.map((cc) => (
                             <MenuItem key={cc.code} value={cc.code}>

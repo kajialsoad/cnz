@@ -129,12 +129,22 @@ const UserListPanel: React.FC<UserListPanelProps> = ({
      */
     const getUserLocation = (user: UserConversation['user']): string => {
         const parts: string[] = [];
-        if (user.ward) {
-            parts.push(`Ward ${user.ward.wardNumber || user.ward.number}`);
+
+        // Add City Corporation
+        if (user.cityCorporationCode) {
+            parts.push(user.cityCorporationCode);
         }
+
+        // Add Zone
         if (user.zone) {
             parts.push(`Zone ${user.zone.name || user.zone.number}`);
         }
+
+        // Add Ward
+        if (user.ward) {
+            parts.push(`Ward ${user.ward.wardNumber || user.ward.number}`);
+        }
+
         return parts.join(', ') || 'No location';
     };
 

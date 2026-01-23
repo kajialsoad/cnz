@@ -22,6 +22,7 @@ import type { LiveChatMessage, UserInfo } from '../../types/live-chat.types';
 
 interface LiveChatConversationPanelProps {
     userId: number | null;
+    userInfo?: UserInfo | null;
     onClose?: () => void;
     onMessagesRead?: () => void;
 }
@@ -38,12 +39,13 @@ interface LiveChatConversationPanelProps {
  */
 const LiveChatConversationPanel: React.FC<LiveChatConversationPanelProps> = ({
     userId,
+    userInfo: userInfoProp,
     onClose,
     onMessagesRead,
 }) => {
     const theme = useTheme();
     const [messages, setMessages] = useState<LiveChatMessage[]>([]);
-    const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
+    const [userInfo, setUserInfo] = useState<UserInfo | null>(userInfoProp || null);
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
     const [sending, setSending] = useState<boolean>(false);
@@ -86,15 +88,39 @@ const LiveChatConversationPanel: React.FC<LiveChatConversationPanelProps> = ({
                             : firstMessage.receiver;
 
                         if (user) {
-                            setUserInfo({
-                                id: user.id,
-                                firstName: user.firstName,
-                                lastName: user.lastName,
-                                avatar: user.avatar,
-                                phone: null,
-                                ward: null,
-                                zone: null,
-                            });
+                            // Fetch complete user info from conversations list
+                            try {
+                                const conversationsResponse = await liveChatService.getConversations({ search: user.phone || '' });
+                                const userConversation = conversationsResponse.conversations.find(
+                                    (conv) => conv.user.id === userId
+                                );
+
+                                if (userConversation) {
+                                    setUserInfo(userConversation.user);
+                                } else {
+                                    // Fallback to basic info from message
+                                    setUserInfo({
+                                        id: user.id,
+                                        firstName: user.firstName,
+                                        lastName: user.lastName,
+                                        avatar: user.avatar,
+                                        phone: null,
+                                        ward: null,
+                                        zone: null,
+                                    });
+                                }
+                            } catch (err) {
+                                // Fallback to basic info from message
+                                setUserInfo({
+                                    id: user.id,
+                                    firstName: user.firstName,
+                                    lastName: user.lastName,
+                                    avatar: user.avatar,
+                                    phone: null,
+                                    ward: null,
+                                    zone: null,
+                                });
+                            }
                         }
                     }
                 } else {
@@ -104,6 +130,29 @@ const LiveChatConversationPanel: React.FC<LiveChatConversationPanelProps> = ({
                 }
 
                 setHasMore(response.hasMore);
+
+                // Extract user info from first message ONLY if not provided as prop
+                // This prevents slow fetching when userInfo is already available
+                if (pageNum === 1 && response.messages.length > 0 && !userInfoProp) {
+                    const firstMessage = response.messages[0];
+                    const user = firstMessage.senderId === userId
+                        ? firstMessage.sender
+                        : firstMessage.receiver;
+
+                    if (user) {
+                        // Use basic info from message - no slow fetch needed
+                        setUserInfo({
+                            id: user.id,
+                            firstName: user.firstName,
+                            lastName: user.lastName,
+                            avatar: user.avatar,
+                            phone: null,
+                            ward: null,
+                            zone: null,
+                            cityCorporationCode: null,
+                        });
+                    }
+                }
 
                 // Mark messages as read (only once per user)
                 if (pageNum === 1 && !hasMarkedAsReadRef.current) {
@@ -151,12 +200,35 @@ const LiveChatConversationPanel: React.FC<LiveChatConversationPanelProps> = ({
      */
     const handleSendMessage = useCallback(
         async (content: string, imageFile?: File) => {
-            if (!userId || !content.trim()) return;
+            if (!userId) return;
+
+            // Validate: must have either text content or image file
+            const trimmedContent = content.trim();
+            if (!trimmedContent && !imageFile) {
+                toast.error('Please enter a message or attach an image', {
+                    icon: '⚠️',
+                    duration: 3000,
+                });
+                return;
+            }
 
             try {
                 setSending(true);
 
-                const newMessage = await liveChatService.sendMessage(userId, content, imageFile);
+                // If there's an image but no text, use a default message
+                const messageContent = trimmedContent || (imageFile ? 'Image' : '');
+
+                // Validate that we have content to send
+                if (!messageContent && !imageFile) {
+                    toast.error('Please enter a message', {
+                        icon: '⚠️',
+                        duration: 3000,
+                    });
+                    setSending(false);
+                    return;
+                }
+
+                const newMessage = await liveChatService.sendMessage(userId, messageContent, imageFile);
 
                 // Add new message to the list
                 setMessages((prev) => [...prev, newMessage]);
@@ -184,6 +256,15 @@ const LiveChatConversationPanel: React.FC<LiveChatConversationPanelProps> = ({
     );
 
     /**
+     * Update userInfo when prop changes
+     */
+    useEffect(() => {
+        if (userInfoProp) {
+            setUserInfo(userInfoProp);
+        }
+    }, [userInfoProp]);
+
+    /**
      * Initial fetch when userId changes
      */
     useEffect(() => {
@@ -191,7 +272,9 @@ const LiveChatConversationPanel: React.FC<LiveChatConversationPanelProps> = ({
             previousUserIdRef.current = userId;
             hasMarkedAsReadRef.current = false;
             setMessages([]);
-            setUserInfo(null);
+            if (!userInfoProp) {
+                setUserInfo(null);
+            }
             setCurrentPage(1);
             fetchMessages(true);
         }
@@ -281,6 +364,14 @@ const LiveChatConversationPanel: React.FC<LiveChatConversationPanelProps> = ({
                                 {userInfo.firstName} {userInfo.lastName}
                             </Typography>
                             <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 0.5 }}>
+                                {/* User ID */}
+                                <Chip
+                                    label={`ID: ${userInfo.id}`}
+                                    size="small"
+                                    variant="outlined"
+                                    sx={{ fontSize: '0.75rem' }}
+                                />
+                                {/* Phone Number */}
                                 {userInfo.phone && (
                                     <Chip
                                         icon={<PhoneIcon />}
@@ -289,13 +380,15 @@ const LiveChatConversationPanel: React.FC<LiveChatConversationPanelProps> = ({
                                         variant="outlined"
                                     />
                                 )}
-                                {(userInfo.ward || userInfo.zone) && (
+                                {/* Location (Ward/Zone) */}
+                                {(userInfo.ward || userInfo.zone || userInfo.cityCorporationCode) && (
                                     <Chip
                                         icon={<LocationIcon />}
                                         label={
                                             [
-                                                userInfo.ward ? `Ward ${userInfo.ward.wardNumber || userInfo.ward.number}` : null,
+                                                userInfo.cityCorporationCode,
                                                 userInfo.zone ? `Zone ${userInfo.zone.name || userInfo.zone.number}` : null,
+                                                userInfo.ward ? `Ward ${userInfo.ward.wardNumber || userInfo.ward.number}` : null,
                                             ]
                                                 .filter(Boolean)
                                                 .join(', ')
@@ -347,6 +440,7 @@ const LiveChatConversationPanel: React.FC<LiveChatConversationPanelProps> = ({
                                         boxShadow: 1,
                                     }}
                                 >
+                                    {/* Image Display */}
                                     {message.type === 'IMAGE' && message.fileUrl && (
                                         <Box
                                             component="img"
@@ -356,9 +450,33 @@ const LiveChatConversationPanel: React.FC<LiveChatConversationPanelProps> = ({
                                                 maxWidth: '100%',
                                                 borderRadius: 1,
                                                 mb: message.content ? 1 : 0,
+                                                cursor: 'pointer',
                                             }}
+                                            onClick={() => window.open(message.fileUrl, '_blank')}
                                         />
                                     )}
+
+                                    {/* Voice Message Display */}
+                                    {message.type === 'VOICE' && message.voiceUrl && (
+                                        <Box
+                                            sx={{
+                                                mt: message.content ? 1 : 0,
+                                                mb: message.content ? 1 : 0,
+                                            }}
+                                        >
+                                            <audio
+                                                controls
+                                                src={message.voiceUrl}
+                                                style={{
+                                                    width: '100%',
+                                                    maxWidth: '300px',
+                                                    height: '40px',
+                                                }}
+                                            />
+                                        </Box>
+                                    )}
+
+                                    {/* Text Content */}
                                     {message.content && (
                                         <Typography variant="body2">{message.content}</Typography>
                                     )}

@@ -11,6 +11,7 @@ export interface ChatMessage {
     senderRole?: string;
     message: string;
     imageUrl?: string;
+    voiceUrl?: string;
     read: boolean;
     createdAt: string;
 }
@@ -18,6 +19,7 @@ export interface ChatMessage {
 export interface SendMessageRequest {
     message: string;
     imageUrl?: string;
+    voiceUrl?: string;
 }
 
 export interface PaginationInfo {

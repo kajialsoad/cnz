@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Box, Typography, Modal, IconButton } from '@mui/material';
-import { Close as CloseIcon, DoneAll as DoneAllIcon, Done as DoneIcon } from '@mui/icons-material';
+import { Close as CloseIcon, DoneAll as DoneAllIcon, Done as DoneIcon, PlayArrow as PlayArrowIcon, Pause as PauseIcon } from '@mui/icons-material';
 import type { MessageBubbleProps } from '../../types/chat-page.types';
 import { fadeIn, slideInUp, animationConfig } from '../../styles/animations';
 
@@ -55,6 +55,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     showSenderName = false,
 }) => {
     const [lightboxOpen, setLightboxOpen] = useState(false);
+    const [isPlaying, setIsPlaying] = useState(false);
+    const audioRef = useRef<HTMLAudioElement | null>(null);
 
     // Determine border radius based on sender (different radius on sender side)
     const borderRadius = isAdmin
@@ -63,6 +65,24 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 
     // Admin message gradient (blue to green)
     const adminGradient = 'linear-gradient(135deg, #1976d2 0%, #2e7d32 100%)';
+
+    // Handle voice message play/pause
+    const handleVoicePlayPause = () => {
+        if (!audioRef.current) return;
+
+        if (isPlaying) {
+            audioRef.current.pause();
+            setIsPlaying(false);
+        } else {
+            audioRef.current.play();
+            setIsPlaying(true);
+        }
+    };
+
+    // Handle audio ended
+    const handleAudioEnded = () => {
+        setIsPlaying(false);
+    };
 
     return (
         <>
@@ -163,6 +183,102 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                             }}
                             onClick={() => setLightboxOpen(true)}
                         />
+                    )}
+
+                    {/* Voice message player if present */}
+                    {message.voiceUrl && (
+                        <Box
+                            sx={{
+                                mt: 1,
+                                p: 1,
+                                borderRadius: '20px',
+                                backgroundColor: isAdmin ? 'rgba(255, 255, 255, 0.2)' : 'rgba(25, 118, 210, 0.08)',
+                                border: isAdmin ? 'none' : '1px solid rgba(25, 118, 210, 0.2)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 1,
+                                maxWidth: '280px',
+                            }}
+                        >
+                            {/* Hidden audio element */}
+                            <audio
+                                ref={audioRef}
+                                src={message.voiceUrl}
+                                onEnded={handleAudioEnded}
+                                onError={(e) => {
+                                    console.error('❌ Voice message failed to load:', message.voiceUrl);
+                                }}
+                            />
+
+                            {/* Play/Pause button */}
+                            <IconButton
+                                onClick={handleVoicePlayPause}
+                                size="small"
+                                sx={{
+                                    backgroundColor: isAdmin ? '#ffffff' : '#1976d2',
+                                    color: isAdmin ? '#1976d2' : '#ffffff',
+                                    width: 32,
+                                    height: 32,
+                                    '&:hover': {
+                                        backgroundColor: isAdmin ? '#f5f5f5' : '#1565c0',
+                                    },
+                                }}
+                            >
+                                {isPlaying ? (
+                                    <PauseIcon sx={{ fontSize: '1rem' }} />
+                                ) : (
+                                    <PlayArrowIcon sx={{ fontSize: '1rem' }} />
+                                )}
+                            </IconButton>
+
+                            {/* Waveform visualization (simplified) */}
+                            <Box
+                                sx={{
+                                    flex: 1,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-evenly',
+                                    height: '30px',
+                                    gap: '2px',
+                                }}
+                            >
+                                {[...Array(20)].map((_, index) => {
+                                    const heights = [8, 12, 18, 12, 8, 15, 10, 18, 12, 8, 15, 12, 18, 10, 8, 12, 18, 12, 8, 15];
+                                    return (
+                                        <Box
+                                            key={index}
+                                            sx={{
+                                                width: '2px',
+                                                height: `${heights[index]}px`,
+                                                backgroundColor: isAdmin ? 'rgba(255, 255, 255, 0.7)' : 'rgba(25, 118, 210, 0.6)',
+                                                borderRadius: '1px',
+                                                transition: 'all 0.3s ease',
+                                                ...(isPlaying && {
+                                                    animation: `pulse ${0.5 + (index % 3) * 0.2}s ease-in-out infinite`,
+                                                    '@keyframes pulse': {
+                                                        '0%, 100%': { transform: 'scaleY(1)' },
+                                                        '50%': { transform: 'scaleY(1.5)' },
+                                                    },
+                                                }),
+                                            }}
+                                        />
+                                    );
+                                })}
+                            </Box>
+
+                            {/* Duration or status */}
+                            <Typography
+                                variant="caption"
+                                sx={{
+                                    fontSize: '0.7rem',
+                                    color: isAdmin ? 'rgba(255, 255, 255, 0.85)' : 'rgba(0, 0, 0, 0.6)',
+                                    minWidth: '35px',
+                                    textAlign: 'right',
+                                }}
+                            >
+                                {isPlaying ? '...' : 'Voice'}
+                            </Typography>
+                        </Box>
                     )}
 
                     {/* Timestamp and read status */}

@@ -63,6 +63,10 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
   bool _showVoicePreview = false;
   Duration _recordDuration = Duration.zero;
   Timer? _recordTimer;
+  
+  // Voice playback state
+  String? _currentPlayingVoiceUrl;
+  bool _isVoicePlaying = false;
 
   bool hasError = false;
   String errorMessage = '';
@@ -96,6 +100,14 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
       _recorder = AudioRecorder();
     }
 
+    // Listen to audio player completion
+    _audioPlayer.onPlayerComplete.listen((event) {
+      setState(() {
+        _isVoicePlaying = false;
+        _currentPlayingVoiceUrl = null;
+      });
+    });
+
     // Load initial messages
     _loadMessages();
 
@@ -110,6 +122,7 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
     _typingController.dispose();
     _messageController.dispose();
     _scrollController.dispose();
+    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -461,11 +474,34 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
           ),
           child: Row(
             children: [
-               const Icon(Icons.mic, color: Colors.red, size: 20),
+               const Icon(Icons.fiber_manual_record, color: Colors.red, size: 16),
                const SizedBox(width: 8),
                Text(
                  '${_recordDuration.inMinutes.toString().padLeft(2, '0')}:${(_recordDuration.inSeconds % 60).toString().padLeft(2, '0')}',
-                 style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                 style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 14),
+               ),
+               const SizedBox(width: 8),
+               // Animated recording indicator
+               Expanded(
+                 child: Container(
+                   height: 30,
+                   child: Row(
+                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                     crossAxisAlignment: CrossAxisAlignment.center,
+                     children: List.generate(
+                       20,
+                       (index) => AnimatedContainer(
+                         duration: Duration(milliseconds: 300 + (index * 50)),
+                         width: 2,
+                         height: (10 + (_recordDuration.inSeconds % 3) * 5 + (index % 3) * 3).toDouble(),
+                         decoration: BoxDecoration(
+                           color: Colors.red.withOpacity(0.6),
+                           borderRadius: BorderRadius.circular(1),
+                         ),
+                       ),
+                     ),
+                   ),
+                 ),
                ),
                const Spacer(),
                TextButton(
@@ -479,39 +515,73 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
     } else if (_showVoicePreview) {
        return Expanded(
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           height: 50,
           decoration: BoxDecoration(
-            color: Colors.grey.shade100,
+            color: const Color(0xFF2E8B57).withOpacity(0.1),
             borderRadius: BorderRadius.circular(25),
+            border: Border.all(color: const Color(0xFF2E8B57).withOpacity(0.3)),
           ),
           child: Row(
             children: [
-               IconButton(
-                 icon: const Icon(Icons.play_arrow, color: Color(0xFF2E8B57)),
-                 onPressed: () async {
+               GestureDetector(
+                 onTap: () async {
                    if (_recordedFilePath != null) {
                       await _audioPlayer.play(DeviceFileSource(_recordedFilePath!));
                    }
                  },
+                 child: Container(
+                   padding: const EdgeInsets.all(6),
+                   decoration: const BoxDecoration(
+                     color: Color(0xFF2E8B57),
+                     shape: BoxShape.circle,
+                   ),
+                   child: const Icon(Icons.play_arrow, color: Colors.white, size: 18),
+                 ),
                ),
-               const Expanded(
-                 child: Text(
-                   'Voice Message', 
-                   style: TextStyle(color: Colors.black87),
-                   overflow: TextOverflow.ellipsis,
+               const SizedBox(width: 8),
+               // Audio waveform visualization
+               Expanded(
+                 child: Container(
+                   height: 30,
+                   child: Row(
+                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                     crossAxisAlignment: CrossAxisAlignment.center,
+                     children: List.generate(
+                       20,
+                       (index) => Container(
+                         width: 2,
+                         height: (index % 3 == 0 ? 18.0 : (index % 2 == 0 ? 12.0 : 8.0)),
+                         decoration: BoxDecoration(
+                           color: const Color(0xFF2E8B57).withOpacity(0.6),
+                           borderRadius: BorderRadius.circular(1),
+                         ),
+                       ),
+                     ),
+                   ),
+                 ),
+               ),
+               const SizedBox(width: 8),
+               Text(
+                 '${_recordDuration.inMinutes}:${(_recordDuration.inSeconds % 60).toString().padLeft(2, '0')}',
+                 style: const TextStyle(
+                   color: Color(0xFF2E8B57),
+                   fontSize: 12,
+                   fontWeight: FontWeight.w600,
                  ),
                ),
                IconButton(
-                 icon: const Icon(Icons.delete, color: Colors.red),
+                 icon: const Icon(Icons.close, color: Colors.red, size: 20),
                  onPressed: _cancelRecording,
+                 padding: EdgeInsets.zero,
+                 constraints: const BoxConstraints(),
                ),
             ],
           ),
         ),
       );
     }
-    return const SizedBox.shrink(); // Should not happen in this logic flow
+    return const SizedBox.shrink();
   }
 
   /// Cache complaint information for offline access
@@ -948,22 +1018,87 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
                   ],
                   if (message.voiceUrl != null) ...[
                     const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.play_arrow),
-                          onPressed: () async {
-                            await _audioPlayer.stop();
-                            await _audioPlayer.play(UrlSource(message.voiceUrl!));
-                          },
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.pause),
-                          onPressed: () async {
-                            await _audioPlayer.pause();
-                          },
-                        ),
-                      ],
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isUser 
+                            ? Colors.white.withOpacity(0.2) 
+                            : Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          GestureDetector(
+                            onTap: () async {
+                              // Toggle play/pause for this voice message
+                              if (_currentPlayingVoiceUrl == message.voiceUrl && _isVoicePlaying) {
+                                // Pause if currently playing this message
+                                await _audioPlayer.pause();
+                                setState(() {
+                                  _isVoicePlaying = false;
+                                });
+                              } else {
+                                // Play this voice message
+                                await _audioPlayer.stop();
+                                await _audioPlayer.play(UrlSource(message.voiceUrl!));
+                                setState(() {
+                                  _currentPlayingVoiceUrl = message.voiceUrl;
+                                  _isVoicePlaying = true;
+                                });
+                              }
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: isUser ? Colors.white : const Color(0xFF2E8B57),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                // Show pause icon if this message is currently playing, otherwise show play
+                                (_currentPlayingVoiceUrl == message.voiceUrl && _isVoicePlaying)
+                                    ? Icons.pause
+                                    : Icons.play_arrow,
+                                color: isUser ? const Color(0xFF2E8B57) : Colors.white,
+                                size: 20,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          // Audio waveform visualization (simplified)
+                          Expanded(
+                            child: Container(
+                              height: 30,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: List.generate(
+                                  25,
+                                  (index) => Container(
+                                    width: 2,
+                                    height: (index % 3 == 0 ? 20.0 : (index % 2 == 0 ? 15.0 : 10.0)),
+                                    decoration: BoxDecoration(
+                                      color: isUser 
+                                          ? Colors.white.withOpacity(0.7)
+                                          : Colors.grey.shade400,
+                                      borderRadius: BorderRadius.circular(1),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Voice',
+                            style: TextStyle(
+                              color: isUser ? Colors.white70 : Colors.grey.shade600,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                   const SizedBox(height: 4),
