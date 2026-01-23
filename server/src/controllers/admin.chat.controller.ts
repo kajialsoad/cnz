@@ -8,6 +8,7 @@ import { multiZoneService } from '../services/multi-zone.service';
 /**
  * Get all chat conversations - shows ALL complaints for messaging
  * Each complaint has its own chat entry (complaint-centric view)
+ * ✅ FIXED: Added proper admin user context (matching All Complaints page)
  */
 export async function getChatConversations(req: AuthRequest, res: Response) {
     try {
@@ -19,6 +20,34 @@ export async function getChatConversations(req: AuthRequest, res: Response) {
             allowedZoneIds = await multiZoneService.getAssignedZoneIds(req.user.sub);
         }
 
+        // Prepare admin user info for filtering (MATCHING admin.complaint.controller.ts)
+        let adminUser: { role: string; cityCorporationCode?: string; permissions?: string } | undefined;
+        if (req.user) {
+            // Fetch full user data to get permissions
+            const prisma = (await import('../utils/prisma')).default;
+            const fullUser = await prisma.user.findUnique({
+                where: { id: req.user.sub },
+                select: {
+                    role: true,
+                    cityCorporationCode: true,
+                    permissions: true
+                }
+            });
+
+            if (fullUser) {
+                adminUser = {
+                    role: fullUser.role,
+                    cityCorporationCode: fullUser.cityCorporationCode || undefined,
+                    permissions: fullUser.permissions || undefined
+                };
+
+                console.log(`🔐 Chat filtering for ${fullUser.role} ${req.user.sub}:`, {
+                    cityCorporation: adminUser.cityCorporationCode,
+                    permissions: adminUser.permissions
+                });
+            }
+        }
+
         // Get all complaints with their chat messages (complaint-centric)
         const result = await chatService.getAllCitizensForChat({
             search: search as string,
@@ -28,7 +57,8 @@ export async function getChatConversations(req: AuthRequest, res: Response) {
             unreadOnly: unreadOnly === 'true',
             page: page ? parseInt(page as string) : undefined,
             limit: limit ? parseInt(limit as string) : undefined,
-            allowedZoneIds
+            allowedZoneIds,
+            adminUser // Pass full admin user object
         });
 
         res.status(200).json({
@@ -49,7 +79,35 @@ export async function getChatConversations(req: AuthRequest, res: Response) {
  */
 export async function getChatStatistics(req: AuthRequest, res: Response) {
     try {
-        const statistics = await chatService.getChatStatistics();
+        // Get allowed zones for Super Admin
+        let allowedZoneIds: number[] | undefined;
+        if (req.user?.role === 'SUPER_ADMIN') {
+            allowedZoneIds = await multiZoneService.getAssignedZoneIds(req.user.sub);
+        }
+
+        // Prepare admin user info for filtering
+        let adminUser: { role: string; cityCorporationCode?: string; permissions?: string } | undefined;
+        if (req.user) {
+            const prisma = (await import('../utils/prisma')).default;
+            const fullUser = await prisma.user.findUnique({
+                where: { id: req.user.sub },
+                select: {
+                    role: true,
+                    cityCorporationCode: true,
+                    permissions: true
+                }
+            });
+
+            if (fullUser) {
+                adminUser = {
+                    role: fullUser.role,
+                    cityCorporationCode: fullUser.cityCorporationCode || undefined,
+                    permissions: fullUser.permissions || undefined
+                };
+            }
+        }
+
+        const statistics = await chatService.getChatStatistics(allowedZoneIds, adminUser);
 
         res.status(200).json({
             success: true,
