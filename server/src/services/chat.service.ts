@@ -26,6 +26,7 @@ export interface ChatListQueryInput {
     unreadOnly?: boolean;
     page?: number;
     limit?: number;
+    allowedZoneIds?: number[];
 }
 
 export class ChatService {
@@ -45,7 +46,8 @@ export class ChatService {
                 cityCorporationCode,
                 unreadOnly = false,
                 page = 1,
-                limit = 20
+                limit = 20,
+                allowedZoneIds
             } = query;
 
             const skip = (page - 1) * limit;
@@ -66,9 +68,28 @@ export class ChatService {
             if (zone) {
                 const zoneId = parseInt(zone);
                 if (!isNaN(zoneId)) {
+                    // If allowedZoneIds is present, verify access
+                    if (allowedZoneIds && !allowedZoneIds.includes(zoneId)) {
+                        console.log('⛔ Access denied for zone:', zoneId);
+                        return {
+                            chats: [],
+                            pagination: {
+                                page,
+                                limit,
+                                total: 0,
+                                totalPages: 0,
+                                hasNextPage: false,
+                                hasPrevPage: false
+                            }
+                        };
+                    }
                     where.complaintZoneId = zoneId;
                     console.log('🔍 Filtering by zone:', zoneId);
                 }
+            } else if (allowedZoneIds && allowedZoneIds.length > 0) {
+                // No specific zone selected, but restriction exists (Super Admin)
+                where.complaintZoneId = { in: allowedZoneIds };
+                console.log('🔍 Filtering by allowed zones:', allowedZoneIds);
             }
 
             // Filter by city corporation code - use complaintCityCorporationCode

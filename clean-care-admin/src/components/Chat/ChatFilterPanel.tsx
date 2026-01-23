@@ -72,7 +72,7 @@ const ChatFilterPanel: React.FC<ChatFilterPanelProps> = ({
                 const response = await cityCorporationService.getCityCorporations('ACTIVE');
                 let availableCityCorps = response.cityCorporations || [];
 
-                // Filter logic matching UserManagement.tsx
+                // Filter logic matching AllComplaints.tsx
                 if (currentUser && currentUser.role !== 'MASTER_ADMIN') {
                     const assignedCityCode = (currentUser as any).cityCorporationCode || (currentUser as any).cityCorporation?.code;
 
@@ -97,7 +97,19 @@ const ChatFilterPanel: React.FC<ChatFilterPanelProps> = ({
                                 }
 
                                 // Also store assigned zones to auto-select zone if needed
-                                const formattedZones = zonesResponse.map((z: any) => z.zone || z).filter((z: any) => z.id);
+                                const formattedZones = zonesResponse.map((z: any) => {
+                                    const zoneData = z.zone || z;
+                                    return {
+                                        id: zoneData.id,
+                                        zoneNumber: zoneData.zoneNumber,
+                                        name: zoneData.name,
+                                        cityCorporationId: zoneData.cityCorporationId || 0,
+                                        status: 'ACTIVE',
+                                        createdAt: new Date().toISOString(),
+                                        updatedAt: new Date().toISOString()
+                                    } as Zone;
+                                }).filter((z: any) => z.id);
+                                
                                 setAssignedZones(formattedZones);
 
                                 // Auto-select zone if only one

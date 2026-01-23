@@ -3,6 +3,7 @@ import { AuthRequest } from '../middlewares/auth.middleware';
 import { chatService } from '../services/chat.service';
 import { cloudUploadService } from '../services/cloud-upload.service';
 import { isCloudinaryEnabled } from '../config/cloudinary.config';
+import { multiZoneService } from '../services/multi-zone.service';
 
 /**
  * Get all chat conversations - shows ALL complaints for messaging
@@ -12,6 +13,12 @@ export async function getChatConversations(req: AuthRequest, res: Response) {
     try {
         const { search, ward, zone, cityCorporationCode, unreadOnly, page, limit } = req.query;
 
+        // Get allowed zones for Super Admin
+        let allowedZoneIds: number[] | undefined;
+        if (req.user?.role === 'SUPER_ADMIN') {
+            allowedZoneIds = await multiZoneService.getAssignedZoneIds(req.user.sub);
+        }
+
         // Get all complaints with their chat messages (complaint-centric)
         const result = await chatService.getAllCitizensForChat({
             search: search as string,
@@ -20,7 +27,8 @@ export async function getChatConversations(req: AuthRequest, res: Response) {
             cityCorporationCode: cityCorporationCode as string,
             unreadOnly: unreadOnly === 'true',
             page: page ? parseInt(page as string) : undefined,
-            limit: limit ? parseInt(limit as string) : undefined
+            limit: limit ? parseInt(limit as string) : undefined,
+            allowedZoneIds
         });
 
         res.status(200).json({
