@@ -151,7 +151,7 @@ const ChatListItem: React.FC<ChatListItemProps> = ({ chat, isSelected, onClick }
                             whiteSpace: 'nowrap',
                         }}
                     >
-                        #{chat.trackingNumber} • {chat.complaintTitle}
+                        #{chat.trackingNumber || `C${String(chat.complaintId).padStart(6, '0')}`} • {chat.complaintTitle}
                     </Typography>
 
                     {/* Location with City Corporation and Thana */}
@@ -167,16 +167,18 @@ const ChatListItem: React.FC<ChatListItemProps> = ({ chat, isSelected, onClick }
                             fontSize: '0.7rem',
                         }}
                     >
-                        📍 {chat.citizen.cityCorporationName || chat.citizen.district}
-                        {chat.citizen.thanaName && `, ${chat.citizen.thanaName}`}
-                        {!chat.citizen.cityCorporationName && `, ${chat.citizen.upazila}`}
+                        📍 {chat.citizen.cityCorporationName || chat.citizen.cityCorporation?.name || chat.citizen.district || 'N/A'}
                     </Typography>
 
                     {/* Zone and Ward Info */}
                     <Box sx={{ display: 'flex', gap: 0.5, mb: 0.5, flexWrap: 'wrap' }}>
                         {chat.citizen.zone && (
                             <Chip
-                                label={`Zone ${chat.citizen.zone}`}
+                                label={typeof chat.citizen.zone === 'object'
+                                    ? `Zone ${chat.citizen.zone.zoneNumber}`
+                                    : (typeof chat.citizen.zone === 'string' && chat.citizen.zone.startsWith('Zone')
+                                        ? chat.citizen.zone
+                                        : `Zone ${chat.citizen.zone}`)}
                                 size="small"
                                 variant="outlined"
                                 sx={{
@@ -190,7 +192,11 @@ const ChatListItem: React.FC<ChatListItemProps> = ({ chat, isSelected, onClick }
                         )}
                         {chat.citizen.ward && (
                             <Chip
-                                label={`Ward ${chat.citizen.ward}`}
+                                label={typeof chat.citizen.ward === 'object'
+                                    ? `Ward ${chat.citizen.ward.wardNumber}`
+                                    : (typeof chat.citizen.ward === 'string' && chat.citizen.ward.startsWith('Ward')
+                                        ? chat.citizen.ward
+                                        : `Ward ${chat.citizen.ward}`)}
                                 size="small"
                                 variant="outlined"
                                 sx={{

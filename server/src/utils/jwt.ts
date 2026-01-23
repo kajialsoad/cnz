@@ -10,6 +10,7 @@ export interface JwtPayload {
   role: 'CUSTOMER' | 'SERVICE_PROVIDER' | 'ADMIN' | 'SUPER_ADMIN' | 'MASTER_ADMIN';
   email?: string;
   phone?: string;
+  permissions?: string;
   zoneId?: number | null;
   wardId?: number | null;
   cityCorporationCode?: string | null;

@@ -432,7 +432,7 @@ const ChatFilterPanel: React.FC<ChatFilterPanelProps> = ({
                     <Select
                         labelId="ward-filter-label"
                         label="Ward"
-                        value={filters.ward || (currentUser?.role === 'ADMIN' ? '' : 'ALL')}
+                        value={filters.ward || ''}
                         onChange={(e) => handleWardChange(e.target.value)}
                         disabled={
                             currentUser?.role === 'ADMIN'
@@ -443,9 +443,18 @@ const ChatFilterPanel: React.FC<ChatFilterPanelProps> = ({
                             backgroundColor: 'background.default',
                             fontSize: '0.875rem',
                         }}
+                        displayEmpty
+                        renderValue={(value) => {
+                             if (!value && currentUser?.role === 'ADMIN') return 'Select Ward';
+                             if (!value) return 'All Wards';
+                             if (value === 'ALL') return 'All Wards';
+                             const w = wards.find(ward => ward.id.toString() === value);
+                             return w ? `Ward ${typeof w.wardNumber === 'object' ? JSON.stringify(w.wardNumber) : w.wardNumber}` : value;
+                        }}
                     >
                         {/* Show "All Wards" only for non-Admin roles */}
                         {currentUser?.role !== 'ADMIN' && <MenuItem value="ALL">All Wards</MenuItem>}
+                        
                         {wards.map((ward) => (
                             <MenuItem key={ward.id} value={ward.id.toString()}>
                                 Ward {typeof ward.wardNumber === 'object' ? JSON.stringify(ward.wardNumber) : ward.wardNumber}

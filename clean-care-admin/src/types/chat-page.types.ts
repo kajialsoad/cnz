@@ -19,6 +19,10 @@ export interface ChatCitizen {
     profilePicture?: string;
     cityCorporationCode?: string;
     cityCorporationName?: string;
+    cityCorporation?: {
+        code: string;
+        name: string;
+    } | null;
     thanaId?: number;
     thanaName?: string;
     wardInspector?: {
