@@ -14,6 +14,7 @@ import {
 } from '@mui/icons-material';
 import MessageList from '../../components/Chat/MessageList';
 import MessageInput from '../../components/Chat/MessageInput';
+import VoiceMessagePlayer from '../../components/Chat/VoiceMessagePlayer';
 import EmptyState from '../../components/Chat/EmptyState';
 import ErrorDisplay from '../../components/Chat/ErrorDisplay';
 import { liveChatService } from '../../services/liveChatService';
@@ -464,14 +465,9 @@ const LiveChatConversationPanel: React.FC<LiveChatConversationPanelProps> = ({
                                                 mb: message.content ? 1 : 0,
                                             }}
                                         >
-                                            <audio
-                                                controls
-                                                src={message.voiceUrl}
-                                                style={{
-                                                    width: '100%',
-                                                    maxWidth: '300px',
-                                                    height: '40px',
-                                                }}
+                                            <VoiceMessagePlayer
+                                                voiceUrl={message.voiceUrl}
+                                                isAdmin={message.senderType === 'ADMIN'}
                                             />
                                         </Box>
                                     )}

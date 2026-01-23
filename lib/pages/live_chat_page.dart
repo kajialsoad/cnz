@@ -13,6 +13,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../components/custom_bottom_nav.dart';
 import '../widgets/translated_text.dart';
 import '../widgets/admin_info_card.dart';
+import '../widgets/voice_message_player.dart';
 import '../services/live_chat_service.dart';
 import '../models/chat_message.dart' as model;
 import '../config/url_helper.dart';
@@ -1016,87 +1017,17 @@ class _LiveChatPageState extends State<LiveChatPage>
                   // Voice message if present
                   if (message.voiceUrl != null) ...[
                     const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: isUser 
-                            ? Colors.white.withOpacity(0.2) 
-                            : Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          GestureDetector(
-                            onTap: () async {
-                              // Toggle play/pause for this voice message
-                              if (_currentPlayingVoiceUrl == message.voiceUrl && _isVoicePlaying) {
-                                // Pause if currently playing this message
-                                await _audioPlayer.pause();
-                                setState(() {
-                                  _isVoicePlaying = false;
-                                });
-                              } else {
-                                // Play this voice message
-                                await _audioPlayer.stop();
-                                await _audioPlayer.play(UrlSource(UrlHelper.getImageUrl(message.voiceUrl!)));
-                                setState(() {
-                                  _currentPlayingVoiceUrl = message.voiceUrl;
-                                  _isVoicePlaying = true;
-                                });
-                              }
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: isUser ? Colors.white : const Color(0xFF2E8B57),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                // Show pause icon if this message is currently playing, otherwise show play
-                                (_currentPlayingVoiceUrl == message.voiceUrl && _isVoicePlaying)
-                                    ? Icons.pause
-                                    : Icons.play_arrow,
-                                color: isUser ? const Color(0xFF2E8B57) : Colors.white,
-                                size: 20,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          // Audio waveform visualization (simplified)
-                          Expanded(
-                            child: Container(
-                              height: 30,
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: List.generate(
-                                  25,
-                                  (index) => Container(
-                                    width: 2,
-                                    height: (index % 3 == 0 ? 20.0 : (index % 2 == 0 ? 15.0 : 10.0)),
-                                    decoration: BoxDecoration(
-                                      color: isUser 
-                                          ? Colors.white.withOpacity(0.7)
-                                          : Colors.grey.shade400,
-                                      borderRadius: BorderRadius.circular(1),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Voice',
-                            style: TextStyle(
-                              color: isUser ? Colors.white70 : Colors.grey.shade600,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
+                    VoiceMessagePlayer(
+                      voiceUrl: message.voiceUrl!,
+                      isUser: isUser,
+                      onPlayStateChanged: (url, isPlaying) {
+                        if (isPlaying) {
+                          // If this player started playing, stop others if needed
+                          // Note: The widget handles its own audio player instance, 
+                          // but for optimal resource usage we could manage a single instance here
+                          // For now, independent instances work fine
+                        }
+                      },
                     ),
                   ],
                   const SizedBox(height: 4),

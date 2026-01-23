@@ -1,8 +1,9 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { Box, Typography, Modal, IconButton } from '@mui/material';
-import { Close as CloseIcon, DoneAll as DoneAllIcon, Done as DoneIcon, PlayArrow as PlayArrowIcon, Pause as PauseIcon } from '@mui/icons-material';
+import { Close as CloseIcon, DoneAll as DoneAllIcon, Done as DoneIcon } from '@mui/icons-material';
 import type { MessageBubbleProps } from '../../types/chat-page.types';
 import { fadeIn, slideInUp, animationConfig } from '../../styles/animations';
+import VoiceMessagePlayer from './VoiceMessagePlayer';
 
 /**
  * Format timestamp to relative format (e.g., "2 mins ago", "1 hour ago")
@@ -55,10 +56,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     showSenderName = false,
 }) => {
     const [lightboxOpen, setLightboxOpen] = useState(false);
-    const [isPlaying, setIsPlaying] = useState(false);
-    const [audioError, setAudioError] = useState(false);
-    const [audioLoading, setAudioLoading] = useState(false);
-    const audioRef = useRef<HTMLAudioElement | null>(null);
 
     // Determine border radius based on sender (different radius on sender side)
     const borderRadius = isAdmin
@@ -67,70 +64,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 
     // Admin message gradient (blue to green)
     const adminGradient = 'linear-gradient(135deg, #1976d2 0%, #2e7d32 100%)';
-
-    // Handle voice message play/pause
-    const handleVoicePlayPause = () => {
-        if (!audioRef.current) return;
-
-        if (isPlaying) {
-            audioRef.current.pause();
-            setIsPlaying(false);
-        } else {
-            setAudioLoading(true);
-            setAudioError(false);
-            audioRef.current.play()
-                .then(() => {
-                    setIsPlaying(true);
-                    setAudioLoading(false);
-                })
-                .catch((error) => {
-                    console.error('❌ Failed to play voice message:', error);
-                    setAudioError(true);
-                    setAudioLoading(false);
-                    setIsPlaying(false);
-                });
-        }
-    };
-
-    // Handle audio ended
-    const handleAudioEnded = () => {
-        setIsPlaying(false);
-    };
-
-    // Handle audio error
-    const handleAudioError = (e: React.SyntheticEvent<HTMLAudioElement>) => {
-        console.error('❌ Voice message failed to load:', message.voiceUrl);
-        console.error('   Error details:', e);
-        setAudioError(true);
-        setIsPlaying(false);
-        setAudioLoading(false);
-    };
-
-    // Handle audio loaded successfully
-    const handleAudioLoaded = () => {
-        console.log('✅ Voice message loaded successfully:', message.voiceUrl?.substring(0, 100));
-        setAudioError(false);
-    };
-
-    // Retry loading audio
-    const handleRetryAudio = () => {
-        if (!audioRef.current) return;
-
-        console.log('🔄 Retrying voice message load:', message.voiceUrl);
-        setAudioError(false);
-        setAudioLoading(true);
-
-        // Force reload by setting src again
-        const currentSrc = audioRef.current.src;
-        audioRef.current.src = '';
-        audioRef.current.src = currentSrc;
-        audioRef.current.load();
-
-        // Try to play after reload
-        setTimeout(() => {
-            handleVoicePlayPause();
-        }, 500);
-    };
 
     return (
         <>
@@ -235,150 +168,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 
                     {/* Voice message player if present */}
                     {message.voiceUrl && (
-                        <Box
-                            sx={{
-                                mt: 1,
-                                p: 1,
-                                borderRadius: '20px',
-                                backgroundColor: isAdmin ? 'rgba(255, 255, 255, 0.2)' : 'rgba(25, 118, 210, 0.08)',
-                                border: isAdmin ? 'none' : '1px solid rgba(25, 118, 210, 0.2)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 1,
-                                maxWidth: '280px',
-                            }}
-                        >
-                            {/* Hidden audio element */}
-                            <audio
-                                ref={audioRef}
-                                src={message.voiceUrl}
-                                onEnded={handleAudioEnded}
-                                onError={handleAudioError}
-                                onLoadedData={handleAudioLoaded}
-                                preload="metadata"
-                            />
-
-                            {/* Play/Pause button or Error indicator */}
-                            {audioError ? (
-                                <IconButton
-                                    onClick={handleRetryAudio}
-                                    size="small"
-                                    title="Retry loading voice message"
-                                    sx={{
-                                        backgroundColor: '#f44336',
-                                        color: '#ffffff',
-                                        width: 32,
-                                        height: 32,
-                                        '&:hover': {
-                                            backgroundColor: '#d32f2f',
-                                        },
-                                    }}
-                                >
-                                    <Typography sx={{ fontSize: '0.8rem', fontWeight: 'bold' }}>!</Typography>
-                                </IconButton>
-                            ) : (
-                                <IconButton
-                                    onClick={handleVoicePlayPause}
-                                    size="small"
-                                    disabled={audioLoading}
-                                    sx={{
-                                        backgroundColor: isAdmin ? '#ffffff' : '#1976d2',
-                                        color: isAdmin ? '#1976d2' : '#ffffff',
-                                        width: 32,
-                                        height: 32,
-                                        '&:hover': {
-                                            backgroundColor: isAdmin ? '#f5f5f5' : '#1565c0',
-                                        },
-                                        '&:disabled': {
-                                            backgroundColor: isAdmin ? 'rgba(255, 255, 255, 0.5)' : 'rgba(25, 118, 210, 0.5)',
-                                            color: isAdmin ? 'rgba(25, 118, 210, 0.5)' : 'rgba(255, 255, 255, 0.5)',
-                                        },
-                                    }}
-                                >
-                                    {audioLoading ? (
-                                        <Typography sx={{ fontSize: '0.6rem' }}>...</Typography>
-                                    ) : isPlaying ? (
-                                        <PauseIcon sx={{ fontSize: '1rem' }} />
-                                    ) : (
-                                        <PlayArrowIcon sx={{ fontSize: '1rem' }} />
-                                    )}
-                                </IconButton>
-                            )}
-
-                            {/* Waveform visualization or error message */}
-                            {audioError ? (
-                                <Box
-                                    sx={{
-                                        flex: 1,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                    }}
-                                >
-                                    <Typography
-                                        variant="caption"
-                                        sx={{
-                                            fontSize: '0.7rem',
-                                            color: '#f44336',
-                                            fontWeight: 500,
-                                        }}
-                                    >
-                                        Failed to load
-                                    </Typography>
-                                </Box>
-                            ) : (
-                                <Box
-                                    sx={{
-                                        flex: 1,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'space-evenly',
-                                        height: '30px',
-                                        gap: '2px',
-                                    }}
-                                >
-                                    {[...Array(20)].map((_, index) => {
-                                        const heights = [8, 12, 18, 12, 8, 15, 10, 18, 12, 8, 15, 12, 18, 10, 8, 12, 18, 12, 8, 15];
-                                        return (
-                                            <Box
-                                                key={index}
-                                                sx={{
-                                                    width: '2px',
-                                                    height: `${heights[index]}px`,
-                                                    backgroundColor: isAdmin ? 'rgba(255, 255, 255, 0.7)' : 'rgba(25, 118, 210, 0.6)',
-                                                    borderRadius: '1px',
-                                                    transition: 'all 0.3s ease',
-                                                    ...(isPlaying && {
-                                                        animation: `pulse ${0.5 + (index % 3) * 0.2}s ease-in-out infinite`,
-                                                        '@keyframes pulse': {
-                                                            '0%, 100%': { transform: 'scaleY(1)' },
-                                                            '50%': { transform: 'scaleY(1.5)' },
-                                                        },
-                                                    }),
-                                                }}
-                                            />
-                                        );
-                                    })}
-                                </Box>
-                            )}
-
-                            {/* Duration or status */}
-                            <Typography
-                                variant="caption"
-                                sx={{
-                                    fontSize: '0.7rem',
-                                    color: audioError
-                                        ? '#f44336'
-                                        : isAdmin
-                                            ? 'rgba(255, 255, 255, 0.85)'
-                                            : 'rgba(0, 0, 0, 0.6)',
-                                    minWidth: '35px',
-                                    textAlign: 'right',
-                                }}
-                            >
-                                {audioError ? 'Error' : audioLoading ? '...' : isPlaying ? '...' : 'Voice'}
-                            </Typography>
-                        </Box>
+                        <VoiceMessagePlayer
+                            voiceUrl={message.voiceUrl}
+                            isAdmin={isAdmin}
+                        />
                     )}
 
                     {/* Timestamp and read status */}
