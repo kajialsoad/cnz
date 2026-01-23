@@ -62,7 +62,22 @@ export class AdminLiveChatController {
                 filters.status = req.query.status as string;
             }
 
-            const result = await liveChatService.getAllUserConversations(adminId, filters);
+            // Build requestingUser object for role-based filtering (matching User Management)
+            let requestingUser: any = {
+                id: adminId,
+                role: req.user.role,
+                zoneId: (req.user as any).zoneId,
+                wardId: (req.user as any).wardId,
+            };
+
+            // For Super Admins, fetch their assigned zones
+            if (req.user.role === 'SUPER_ADMIN') {
+                const { multiZoneService } = await import('../services/multi-zone.service');
+                const assignedZoneIds = await multiZoneService.getAssignedZoneIds(adminId);
+                requestingUser.assignedZoneIds = assignedZoneIds;
+            }
+
+            const result = await liveChatService.getAllUserConversations(adminId, filters, requestingUser);
 
             res.status(200).json({
                 success: true,

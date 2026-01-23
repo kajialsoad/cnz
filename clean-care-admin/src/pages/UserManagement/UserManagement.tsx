@@ -177,21 +177,44 @@ const UserManagement: React.FC = () => {
         let availableCityCorps = cityCorpResponse.cityCorporations || [];
         console.log('🏙️ Fetched City Corps:', availableCityCorps.length);
 
-        // Set city corporations FIRST before auto-selecting
-        setCityCorporations(availableCityCorps);
-
-        // Then auto-select for non-MASTER_ADMIN users AFTER city corps are set
+        // Filter valid city corporations for non-MASTER_ADMIN users
         if (currentUser && currentUser.role !== 'MASTER_ADMIN') {
           const assignedCityCode = (currentUser as any).cityCorporationCode || (currentUser as any).cityCorporation?.code;
+
           if (assignedCityCode) {
-            console.log('🎯 Auto-selecting City Corp for assigned code:', assignedCityCode);
-            // Verify the city corp exists in the list before selecting
-            const cityCorpExists = availableCityCorps.some((cc: any) => cc.code === assignedCityCode);
-            if (cityCorpExists && selectedCityCorporation !== assignedCityCode) {
+            console.log('🎯 Filtering City Corp for assigned code:', assignedCityCode);
+            // Restricted to single city corp
+            availableCityCorps = availableCityCorps.filter((cc: any) => cc.code === assignedCityCode);
+
+            // Auto-select the assigned city corporation
+            if (availableCityCorps.length > 0 && selectedCityCorporation !== assignedCityCode) {
               setSelectedCityCorporation(assignedCityCode);
+            }
+          } else if (currentUser.role === 'SUPER_ADMIN' && assignedZonesResponse) {
+            // For Super Admin with assigned zones, restrict to the corporations of those zones
+            const allowedCityCorpIds = new Set<number>();
+            // Ensure assignedZonesResponse is an array
+            if (Array.isArray(assignedZonesResponse)) {
+              assignedZonesResponse.forEach((z: any) => {
+                const zoneData = z.zone || z;
+                if (zoneData.cityCorporationId) allowedCityCorpIds.add(zoneData.cityCorporationId);
+              });
+            }
+
+            if (allowedCityCorpIds.size > 0) {
+              console.log('🎯 Filtering City Corps for Super Admin assigned zones:', Array.from(allowedCityCorpIds));
+              availableCityCorps = availableCityCorps.filter((cc: any) => allowedCityCorpIds.has(cc.id));
+
+              // Auto-select if only one corporation
+              if (availableCityCorps.length === 1) {
+                setSelectedCityCorporation(availableCityCorps[0].code);
+              }
             }
           }
         }
+
+        // Set city corporations AFTER filtering
+        setCityCorporations(availableCityCorps);
 
         // 2. Handle Assigned Zones
         if (assignedZonesResponse) {

@@ -6,7 +6,7 @@ export class LiveChatService {
     async sendUserMessage(userId: number, data: { content: string; type?: ChatMessageType; fileUrl?: string; voiceUrl?: string }) { const admin = await this.getUserAdmin(userId); if (!admin) throw new Error('No admin assigned to your ward'); const message = await prisma.chatMessage.create({ data: { content: data.content, type: data.type || ChatMessageType.TEXT, fileUrl: data.fileUrl, voiceUrl: data.voiceUrl, senderId: userId, receiverId: admin.id, senderType: SenderType.CITIZEN, isRead: false }, include: { sender: { select: { id: true, firstName: true, lastName: true, avatar: true, role: true } }, receiver: { select: { id: true, firstName: true, lastName: true, avatar: true, role: true } } } }); return message; }
     async sendAdminMessage(adminId: number, userId: number, data: { content: string; type?: ChatMessageType; fileUrl?: string; voiceUrl?: string }) { const [admin, user] = await Promise.all([prisma.user.findUnique({ where: { id: adminId }, select: { id: true, role: true, wardId: true, zoneId: true, cityCorporationCode: true } }), prisma.user.findUnique({ where: { id: userId }, select: { id: true, wardId: true, zoneId: true, cityCorporationCode: true } })]); if (!admin) throw new Error('Admin not found'); if (!user) throw new Error('User not found'); const hasAccess = this.checkAdminAccess(admin, user); if (!hasAccess) throw new Error('Admin does not have access to this user'); const message = await prisma.chatMessage.create({ data: { content: data.content, type: data.type || ChatMessageType.TEXT, fileUrl: data.fileUrl, voiceUrl: data.voiceUrl, senderId: adminId, receiverId: userId, senderType: SenderType.ADMIN, isRead: false }, include: { sender: { select: { id: true, firstName: true, lastName: true, avatar: true, role: true } }, receiver: { select: { id: true, firstName: true, lastName: true, avatar: true, role: true } } } }); return message; }
     async markMessagesAsRead(senderId: number, receiverId: number) { const result = await prisma.chatMessage.updateMany({ where: { senderId, receiverId, isRead: false }, data: { isRead: true } }); return { updated: result.count }; }
-    async getAllUserConversations(adminId: number, filters: { page?: number; limit?: number; cityCorporationCode?: string; zoneId?: number; wardId?: number; unreadOnly?: boolean; search?: string; status?: string } = {}) {
+    async getAllUserConversations(adminId: number, filters: { page?: number; limit?: number; cityCorporationCode?: string; zoneId?: number; wardId?: number; unreadOnly?: boolean; search?: string; status?: string } = {}, requestingUser?: { id: number; role: string; zoneId?: number | null; wardId?: number | null; assignedZoneIds?: number[] }) {
         const page = filters.page || 1;
         const limit = filters.limit || 20;
         const skip = (page - 1) * limit;
@@ -33,8 +33,71 @@ export class LiveChatService {
             userWhere.status = 'ACTIVE';
         }
 
-        // MASTER_ADMIN, SUPER_ADMIN, ADMIN: No automatic filtering - allows access to all users
 
+        // Apply role-based filtering (matching UserManagement logic)
+        console.log('🔍 Live Chat Filtering - Admin Role:', admin.role, 'RequestingUser:', requestingUser);
+        if (admin.role === 'ADMIN') {
+            // ADMIN: Restrict to assigned ward(s) from permissions
+            // Fetch full admin data to get permissions
+            const fullAdmin = await prisma.user.findUnique({
+                where: { id: adminId },
+                select: { permissions: true }
+            });
+
+            let adminWardIds: number[] = [];
+
+            if (fullAdmin && fullAdmin.permissions) {
+                try {
+                    const permissionsData = typeof fullAdmin.permissions === 'string'
+                        ? JSON.parse(fullAdmin.permissions)
+                        : fullAdmin.permissions;
+
+                    if (permissionsData.wards && Array.isArray(permissionsData.wards)) {
+                        adminWardIds = permissionsData.wards;
+                    }
+                } catch (error) {
+                    console.error('Error parsing admin permissions:', error);
+                }
+            }
+
+            console.log(`🔒 ADMIN assigned wards: [${adminWardIds.join(', ')}]`);
+
+            if (adminWardIds.length > 0) {
+                // Filter by assigned ward IDs (multiple ward support)
+                userWhere.wardId = { in: adminWardIds };
+            } else {
+                // No wards assigned = no users visible
+                console.log('⚠️ ADMIN has no assigned wards - returning empty result');
+                return {
+                    conversations: [],
+                    total: 0,
+                    page,
+                    limit,
+                    hasMore: false
+                };
+            }
+        } else if (admin.role === 'SUPER_ADMIN') {
+            // SUPER_ADMIN: Filter by their assigned zones (multi-zone support)
+            if (requestingUser && requestingUser.assignedZoneIds && requestingUser.assignedZoneIds.length > 0) {
+                // Multi-zone filtering
+                userWhere.zoneId = { in: requestingUser.assignedZoneIds };
+            } else if (admin.zoneId) {
+                // Fallback to single zone for backward compatibility
+                userWhere.zoneId = admin.zoneId;
+            } else {
+                // No zones assigned = no users visible
+                return {
+                    conversations: [],
+                    total: 0,
+                    page,
+                    limit,
+                    hasMore: false
+                };
+            }
+        }
+        // MASTER_ADMIN: No automatic filtering - allows access to all users
+
+        console.log('🔍 Live Chat - Final userWhere query:', JSON.stringify(userWhere, null, 2));
 
         if (filters.cityCorporationCode) userWhere.cityCorporationCode = filters.cityCorporationCode; if (filters.zoneId) userWhere.zoneId = filters.zoneId; if (filters.wardId) userWhere.wardId = filters.wardId; if (filters.search) { userWhere.OR = [{ firstName: { contains: filters.search } }, { lastName: { contains: filters.search } }, { phone: { contains: filters.search } }]; } const users = await prisma.user.findMany({ where: { ...userWhere }, select: { id: true, firstName: true, lastName: true, phone: true, avatar: true, wardId: true, zoneId: true, cityCorporationCode: true, ward: { select: { id: true, wardNumber: true } }, zone: { select: { id: true, name: true } } }, skip, take: limit }); const conversations = await Promise.all(users.map(async (user) => { const [lastMessage, unreadCount] = await Promise.all([prisma.chatMessage.findFirst({ where: { OR: [{ senderId: user.id, receiverId: adminId }, { senderId: adminId, receiverId: user.id }] }, orderBy: { createdAt: 'desc' } }), prisma.chatMessage.count({ where: { senderId: user.id, receiverId: adminId, isRead: false } })]); return { user, lastMessage, unreadCount }; })); let filteredConversations = conversations; if (filters.unreadOnly) { filteredConversations = conversations.filter((c) => c.unreadCount > 0); } filteredConversations.sort((a, b) => {
             const aTime = a.lastMessage?.createdAt?.getTime() || 0;

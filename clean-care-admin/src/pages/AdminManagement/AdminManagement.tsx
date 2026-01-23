@@ -204,6 +204,23 @@ const AdminManagement: React.FC = () => {
           if (cityCorporationFilter !== assignedCityCode) {
             setCityCorporationFilter(assignedCityCode);
           }
+        } else if (assignedZonesResponse && Array.isArray(assignedZonesResponse) && assignedZonesResponse.length > 0) {
+          // For Super Admin with assigned zones, restrict to the corporations of those zones
+          const allowedCityCorpIds = new Set<number>();
+          assignedZonesResponse.forEach((z: any) => {
+            const zoneData = z.zone || z;
+            if (zoneData.cityCorporationId) allowedCityCorpIds.add(zoneData.cityCorporationId);
+          });
+
+          if (allowedCityCorpIds.size > 0) {
+            console.log('🎯 Filtering City Corps for Super Admin assigned zones:', Array.from(allowedCityCorpIds));
+            availableCityCorps = availableCityCorps.filter((cc: any) => allowedCityCorpIds.has(cc.id));
+
+            // Auto-select if only one corporation
+            if (availableCityCorps.length === 1 && cityCorporationFilter !== availableCityCorps[0].code) {
+              setCityCorporationFilter(availableCityCorps[0].code);
+            }
+          }
         }
       }
       setCityCorporations(availableCityCorps);
@@ -493,9 +510,9 @@ const AdminManagement: React.FC = () => {
                 label="সকল সিটি কর্পোরেশন"
                 value={cityCorporationFilter}
                 onChange={(e) => setCityCorporationFilter(e.target.value)}
-                disabled={userRole === 'SUPER_ADMIN'} // Optional: disable if auto-selected
+                disabled={!cityCorporationFilter && userRole === 'MASTER_ADMIN' ? false : cityCorporations.length <= 1}
               >
-                <MenuItem value="">সকল সিটি কর্পোরেশন</MenuItem>
+                {userRole === 'MASTER_ADMIN' && <MenuItem value="">সকল সিটি কর্পোরেশন</MenuItem>}
                 {Array.isArray(cityCorporations) && cityCorporations.map((cc) => (
                   <MenuItem key={cc.code} value={cc.code}>{cc.name}</MenuItem>
                 ))}

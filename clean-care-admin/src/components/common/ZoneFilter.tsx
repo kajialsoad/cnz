@@ -111,7 +111,7 @@ const ZoneFilter: React.FC<ZoneFilterProps> = ({
         <FormControl fullWidth variant="outlined" size="small" disabled={disabled || loading}>
             {!hideLabel && <InputLabel shrink>{label}</InputLabel>}
             <Select
-                value={value}
+                value={zones.some(z => z.id === value) || value === '' ? value : ''}
                 onChange={handleChange}
                 label={hideLabel ? undefined : label}
                 displayEmpty
