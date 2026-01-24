@@ -20,15 +20,15 @@ class NotificationPollingService {
 
     _isPolling = true;
 
-    // Poll every 15 seconds for faster notification delivery
-    _pollingTimer = Timer.periodic(const Duration(seconds: 15), (timer) {
+    // Poll every 5 seconds for near real-time notification delivery
+    _pollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
       _checkForNewNotifications();
     });
 
     // Check immediately on start
     _checkForNewNotifications();
 
-    print('✅ Notification polling started (every 15 seconds)');
+    print('✅ Notification polling started (every 5 seconds - near real-time)');
   }
 
   /// Stop polling
@@ -92,7 +92,7 @@ class NotificationPollingService {
   /// Mark a notification as read
   static Future<void> markAsRead(int notificationId) async {
     try {
-      await _apiClient.put('/api/notifications/$notificationId/read', {});
+      await _apiClient.patch('/api/notifications/$notificationId/read', {});
       print('✅ Notification marked as read: $notificationId');
     } catch (e) {
       print('❌ Failed to mark notification as read: $e');
@@ -102,7 +102,7 @@ class NotificationPollingService {
   /// Mark all notifications as read
   static Future<void> markAllAsRead() async {
     try {
-      await _apiClient.put('/api/notifications/read-all', {});
+      await _apiClient.patch('/api/notifications/read-all', {});
       print('✅ All notifications marked as read');
     } catch (e) {
       print('❌ Failed to mark all notifications as read: $e');

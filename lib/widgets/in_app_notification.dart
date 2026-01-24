@@ -16,8 +16,26 @@ class InAppNotification {
       // Remove existing notification if any
       hide();
 
-      // Get the overlay - context should already have access to it
-      final overlay = Overlay.of(context, rootOverlay: false);
+      // Check if context is still valid and has an overlay
+      if (!context.mounted) {
+        print('⚠️ Context not mounted, cannot show notification');
+        return;
+      }
+
+      // Ensure message is not empty
+      final displayMessage = message.trim().isEmpty 
+          ? 'আপনার অভিযোগ সম্পর্কে নতুন বার্তা' 
+          : message;
+
+      print('📱 Showing notification: "$title" - "$displayMessage"');
+
+      // Try to get the overlay - use rootOverlay: true for better reliability
+      final overlay = Overlay.maybeOf(context, rootOverlay: true);
+      
+      if (overlay == null) {
+        print('⚠️ No Overlay found in widget tree, cannot show notification');
+        return;
+      }
 
       _overlayEntry = OverlayEntry(
         builder: (context) => Positioned(
@@ -74,7 +92,7 @@ class InAppNotification {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            message,
+                            displayMessage,
                             style: const TextStyle(
                               fontSize: 14,
                               color: Colors.black54,
@@ -100,6 +118,8 @@ class InAppNotification {
       Future.delayed(const Duration(seconds: 5), () {
         hide();
       });
+      
+      print('✅ In-app notification displayed successfully');
     } catch (e) {
       print('❌ Failed to show in-app notification: $e');
       // Don't throw - just log the error

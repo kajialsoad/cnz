@@ -226,37 +226,60 @@ class _MyAppState extends State<MyApp> {
     }
 
     final title = notification['title'] ?? 'নতুন বার্তা';
-    final message = notification['message'] ?? '';
+    final message = notification['message'] ?? 'আপনার অভিযোগ সম্পর্কে নতুন বার্তা';
     final notificationId = notification['id'];
 
-    print('📬 Notification received: $title');
+    print('📬 Notification received: $title - $message');
+
+    // Get current context safely
+    final currentContext = navigatorKey.currentContext;
+    
+    // If no context available, skip UI updates but log the notification
+    if (currentContext == null) {
+      print('⚠️ No context available for notification UI, skipping display');
+      return;
+    }
 
     // Refresh the notification provider to update UI
-    final notificationProvider = Provider.of<NotificationProvider>(
-      navigatorKey.currentContext!,
-      listen: false,
-    );
-    notificationProvider.refreshNotifications();
+    try {
+      final notificationProvider = Provider.of<NotificationProvider>(
+        currentContext,
+        listen: false,
+      );
+      notificationProvider.refreshNotifications();
+    } catch (e) {
+      print('⚠️ Failed to refresh notification provider: $e');
+    }
 
     // Show in-app notification popup
-    if (navigatorKey.currentContext != null) {
-      InAppNotification.show(
-        navigatorKey.currentContext!,
-        title: title,
-        message: message,
-        onTap: () {
-          // Navigate to notification page or complaint details
-          print('📱 Notification tapped: $notificationId');
-        },
-      );
-    }
+    // The InAppNotification.show() method already handles overlay checks safely
+    InAppNotification.show(
+      currentContext,
+      title: title,
+      message: message,
+      onTap: () {
+        // Navigate to notification page or complaint details
+        print('📱 Notification tapped: $notificationId');
+      },
+    );
 
     // Mark as read automatically after showing
     if (notificationId != null) {
       Future.delayed(const Duration(seconds: 2), () {
         NotificationPollingService.markAsRead(notificationId);
         // Refresh provider again after marking as read
-        notificationProvider.refreshUnreadCount();
+        try {
+          final currentContext = navigatorKey.currentContext;
+          if (currentContext != null) {
+            final notificationProvider = Provider.of<NotificationProvider>(
+              currentContext,
+              listen: false,
+            );
+            notificationProvider.refreshUnreadCount();
+          }
+        } catch (e) {
+          print('⚠️ Failed to refresh unread count: $e');
+        }
       });
     }
   }

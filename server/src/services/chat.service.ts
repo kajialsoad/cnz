@@ -464,6 +464,31 @@ export class ChatService {
             }
         });
 
+        // ✅ Create notification for user when admin sends message
+        if (senderType === 'ADMIN' && complaint.userId) {
+            try {
+                // Prepare notification message - handle empty messages
+                const notificationMessage = message && message.trim()
+                    ? (message.length > 100 ? message.substring(0, 100) + '...' : message)
+                    : 'আপনার অভিযোগ সম্পর্কে নতুন বার্তা'; // "New message about your complaint"
+
+                await prisma.notification.create({
+                    data: {
+                        userId: complaint.userId,
+                        type: 'COMPLAINT_CHAT_MESSAGE',
+                        title: 'অভিযোগ নম্বর #' + complaintId + ' সম্পর্কে বার্তা',
+                        message: notificationMessage,
+                        relatedId: complaintId,
+                        read: false
+                    }
+                });
+                console.log(`✅ Notification created for user ${complaint.userId} on complaint ${complaintId}: "${notificationMessage}"`);
+            } catch (error) {
+                console.error('❌ Error creating notification:', error);
+                // Don't throw error - notification failure shouldn't block message sending
+            }
+        }
+
         return chatMessage;
     }
 
