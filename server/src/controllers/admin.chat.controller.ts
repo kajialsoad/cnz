@@ -4,6 +4,8 @@ import { chatService } from '../services/chat.service';
 import { cloudUploadService } from '../services/cloud-upload.service';
 import { isCloudinaryEnabled } from '../config/cloudinary.config';
 import { multiZoneService } from '../services/multi-zone.service';
+import { createComplaintChatNotification } from '../services/complaint-notification.service';
+import prisma from '../utils/prisma';
 
 /**
  * Get all chat conversations - shows ALL complaints for messaging
@@ -216,10 +218,33 @@ export async function sendChatMessage(req: AuthRequest, res: Response) {
             voiceUrl
         });
 
+        // Get complaint and admin info for notification
+        const complaint = await prisma.complaint.findUnique({
+            where: { id: complaintId },
+            select: { userId: true }
+        });
+
+        const admin = await prisma.user.findUnique({
+            where: { id: req.user.sub },
+            select: { firstName: true, lastName: true }
+        });
+
+        // Create notification for the user (NO Firebase needed!)
+        if (complaint?.userId) {
+            const adminName = `${admin?.firstName || ''} ${admin?.lastName || ''}`.trim() || 'Admin';
+            await createComplaintChatNotification(
+                complaint.userId,
+                complaintId,
+                adminName,
+                message.trim()
+            );
+        }
+
         res.status(201).json({
             success: true,
             message: 'Message sent successfully',
-            data: { message: chatMessage }
+            data: { message: chatMessage },
+            notificationCreated: true
         });
     } catch (error) {
         console.error('Error in sendChatMessage:', error);

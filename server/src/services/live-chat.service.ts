@@ -105,7 +105,7 @@ export class LiveChatService {
 
     // We no longer filter by specific adminId. 
     // Users should see the full conversation history with ALL admins.
-    
+
     const whereCondition = {
       OR: [
         { senderId: userId },   // Messages sent by user
@@ -155,17 +155,17 @@ export class LiveChatService {
   }
   async sendUserMessage(userId: number, data: { content: string; type?: ChatMessageType; fileUrl?: string; voiceUrl?: string }) { const admin = await this.getUserAdmin(userId); if (!admin) throw new Error('No admin assigned to your ward'); const message = await prisma.chatMessage.create({ data: { content: data.content, type: data.type || ChatMessageType.TEXT, fileUrl: data.fileUrl, voiceUrl: data.voiceUrl, senderId: userId, receiverId: admin.id, senderType: SenderType.CITIZEN, isRead: false }, include: { sender: { select: { id: true, firstName: true, lastName: true, avatar: true, role: true } }, receiver: { select: { id: true, firstName: true, lastName: true, avatar: true, role: true } } } }); return message; }
   async sendAdminMessage(adminId: number, userId: number, data: { content: string; type?: ChatMessageType; fileUrl?: string; voiceUrl?: string }) { const [admin, user] = await Promise.all([prisma.user.findUnique({ where: { id: adminId }, select: { id: true, role: true, wardId: true, zoneId: true, cityCorporationCode: true } }), prisma.user.findUnique({ where: { id: userId }, select: { id: true, wardId: true, zoneId: true, cityCorporationCode: true } })]); if (!admin) throw new Error('Admin not found'); if (!user) throw new Error('User not found'); const hasAccess = this.checkAdminAccess(admin, user); if (!hasAccess) throw new Error('Admin does not have access to this user'); const message = await prisma.chatMessage.create({ data: { content: data.content, type: data.type || ChatMessageType.TEXT, fileUrl: data.fileUrl, voiceUrl: data.voiceUrl, senderId: adminId, receiverId: userId, senderType: SenderType.ADMIN, isRead: false }, include: { sender: { select: { id: true, firstName: true, lastName: true, avatar: true, role: true } }, receiver: { select: { id: true, firstName: true, lastName: true, avatar: true, role: true } } } }); return message; }
-  async markMessagesAsRead(senderId: number, receiverId: number) { 
+  async markMessagesAsRead(senderId: number, receiverId: number) {
     // Mark ALL unread messages from this sender as read, regardless of who the original receiver was.
     // This allows any admin to mark user messages as read (Shared Inbox behavior).
-    const result = await prisma.chatMessage.updateMany({ 
-      where: { 
-        senderId, 
-        isRead: false 
-      }, 
-      data: { isRead: true } 
-    }); 
-    return { updated: result.count }; 
+    const result = await prisma.chatMessage.updateMany({
+      where: {
+        senderId,
+        isRead: false
+      },
+      data: { isRead: true }
+    });
+    return { updated: result.count };
   }
   async getAllUserConversations(adminId: number, filters: { page?: number; limit?: number; cityCorporationCode?: string; zoneId?: number; wardId?: number; unreadOnly?: boolean; search?: string; status?: string } = {}, requestingUser?: { id: number; role: string; zoneId?: number | null; wardId?: number | null; assignedZoneIds?: number[] }) {
     const page = filters.page || 1;
@@ -254,33 +254,33 @@ export class LiveChatService {
 
     console.log('🔍 Live Chat - Final userWhere query:', JSON.stringify(userWhere, null, 2));
 
-    if (filters.cityCorporationCode) userWhere.cityCorporationCode = filters.cityCorporationCode; if (filters.zoneId) userWhere.zoneId = filters.zoneId; if (filters.wardId) userWhere.wardId = filters.wardId; if (filters.search) { userWhere.OR = [{ firstName: { contains: filters.search } }, { lastName: { contains: filters.search } }, { phone: { contains: filters.search } }]; } 
-    
-    const users = await prisma.user.findMany({ where: { ...userWhere }, select: { id: true, firstName: true, lastName: true, phone: true, avatar: true, wardId: true, zoneId: true, cityCorporationCode: true, ward: { select: { id: true, wardNumber: true } }, zone: { select: { id: true, name: true } } }, skip, take: limit }); 
-    
-    const conversations = await Promise.all(users.map(async (user) => { 
-        // Modified to show LAST MESSAGE from/to this user regardless of who the other party is (shared inbox)
-        const [lastMessage, unreadCount] = await Promise.all([
-            prisma.chatMessage.findFirst({ 
-                where: { 
-                    OR: [
-                        { senderId: user.id }, // Sent by user
-                        { receiverId: user.id } // Received by user
-                    ] 
-                }, 
-                orderBy: { createdAt: 'desc' } 
-            }), 
-            prisma.chatMessage.count({ 
-                where: { 
-                    senderId: user.id, 
-                    isRead: false 
-                    // Count ALL unread messages from this user, regardless of receiverId
-                } 
-            })
-        ]); 
-        return { user, lastMessage, unreadCount }; 
-    })); 
-    
+    if (filters.cityCorporationCode) userWhere.cityCorporationCode = filters.cityCorporationCode; if (filters.zoneId) userWhere.zoneId = filters.zoneId; if (filters.wardId) userWhere.wardId = filters.wardId; if (filters.search) { userWhere.OR = [{ firstName: { contains: filters.search } }, { lastName: { contains: filters.search } }, { phone: { contains: filters.search } }]; }
+
+    const users = await prisma.user.findMany({ where: { ...userWhere }, select: { id: true, firstName: true, lastName: true, phone: true, avatar: true, wardId: true, zoneId: true, cityCorporationCode: true, ward: { select: { id: true, wardNumber: true } }, zone: { select: { id: true, name: true } } }, skip, take: limit });
+
+    const conversations = await Promise.all(users.map(async (user) => {
+      // Modified to show LAST MESSAGE from/to this user regardless of who the other party is (shared inbox)
+      const [lastMessage, unreadCount] = await Promise.all([
+        prisma.chatMessage.findFirst({
+          where: {
+            OR: [
+              { senderId: user.id }, // Sent by user
+              { receiverId: user.id } // Received by user
+            ]
+          },
+          orderBy: { createdAt: 'desc' }
+        }),
+        prisma.chatMessage.count({
+          where: {
+            senderId: user.id,
+            isRead: false
+            // Count ALL unread messages from this user, regardless of receiverId
+          }
+        })
+      ]);
+      return { user, lastMessage, unreadCount };
+    }));
+
     let filteredConversations = conversations; if (filters.unreadOnly) { filteredConversations = conversations.filter((c) => c.unreadCount > 0); } filteredConversations.sort((a, b) => {
       const aTime = a.lastMessage?.createdAt?.getTime() || 0;
       const bTime = b.lastMessage?.createdAt?.getTime() || 0;

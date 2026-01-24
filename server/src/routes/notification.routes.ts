@@ -1,61 +1,45 @@
 import { Router } from 'express';
-import * as notificationController from '../controllers/notification.controller';
 import { authGuard } from '../middlewares/auth.middleware';
+import {
+    getUserNotifications,
+    markNotificationAsRead,
+    markAllNotificationsAsRead,
+    getUnreadCount,
+    getUnreadNotifications
+} from '../controllers/notification.controller';
 
 const router = Router();
 
 /**
- * Notification Routes
- * All routes require authentication
- * Base path: /api/notifications
- */
-
-/**
  * GET /api/notifications
  * Get user's notifications with pagination
- * @query   page - Page number (default: 1)
- * @query   limit - Items per page (default: 20, max: 100)
- * @query   unreadOnly - Filter unread only (default: false)
- * @access  Private (Authenticated users)
+ * Query params: page, limit, unreadOnly
  */
-router.get(
-    '/',
-    authGuard,
-    notificationController.getUserNotifications
-);
+router.get('/', authGuard, getUserNotifications);
+
+/**
+ * GET /api/notifications/unread
+ * Get unread notifications (for polling)
+ * Returns list of unread notifications without pagination
+ */
+router.get('/unread', authGuard, getUnreadNotifications);
 
 /**
  * GET /api/notifications/unread-count
- * Get unread notification count for current user
- * @access  Private (Authenticated users)
+ * Get unread notification count
  */
-router.get(
-    '/unread-count',
-    authGuard,
-    notificationController.getUnreadCount
-);
+router.get('/unread-count', authGuard, getUnreadCount);
 
 /**
  * PATCH /api/notifications/:id/read
- * Mark a single notification as read
- * @param   id - Notification ID
- * @access  Private (Authenticated users, must own notification)
+ * Mark a specific notification as read
  */
-router.patch(
-    '/:id/read',
-    authGuard,
-    notificationController.markNotificationAsRead
-);
+router.patch('/:id/read', authGuard, markNotificationAsRead);
 
 /**
  * PATCH /api/notifications/read-all
- * Mark all user's notifications as read
- * @access  Private (Authenticated users)
+ * Mark all notifications as read for the authenticated user
  */
-router.patch(
-    '/read-all',
-    authGuard,
-    notificationController.markAllNotificationsAsRead
-);
+router.patch('/read-all', authGuard, markAllNotificationsAsRead);
 
 export default router;

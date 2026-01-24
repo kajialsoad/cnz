@@ -79,37 +79,46 @@ class ChatService {
     }
 
     /**
-     * Transform image URL - supports hybrid storage (Cloudinary + local + base64)
+     * Transform file URL - supports hybrid storage (Cloudinary + local + base64)
      * Cloudinary URLs are used directly, local URLs are fixed to current server, base64 data URLs are preserved
      */
-    private transformImageUrl(imageUrl: string | null | undefined): string | null {
-        if (!imageUrl) return null;
+    private transformFileUrl(fileUrl: string | null | undefined): string | null {
+        if (!fileUrl) return null;
 
         // If it's a base64 data URL, return as is (for backward compatibility)
-        if (imageUrl.startsWith('data:image/')) {
-            console.log('📷 Base64 image detected (legacy format)');
-            return imageUrl;
+        if (fileUrl.startsWith('data:')) {
+            return fileUrl;
         }
 
         // If it's a Cloudinary URL, return as is
-        if (this.isCloudinaryUrl(imageUrl)) {
-            return imageUrl;
+        if (this.isCloudinaryUrl(fileUrl)) {
+            return fileUrl;
         }
 
         // If already absolute URL (but not Cloudinary), check if it needs fixing
-        if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+        if (fileUrl.startsWith('http://') || fileUrl.startsWith('https://')) {
             // If it's already using current server, return as is
-            if (imageUrl.startsWith(API_CONFIG.BASE_URL)) {
-                return imageUrl;
+            if (fileUrl.startsWith(API_CONFIG.BASE_URL)) {
+                return fileUrl;
             }
             // Replace other server URLs (like localhost:4000) with current server
             const urlPattern = /^https?:\/\/[^\/]+/;
-            return imageUrl.replace(urlPattern, API_CONFIG.BASE_URL);
+            return fileUrl.replace(urlPattern, API_CONFIG.BASE_URL);
         }
 
         // Convert relative URL to absolute
         const baseUrl = API_CONFIG.BASE_URL;
-        return `${baseUrl}${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`;
+        return `${baseUrl}${fileUrl.startsWith('/') ? '' : '/'}${fileUrl}`;
+    }
+
+    /**
+     * Transform image URL - alias for transformFileUrl for backward compatibility
+     */
+    private transformImageUrl(imageUrl: string | null | undefined): string | null {
+        if (imageUrl?.startsWith('data:image/')) {
+            console.log('📷 Base64 image detected (legacy format)');
+        }
+        return this.transformFileUrl(imageUrl);
     }
 
     /**
@@ -179,11 +188,12 @@ class ChatService {
 
             const data = response.data.data;
 
-            // Transform image URLs to absolute URLs (hybrid storage support)
+            // Transform image and voice URLs to absolute URLs (hybrid storage support)
             if (data.messages) {
                 data.messages = data.messages.map(msg => ({
                     ...msg,
-                    imageUrl: this.transformImageUrl(msg.imageUrl) || undefined
+                    imageUrl: this.transformFileUrl(msg.imageUrl) || undefined,
+                    voiceUrl: this.transformFileUrl(msg.voiceUrl) || undefined
                 }));
             }
 

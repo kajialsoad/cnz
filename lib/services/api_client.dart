@@ -36,6 +36,12 @@ class ApiClient {
     return sp.getString('accessToken');
   }
 
+  /// Public method to get the current access token
+  /// Returns null if no token is stored
+  Future<String?> getToken() async {
+    return _getAccessToken();
+  }
+
   Future<String?> _getRefreshToken() async {
     final sp = await SharedPreferences.getInstance();
     return sp.getString('refreshToken');

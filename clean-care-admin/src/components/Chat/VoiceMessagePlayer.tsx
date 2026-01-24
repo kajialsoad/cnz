@@ -12,11 +12,15 @@ const VoiceMessagePlayer: React.FC<VoiceMessagePlayerProps> = ({ voiceUrl, isAdm
     const [isPlaying, setIsPlaying] = useState(false);
     const [audioError, setAudioError] = useState(false);
     const [audioLoading, setAudioLoading] = useState(false);
-    const audioRef = useRef<HTMLAudioElement | null>(null);
+    const mediaRef = useRef<HTMLMediaElement | null>(null);
 
     // Get absolute URL for voice file
     const getAbsoluteUrl = (url: string) => {
         if (!url) return '';
+        // If it's a Cloudinary URL, use it directly but ensure https
+        if (url.includes('res.cloudinary.com')) {
+            return url.replace('http://', 'https://');
+        }
         if (url.startsWith('http')) return url;
         // Remove leading slash if present to avoid double slashes if BASE_URL ends with slash
         const cleanPath = url.startsWith('/') ? url.substring(1) : url;
@@ -27,10 +31,10 @@ const VoiceMessagePlayer: React.FC<VoiceMessagePlayerProps> = ({ voiceUrl, isAdm
 
     // Handle voice message play/pause
     const handleVoicePlayPause = () => {
-        if (!audioRef.current) return;
+        if (!mediaRef.current) return;
 
         if (isPlaying) {
-            audioRef.current.pause();
+            mediaRef.current.pause();
             setIsPlaying(false);
         } else {
             setAudioLoading(true);
@@ -39,7 +43,7 @@ const VoiceMessagePlayer: React.FC<VoiceMessagePlayerProps> = ({ voiceUrl, isAdm
             // Log for debugging
             console.log('▶️ Playing voice message:', absoluteVoiceUrl);
             
-            audioRef.current.play()
+            mediaRef.current.play()
                 .then(() => {
                     setIsPlaying(true);
                     setAudioLoading(false);
@@ -59,9 +63,16 @@ const VoiceMessagePlayer: React.FC<VoiceMessagePlayerProps> = ({ voiceUrl, isAdm
     };
 
     // Handle audio error
-    const handleAudioError = (e: React.SyntheticEvent<HTMLAudioElement>) => {
+    const handleAudioError = (e: React.SyntheticEvent<HTMLMediaElement>) => {
         console.error('❌ Voice message failed to load:', absoluteVoiceUrl);
         console.error('   Error details:', e);
+        // Try to recover if it's a format issue by logging it
+        // If it's NotSupportedError, it might be the container format
+        const error = (e.target as HTMLMediaElement).error;
+        if (error) {
+             console.error('   Media Error Code:', error.code, error.message);
+        }
+        
         setAudioError(true);
         setIsPlaying(false);
         setAudioLoading(false);
@@ -75,17 +86,17 @@ const VoiceMessagePlayer: React.FC<VoiceMessagePlayerProps> = ({ voiceUrl, isAdm
 
     // Retry loading audio
     const handleRetryAudio = () => {
-        if (!audioRef.current) return;
+        if (!mediaRef.current) return;
 
         console.log('🔄 Retrying voice message load:', absoluteVoiceUrl);
         setAudioError(false);
         setAudioLoading(true);
 
         // Force reload by setting src again
-        const currentSrc = audioRef.current.src;
-        audioRef.current.src = '';
-        audioRef.current.src = currentSrc;
-        audioRef.current.load();
+        const currentSrc = mediaRef.current.src;
+        mediaRef.current.src = '';
+        mediaRef.current.src = currentSrc;
+        mediaRef.current.load();
 
         // Try to play after reload
         setTimeout(() => {
@@ -107,14 +118,15 @@ const VoiceMessagePlayer: React.FC<VoiceMessagePlayerProps> = ({ voiceUrl, isAdm
                 maxWidth: '280px',
             }}
         >
-            {/* Hidden audio element */}
+            {/* Hidden audio element used for playback */}
             <audio
-                ref={audioRef}
+                ref={mediaRef as React.RefObject<HTMLAudioElement>}
                 src={absoluteVoiceUrl}
                 onEnded={handleAudioEnded}
                 onError={handleAudioError}
                 onLoadedData={handleAudioLoaded}
-                preload="metadata"
+                preload="none"
+                style={{ display: 'none' }}
             />
 
             {/* Play/Pause button or Error indicator */}

@@ -41,6 +41,8 @@ import 'repositories/complaint_repository.dart';
 import 'services/api_client.dart';
 import 'services/auth_service.dart';
 import 'services/smart_api_client.dart';
+import 'services/notification_polling_service.dart';
+import 'widgets/in_app_notification.dart';
 import 'models/cached_chat_message.dart';
 import 'models/cached_complaint_info.dart';
 
@@ -179,12 +181,97 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+  @override
+  void initState() {
+    super.initState();
+    _setupNotifications();
+  }
+
+  void _setupNotifications() {
+    // Delay notification setup until after first frame is rendered
+    // This ensures the overlay is ready and user is logged in
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Check if user is logged in before starting notifications
+      final isLoggedIn = await AuthService.isLoggedIn();
+      
+      if (!isLoggedIn) {
+        print('⚠️ User not logged in, skipping notification setup');
+        return;
+      }
+
+      // Start polling after app is fully initialized
+      NotificationPollingService.startPolling();
+
+      // Listen for new notifications
+      NotificationPollingService.addListener(_handleNewNotification);
+      
+      print('✅ Notification system initialized after first frame');
+    });
+  }
+
+  void _handleNewNotification(Map<String, dynamic> notification) {
+    // Ensure we're on the UI thread and widget is mounted
+    if (!mounted) {
+      return;
+    }
+
+    final title = notification['title'] ?? 'নতুন বার্তা';
+    final message = notification['message'] ?? '';
+    final notificationId = notification['id'];
+
+    print('📬 Notification received: $title');
+
+    // Refresh the notification provider to update UI
+    final notificationProvider = Provider.of<NotificationProvider>(
+      navigatorKey.currentContext!,
+      listen: false,
+    );
+    notificationProvider.refreshNotifications();
+
+    // Show in-app notification popup
+    if (navigatorKey.currentContext != null) {
+      InAppNotification.show(
+        navigatorKey.currentContext!,
+        title: title,
+        message: message,
+        onTap: () {
+          // Navigate to notification page or complaint details
+          print('📱 Notification tapped: $notificationId');
+        },
+      );
+    }
+
+    // Mark as read automatically after showing
+    if (notificationId != null) {
+      Future.delayed(const Duration(seconds: 2), () {
+        NotificationPollingService.markAsRead(notificationId);
+        // Refresh provider again after marking as read
+        notificationProvider.refreshUnreadCount();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    NotificationPollingService.stopPolling();
+    NotificationPollingService.removeListener(_handleNewNotification);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       title: 'Clean Care',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
@@ -192,7 +279,17 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
         textTheme: GoogleFonts.notoSansBengaliTextTheme(),
         fontFamily: GoogleFonts.notoSansBengali().fontFamily,
+        // Add font fallback chain for better character coverage
+        fontFamilyFallback: const [
+          'Noto Sans Bengali',
+          'Noto Sans',
+          'Roboto',
+        ],
       ),
+      // Wrap with Builder to get context with Overlay access
+      builder: (context, child) {
+        return child ?? const SizedBox.shrink();
+      },
       initialRoute: '/',
       onGenerateRoute: (settings) {
         // Handle /verify-email route with query parameters

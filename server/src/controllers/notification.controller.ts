@@ -187,3 +187,36 @@ export async function getUnreadCount(req: AuthRequest, res: Response) {
         });
     }
 }
+
+/**
+ * Get unread notifications (for polling)
+ * GET /api/notifications/unread
+ * Returns list of unread notifications without pagination
+ */
+export async function getUnreadNotifications(req: AuthRequest, res: Response) {
+    try {
+        // Verify user is authenticated
+        if (!req.user) {
+            return res.status(401).json({
+                success: false,
+                message: 'Unauthorized'
+            });
+        }
+
+        const userId = req.user.sub;
+
+        // Get unread notifications (limit to 50 most recent)
+        const notifications = await notificationService.getUnreadNotifications(userId, 50);
+
+        return res.status(200).json({
+            success: true,
+            data: notifications
+        });
+    } catch (error: any) {
+        console.error('Error in getUnreadNotifications:', error);
+        return res.status(500).json({
+            success: false,
+            message: error.message || 'Failed to fetch unread notifications'
+        });
+    }
+}

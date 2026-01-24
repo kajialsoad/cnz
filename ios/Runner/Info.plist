@@ -45,5 +45,11 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>We need access to your photo library to upload profile pictures and evidence.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>We need access to your camera to take pictures of complaints.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>We need access to your microphone to record voice messages.</string>
 </dict>
 </plist>
