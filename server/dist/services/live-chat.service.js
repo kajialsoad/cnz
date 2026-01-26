@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.LiveChatService = void 0;
 const client_1 = require("@prisma/client");
+const bot_message_service_1 = require("./bot-message.service");
 const prisma = new client_1.PrismaClient();
 class LiveChatService {
     async getUserAdmin(userId) {
@@ -148,12 +149,143 @@ class LiveChatService {
             hasMore: skip + messages.length < total
         };
     }
-    async sendUserMessage(userId, data) { const admin = await this.getUserAdmin(userId); if (!admin)
-        throw new Error('No admin assigned to your ward'); const message = await prisma.chatMessage.create({ data: { content: data.content, type: data.type || client_1.ChatMessageType.TEXT, fileUrl: data.fileUrl, voiceUrl: data.voiceUrl, senderId: userId, receiverId: admin.id, senderType: client_1.SenderType.CITIZEN, isRead: false }, include: { sender: { select: { id: true, firstName: true, lastName: true, avatar: true, role: true } }, receiver: { select: { id: true, firstName: true, lastName: true, avatar: true, role: true } } } }); return message; }
-    async sendAdminMessage(adminId, userId, data) { const [admin, user] = await Promise.all([prisma.user.findUnique({ where: { id: adminId }, select: { id: true, role: true, wardId: true, zoneId: true, cityCorporationCode: true } }), prisma.user.findUnique({ where: { id: userId }, select: { id: true, wardId: true, zoneId: true, cityCorporationCode: true } })]); if (!admin)
-        throw new Error('Admin not found'); if (!user)
-        throw new Error('User not found'); const hasAccess = this.checkAdminAccess(admin, user); if (!hasAccess)
-        throw new Error('Admin does not have access to this user'); const message = await prisma.chatMessage.create({ data: { content: data.content, type: data.type || client_1.ChatMessageType.TEXT, fileUrl: data.fileUrl, voiceUrl: data.voiceUrl, senderId: adminId, receiverId: userId, senderType: client_1.SenderType.ADMIN, isRead: false }, include: { sender: { select: { id: true, firstName: true, lastName: true, avatar: true, role: true } }, receiver: { select: { id: true, firstName: true, lastName: true, avatar: true, role: true } } } }); return message; }
+    async sendUserMessage(userId, data) {
+        const admin = await this.getUserAdmin(userId);
+        if (!admin)
+            throw new Error('No admin assigned to your ward');
+        // Create user message
+        const message = await prisma.chatMessage.create({
+            data: {
+                content: data.content,
+                type: data.type || client_1.ChatMessageType.TEXT,
+                fileUrl: data.fileUrl,
+                voiceUrl: data.voiceUrl,
+                senderId: userId,
+                receiverId: admin.id,
+                senderType: client_1.SenderType.CITIZEN,
+                isRead: false
+            },
+            include: {
+                sender: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        avatar: true,
+                        role: true
+                    }
+                },
+                receiver: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        avatar: true,
+                        role: true
+                    }
+                }
+            }
+        });
+        // Check if bot should trigger
+        try {
+            const conversationId = `user-${userId}-admin-${admin.id}`;
+            // Check if admin has replied to this user
+            const hasAdminReplied = await this.hasAdminRepliedToUser(userId, admin.id);
+            // Handle user message for bot state tracking
+            await bot_message_service_1.botMessageService.handleUserMessage({
+                chatType: client_1.ChatType.LIVE_CHAT,
+                conversationId
+            });
+            // Check if bot should send a message
+            const botTrigger = await bot_message_service_1.botMessageService.shouldTriggerBot({
+                chatType: client_1.ChatType.LIVE_CHAT,
+                conversationId,
+                hasAdminReplied
+            });
+            // If bot should send, insert bot message
+            if (botTrigger.shouldSend && botTrigger.botMessage) {
+                await prisma.chatMessage.create({
+                    data: {
+                        content: botTrigger.botMessage.content,
+                        type: client_1.ChatMessageType.TEXT,
+                        senderId: admin.id, // Bot messages appear to come from admin
+                        receiverId: userId,
+                        senderType: client_1.SenderType.BOT,
+                        isRead: false
+                    }
+                });
+            }
+        }
+        catch (error) {
+            console.error('Error handling bot trigger:', error);
+            // Don't throw - bot failure shouldn't break user messaging
+        }
+        return message;
+    }
+    async sendAdminMessage(adminId, userId, data) {
+        const [admin, user] = await Promise.all([
+            prisma.user.findUnique({
+                where: { id: adminId },
+                select: { id: true, role: true, wardId: true, zoneId: true, cityCorporationCode: true }
+            }),
+            prisma.user.findUnique({
+                where: { id: userId },
+                select: { id: true, wardId: true, zoneId: true, cityCorporationCode: true }
+            })
+        ]);
+        if (!admin)
+            throw new Error('Admin not found');
+        if (!user)
+            throw new Error('User not found');
+        const hasAccess = this.checkAdminAccess(admin, user);
+        if (!hasAccess)
+            throw new Error('Admin does not have access to this user');
+        const message = await prisma.chatMessage.create({
+            data: {
+                content: data.content,
+                type: data.type || client_1.ChatMessageType.TEXT,
+                fileUrl: data.fileUrl,
+                voiceUrl: data.voiceUrl,
+                senderId: adminId,
+                receiverId: userId,
+                senderType: client_1.SenderType.ADMIN,
+                isRead: false
+            },
+            include: {
+                sender: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        avatar: true,
+                        role: true
+                    }
+                },
+                receiver: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        avatar: true,
+                        role: true
+                    }
+                }
+            }
+        });
+        // Handle admin reply for bot state
+        try {
+            const conversationId = `user-${userId}-admin-${adminId}`;
+            await bot_message_service_1.botMessageService.handleAdminReply({
+                chatType: client_1.ChatType.LIVE_CHAT,
+                conversationId
+            });
+        }
+        catch (error) {
+            console.error('Error handling admin reply for bot:', error);
+            // Don't throw - bot failure shouldn't break admin messaging
+        }
+        return message;
+    }
     async markMessagesAsRead(senderId, receiverId) {
         // Mark ALL unread messages from this sender as read, regardless of who the original receiver was.
         // This allows any admin to mark user messages as read (Shared Inbox behavior).
@@ -331,6 +463,20 @@ class LiveChatService {
             return true;
         }
         return false;
+    }
+    /**
+     * Check if admin has replied to user in this conversation
+     * Used for bot trigger logic
+     */
+    async hasAdminRepliedToUser(userId, adminId) {
+        const adminMessage = await prisma.chatMessage.findFirst({
+            where: {
+                senderId: adminId,
+                receiverId: userId,
+                senderType: client_1.SenderType.ADMIN
+            }
+        });
+        return adminMessage !== null;
     }
 }
 exports.LiveChatService = LiveChatService;

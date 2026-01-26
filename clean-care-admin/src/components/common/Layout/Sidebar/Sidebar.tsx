@@ -102,6 +102,13 @@ const baseMenuItems = [
     roles: ['MASTER_ADMIN'],
   },
   {
+    id: 'system-control',
+    label: 'Bot Message System Control',
+    icon: settingsIcon,
+    path: '/system-control',
+    roles: ['MASTER_ADMIN'], // Only Master Admin can access System Control
+  },
+  {
     id: 'activity-logs',
     label: 'Activity Logs',
     icon: reportIcon,

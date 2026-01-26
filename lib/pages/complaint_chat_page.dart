@@ -13,6 +13,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../components/custom_bottom_nav.dart';
 import '../widgets/translated_text.dart';
 import '../widgets/voice_message_player.dart';
+import '../widgets/bot_message_bubble.dart';
 import '../services/chat_service.dart';
 import '../services/chat_cache_service.dart';
 import '../models/chat_message.dart' as model;
@@ -55,7 +56,13 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
   bool isLoading = true;
   bool isSending = false;
   bool isRecording = false;
+  bool isAdminTyping = false; // NEW: Track admin typing state
+  int? _tempMessageId; // Track temporary message ID to prevent blinking
   String? _recordedVoiceUrl;
+  
+  // NEW: Track displayed messages to prevent blinking
+  Set<int> _displayedMessageIds = {};
+  Map<int, DateTime> _messageRenderTimes = {}; // Track when each message was first rendered
 
   // New State Variables for Attachments
   XFile? _attachedImageXFile;
@@ -109,11 +116,47 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
       });
     });
 
+    // Clear previous messages immediately when switching complaints
+    messages.clear();
+    
+    // Clear cache for previous complaint to prevent stale data
+    _clearPreviousComplaintCache();
+
     // Load initial messages
     _loadMessages();
 
     // Start polling for new messages every 5 seconds
     _startPolling();
+  }
+
+  @override
+  void didUpdateWidget(ComplaintChatPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    
+    // If complaint ID changed, reload messages
+    if (oldWidget.complaintId != widget.complaintId) {
+      print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      print('🔄 Complaint ID changed!');
+      print('   Old ID: ${oldWidget.complaintId}');
+      print('   New ID: ${widget.complaintId}');
+      print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      
+      // Stop current polling
+      _pollingTimer?.cancel();
+      
+      // Clear messages immediately
+      setState(() {
+        messages.clear();
+        isLoading = true;
+        hasError = false;
+      });
+      
+      // Load new messages
+      _loadMessages();
+      
+      // Restart polling
+      _startPolling();
+    }
   }
 
   @override
@@ -125,6 +168,16 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
     _scrollController.dispose();
     _audioPlayer.dispose();
     super.dispose();
+  }
+
+  /// Clear cache for previous complaint to prevent stale data
+  Future<void> _clearPreviousComplaintCache() async {
+    try {
+      // This ensures we don't show cached messages from a different complaint
+      await _cacheService.init();
+    } catch (e) {
+      print('Error clearing previous cache: $e');
+    }
   }
 
   /// Load messages from server
@@ -141,24 +194,34 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
       final complaintIdInt = int.parse(widget.complaintId);
       print('   Parsed complaint ID: $complaintIdInt');
 
+      // Force fresh fetch on initial load to prevent showing wrong complaint's messages
       final fetchedMessages = await _chatService.getChatMessages(
         complaintIdInt,
+        cacheFirst: false, // Don't use cache on initial load
       );
       print('✅ Fetched ${fetchedMessages.length} messages');
 
       // Cache complaint info for offline access
       await _cacheComplaintInfo();
 
-      setState(() {
-        messages = fetchedMessages;
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          messages = fetchedMessages;
+          isLoading = false;
+          // Initialize displayed message IDs and render times
+          _displayedMessageIds = fetchedMessages.map((m) => m.id).toSet();
+          // Mark all initial messages as already rendered (no animation on first load)
+          for (var msg in fetchedMessages) {
+            _messageRenderTimes[msg.id] = DateTime.now().subtract(Duration(seconds: 10));
+          }
+        });
 
-      // Mark messages as read
-      await _chatService.markMessagesAsRead(complaintIdInt);
+        // Mark messages as read
+        await _chatService.markMessagesAsRead(complaintIdInt);
 
-      // Scroll to bottom
-      _scrollToBottom();
+        // Scroll to bottom
+        _scrollToBottom();
+      }
     } catch (e) {
       String userFriendlyError = 'Failed to load messages';
 
@@ -188,28 +251,54 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
     }
   }
 
-  /// Start polling for new messages
+  /// Start polling for new messages (every 2 seconds for real-time feel)
   void _startPolling() {
-    _pollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+    _pollingTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
       _loadMessagesQuietly();
     });
   }
 
-  /// Load messages without showing loading indicator
+  /// Load messages without showing loading indicator - OPTIMIZED (NO RELOAD DURING SEND)
   Future<void> _loadMessagesQuietly() async {
+    // DON'T poll if we're currently sending a message (prevents reload)
+    if (_tempMessageId != null) {
+      print('⏸️ Skipping poll - message send in progress');
+      return;
+    }
+    
     try {
       final complaintIdInt = int.parse(widget.complaintId);
       final fetchedMessages = await _chatService.getChatMessages(
         complaintIdInt,
+        cacheFirst: false, // CRITICAL FIX: Don't use cache for polling - always fetch fresh
       );
 
-      // Only update if there are new messages
-      if (fetchedMessages.length != messages.length) {
-        setState(() {
-          messages = fetchedMessages;
-        });
-        await _chatService.markMessagesAsRead(complaintIdInt);
-        _scrollToBottom();
+      // Check for NEW messages only (prevent blinking)
+      final newMessageIds = fetchedMessages.map((m) => m.id).toSet();
+      final hasNewMessages = newMessageIds.any((id) => !_displayedMessageIds.contains(id));
+
+      // Only update if there are ACTUALLY NEW messages (not just re-fetched)
+      if (hasNewMessages) {
+        print('✅ Found ${newMessageIds.difference(_displayedMessageIds).length} new messages');
+        
+        if (mounted) {
+          setState(() {
+            messages = fetchedMessages;
+            // Track displayed message IDs to prevent re-animation
+            _displayedMessageIds = newMessageIds;
+            // Mark NEW messages for animation (only messages not in _messageRenderTimes)
+            for (var msg in fetchedMessages) {
+              if (!_messageRenderTimes.containsKey(msg.id)) {
+                _messageRenderTimes[msg.id] = DateTime.now();
+              }
+            }
+          });
+          await _chatService.markMessagesAsRead(complaintIdInt);
+          _scrollToBottom();
+        }
+      } else {
+        // No new messages - don't update UI (prevents blinking)
+        print('⏭️ No new messages - skipping UI update');
       }
     } catch (e) {
       print('Error polling messages: $e');
@@ -219,17 +308,19 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
       if (errorString.contains('Complaint not found') ||
           errorString.contains('Unauthorized')) {
         _pollingTimer?.cancel();
-        setState(() {
-          hasError = true;
-          errorMessage =
-              'এই অভিযোগটি খুঁজে পাওয়া যায়নি বা আপনার অ্যাক্সেস নেই।';
-        });
+        if (mounted) {
+          setState(() {
+            hasError = true;
+            errorMessage =
+                'এই অভিযোগটি খুঁজে পাওয়া যায়নি বা আপনার অ্যাক্সেস নেই।';
+          });
+        }
       }
       // Don't show error for other polling failures (network issues, etc.)
     }
   }
 
-  /// Send message to server
+  /// Send message to server with optimized performance - NO BLINKING
   Future<void> _sendMessage() async {
     final text = _messageController.text.trim();
     if ((text.isEmpty &&
@@ -239,71 +330,181 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
         isSending)
       return;
 
+    // Store references before clearing
+    final messageText = text;
+    final imageFile = _attachedImageXFile;
+    final voiceFile = _recordedFilePath;
+    final complaintIdInt = int.parse(widget.complaintId);
+    
+    // Clear input IMMEDIATELY for instant feedback (NO loading state on send button)
     setState(() {
-      isSending = true;
+      _messageController.clear();
+      _attachedImageXFile = null;
+      _attachedImageBytes = null;
+      _showVoicePreview = false;
+      _recordedFilePath = null;
+      _recordedVoiceUrl = null;
+      // DON'T set isSending = true here - we want instant UI feedback
     });
 
+    // Create temporary message ID (negative to distinguish from real messages)
+    final tempId = -DateTime.now().millisecondsSinceEpoch;
+    _tempMessageId = tempId; // Track it to prevent blinking
+
+    // Show message INSTANTLY in UI with actual content (optimistic update)
+    final tempMessage = model.ChatMessage(
+      id: tempId,
+      complaintId: complaintIdInt,
+      senderId: 0,
+      senderType: 'CITIZEN',
+      senderName: 'আপনি',
+      message: messageText.isEmpty ? ' ' : messageText, // Show actual message
+      imageUrl: null,
+      voiceUrl: null,
+      read: false,
+      createdAt: DateTime.now(),
+    );
+
+    if (mounted) {
+      setState(() {
+        messages.add(tempMessage);
+      });
+      _scrollToBottom();
+    }
+
     try {
-      final complaintIdInt = int.parse(widget.complaintId);
+      // Upload files and send message in background (non-blocking)
+      String? imageUrl;
+      String? voiceUrl = _recordedVoiceUrl;
 
       // Upload image if attached
-      String? imageUrl;
-      if (_attachedImageXFile != null) {
+      if (imageFile != null) {
         imageUrl = await _chatService.uploadImageForComplaint(
           complaintIdInt,
-          _attachedImageXFile!,
+          imageFile,
         );
+        
+        // Update optimistic message with image URL (NO BLINKING)
+        if (mounted && _tempMessageId == tempId) {
+          setState(() {
+            final index = messages.indexWhere((msg) => msg.id == tempId);
+            if (index != -1) {
+              messages[index] = messages[index].copyWith(imageUrl: imageUrl);
+            }
+          });
+        }
       }
 
       // Upload voice if recorded
-      // Note: reusing _recordedVoiceUrl if it was already uploaded (legacy flow) or uploading file
-      String? voiceUrl = _recordedVoiceUrl;
-      if (_recordedFilePath != null && voiceUrl == null) {
-        final xfile = XFile(_recordedFilePath!);
+      if (voiceFile != null && voiceUrl == null) {
+        final xfile = XFile(voiceFile);
         voiceUrl = await _chatService.uploadVoiceForComplaint(
           complaintIdInt,
           xfile,
         );
+        
+        // Update optimistic message with voice URL (NO BLINKING)
+        if (mounted && _tempMessageId == tempId) {
+          setState(() {
+            final index = messages.indexWhere((msg) => msg.id == tempId);
+            if (index != -1) {
+              messages[index] = messages[index].copyWith(voiceUrl: voiceUrl);
+            }
+          });
+        }
       }
 
-      final sentMessage = await _chatService.sendMessage(
+      // Send message to server (NO typing indicator until response)
+      final sentMessages = await _chatService.sendMessage(
         complaintIdInt,
-        text.isEmpty
+        messageText.isEmpty
             ? (imageUrl != null
                   ? ' '
                   : (voiceUrl != null ? 'Voice Message' : ' '))
-            : text,
+            : messageText,
         imageUrl: imageUrl,
         voiceUrl: voiceUrl,
       );
 
-      setState(() {
-        messages.add(sentMessage);
-        isSending = false;
-        _recordedVoiceUrl = null;
-        _recordedFilePath = null;
-        _attachedImageXFile = null;
-        _attachedImageBytes = null;
-        _showVoicePreview = false;
-        _messageController.clear();
-      });
-
-      _scrollToBottom();
+      if (mounted && _tempMessageId == tempId) {
+        setState(() {
+          // Find and UPDATE temporary message with real ID (NO DUPLICATE)
+          final tempIndex = messages.indexWhere((msg) => msg.id == tempId);
+          
+          if (tempIndex != -1 && sentMessages.isNotEmpty) {
+            // Replace temp message with real user message from server
+            messages[tempIndex] = sentMessages[0];
+            
+            // Show typing indicator ONLY if bot message is coming
+            if (sentMessages.length > 1) {
+              isAdminTyping = true;
+              
+              // Cache bot message
+              final botMessage = sentMessages[1];
+              
+              // ALWAYS wait 3 seconds before showing bot message
+              Future.delayed(const Duration(seconds: 3), () {
+                if (mounted) {
+                  setState(() {
+                    messages.add(botMessage);
+                    isAdminTyping = false;
+                  });
+                  _scrollToBottom();
+                }
+              });
+            }
+          } else {
+            // Fallback: remove temp and add user message only
+            messages.removeWhere((msg) => msg.id == tempId);
+            if (sentMessages.isNotEmpty) {
+              messages.add(sentMessages[0]); // Add user message
+              if (sentMessages.length > 1) {
+                // Cache bot message
+                final botMessage = sentMessages[1];
+                
+                // Show typing indicator and wait 3 seconds
+                isAdminTyping = true;
+                Future.delayed(const Duration(seconds: 3), () {
+                  if (mounted) {
+                    setState(() {
+                      messages.add(botMessage);
+                      isAdminTyping = false;
+                    });
+                    _scrollToBottom();
+                  }
+                });
+              }
+            }
+          }
+          
+          _tempMessageId = null; // Clear temp ID
+        });
+        _scrollToBottom();
+      }
     } catch (e) {
-      setState(() {
-        isSending = false;
-      });
+      print('❌ Error sending message: $e');
+      
+      if (mounted && _tempMessageId == tempId) {
+        // Remove temporary message on error
+        setState(() {
+          messages.removeWhere((msg) => msg.id == tempId);
+          isAdminTyping = false; // Hide typing indicator on error
+          _tempMessageId = null; // Clear temp ID
+        });
 
-      // Show error message
-      if (mounted) {
+        // Show error with retry option
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: TranslatedText('মেসেজ পাঠাতে ব্যর্থ: ${e.toString()}'),
+            content: TranslatedText('মেসেজ পাঠাতে ব্যর্থ। পুনরায় চেষ্টা করুন।'),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
             action: SnackBarAction(
-              label: 'পুনরায় চেষ্টা করুন',
+              label: 'পুনরায়',
               textColor: Colors.white,
-              onPressed: _sendMessage,
+              onPressed: () {
+                // Restore message for retry
+                _messageController.text = messageText;
+              },
             ),
           ),
         );
@@ -315,7 +516,9 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
     try {
       final xfile = await _picker.pickImage(
         source: ImageSource.gallery,
-        imageQuality: 85,
+        imageQuality: 70, // Reduced from 85 to 70 for faster upload
+        maxWidth: 1920, // Limit max width for faster upload
+        maxHeight: 1920, // Limit max height for faster upload
       );
       if (xfile == null) return;
 
@@ -816,9 +1019,19 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
 
   Widget _buildChatArea() {
     if (isLoading && messages.isEmpty) {
-      return const Center(
-        child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF2E8B57)),
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: const [
+            CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF2E8B57)),
+            ),
+            SizedBox(height: 16),
+            TranslatedText(
+              'মেসেজ লোড হচ্ছে...',
+              style: TextStyle(color: Colors.grey),
+            ),
+          ],
         ),
       );
     }
@@ -906,18 +1119,121 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
       padding: const EdgeInsets.all(16),
       child: ListView.builder(
         controller: _scrollController,
-        itemCount: messages.length,
+        itemCount: messages.length + (isAdminTyping ? 1 : 0), // Add typing indicator
         itemBuilder: (context, index) {
+          // Show typing indicator at the end
+          if (index == messages.length && isAdminTyping) {
+            return _buildTypingIndicator();
+          }
           return _buildMessageBubble(messages[index], index);
         },
       ),
     );
   }
 
-  Widget _buildMessageBubble(model.ChatMessage message, int index) {
-    final isUser = message.isUser;
-
+  /// Build typing indicator for admin
+  Widget _buildTypingIndicator() {
     return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF2E8B57), Color(0xFF3CB371)],
+              ),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(
+              Icons.support_agent,
+              color: Colors.white,
+              size: 16,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(16),
+                topRight: Radius.circular(16),
+                bottomLeft: Radius.circular(4),
+                bottomRight: Radius.circular(16),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  offset: const Offset(0, 2),
+                  blurRadius: 8,
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildTypingDot(0),
+                const SizedBox(width: 4),
+                _buildTypingDot(1),
+                const SizedBox(width: 4),
+                _buildTypingDot(2),
+                const SizedBox(width: 8),
+                const Text(
+                  'টাইপ করছে...',
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 12,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ).animate(onPlay: (controller) => controller.repeat())
+      .fadeIn(duration: 400.ms);
+  }
+
+  /// Build animated typing dot
+  Widget _buildTypingDot(int index) {
+    return Container(
+      width: 8,
+      height: 8,
+      decoration: const BoxDecoration(
+        color: Color(0xFF2E8B57),
+        shape: BoxShape.circle,
+      ),
+    ).animate(onPlay: (controller) => controller.repeat())
+      .scaleXY(
+        begin: 0.8,
+        end: 1.2,
+        duration: 600.ms,
+        delay: (index * 200).ms,
+        curve: Curves.easeInOut,
+      );
+  }
+
+  Widget _buildMessageBubble(model.ChatMessage message, int index) {
+    // IMPORTANT: Bot messages should look like admin messages to users
+    // So we treat BOT messages as ADMIN messages in the UI
+    // This way users won't know it's an automated message
+    final isUser = message.isUser; // Only CITIZEN messages are shown as user messages
+    
+    // Check if this is a temporary message (negative ID means optimistic update)
+    final isTemporaryMessage = message.id < 0;
+    
+    // ✅ CRITICAL FIX: Check if this message was JUST rendered (within last 2 seconds)
+    // This prevents blinking on re-renders from polling
+    final renderTime = _messageRenderTimes[message.id];
+    final isNewMessage = renderTime != null && 
+      DateTime.now().difference(renderTime).inSeconds < 2;
+
+    final messageWidget = Container(
           margin: const EdgeInsets.only(bottom: 16),
           child: Row(
             mainAxisAlignment: isUser
@@ -1114,8 +1430,17 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
               ],
             ],
           ),
-        )
-        .animate(delay: (index * 100).ms)
+        );
+    
+    // ✅ CRITICAL FIX: Only animate TRULY NEW messages (just received within 2 seconds)
+    // This prevents blinking when polling re-fetches the same messages
+    if (isTemporaryMessage || !isNewMessage) {
+      return messageWidget; // No animation for temporary or old messages
+    }
+    
+    // Animate only BRAND NEW messages from server (smooth entrance, no blinking)
+    return messageWidget
+        .animate()
         .fadeIn(duration: 400.ms)
         .slideY(begin: 0.3, duration: 300.ms, curve: Curves.easeOut);
   }
@@ -1191,17 +1516,8 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
                     shape: BoxShape.circle,
                   ),
                   child: IconButton(
-                    onPressed: isSending ? null : _sendMessage,
-                    icon: isSending
-                        ? const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : const Icon(Icons.send, color: Colors.white),
+                    onPressed: _sendMessage, // NO loading state - always enabled
+                    icon: const Icon(Icons.send, color: Colors.white), // Always show send icon
                   ),
                 ),
             ],

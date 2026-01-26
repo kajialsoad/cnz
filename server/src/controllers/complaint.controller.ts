@@ -17,8 +17,10 @@ interface AuthenticatedRequest extends Request {
 export class ComplaintController {
   // Create a new complaint
   async createComplaint(req: AuthenticatedRequest, res: Response) {
+    const startTime = Date.now();
     try {
       // Debug: Log what we're receiving
+      console.log('[COMPLAINT] Starting complaint creation...');
       console.log('Request body:', JSON.stringify(req.body, null, 2));
       console.log('Location object:', req.body.location);
       if (req.body.location) {
@@ -30,7 +32,9 @@ export class ComplaintController {
       console.log('Request files:', req.files);
 
       // Validate request body
+      const validationStart = Date.now();
       const validatedData = validateInput(createComplaintSchema, req.body);
+      console.log(`[COMPLAINT] Validation took ${Date.now() - validationStart}ms`);
 
       if (!req.user) {
         return res.status(401).json({
@@ -46,7 +50,10 @@ export class ComplaintController {
         uploadedFiles: req.files
       };
 
+      const serviceStart = Date.now();
       const complaint = await complaintService.createComplaint(complaintInput);
+      console.log(`[COMPLAINT] Service processing took ${Date.now() - serviceStart}ms`);
+      console.log(`[COMPLAINT] Total request time: ${Date.now() - startTime}ms`);
 
       res.status(201).json({
         success: true,
@@ -462,7 +469,7 @@ export class ComplaintController {
       // Import chat service
       const { chatService } = await import('../services/chat.service');
 
-      const chatMessage = await chatService.sendChatMessage({
+      const result = await chatService.sendChatMessage({
         complaintId,
         senderId: req.user.sub,
         senderType: 'CITIZEN',
@@ -471,9 +478,13 @@ export class ComplaintController {
         voiceUrl
       });
 
+      // Return both user message and bot message (if created)
       res.status(201).json({
         success: true,
-        data: { message: chatMessage }
+        data: {
+          message: result.message,
+          botMessage: result.botMessage || null
+        }
       });
     } catch (error) {
       console.error('Error in sendChatMessage:', error);

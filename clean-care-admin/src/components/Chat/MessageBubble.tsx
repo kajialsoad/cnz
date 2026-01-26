@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Box, Typography, Modal, IconButton } from '@mui/material';
-import { Close as CloseIcon, DoneAll as DoneAllIcon, Done as DoneIcon } from '@mui/icons-material';
+import { Close as CloseIcon, DoneAll as DoneAllIcon, Done as DoneIcon, SmartToy as SmartToyIcon } from '@mui/icons-material';
 import type { MessageBubbleProps } from '../../types/chat-page.types';
 import { fadeIn, slideInUp, animationConfig } from '../../styles/animations';
 import VoiceMessagePlayer from './VoiceMessagePlayer';
@@ -56,6 +56,81 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     showSenderName = false,
 }) => {
     const [lightboxOpen, setLightboxOpen] = useState(false);
+
+    // Check if this is a bot message
+    const isBot = message.senderType === 'BOT';
+
+    // Render bot message with special styling
+    if (isBot) {
+        return (
+            <Box
+                sx={{
+                    mb: 1.5,
+                    display: 'flex',
+                    justifyContent: 'center',
+                    animation: `${fadeIn} ${animationConfig.normal.duration} ${animationConfig.normal.timing}, ${slideInUp} ${animationConfig.normal.duration} ${animationConfig.smooth.timing}`,
+                    animationFillMode: 'both',
+                }}
+            >
+                <Box
+                    sx={{
+                        maxWidth: { xs: '85%', sm: '75%', md: '70%' },
+                        backgroundColor: '#f5f5f5',
+                        border: '1px solid #e0e0e0',
+                        borderRadius: '12px',
+                        padding: '12px 16px',
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: 1,
+                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+                        transition: `all ${animationConfig.fast.duration} ${animationConfig.fast.timing}`,
+                        '&:hover': {
+                            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+                        },
+                    }}
+                >
+                    <SmartToyIcon sx={{ color: '#757575', fontSize: 20, mt: 0.2 }} />
+                    <Box sx={{ flex: 1 }}>
+                        <Typography
+                            variant="caption"
+                            sx={{
+                                color: '#757575',
+                                fontWeight: 600,
+                                display: 'block',
+                                mb: 0.5,
+                                fontSize: '0.75rem',
+                            }}
+                        >
+                            {isAdmin ? '[BOT] Clean Care Support System' : 'Clean Care Support System'}
+                        </Typography>
+                        <Typography
+                            variant="body2"
+                            sx={{
+                                color: '#424242',
+                                whiteSpace: 'pre-wrap',
+                                wordBreak: 'break-word',
+                                lineHeight: 1.5,
+                                fontSize: '0.9rem',
+                            }}
+                        >
+                            {message.message}
+                        </Typography>
+                        <Typography
+                            variant="caption"
+                            sx={{
+                                color: '#9e9e9e',
+                                display: 'block',
+                                mt: 0.5,
+                                fontSize: '0.7rem',
+                            }}
+                        >
+                            {formatRelativeTime(message.createdAt)}
+                        </Typography>
+                    </Box>
+                </Box>
+            </Box>
+        );
+    }
 
     // Determine border radius based on sender (different radius on sender side)
     const borderRadius = isAdmin

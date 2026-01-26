@@ -1,5 +1,6 @@
 import prisma from '../utils/prisma';
-import { SenderType } from '@prisma/client';
+import { SenderType, ChatType } from '@prisma/client';
+import { botMessageService } from './bot-message.service';
 
 export interface GetAllCitizensForChatInput {
     search?: string;
@@ -464,32 +465,92 @@ export class ChatService {
             }
         });
 
-        // ✅ Create notification for user when admin sends message
-        if (senderType === 'ADMIN' && complaint.userId) {
-            try {
-                // Prepare notification message - handle empty messages
-                const notificationMessage = message && message.trim()
-                    ? (message.length > 100 ? message.substring(0, 100) + '...' : message)
-                    : 'আপনার অভিযোগ সম্পর্কে নতুন বার্তা'; // "New message about your complaint"
+        // ✅ NEW: Handle bot trigger SYNCHRONOUSLY for immediate response
+        let botMessage = null;
+        if (senderType === 'CITIZEN') {
+            const conversationId = `complaint-${complaintId}`;
 
-                await prisma.notification.create({
-                    data: {
-                        userId: complaint.userId,
-                        type: 'COMPLAINT_CHAT_MESSAGE',
-                        title: 'অভিযোগ নম্বর #' + complaintId + ' সম্পর্কে বার্তা',
-                        message: notificationMessage,
-                        relatedId: complaintId,
-                        read: false
-                    }
+            try {
+                // Check if admin has replied
+                const hasAdminReplied = await this.hasAdminRepliedToComplaint(complaintId);
+
+                // Handle user message (increments counter if bot is inactive)
+                await botMessageService.handleUserMessage({
+                    chatType: ChatType.COMPLAINT_CHAT,
+                    conversationId
                 });
-                console.log(`✅ Notification created for user ${complaint.userId} on complaint ${complaintId}: "${notificationMessage}"`);
+
+                // Check if bot should send a message
+                const botTrigger = await botMessageService.shouldTriggerBot({
+                    chatType: ChatType.COMPLAINT_CHAT,
+                    conversationId,
+                    hasAdminReplied
+                });
+
+                if (botTrigger.shouldSend && botTrigger.botMessage) {
+                    // Insert bot message
+                    botMessage = await prisma.complaintChatMessage.create({
+                        data: {
+                            complaintId,
+                            senderId, // Bot appears to come from admin
+                            senderType: 'BOT',
+                            message: botTrigger.botMessage.content,
+                            read: false
+                        }
+                    });
+
+                    console.log(`✅ Bot message sent for complaint ${complaintId}, step ${botTrigger.step}`);
+                }
             } catch (error) {
-                console.error('❌ Error creating notification:', error);
-                // Don't throw error - notification failure shouldn't block message sending
+                console.error('Bot integration error:', error);
+                // Don't throw - bot failures shouldn't break messaging
             }
+        } else if (senderType === 'ADMIN') {
+            // Admin sent a message - deactivate bot asynchronously
+            const conversationId = `complaint-${complaintId}`;
+
+            botMessageService.handleAdminReply({
+                chatType: ChatType.COMPLAINT_CHAT,
+                conversationId
+            }).catch(error => {
+                console.error('Bot deactivation error:', error);
+            });
         }
 
-        return chatMessage;
+        // ✅ Create notification for user when admin sends message (async)
+        if (senderType === 'ADMIN' && complaint.userId) {
+            this.createNotificationAsync(complaint.userId, complaintId, message).catch(error => {
+                console.error('❌ Error creating notification:', error);
+            });
+        }
+
+        // ✅ Return both user message and bot message (if any)
+        return {
+            message: chatMessage,
+            botMessage: botMessage
+        };
+    }
+
+    private async createNotificationAsync(userId: number, complaintId: number, message: string): Promise<void> {
+        try {
+            const notificationMessage = message && message.trim()
+                ? (message.length > 100 ? message.substring(0, 100) + '...' : message)
+                : 'আপনার অভিযোগ সম্পর্কে নতুন বার্তা';
+
+            await prisma.notification.create({
+                data: {
+                    userId: userId,
+                    type: 'COMPLAINT_CHAT_MESSAGE',
+                    title: 'অভিযোগ নম্বর #' + complaintId + ' সম্পর্কে বার্তা',
+                    message: notificationMessage,
+                    complaintId: complaintId,
+                    isRead: false
+                }
+            });
+            console.log(`✅ Notification created for user ${userId} on complaint ${complaintId}`);
+        } catch (error) {
+            console.error('❌ Error creating notification:', error);
+        }
     }
 
     async markMessagesAsRead(complaintId: number, userId: number, userType: SenderType) {
@@ -507,6 +568,66 @@ export class ChatService {
         return {
             updatedCount: result.count
         };
+    }
+
+    /**
+     * Check if admin has replied to this complaint
+     * Used for bot trigger logic
+     */
+    private async hasAdminRepliedToComplaint(complaintId: number): Promise<boolean> {
+        const adminMessage = await prisma.complaintChatMessage.findFirst({
+            where: {
+                complaintId,
+                senderType: 'ADMIN'
+            }
+        });
+
+        return adminMessage !== null;
+    }
+
+    /**
+     * Handle bot trigger logic asynchronously
+     * This runs in background without blocking message send
+     */
+    private async handleBotTriggerAsync(
+        complaintId: number,
+        conversationId: string,
+        senderId: number
+    ): Promise<void> {
+        try {
+            const hasAdminReplied = await this.hasAdminRepliedToComplaint(complaintId);
+
+            // Handle user message (increments counter if bot is inactive)
+            await botMessageService.handleUserMessage({
+                chatType: ChatType.COMPLAINT_CHAT,
+                conversationId
+            });
+
+            // Check if bot should send a message
+            const botTrigger = await botMessageService.shouldTriggerBot({
+                chatType: ChatType.COMPLAINT_CHAT,
+                conversationId,
+                hasAdminReplied
+            });
+
+            if (botTrigger.shouldSend && botTrigger.botMessage) {
+                // Insert bot message
+                await prisma.complaintChatMessage.create({
+                    data: {
+                        complaintId,
+                        senderId, // Bot appears to come from admin
+                        senderType: 'BOT',
+                        message: botTrigger.botMessage.content,
+                        read: false
+                    }
+                });
+
+                console.log(`✅ Bot message sent for complaint ${complaintId}, step ${botTrigger.step}`);
+            }
+        } catch (error) {
+            console.error('Error in handleBotTriggerAsync:', error);
+            // Don't throw - bot failures shouldn't break messaging
+        }
     }
 }
 

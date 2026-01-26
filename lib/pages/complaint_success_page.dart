@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:provider/provider.dart';
 import '../models/complaint.dart';
+import '../providers/complaint_provider.dart';
 
 class ComplaintSuccessPage extends StatefulWidget {
   const ComplaintSuccessPage({super.key});
@@ -397,6 +399,10 @@ class _ComplaintSuccessPageState extends State<ComplaintSuccessPage> {
   }
 
   void _trackComplaint() {
+    // Clear form data now that we've successfully navigated to success page
+    final complaintProvider = Provider.of<ComplaintProvider>(context, listen: false);
+    complaintProvider.clearForm();
+    
     // Navigate to complaint list page
     Navigator.pushNamedAndRemoveUntil(
       context,
@@ -406,6 +412,10 @@ class _ComplaintSuccessPageState extends State<ComplaintSuccessPage> {
   }
 
   void _backToHome() {
+    // Clear form data now that we've successfully navigated to success page
+    final complaintProvider = Provider.of<ComplaintProvider>(context, listen: false);
+    complaintProvider.clearForm();
+    
     // Navigate back to home and remove all previous routes
     Navigator.pushNamedAndRemoveUntil(
       context,

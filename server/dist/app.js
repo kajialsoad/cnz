@@ -22,6 +22,8 @@ const admin_direct_message_routes_1 = __importDefault(require("./routes/admin.di
 const admin_activity_log_routes_1 = __importDefault(require("./routes/admin.activity-log.routes"));
 const live_chat_routes_1 = __importDefault(require("./routes/live-chat.routes"));
 const admin_live_chat_routes_1 = __importDefault(require("./routes/admin.live-chat.routes"));
+const bot_message_routes_1 = __importDefault(require("./routes/bot-message.routes"));
+const public_bot_message_routes_1 = __importDefault(require("./routes/public-bot-message.routes"));
 const dashboard_routes_1 = __importDefault(require("./routes/dashboard.routes"));
 const category_routes_1 = __importDefault(require("./routes/category.routes"));
 const city_corporation_routes_1 = __importDefault(require("./routes/city-corporation.routes"));
@@ -157,6 +159,10 @@ app.use('/api/admin/live-chat', admin_live_chat_routes_1.default); // Admin live
 console.log('✅ Admin live chat routes registered at /api/admin/live-chat');
 app.use('/api/admin/activity-logs', admin_activity_log_routes_1.default); // Admin activity log routes
 console.log('✅ Admin activity log routes registered at /api/admin/activity-logs');
+app.use('/api/admin/bot-messages', bot_message_routes_1.default); // Bot message management routes
+console.log('✅ Bot message routes registered at /api/admin/bot-messages');
+app.use('/api/bot-messages', public_bot_message_routes_1.default); // Public bot message routes
+console.log('✅ Public bot message routes registered at /api/bot-messages');
 const admin_system_config_routes_1 = __importDefault(require("./routes/admin.system-config.routes"));
 const system_config_routes_1 = __importDefault(require("./routes/system-config.routes"));
 app.use('/api/admin/config', admin_system_config_routes_1.default); // Admin system config routes

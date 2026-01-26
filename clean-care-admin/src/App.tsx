@@ -37,7 +37,7 @@ const ActivityLogs = lazy(() => import('./pages/ActivityLogs/ActivityLogs'));
 const Reports = lazy(() => import('./pages/Reports'));
 const Notifications = lazy(() => import('./pages/Notifications'));
 const Settings = lazy(() => import('./pages/Settings'));
-const SystemControl = lazy(() => import('./pages/Settings/SystemControl'));
+const SystemControl = lazy(() => import('./pages/SystemControl'));
 
 function App() {
   return (
@@ -226,6 +226,16 @@ function App() {
                           element={
                             <ProtectedRoute>
                               <Settings />
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="/system-control"
+                          element={
+                            <ProtectedRoute>
+                              <RoleBasedRoute allowedRoles={['MASTER_ADMIN']}>
+                                <SystemControl />
+                              </RoleBasedRoute>
                             </ProtectedRoute>
                           }
                         />

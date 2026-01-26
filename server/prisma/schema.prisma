@@ -113,6 +113,7 @@ model User {
   joiningDate             DateTime?
   lastActiveAt            DateTime?
   permissions             String?                  @db.LongText
+  preferredLanguage       String?                  @default("bn") // "bn" for Bangla, "en" for English
   whatsapp                String?
   visiblePassword         String?
   receivedMessages        ChatMessage[]            @relation("ReceivedMessages")
@@ -486,6 +487,7 @@ enum ChatMessageType {
 enum SenderType {
   ADMIN
   CITIZEN
+  BOT
 }
 
 enum CityCorporationStatus {
@@ -539,3 +541,76 @@ enum Complaint_status {
   REJECTED
   OTHERS
 }
+
+enum ChatType {
+  LIVE_CHAT
+  COMPLAINT_CHAT
+}
+
+// Bot Message Configuration
+model BotMessageConfig {
+  id              Int      @id @default(autoincrement())
+  chatType        ChatType
+  messageKey      String   @unique @db.VarChar(100)
+  content         String   @db.Text
+  contentBn       String   @map("content_bn") @db.Text
+  stepNumber      Int      @map("step_number")
+  isActive        Boolean  @default(true) @map("is_active")
+  displayOrder    Int      @default(0) @map("display_order")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@index([chatType, isActive, displayOrder])
+  @@index([chatType, stepNumber, isActive, displayOrder], name: "bot_msg_cfg_chat_step_active_order_idx")
+  @@map("bot_message_configs")
+}
+
+// Bot Trigger Rules
+model BotTriggerRule {
+  id                    Int      @id @default(autoincrement())
+  chatType              ChatType
+  isEnabled             Boolean  @default(true) @map("is_enabled")
+  reactivationThreshold Int      @default(5) @map("reactivation_threshold")
+  resetStepsOnReactivate Boolean @default(false) @map("reset_steps_on_reactivate")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  @@unique([chatType])
+  @@map("bot_trigger_rules")
+}
+
+// Bot Conversation State (tracks bot state per conversation)
+model BotConversationState {
+  id                  Int      @id @default(autoincrement())
+  chatType            ChatType
+  conversationId      String   @db.VarChar(100)
+  currentStep         Int      @default(0) @map("current_step")
+  isActive            Boolean  @default(true) @map("is_active")
+  lastAdminReplyAt    DateTime? @map("last_admin_reply_at")
+  userMessageCount    Int      @default(0) @map("user_message_count")
+  lastBotMessageAt    DateTime? @map("last_bot_message_at")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  @@unique([chatType, conversationId])
+  @@index([chatType, isActive])
+  @@map("bot_conversation_states")
+}
+
+// Bot Analytics
+model BotMessageAnalytics {
+  id              Int      @id @default(autoincrement())
+  chatType        ChatType
+  messageKey      String   @db.VarChar(100)
+  stepNumber      Int      @map("step_number")
+  triggerCount    Int      @default(0) @map("trigger_count")
+  adminReplyCount Int      @default(0) @map("admin_reply_count")
+  avgResponseTime Int?     @map("avg_response_time")
+  date            DateTime @default(now())
+
+  @@index([chatType, date])
+  @@index([messageKey])
+  @@index([chatType, messageKey, date], name: "bot_msg_analytics_chat_key_date_idx")
+  @@map("bot_message_analytics")
+}
+

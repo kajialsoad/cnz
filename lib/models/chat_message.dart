@@ -4,7 +4,7 @@ class ChatMessage {
   final int id;
   final int? complaintId; // Optional - only for Complaint Chat
   final int senderId;
-  final String senderType; // 'ADMIN' or 'CITIZEN'
+  final String senderType; // 'ADMIN', 'CITIZEN', or 'BOT'
   final String senderName;
   final String message;
   final String? imageUrl;
@@ -62,6 +62,9 @@ class ChatMessage {
 
   /// Check if message is from admin
   bool get isAdmin => senderType == 'ADMIN';
+
+  /// Check if message is from bot
+  bool get isBot => senderType == 'BOT';
 
   /// Check if this is a Complaint Chat message (has complaintId)
   bool get isComplaintChat => complaintId != null && complaintId! > 0;

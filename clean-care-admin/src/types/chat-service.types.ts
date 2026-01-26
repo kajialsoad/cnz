@@ -1,6 +1,6 @@
 // Chat Service Types
 
-export type SenderType = 'ADMIN' | 'CITIZEN';
+export type SenderType = 'ADMIN' | 'CITIZEN' | 'BOT';
 
 export interface ChatMessage {
     id: number;

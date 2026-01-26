@@ -190,6 +190,11 @@ export function strictRateLimit(req: Request, res: Response, next: NextFunction)
  */
 export function ipRateLimit(maxRequests: number = 1000, windowMs: number = 60 * 1000) {
     return (req: Request, res: Response, next: NextFunction) => {
+        // Skip rate limiting in test environment
+        if (process.env.NODE_ENV === 'test') {
+            return next();
+        }
+
         const ip = req.ip || req.socket.remoteAddress || 'unknown';
         const key = `ip_${ip}`;
         const now = Date.now();

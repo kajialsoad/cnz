@@ -14,6 +14,7 @@ import '../components/custom_bottom_nav.dart';
 import '../widgets/translated_text.dart';
 import '../widgets/admin_info_card.dart';
 import '../widgets/voice_message_player.dart';
+import '../widgets/bot_message_bubble.dart';
 import '../services/live_chat_service.dart';
 import '../models/chat_message.dart' as model;
 import '../config/url_helper.dart';
@@ -114,6 +115,8 @@ class _LiveChatPageState extends State<LiveChatPage>
   /// Load admin info and messages from server
   Future<void> _loadAdminAndMessages() async {
     try {
+      if (!mounted) return;
+      
       setState(() {
         isLoading = true;
         hasError = false;
@@ -125,6 +128,8 @@ class _LiveChatPageState extends State<LiveChatPage>
       // Get messages
       final fetchedMessages = await _liveChatService.getMessages();
 
+      if (!mounted) return;
+      
       setState(() {
         adminInfo = admin;
         messages = fetchedMessages;
@@ -152,6 +157,8 @@ class _LiveChatPageState extends State<LiveChatPage>
         userFriendlyError = 'সার্ভার সাড়া দিচ্ছে না। দয়া করে পরে আবার চেষ্টা করুন।';
       }
       
+      if (!mounted) return;
+      
       setState(() {
         isLoading = false;
         hasError = true;
@@ -172,6 +179,8 @@ class _LiveChatPageState extends State<LiveChatPage>
     try {
       final fetchedMessages = await _liveChatService.getMessages();
 
+      if (!mounted) return;
+
       // Only update if there are new messages
       if (fetchedMessages.length != messages.length) {
         setState(() {
@@ -184,6 +193,9 @@ class _LiveChatPageState extends State<LiveChatPage>
       final errorString = e.toString();
       if (errorString.contains('No admin found') || errorString.contains('Unauthorized')) {
         _pollingTimer?.cancel();
+        
+        if (!mounted) return;
+        
         setState(() {
           hasError = true;
           errorMessage = 'চ্যাট অ্যাক্সেস করতে সমস্যা হয়েছে।';
@@ -192,27 +204,69 @@ class _LiveChatPageState extends State<LiveChatPage>
     }
   }
 
-  /// Send message to server
+  /// Send message to server with optimized performance
   Future<void> _sendMessage() async {
     final text = _messageController.text.trim();
     if ((text.isEmpty && _attachedImageXFile == null && _recordedFilePath == null) || isSending) return;
 
+    // Store references before clearing
+    final messageText = text;
+    final imageFile = _attachedImageXFile;
+    final voiceFile = _recordedFilePath;
+    
+    // Clear input IMMEDIATELY for instant feedback
     setState(() {
+      _messageController.clear();
+      _attachedImageXFile = null;
+      _attachedImageBytes = null;
+      _showVoicePreview = false;
+      _recordedFilePath = null;
       isSending = true;
       _uploadProgress = 0.0;
     });
 
+    // Create temporary message ID
+    final tempId = DateTime.now().millisecondsSinceEpoch;
+
+    // Show message INSTANTLY in UI (optimistic update)
+    final tempMessage = model.ChatMessage(
+      id: tempId,
+      complaintId: null, // Live chat has no complaint ID
+      senderId: 0,
+      senderType: 'CITIZEN',
+      senderName: 'আপনি',
+      message: messageText.isEmpty
+          ? (imageFile != null
+              ? '📷 ছবি পাঠানো হচ্ছে...'
+              : (voiceFile != null ? '🎙️ ভয়েস পাঠানো হচ্ছে...' : ' '))
+          : messageText,
+      imageUrl: null,
+      voiceUrl: null,
+      read: false,
+      createdAt: DateTime.now(),
+    );
+
+    if (mounted) {
+      setState(() {
+        messages.add(tempMessage);
+      });
+      _scrollToBottom();
+    }
+
     try {
-      // Upload image if attached
+      // Upload files and send message in background (non-blocking)
       String? imageUrl;
-      if (_attachedImageXFile != null) {
+      String? voiceUrl;
+
+      // Upload image if attached
+      if (imageFile != null) {
         setState(() {
           _isUploading = true;
           _uploadingType = 'image';
           _uploadProgress = 0.0;
         });
         
-        imageUrl = await _liveChatService.uploadImage(_attachedImageXFile!);
+        imageUrl = await _liveChatService.uploadImage(imageFile);
         
         setState(() {
           _uploadProgress = 1.0;
@@ -221,86 +275,63 @@ class _LiveChatPageState extends State<LiveChatPage>
       }
 
       // Upload voice if recorded
-      String? voiceUrl;
-      if (_recordedFilePath != null) {
+      if (voiceFile != null) {
         setState(() {
           _isUploading = true;
           _uploadingType = 'voice';
           _uploadProgress = 0.0;
         });
         
-        try {
-          final xfile = XFile(_recordedFilePath!);
-          voiceUrl = await _liveChatService.uploadVoice(xfile);
-          print('✅ Voice uploaded successfully: $voiceUrl');
-          
-          setState(() {
-            _uploadProgress = 1.0;
-            _isUploading = false;
-          });
-        } catch (e) {
-          // Handle voice upload error specifically
-          setState(() {
-            isSending = false;
-            _isUploading = false;
-            _uploadProgress = 0.0;
-          });
-
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('ভয়েস আপলোড ব্যর্থ: ${_getErrorMessage(e)}'),
-                backgroundColor: Colors.red,
-                duration: const Duration(seconds: 5),
-                action: SnackBarAction(
-                  label: 'পুনরায় চেষ্টা করুন',
-                  textColor: Colors.white,
-                  onPressed: _sendMessage,
-                ),
-              ),
-            );
-          }
-          return; // Don't proceed with sending message
-        }
+        final xfile = XFile(voiceFile);
+        voiceUrl = await _liveChatService.uploadVoice(xfile);
+        
+        setState(() {
+          _uploadProgress = 1.0;
+          _isUploading = false;
+        });
       }
 
+      // Send message to server
       final sentMessage = await _liveChatService.sendMessage(
-        text.isEmpty ? (imageUrl != null ? ' ' : (voiceUrl != null ? 'Voice Message' : ' ')) : text,
+        messageText.isEmpty
+            ? (imageUrl != null
+                  ? ' '
+                  : (voiceUrl != null ? 'Voice Message' : ' '))
+            : messageText,
         imageUrl: imageUrl,
         voiceUrl: voiceUrl,
       );
 
-      setState(() {
-        messages.add(sentMessage);
-        isSending = false;
-        _isUploading = false;
-        _uploadProgress = 0.0;
-        _recordedFilePath = null;
-        _attachedImageXFile = null;
-        _attachedImageBytes = null;
-        _showVoicePreview = false;
-        _messageController.clear();
-      });
-
-      _scrollToBottom();
-    } catch (e) {
-      setState(() {
-        isSending = false;
-        _isUploading = false;
-        _uploadProgress = 0.0;
-      });
-
       if (mounted) {
+        setState(() {
+          // Remove temporary message
+          messages.removeWhere((msg) => msg.id == tempId);
+          // Add real message from server
+          messages.add(sentMessage);
+          isSending = false;
+          _isUploading = false;
+          _uploadProgress = 0.0;
+        });
+        _scrollToBottom();
+      }
+    } catch (e) {
+      print('❌ Error sending message: $e');
+      
+      if (mounted) {
+        // Remove temporary message on error
+        setState(() {
+          messages.removeWhere((msg) => msg.id == tempId);
+          isSending = false;
+          _isUploading = false;
+          _uploadProgress = 0.0;
+        });
+
+        // Show error with retry option
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('মেসেজ পাঠাতে ব্যর্থ: ${_getErrorMessage(e)}'),
+            content: Text('মেসেজ পাঠাতে ব্যর্থ। পুনরায় চেষ্টা করুন।'),
             backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
-            action: SnackBarAction(
-              label: 'পুনরায় চেষ্টা করুন',
-              textColor: Colors.white,
-              onPressed: _sendMessage,
-            ),
+            duration: const Duration(seconds: 3),
           ),
         );
       }
@@ -334,7 +365,12 @@ class _LiveChatPageState extends State<LiveChatPage>
 
   Future<void> _pickImage() async {
     try {
-      final xfile = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+      final xfile = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 70,      // Reduced from 85 to 70 for faster upload
+        maxWidth: 1920,        // Limit max width for faster upload
+        maxHeight: 1920,       // Limit max height for faster upload
+      );
       if (xfile == null) return;
       
       // For web, we need to read bytes; for mobile, we can use File
@@ -877,7 +913,10 @@ class _LiveChatPageState extends State<LiveChatPage>
   }
 
   Widget _buildMessageBubble(model.ChatMessage message, int index) {
-    final isUser = message.isUser;
+    // IMPORTANT: Bot messages should look like admin messages to users
+    // So we treat BOT messages as ADMIN messages in the UI
+    // This way users won't know it's an automated message
+    final isUser = message.isUser; // Only CITIZEN messages are shown as user messages
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -897,7 +936,7 @@ class _LiveChatPageState extends State<LiveChatPage>
                 borderRadius: BorderRadius.circular(16),
               ),
               child: const Icon(
-                Icons.person,
+                Icons.support_agent,
                 color: Colors.white,
                 size: 16,
               ),
@@ -933,7 +972,7 @@ class _LiveChatPageState extends State<LiveChatPage>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Sender name for admin messages - Always show "Clean Care Support"
+                  // Sender name for admin messages
                   if (!isUser) ...[
                     const Text(
                       'Clean Care Support',

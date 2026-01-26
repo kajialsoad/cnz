@@ -5,6 +5,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.chatService = exports.ChatService = void 0;
 const prisma_1 = __importDefault(require("../utils/prisma"));
+const client_1 = require("@prisma/client");
+const bot_message_service_1 = require("./bot-message.service");
 class ChatService {
     /**
      * Get all complaints with their chat messages (complaint-centric view)
@@ -399,6 +401,75 @@ class ChatService {
                 read: false
             }
         });
+        // ✅ Bot Integration: Handle bot trigger logic
+        try {
+            if (senderType === 'CITIZEN') {
+                // User sent a message - check if bot should trigger
+                const conversationId = `complaint-${complaintId}`;
+                const hasAdminReplied = await this.hasAdminRepliedToComplaint(complaintId);
+                // Handle user message (increments counter if bot is inactive)
+                await bot_message_service_1.botMessageService.handleUserMessage({
+                    chatType: client_1.ChatType.COMPLAINT_CHAT,
+                    conversationId
+                });
+                // Check if bot should send a message
+                const botTrigger = await bot_message_service_1.botMessageService.shouldTriggerBot({
+                    chatType: client_1.ChatType.COMPLAINT_CHAT,
+                    conversationId,
+                    hasAdminReplied
+                });
+                if (botTrigger.shouldSend && botTrigger.botMessage) {
+                    // Insert bot message
+                    await prisma_1.default.complaintChatMessage.create({
+                        data: {
+                            complaintId,
+                            senderId, // Bot appears to come from admin
+                            senderType: 'BOT',
+                            message: botTrigger.botMessage.content,
+                            read: false
+                        }
+                    });
+                    console.log(`✅ Bot message sent for complaint ${complaintId}, step ${botTrigger.step}`);
+                }
+            }
+            else if (senderType === 'ADMIN') {
+                // Admin sent a message - deactivate bot
+                const conversationId = `complaint-${complaintId}`;
+                await bot_message_service_1.botMessageService.handleAdminReply({
+                    chatType: client_1.ChatType.COMPLAINT_CHAT,
+                    conversationId
+                });
+                console.log(`✅ Bot deactivated for complaint ${complaintId} after admin reply`);
+            }
+        }
+        catch (botError) {
+            // Log bot errors but don't throw - bot failures shouldn't break messaging
+            console.error('Bot integration error:', botError);
+        }
+        // ✅ Create notification for user when admin sends message
+        if (senderType === 'ADMIN' && complaint.userId) {
+            try {
+                // Prepare notification message - handle empty messages
+                const notificationMessage = message && message.trim()
+                    ? (message.length > 100 ? message.substring(0, 100) + '...' : message)
+                    : 'আপনার অভিযোগ সম্পর্কে নতুন বার্তা'; // "New message about your complaint"
+                await prisma_1.default.notification.create({
+                    data: {
+                        userId: complaint.userId,
+                        type: 'COMPLAINT_CHAT_MESSAGE',
+                        title: 'অভিযোগ নম্বর #' + complaintId + ' সম্পর্কে বার্তা',
+                        message: notificationMessage,
+                        complaintId: complaintId,
+                        isRead: false
+                    }
+                });
+                console.log(`✅ Notification created for user ${complaint.userId} on complaint ${complaintId}: "${notificationMessage}"`);
+            }
+            catch (error) {
+                console.error('❌ Error creating notification:', error);
+                // Don't throw error - notification failure shouldn't block message sending
+            }
+        }
         return chatMessage;
     }
     async markMessagesAsRead(complaintId, userId, userType) {
@@ -415,6 +486,19 @@ class ChatService {
         return {
             updatedCount: result.count
         };
+    }
+    /**
+     * Check if admin has replied to this complaint
+     * Used for bot trigger logic
+     */
+    async hasAdminRepliedToComplaint(complaintId) {
+        const adminMessage = await prisma_1.default.complaintChatMessage.findFirst({
+            where: {
+                complaintId,
+                senderType: 'ADMIN'
+            }
+        });
+        return adminMessage !== null;
     }
 }
 exports.ChatService = ChatService;

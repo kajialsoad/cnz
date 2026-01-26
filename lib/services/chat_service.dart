@@ -25,10 +25,11 @@ class ChatService {
     int complaintId, {
     int page = 1,
     int limit = 50,
-    bool cacheFirst = true,
+    bool cacheFirst = false, // CHANGED: Default to false to prevent stale cache issues
   }) async {
     try {
-      // Try to load from cache first (for offline support)
+      // CRITICAL FIX: For polling, always fetch fresh data (don't use cache)
+      // Cache is only used for initial load or offline support
       if (cacheFirst) {
         final cachedMessages = await _cacheService.getCachedMessages(complaintId);
         if (cachedMessages.isNotEmpty) {
@@ -109,8 +110,8 @@ class ChatService {
     }
   }
 
-  /// Send a chat message
-  Future<ChatMessage> sendMessage(
+  /// Send a chat message - returns list of messages (user message + optional bot message)
+  Future<List<ChatMessage>> sendMessage(
     int complaintId,
     String message, {
     String? imageUrl,
@@ -138,7 +139,17 @@ class ChatService {
 
       if (response.statusCode == 201) {
         final data = json.decode(response.body);
-        return ChatMessage.fromJson(data['data']['message']);
+        final messages = <ChatMessage>[];
+        
+        // Add user message
+        messages.add(ChatMessage.fromJson(data['data']['message']));
+        
+        // Add bot message if present
+        if (data['data']['botMessage'] != null) {
+          messages.add(ChatMessage.fromJson(data['data']['botMessage']));
+        }
+        
+        return messages;
       } else if (response.statusCode == 401) {
         throw Exception('Unauthorized. Please login again.');
       } else if (response.statusCode == 404) {

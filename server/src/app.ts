@@ -17,6 +17,8 @@ import adminDirectMessageRoutes from './routes/admin.direct-message.routes';
 import adminActivityLogRoutes from './routes/admin.activity-log.routes';
 import liveChatRoutes from './routes/live-chat.routes';
 import adminLiveChatRoutes from './routes/admin.live-chat.routes';
+import botMessageRoutes from './routes/bot-message.routes';
+import publicBotMessageRoutes from './routes/public-bot-message.routes';
 import dashboardRoutes from './routes/dashboard.routes';
 import categoryRoutes from './routes/category.routes';
 import cityCorporationRoutes from './routes/city-corporation.routes';
@@ -191,6 +193,12 @@ console.log('✅ Admin live chat routes registered at /api/admin/live-chat');
 
 app.use('/api/admin/activity-logs', adminActivityLogRoutes); // Admin activity log routes
 console.log('✅ Admin activity log routes registered at /api/admin/activity-logs');
+
+app.use('/api/admin/bot-messages', botMessageRoutes); // Bot message management routes
+console.log('✅ Bot message routes registered at /api/admin/bot-messages');
+
+app.use('/api/bot-messages', publicBotMessageRoutes); // Public bot message routes
+console.log('✅ Public bot message routes registered at /api/bot-messages');
 
 import adminSystemConfigRoutes from './routes/admin.system-config.routes';
 import systemConfigRoutes from './routes/system-config.routes';

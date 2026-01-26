@@ -7,6 +7,7 @@ exports.getUserNotifications = getUserNotifications;
 exports.markNotificationAsRead = markNotificationAsRead;
 exports.markAllNotificationsAsRead = markAllNotificationsAsRead;
 exports.getUnreadCount = getUnreadCount;
+exports.getUnreadNotifications = getUnreadNotifications;
 const notification_service_1 = __importDefault(require("../services/notification.service"));
 /**
  * Notification Controller
@@ -171,6 +172,36 @@ async function getUnreadCount(req, res) {
         return res.status(500).json({
             success: false,
             message: error.message || 'Failed to get unread count'
+        });
+    }
+}
+/**
+ * Get unread notifications (for polling)
+ * GET /api/notifications/unread
+ * Returns list of unread notifications without pagination
+ */
+async function getUnreadNotifications(req, res) {
+    try {
+        // Verify user is authenticated
+        if (!req.user) {
+            return res.status(401).json({
+                success: false,
+                message: 'Unauthorized'
+            });
+        }
+        const userId = req.user.sub;
+        // Get unread notifications (limit to 50 most recent)
+        const notifications = await notification_service_1.default.getUnreadNotifications(userId, 50);
+        return res.status(200).json({
+            success: true,
+            data: notifications
+        });
+    }
+    catch (error) {
+        console.error('Error in getUnreadNotifications:', error);
+        return res.status(500).json({
+            success: false,
+            message: error.message || 'Failed to fetch unread notifications'
         });
     }
 }

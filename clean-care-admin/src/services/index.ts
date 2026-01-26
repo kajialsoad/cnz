@@ -8,6 +8,7 @@ export { translationService } from './translationService';
 export { categoryService } from './categoryService';
 export { notificationService } from './notificationService';
 export { reviewService } from './reviewService';
+export { botMessageService } from './botMessageService';
 
 // Export service types
 export type {
@@ -88,3 +89,18 @@ export type {
     ReviewAnalytics,
     ReviewAnalyticsFilters,
 } from './reviewService';
+
+// Export bot message service types
+export type {
+    ChatType,
+    BotMessageConfig,
+    BotTriggerRule,
+    BotConversationState,
+    BotMessageAnalytics,
+    BotMessagesResponse,
+    CreateBotMessageRequest,
+    UpdateBotMessageRequest,
+    UpdateTriggerRulesRequest,
+    BotAnalyticsQuery,
+    BotAnalyticsResponse,
+} from '../types/bot-message.types';

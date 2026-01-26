@@ -32,6 +32,9 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getChatConversations = getChatConversations;
 exports.getChatStatistics = getChatStatistics;
@@ -42,6 +45,8 @@ const chat_service_1 = require("../services/chat.service");
 const cloud_upload_service_1 = require("../services/cloud-upload.service");
 const cloudinary_config_1 = require("../config/cloudinary.config");
 const multi_zone_service_1 = require("../services/multi-zone.service");
+const complaint_notification_service_1 = require("../services/complaint-notification.service");
+const prisma_1 = __importDefault(require("../utils/prisma"));
 /**
  * Get all chat conversations - shows ALL complaints for messaging
  * Each complaint has its own chat entry (complaint-centric view)
@@ -232,10 +237,25 @@ async function sendChatMessage(req, res) {
             imageUrl: finalImageUrl,
             voiceUrl
         });
+        // Get complaint and admin info for notification
+        const complaint = await prisma_1.default.complaint.findUnique({
+            where: { id: complaintId },
+            select: { userId: true }
+        });
+        const admin = await prisma_1.default.user.findUnique({
+            where: { id: req.user.sub },
+            select: { firstName: true, lastName: true }
+        });
+        // Create notification for the user (NO Firebase needed!)
+        if (complaint?.userId) {
+            const adminName = `${admin?.firstName || ''} ${admin?.lastName || ''}`.trim() || 'Admin';
+            await (0, complaint_notification_service_1.createComplaintChatNotification)(complaint.userId, complaintId, adminName, message.trim());
+        }
         res.status(201).json({
             success: true,
             message: 'Message sent successfully',
-            data: { message: chatMessage }
+            data: { message: chatMessage },
+            notificationCreated: true
         });
     }
     catch (error) {

@@ -21,6 +21,7 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
   int _currentIndex = 0;
   bool _forMyself = true;
   late final AuthRepository _auth;
+  bool _isSubmitting = false; // Prevent duplicate submissions
 
   // Form controllers
   final TextEditingController _fullAddressController = TextEditingController();
@@ -558,22 +559,24 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
       width: double.infinity,
       height: 50,
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF4CAF50), Color(0xFF66BB6A)],
+        gradient: LinearGradient(
+          colors: _isSubmitting 
+            ? [Colors.grey, Colors.grey.shade400]
+            : [const Color(0xFF4CAF50), const Color(0xFF66BB6A)],
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
         ),
         borderRadius: BorderRadius.circular(25),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF4CAF50).withOpacity(0.3),
+            color: (_isSubmitting ? Colors.grey : const Color(0xFF4CAF50)).withOpacity(0.3),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
         ],
       ),
       child: ElevatedButton(
-        onPressed: _submitComplaint,
+        onPressed: _isSubmitting ? null : _submitComplaint,
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.transparent,
           foregroundColor: Colors.white,
@@ -581,22 +584,43 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(25),
           ),
+          disabledBackgroundColor: Colors.transparent,
+          disabledForegroundColor: Colors.white70,
         ),
-        child: const Text(
-          'Submit Complaint',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.normal,
-            color: Colors.white,
-          ),
-        ),
+        child: _isSubmitting
+          ? const SizedBox(
+              height: 20,
+              width: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            )
+          : const Text(
+              'Submit Complaint',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.normal,
+                color: Colors.white,
+              ),
+            ),
       ),
     );
   }
 
   void _submitComplaint() async {
+    // Prevent duplicate submissions
+    if (_isSubmitting) {
+      print('Submission already in progress, ignoring duplicate click');
+      return;
+    }
+
     // Validate form
     if (_validateForm()) {
+      setState(() {
+        _isSubmitting = true;
+      });
+
       final complaintProvider = Provider.of<ComplaintProvider>(
         context,
         listen: false,
@@ -622,14 +646,11 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
       final locationString = locationParts.join(', ');
       complaintProvider.setLocation(locationString);
 
-      // Show loading indicator
-      _showSubmittingDialog();
-
       try {
         // Submit complaint to backend
         await complaintProvider.createComplaint();
 
-        Navigator.pop(context); // Close loading dialog
+        if (!mounted) return;
 
         if (complaintProvider.error != null) {
           // Enhanced error message handling
@@ -668,8 +689,8 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
           _navigateToNextPage();
         }
       } catch (e) {
-        Navigator.pop(context); // Close loading dialog
-        
+        if (!mounted) return;
+
         // Enhanced error handling
         final errorString = e.toString();
         
@@ -700,6 +721,13 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
           );
         } else {
           _showErrorSnackBar('Failed to submit complaint: $errorString');
+        }
+      } finally {
+        // Always reset submission flag
+        if (mounted) {
+          setState(() {
+            _isSubmitting = false;
+          });
         }
       }
     }
@@ -759,29 +787,6 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
     );
   }
 
-  void _showSubmittingDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4CAF50)),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Submitting Complaint...',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-            ),
-          ],
-        ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
-  }
-
   // NEW: Show error dialog with option to return to category selection
   void _showErrorDialog(String title, String message, {bool showReturnButton = false}) {
     showDialog(
@@ -791,9 +796,11 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
           children: [
             Icon(Icons.error_outline, color: Colors.red, size: 28),
             const SizedBox(width: 12),
-            Text(
-              title,
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              ),
             ),
           ],
         ),
@@ -806,9 +813,9 @@ class _ComplaintAddressPageState extends State<ComplaintAddressPage> {
             TextButton(
               onPressed: () {
                 Navigator.pop(context); // Close dialog
-                // Navigate back to category selection
+                // Navigate back to category selection (Others page)
                 Navigator.popUntil(context, (route) => route.isFirst);
-                Navigator.pushReplacementNamed(context, '/complaint');
+                Navigator.pushReplacementNamed(context, '/others');
               },
               child: Text(
                 'Select Category Again',

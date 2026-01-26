@@ -29,7 +29,7 @@ class ApiClient {
   // Persistent HTTP client for connection reuse
   static final http.Client _httpClient = http.Client();
 
-  ApiClient(this.baseUrl, {this.timeout = const Duration(seconds: 30)});
+  ApiClient(this.baseUrl, {this.timeout = const Duration(seconds: 60)}); // Increased timeout to 60 seconds
 
   Future<String?> _getAccessToken() async {
     final sp = await SharedPreferences.getInstance();

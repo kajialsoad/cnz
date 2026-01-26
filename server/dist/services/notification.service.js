@@ -363,6 +363,47 @@ class NotificationService {
         }
     }
     /**
+     * Get unread notifications for a user (for polling)
+     * @param userId - ID of the user
+     * @param limit - Maximum number of notifications to return (default: 50)
+     * @returns List of unread notifications
+     */
+    async getUnreadNotifications(userId, limit = 50) {
+        try {
+            console.log(`[NotificationService] getUnreadNotifications for UserID: ${userId}, Limit: ${limit}`);
+            const notifications = await prisma_1.default.notification.findMany({
+                where: {
+                    userId,
+                    isRead: false
+                },
+                take: limit,
+                orderBy: {
+                    createdAt: 'desc'
+                },
+                include: {
+                    complaint: {
+                        select: {
+                            id: true,
+                            title: true,
+                            status: true
+                        }
+                    }
+                }
+            });
+            // Parse metadata for each notification
+            const formattedNotifications = notifications.map(notification => ({
+                ...notification,
+                metadata: notification.metadata ? this.parseMetadata(notification.metadata) : undefined
+            }));
+            console.log(`[NotificationService] Found ${formattedNotifications.length} unread notifications`);
+            return formattedNotifications;
+        }
+        catch (error) {
+            console.error('Error getting unread notifications:', error);
+            throw new Error('Failed to fetch unread notifications');
+        }
+    }
+    /**
      * Generate notification title and message based on status
      * @param status - New complaint status
      * @param metadata - Additional metadata

@@ -278,7 +278,8 @@ class ComplaintProvider extends ChangeNotifier {
 
       _currentComplaint = complaint;
       await loadMyComplaints(); // Refresh the list
-      clearForm(); // Clear form after successful creation
+      // NOTE: clearForm() will be called from success page, not here
+      // This prevents category data loss if navigation fails
     } catch (e) {
       _error = e.toString();
     } finally {
