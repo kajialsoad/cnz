@@ -368,6 +368,9 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
     if (mounted) {
       setState(() {
         messages.add(tempMessage);
+        // ✅ OPTIMISTIC FIX: Show typing indicator IMMEDIATELY (sathe sathe)
+        // This makes the typing indicator appear instantly without waiting for server
+        isAdminTyping = true;
       });
       _scrollToBottom();
     }
@@ -414,7 +417,7 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
         }
       }
 
-      // Send message to server (NO typing indicator until response)
+      // Send message to server (typing indicator already showing optimistically)
       final sentMessages = await _chatService.sendMessage(
         complaintIdInt,
         messageText.isEmpty
@@ -427,58 +430,92 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
       );
 
       if (mounted && _tempMessageId == tempId) {
-        setState(() {
-          // Find and UPDATE temporary message with real ID (NO DUPLICATE)
-          final tempIndex = messages.indexWhere((msg) => msg.id == tempId);
-          
-          if (tempIndex != -1 && sentMessages.isNotEmpty) {
-            // Replace temp message with real user message from server
+        // Find and UPDATE temporary message with real ID (NO DUPLICATE)
+        final tempIndex = messages.indexWhere((msg) => msg.id == tempId);
+        
+        if (tempIndex != -1 && sentMessages.isNotEmpty) {
+          // Replace temp message with real user message from server
+          setState(() {
             messages[tempIndex] = sentMessages[0];
             
-            // Show typing indicator ONLY if bot message is coming
-            if (sentMessages.length > 1) {
-              isAdminTyping = true;
-              
-              // Cache bot message
-              final botMessage = sentMessages[1];
-              
-              // ALWAYS wait 3 seconds before showing bot message
-              Future.delayed(const Duration(seconds: 3), () {
-                if (mounted) {
-                  setState(() {
-                    messages.add(botMessage);
-                    isAdminTyping = false;
-                  });
-                  _scrollToBottom();
-                }
-              });
-            }
+            // ✅ CRITICAL: Mark user message as displayed
+            _displayedMessageIds.add(sentMessages[0].id);
+            _messageRenderTimes[sentMessages[0].id] = DateTime.now().subtract(Duration(seconds: 10));
+            
+            _tempMessageId = null; // Clear temp ID
+          });
+          
+          // Check if bot message is coming
+          if (sentMessages.length > 1) {
+            // Cache bot message
+            final botMessage = sentMessages[1];
+            
+            // ✅ CRITICAL FIX: Mark bot message IMMEDIATELY to prevent duplicate from polling
+            _displayedMessageIds.add(botMessage.id);
+            _messageRenderTimes[botMessage.id] = DateTime.now().subtract(Duration(seconds: 10));
+            
+            // ✅ Typing indicator is already showing from optimistic update
+            // Just keep it showing and wait 3 seconds before showing bot message
+            
+            // Wait 3 seconds before showing bot message
+            Future.delayed(const Duration(seconds: 3), () {
+              if (mounted) {
+                setState(() {
+                  messages.add(botMessage);
+                  isAdminTyping = false;
+                });
+                _scrollToBottom();
+              }
+            });
           } else {
-            // Fallback: remove temp and add user message only
+            // ✅ CRITICAL FIX: No bot message coming, hide typing indicator immediately
+            setState(() {
+              isAdminTyping = false;
+            });
+          }
+        } else {
+          // Fallback: remove temp and add user message only
+          setState(() {
             messages.removeWhere((msg) => msg.id == tempId);
             if (sentMessages.isNotEmpty) {
               messages.add(sentMessages[0]); // Add user message
-              if (sentMessages.length > 1) {
-                // Cache bot message
-                final botMessage = sentMessages[1];
-                
-                // Show typing indicator and wait 3 seconds
-                isAdminTyping = true;
-                Future.delayed(const Duration(seconds: 3), () {
-                  if (mounted) {
-                    setState(() {
-                      messages.add(botMessage);
-                      isAdminTyping = false;
-                    });
-                    _scrollToBottom();
-                  }
-                });
-              }
+              
+              // ✅ CRITICAL: Mark user message as displayed
+              _displayedMessageIds.add(sentMessages[0].id);
+              _messageRenderTimes[sentMessages[0].id] = DateTime.now().subtract(Duration(seconds: 10));
             }
-          }
+            
+            _tempMessageId = null; // Clear temp ID
+          });
           
-          _tempMessageId = null; // Clear temp ID
-        });
+          if (sentMessages.isNotEmpty && sentMessages.length > 1) {
+            // Cache bot message
+            final botMessage = sentMessages[1];
+            
+            // ✅ CRITICAL FIX: Mark bot message IMMEDIATELY to prevent duplicate from polling
+            _displayedMessageIds.add(botMessage.id);
+            _messageRenderTimes[botMessage.id] = DateTime.now().subtract(Duration(seconds: 10));
+            
+            // ✅ Typing indicator is already showing from optimistic update
+            // Just keep it showing and wait 3 seconds before showing bot message
+            
+            // Wait 3 seconds before showing bot message
+            Future.delayed(const Duration(seconds: 3), () {
+              if (mounted) {
+                setState(() {
+                  messages.add(botMessage);
+                  isAdminTyping = false;
+                });
+                _scrollToBottom();
+              }
+            });
+          } else {
+            // ✅ CRITICAL FIX: No bot message coming, hide typing indicator immediately
+            setState(() {
+              isAdminTyping = false;
+            });
+          }
+        }
         _scrollToBottom();
       }
     } catch (e) {
@@ -1195,8 +1232,7 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
           ),
         ],
       ),
-    ).animate(onPlay: (controller) => controller.repeat())
-      .fadeIn(duration: 400.ms);
+    );
   }
 
   /// Build animated typing dot
@@ -1227,11 +1263,12 @@ class _ComplaintChatPageState extends State<ComplaintChatPage>
     // Check if this is a temporary message (negative ID means optimistic update)
     final isTemporaryMessage = message.id < 0;
     
-    // ✅ CRITICAL FIX: Check if this message was JUST rendered (within last 2 seconds)
+    // ✅ CRITICAL FIX: Check if this message was JUST rendered (within last 5 seconds)
+    // Increased from 2 to 5 seconds to handle slower networks on live server
     // This prevents blinking on re-renders from polling
     final renderTime = _messageRenderTimes[message.id];
     final isNewMessage = renderTime != null && 
-      DateTime.now().difference(renderTime).inSeconds < 2;
+      DateTime.now().difference(renderTime).inSeconds < 5;
 
     final messageWidget = Container(
           margin: const EdgeInsets.only(bottom: 16),

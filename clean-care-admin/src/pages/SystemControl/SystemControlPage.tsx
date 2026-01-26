@@ -224,14 +224,58 @@ const SystemControlPage: React.FC = () => {
         try {
             setSaving(true);
 
+            // Trim whitespace from content fields
+            const trimmedData = {
+                ...data,
+                content: data.content?.trim(),
+                contentBn: data.contentBn?.trim(),
+                stepNumber: Number(data.stepNumber),
+            };
+
+            // Validate trimmed content is not empty
+            if (!trimmedData.content || trimmedData.content.length === 0) {
+                toast.error('English content cannot be empty');
+                return;
+            }
+
+            if (!trimmedData.contentBn || trimmedData.contentBn.length === 0) {
+                toast.error('Bangla content cannot be empty');
+                return;
+            }
+
+            if (isNaN(trimmedData.stepNumber) || trimmedData.stepNumber < 1) {
+                toast.error('Step number must be a valid positive number');
+                return;
+            }
+
             if (editingMessage) {
-                // Update existing message
-                await botMessageService.updateBotMessage(editingMessage.id, data);
+                // Update existing message - only send changed fields
+                const updateData: any = {};
+
+                if (trimmedData.content !== editingMessage.content) {
+                    updateData.content = trimmedData.content;
+                }
+                if (trimmedData.contentBn !== editingMessage.contentBn) {
+                    updateData.contentBn = trimmedData.contentBn;
+                }
+                if (trimmedData.stepNumber !== editingMessage.stepNumber) {
+                    updateData.stepNumber = trimmedData.stepNumber;
+                }
+
+                // Only update if there are changes
+                if (Object.keys(updateData).length === 0) {
+                    toast.info('No changes to save');
+                    setModalOpen(false);
+                    setEditingMessage(null);
+                    return;
+                }
+
+                await botMessageService.updateBotMessage(editingMessage.id, updateData);
                 toast.success('Bot message updated successfully');
             } else {
                 // Create new message
                 await botMessageService.createBotMessage({
-                    ...data,
+                    ...trimmedData,
                     chatType,
                     displayOrder: messages.length,
                 });

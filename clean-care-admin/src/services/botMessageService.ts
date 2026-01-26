@@ -35,7 +35,7 @@ export class BotMessageServiceError extends Error {
 interface ErrorResponse {
     message: string;
     statusCode?: number;
-    errors?: Record<string, string[]>;
+    errors?: Array<{ field: string; message: string }>;
 }
 
 /**
@@ -106,7 +106,7 @@ class BotMessageService {
     private handleError(error: any): BotMessageServiceError {
         // Handle Axios errors
         if (axios.isAxiosError(error)) {
-            const axiosError = error as AxiosError<ErrorResponse>;
+            const axiosError = error as AxiosError<any>;
             const statusCode = axiosError.response?.status;
             const errorData = axiosError.response?.data;
 
@@ -124,6 +124,18 @@ class BotMessageService {
                 return new BotMessageServiceError(
                     'Request timeout. Please try again.',
                     408,
+                    error
+                );
+            }
+
+            // Handle validation errors with detailed field messages
+            if (statusCode === 400 && errorData?.errors && Array.isArray(errorData.errors)) {
+                const fieldErrors = errorData.errors
+                    .map((err: any) => `${err.field}: ${err.message}`)
+                    .join(', ');
+                return new BotMessageServiceError(
+                    `Validation error: ${fieldErrors}`,
+                    400,
                     error
                 );
             }

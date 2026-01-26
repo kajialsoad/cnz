@@ -57,12 +57,19 @@ export class BotMessageService {
 
             // 3. Determine if bot should send based on admin reply status
             if (!input.hasAdminReplied) {
-                // Case 1: Admin hasn't replied yet - send next bot step
+                // Case 1: Admin hasn't replied yet
+                // ✅ FIX: Only send bot message if bot is ACTIVE
+                // This prevents loop - bot won't send on every user message
+                if (!state.isActive) {
+                    console.log(`[BOT] shouldTriggerBot: Bot is inactive (admin hasn't replied yet but bot already sent), skipping`);
+                    return { shouldSend: false };
+                }
+
                 const nextStep = state.currentStep + 1;
                 const botMessage = await this.getBotMessageByStep(input.chatType, nextStep);
 
                 if (botMessage) {
-                    // Update state
+                    // Update state - keep bot ACTIVE but increment step
                     await this.updateConversationState(state.id, {
                         currentStep: nextStep,
                         lastBotMessageAt: new Date()
@@ -71,11 +78,18 @@ export class BotMessageService {
                     // Track analytics
                     await this.trackBotTrigger(input.chatType, botMessage.messageKey, nextStep);
 
+                    console.log(`[BOT] shouldTriggerBot: Sending bot step ${nextStep} (admin hasn't replied)`);
                     return {
                         shouldSend: true,
                         botMessage,
                         step: nextStep
                     };
+                } else {
+                    // No more bot messages available - deactivate bot
+                    console.log(`[BOT] shouldTriggerBot: No more bot messages for step ${nextStep}, deactivating bot`);
+                    await this.updateConversationState(state.id, {
+                        isActive: false
+                    });
                 }
             } else {
                 // Case 2 & 3: Admin has replied - check if bot should reactivate
@@ -172,15 +186,17 @@ export class BotMessageService {
             const state = await this.getConversationState(input.chatType, input.conversationId);
 
             if (state && !state.isActive) {
-                // Bot is inactive, increment counter
+                // Bot is inactive (admin has replied), increment counter
                 const newCount = state.userMessageCount + 1;
-                console.log(`[BOT] handleUserMessage: Incrementing counter from ${state.userMessageCount} to ${newCount} for conversation ${input.conversationId}`);
+                console.log(`[BOT] handleUserMessage: Bot inactive - incrementing counter from ${state.userMessageCount} to ${newCount} for conversation ${input.conversationId}`);
 
                 await this.updateConversationState(state.id, {
                     userMessageCount: newCount
                 });
-            } else if (state) {
-                console.log(`[BOT] handleUserMessage: Bot is active (${state.isActive}), not incrementing counter for conversation ${input.conversationId}`);
+            } else if (state && state.isActive) {
+                // ✅ FIX: Bot is active - don't increment counter
+                // This prevents the counter from increasing while bot is still sending messages
+                console.log(`[BOT] handleUserMessage: Bot is active, not incrementing counter for conversation ${input.conversationId}`);
             } else {
                 console.log(`[BOT] handleUserMessage: No state found for conversation ${input.conversationId}`);
             }

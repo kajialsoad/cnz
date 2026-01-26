@@ -185,9 +185,9 @@ const BotMessageModal: React.FC<BotMessageModalProps> = ({
                             control={control}
                             rules={{
                                 required: 'English content is required',
-                                minLength: {
-                                    value: 10,
-                                    message: 'Content must be at least 10 characters',
+                                validate: {
+                                    notEmpty: (value) => value.trim().length > 0 || 'Content cannot be empty or whitespace only',
+                                    minLength: (value) => value.trim().length >= 10 || 'Content must be at least 10 characters',
                                 },
                                 maxLength: {
                                     value: 500,
@@ -219,9 +219,9 @@ const BotMessageModal: React.FC<BotMessageModalProps> = ({
                             control={control}
                             rules={{
                                 required: 'Bangla content is required',
-                                minLength: {
-                                    value: 10,
-                                    message: 'Content must be at least 10 characters',
+                                validate: {
+                                    notEmpty: (value) => value.trim().length > 0 || 'Content cannot be empty or whitespace only',
+                                    minLength: (value) => value.trim().length >= 10 || 'Content must be at least 10 characters',
                                 },
                                 maxLength: {
                                     value: 500,
