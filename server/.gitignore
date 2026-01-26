@@ -2,9 +2,9 @@
 
 # Test files and documentation
 # tests/
-docs/
+# docs/ - Now tracked for documentation organization
 
-# Organized script folders
-scripts/migrations/
-scripts/checks/
-scripts/utilities/
+# Organized script folders - Now moved to docs/scripts/
+# scripts/migrations/
+# scripts/checks/
+# scripts/utilities/
