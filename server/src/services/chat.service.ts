@@ -24,10 +24,13 @@ export interface SendChatMessageInput {
 }
 
 export interface ChatStatistics {
-    totalConversations: number;
-    unreadConversations: number;
-    totalMessages: number;
-    unreadMessages: number;
+    totalChats: number;
+    unreadCount: number;
+    byDistrict: any[];
+    byUpazila: any[];
+    byWard: any[];
+    byZone: any[];
+    byStatus: any[];
 }
 
 export class ChatService {
@@ -399,16 +402,26 @@ export class ChatService {
 
         const whereClause = andConditions.length > 0 ? { AND: andConditions } : {};
 
-        const [totalConversations, totalMessages] = await Promise.all([
+        // Optimized query: Only count what is needed and support correct interface
+        const [totalChats, unreadCount] = await Promise.all([
             prisma.complaint.count({ where: whereClause }),
-            prisma.complaintChatMessage.count({ where: { complaint: whereClause } })
+            prisma.complaintChatMessage.count({
+                where: {
+                    complaint: whereClause,
+                    read: false,
+                    senderType: 'CITIZEN'
+                }
+            })
         ]);
 
         return {
-            totalConversations,
-            unreadConversations: 0,
-            totalMessages,
-            unreadMessages: 0
+            totalChats,
+            unreadCount,
+            byDistrict: [],
+            byUpazila: [],
+            byWard: [],
+            byZone: [],
+            byStatus: []
         };
     }
 
@@ -453,6 +466,25 @@ export class ChatService {
             throw new Error('Complaint not found');
         }
 
+        // ✅ CRITICAL: If admin is sending, deactivate bot BEFORE creating message
+        if (senderType === 'ADMIN') {
+            const conversationId = `complaint-${complaintId}`;
+
+            try {
+                console.log(`[BOT] 🛑 Admin sending message - IMMEDIATELY deactivating bot for complaint ${complaintId}`);
+
+                await botMessageService.handleAdminReply({
+                    chatType: ChatType.COMPLAINT_CHAT,
+                    conversationId
+                });
+
+                console.log(`[BOT] ✅ Bot deactivated BEFORE admin message sent`);
+            } catch (error) {
+                console.error('❌ Bot deactivation error:', error);
+                // Don't throw - bot failures shouldn't break messaging
+            }
+        }
+
         const chatMessage = await prisma.complaintChatMessage.create({
             data: {
                 complaintId,
@@ -465,7 +497,7 @@ export class ChatService {
             }
         });
 
-        // ✅ NEW: Handle bot trigger SYNCHRONOUSLY for immediate response
+        // ✅ Handle bot trigger SYNCHRONOUSLY for immediate response (only for citizen messages)
         let botMessage = null;
         if (senderType === 'CITIZEN') {
             const conversationId = `complaint-${complaintId}`;
@@ -505,16 +537,6 @@ export class ChatService {
                 console.error('Bot integration error:', error);
                 // Don't throw - bot failures shouldn't break messaging
             }
-        } else if (senderType === 'ADMIN') {
-            // Admin sent a message - deactivate bot asynchronously
-            const conversationId = `complaint-${complaintId}`;
-
-            botMessageService.handleAdminReply({
-                chatType: ChatType.COMPLAINT_CHAT,
-                conversationId
-            }).catch(error => {
-                console.error('Bot deactivation error:', error);
-            });
         }
 
         // ✅ Create notification for user when admin sends message (async)

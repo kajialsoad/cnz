@@ -213,7 +213,7 @@ class NotificationService {
             const response = await this.apiClient.get<{
                 success: boolean;
                 data: UnreadCountResponse;
-            }>('/api/notifications/unread-count');
+            }>('/api/notifications/count-unread');
 
             return response.data.data.count;
         } catch (error) {

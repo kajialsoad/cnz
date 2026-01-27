@@ -138,7 +138,7 @@ class NotificationService {
     }
 
     final response = await _apiClient.get(
-      '/api/notifications/unread-count',
+      '/api/notifications/count-unread',
     );
 
     if (response['success'] == true && response['data'] != null) {

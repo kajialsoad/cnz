@@ -25,10 +25,11 @@ router.get('/', authGuard, getUserNotifications);
 router.get('/unread', authGuard, getUnreadNotifications);
 
 /**
- * GET /api/notifications/unread-count
+ * GET /api/notifications/count-unread
  * Get unread notification count
+ * Renamed from unread-count to avoid ad blockers
  */
-router.get('/unread-count', authGuard, getUnreadCount);
+router.get('/count-unread', authGuard, getUnreadCount);
 
 /**
  * PATCH /api/notifications/:id/read

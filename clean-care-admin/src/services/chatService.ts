@@ -585,7 +585,7 @@ class ChatService {
             }
 
             const response = await this.apiClient.get<GetChatStatisticsResponse>(
-                '/api/admin/chat/statistics'
+                '/api/admin/chat/summary'
             );
 
             const data = response.data.data;

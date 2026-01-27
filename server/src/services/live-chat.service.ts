@@ -195,7 +195,7 @@ export class LiveChatService {
 
     // Check if bot should trigger
     try {
-      const conversationId = `user-${userId}-admin-${admin.id}`;
+      const conversationId = `live-chat-user-${userId}`;
 
       // Check if admin has replied to this user
       const hasAdminReplied = await this.hasAdminRepliedToUser(userId, admin.id);
@@ -215,9 +215,24 @@ export class LiveChatService {
 
       // If bot should send, insert bot message
       if (botTrigger.shouldSend && botTrigger.botMessage) {
-        await prisma.chatMessage.create({
+        console.log(`[BOT] Bot trigger detected! shouldSend=${botTrigger.shouldSend}, step=${botTrigger.step}`);
+
+        // Get user's language preference
+        const userWithLanguage = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { preferredLanguage: true }
+        });
+
+        // Use Bangla content if user's language is 'bn', otherwise use English
+        const messageContent = userWithLanguage?.preferredLanguage === 'bn'
+          ? (botTrigger.botMessage.contentBn || botTrigger.botMessage.content)
+          : botTrigger.botMessage.content;
+
+        console.log(`[BOT] Creating bot message: content="${messageContent.substring(0, 50)}...", language=${userWithLanguage?.preferredLanguage || 'en'}`);
+
+        const botMessage = await prisma.chatMessage.create({
           data: {
-            content: botTrigger.botMessage.content,
+            content: messageContent,
             type: ChatMessageType.TEXT,
             senderId: admin.id, // Bot messages appear to come from admin
             receiverId: userId,
@@ -225,6 +240,10 @@ export class LiveChatService {
             isRead: false
           }
         });
+
+        console.log(`[BOT] ✅ Bot message created successfully! ID=${botMessage.id}, step=${botTrigger.step}, conversationId=${conversationId}`);
+      } else {
+        console.log(`[BOT] Bot NOT triggered. shouldSend=${botTrigger.shouldSend}, hasMessage=${!!botTrigger.botMessage}`);
       }
     } catch (error) {
       console.error('Error handling bot trigger:', error);
@@ -250,6 +269,23 @@ export class LiveChatService {
 
     const hasAccess = this.checkAdminAccess(admin, user);
     if (!hasAccess) throw new Error('Admin does not have access to this user');
+
+    // ✅ CRITICAL: Deactivate bot BEFORE sending admin message
+    // This ensures bot is deactivated SYNCHRONOUSLY and IMMEDIATELY
+    try {
+      const conversationId = `live-chat-user-${userId}`;
+      console.log(`[BOT] 🛑 Admin sending message - IMMEDIATELY deactivating bot for conversation ${conversationId}`);
+
+      await botMessageService.handleAdminReply({
+        chatType: ChatType.LIVE_CHAT,
+        conversationId
+      });
+
+      console.log(`[BOT] ✅ Bot deactivated BEFORE admin message sent`);
+    } catch (error) {
+      console.error('❌ Error handling admin reply for bot:', error);
+      // Don't throw - bot failure shouldn't break admin messaging
+    }
 
     const message = await prisma.chatMessage.create({
       data: {
@@ -283,18 +319,6 @@ export class LiveChatService {
         }
       }
     });
-
-    // Handle admin reply for bot state
-    try {
-      const conversationId = `user-${userId}-admin-${adminId}`;
-      await botMessageService.handleAdminReply({
-        chatType: ChatType.LIVE_CHAT,
-        conversationId
-      });
-    } catch (error) {
-      console.error('Error handling admin reply for bot:', error);
-      // Don't throw - bot failure shouldn't break admin messaging
-    }
 
     return message;
   }

@@ -43,6 +43,7 @@ export interface SendMessageResponse {
     success: boolean;
     data: {
         message: ChatMessage;
+        botMessage?: ChatMessage | null;
     };
 }
 

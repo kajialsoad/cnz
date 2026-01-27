@@ -209,7 +209,7 @@ export async function sendChatMessage(req: AuthRequest, res: Response) {
             }
         }
 
-        const chatMessage = await chatService.sendChatMessage({
+        const { message: sentMessage, botMessage } = await chatService.sendChatMessage({
             complaintId,
             senderId: req.user.sub,
             senderType: 'ADMIN',
@@ -243,7 +243,10 @@ export async function sendChatMessage(req: AuthRequest, res: Response) {
         res.status(201).json({
             success: true,
             message: 'Message sent successfully',
-            data: { message: chatMessage },
+            data: { 
+                message: sentMessage,
+                botMessage // Return bot message so frontend can display it if needed
+            },
             notificationCreated: true
         });
     } catch (error) {

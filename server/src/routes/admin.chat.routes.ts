@@ -21,9 +21,9 @@ router.use(rbacGuard('ADMIN', 'SUPER_ADMIN', 'MASTER_ADMIN'));
 router.get('/', getChatConversations);
 console.log('🔧 Admin chat route registered: GET /');
 
-// Get chat statistics
-router.get('/statistics', getChatStatistics);
-console.log('🔧 Admin chat route registered: GET /statistics');
+// Get chat statistics (renamed to summary to avoid ad blockers)
+router.get('/summary', getChatStatistics);
+console.log('🔧 Admin chat route registered: GET /summary');
 
 // Get chat messages for a complaint
 router.get('/:complaintId', getChatMessages);

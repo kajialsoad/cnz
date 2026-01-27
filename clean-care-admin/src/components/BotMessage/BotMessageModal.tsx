@@ -159,7 +159,7 @@ const BotMessageModal: React.FC<BotMessageModalProps> = ({
                             rules={{
                                 required: 'Step number is required',
                                 min: { value: 1, message: 'Step number must be at least 1' },
-                                max: { value: 10, message: 'Step number cannot exceed 10' },
+                                max: { value: 100, message: 'Step number cannot exceed 100' },
                             }}
                             render={({ field }) => (
                                 <TextField
@@ -169,12 +169,12 @@ const BotMessageModal: React.FC<BotMessageModalProps> = ({
                                     error={!!errors.stepNumber}
                                     helperText={
                                         errors.stepNumber?.message ||
-                                        'Order in which this message appears (1-10)'
+                                        'Order in which this message appears (1-100) - Bot will loop through all steps dynamically'
                                     }
                                     disabled={saving}
                                     fullWidth
                                     required
-                                    inputProps={{ min: 1, max: 10 }}
+                                    inputProps={{ min: 1, max: 100 }}
                                 />
                             )}
                         />

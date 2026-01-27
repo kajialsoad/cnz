@@ -45,12 +45,19 @@ class _LiveChatPageState extends State<LiveChatPage>
   bool isLoading = true;
   bool isSending = false;
   bool isRecording = false;
-  
+  bool isAdminTyping = false; // NEW: Track admin typing state
+  int? _tempMessageId; // Track temporary message ID to prevent blinking
+
+  // NEW: Track displayed messages to prevent blinking
+  Set<int> _displayedMessageIds = {};
+  Map<int, DateTime> _messageRenderTimes =
+      {}; // Track when each message was first rendered
+
   // Upload progress tracking
   double _uploadProgress = 0.0;
   bool _isUploading = false;
   String _uploadingType = ''; // 'voice' or 'image'
-  
+
   // New State Variables for Attachments
   XFile? _attachedImageXFile;
   Uint8List? _attachedImageBytes; // For web compatibility
@@ -58,11 +65,11 @@ class _LiveChatPageState extends State<LiveChatPage>
   bool _showVoicePreview = false;
   Duration _recordDuration = Duration.zero;
   Timer? _recordTimer;
-  
+
   // Voice playback state
   String? _currentPlayingVoiceUrl;
   bool _isVoicePlaying = false;
-  
+
   bool hasError = false;
   String errorMessage = '';
   Timer? _pollingTimer;
@@ -116,7 +123,7 @@ class _LiveChatPageState extends State<LiveChatPage>
   Future<void> _loadAdminAndMessages() async {
     try {
       if (!mounted) return;
-      
+
       setState(() {
         isLoading = true;
         hasError = false;
@@ -124,16 +131,24 @@ class _LiveChatPageState extends State<LiveChatPage>
 
       // Get admin info
       final admin = await _liveChatService.getAdmin();
-      
+
       // Get messages
       final fetchedMessages = await _liveChatService.getMessages();
 
       if (!mounted) return;
-      
+
       setState(() {
         adminInfo = admin;
         messages = fetchedMessages;
         isLoading = false;
+        // Initialize displayed message IDs and render times
+        _displayedMessageIds = fetchedMessages.map((m) => m.id).toSet();
+        // Mark all initial messages as already rendered (no animation on first load)
+        for (var msg in fetchedMessages) {
+          _messageRenderTimes[msg.id] = DateTime.now().subtract(
+            Duration(seconds: 10),
+          );
+        }
       });
 
       // Mark messages as read
@@ -143,7 +158,7 @@ class _LiveChatPageState extends State<LiveChatPage>
       _scrollToBottom();
     } catch (e) {
       String userFriendlyError = 'Failed to load chat';
-      
+
       final errorString = e.toString();
       if (errorString.contains('No admin found')) {
         userFriendlyError = 'আপনার এলাকার জন্য কোনো অ্যাডমিন পাওয়া যায়নি।';
@@ -151,14 +166,17 @@ class _LiveChatPageState extends State<LiveChatPage>
       } else if (errorString.contains('Unauthorized')) {
         userFriendlyError = 'অনুমতি নেই। দয়া করে আবার লগইন করুন।';
         _pollingTimer?.cancel();
-      } else if (errorString.contains('Network') || errorString.contains('connection')) {
-        userFriendlyError = 'ইন্টারনেট সংযোগ নেই। দয়া করে আপনার সংযোগ পরীক্ষা করুন।';
+      } else if (errorString.contains('Network') ||
+          errorString.contains('connection')) {
+        userFriendlyError =
+            'ইন্টারনেট সংযোগ নেই। দয়া করে আপনার সংযোগ পরীক্ষা করুন।';
       } else if (errorString.contains('timeout')) {
-        userFriendlyError = 'সার্ভার সাড়া দিচ্ছে না। দয়া করে পরে আবার চেষ্টা করুন।';
+        userFriendlyError =
+            'সার্ভার সাড়া দিচ্ছে না। দয়া করে পরে আবার চেষ্টা করুন।';
       }
-      
+
       if (!mounted) return;
-      
+
       setState(() {
         isLoading = false;
         hasError = true;
@@ -176,26 +194,46 @@ class _LiveChatPageState extends State<LiveChatPage>
 
   /// Load messages without showing loading indicator
   Future<void> _loadMessagesQuietly() async {
+    // DON'T poll if we're currently sending a message (prevents reload)
+    if (_tempMessageId != null) {
+      return;
+    }
+
     try {
       final fetchedMessages = await _liveChatService.getMessages();
 
       if (!mounted) return;
 
-      // Only update if there are new messages
-      if (fetchedMessages.length != messages.length) {
+      // Check for NEW messages only (prevent blinking)
+      final newMessageIds = fetchedMessages.map((m) => m.id).toSet();
+      final hasNewMessages = newMessageIds.any(
+        (id) => !_displayedMessageIds.contains(id),
+      );
+
+      // Only update if there are ACTUALLY NEW messages
+      if (hasNewMessages) {
         setState(() {
           messages = fetchedMessages;
+          // Track displayed message IDs
+          _displayedMessageIds = newMessageIds;
+          // Mark NEW messages for animation
+          for (var msg in fetchedMessages) {
+            if (!_messageRenderTimes.containsKey(msg.id)) {
+              _messageRenderTimes[msg.id] = DateTime.now();
+            }
+          }
         });
         await _liveChatService.markAsRead();
         _scrollToBottom();
       }
     } catch (e) {
       final errorString = e.toString();
-      if (errorString.contains('No admin found') || errorString.contains('Unauthorized')) {
+      if (errorString.contains('No admin found') ||
+          errorString.contains('Unauthorized')) {
         _pollingTimer?.cancel();
-        
+
         if (!mounted) return;
-        
+
         setState(() {
           hasError = true;
           errorMessage = 'চ্যাট অ্যাক্সেস করতে সমস্যা হয়েছে।';
@@ -207,13 +245,17 @@ class _LiveChatPageState extends State<LiveChatPage>
   /// Send message to server with optimized performance
   Future<void> _sendMessage() async {
     final text = _messageController.text.trim();
-    if ((text.isEmpty && _attachedImageXFile == null && _recordedFilePath == null) || isSending) return;
+    if ((text.isEmpty &&
+            _attachedImageXFile == null &&
+            _recordedFilePath == null) ||
+        isSending)
+      return;
 
     // Store references before clearing
     final messageText = text;
     final imageFile = _attachedImageXFile;
     final voiceFile = _recordedFilePath;
-    
+
     // Clear input IMMEDIATELY for instant feedback
     setState(() {
       _messageController.clear();
@@ -221,12 +263,15 @@ class _LiveChatPageState extends State<LiveChatPage>
       _attachedImageBytes = null;
       _showVoicePreview = false;
       _recordedFilePath = null;
+      // Set isSending = true to prevent double submission
+      // Note: We removed the loading spinner from UI for better UX
       isSending = true;
       _uploadProgress = 0.0;
     });
 
-    // Create temporary message ID
-    final tempId = DateTime.now().millisecondsSinceEpoch;
+    // Create temporary message ID (negative to distinguish from real messages)
+    final tempId = -DateTime.now().millisecondsSinceEpoch;
+    _tempMessageId = tempId; // Track it to prevent blinking
 
     // Show message INSTANTLY in UI (optimistic update)
     final tempMessage = model.ChatMessage(
@@ -237,8 +282,8 @@ class _LiveChatPageState extends State<LiveChatPage>
       senderName: 'আপনি',
       message: messageText.isEmpty
           ? (imageFile != null
-              ? '📷 ছবি পাঠানো হচ্ছে...'
-              : (voiceFile != null ? '🎙️ ভয়েস পাঠানো হচ্ছে...' : ' '))
+                ? '📷 ছবি পাঠানো হচ্ছে...'
+                : (voiceFile != null ? '🎙️ ভয়েস পাঠানো হচ্ছে...' : ' '))
           : messageText,
       imageUrl: null,
       voiceUrl: null,
@@ -249,6 +294,8 @@ class _LiveChatPageState extends State<LiveChatPage>
     if (mounted) {
       setState(() {
         messages.add(tempMessage);
+        // ✅ OPTIMISTIC FIX: Show typing indicator IMMEDIATELY
+        isAdminTyping = true;
       });
       _scrollToBottom();
     }
@@ -265,13 +312,26 @@ class _LiveChatPageState extends State<LiveChatPage>
           _uploadingType = 'image';
           _uploadProgress = 0.0;
         });
-        
+
         imageUrl = await _liveChatService.uploadImage(imageFile);
-        
+
         setState(() {
           _uploadProgress = 1.0;
           _isUploading = false;
         });
+
+        // Update optimistic message with image URL
+        if (mounted && _tempMessageId == tempId) {
+          setState(() {
+            final index = messages.indexWhere((msg) => msg.id == tempId);
+            if (index != -1) {
+              messages[index] = messages[index].copyWith(
+                imageUrl: imageUrl,
+                message: ' ',
+              );
+            }
+          });
+        }
       }
 
       // Upload voice if recorded
@@ -281,14 +341,27 @@ class _LiveChatPageState extends State<LiveChatPage>
           _uploadingType = 'voice';
           _uploadProgress = 0.0;
         });
-        
+
         final xfile = XFile(voiceFile);
         voiceUrl = await _liveChatService.uploadVoice(xfile);
-        
+
         setState(() {
           _uploadProgress = 1.0;
           _isUploading = false;
         });
+
+        // Update optimistic message with voice URL
+        if (mounted && _tempMessageId == tempId) {
+          setState(() {
+            final index = messages.indexWhere((msg) => msg.id == tempId);
+            if (index != -1) {
+              messages[index] = messages[index].copyWith(
+                voiceUrl: voiceUrl,
+                message: 'Voice Message',
+              );
+            }
+          });
+        }
       }
 
       // Send message to server
@@ -302,28 +375,80 @@ class _LiveChatPageState extends State<LiveChatPage>
         voiceUrl: voiceUrl,
       );
 
-      if (mounted) {
+      if (mounted && _tempMessageId == tempId) {
         setState(() {
-          // Remove temporary message
-          messages.removeWhere((msg) => msg.id == tempId);
-          // Add real message from server
-          messages.add(sentMessage);
+          // Find and UPDATE temporary message with real ID
+          final tempIndex = messages.indexWhere((msg) => msg.id == tempId);
+          if (tempIndex != -1) {
+            messages[tempIndex] = sentMessage;
+
+            // ✅ CRITICAL: Mark user message as displayed
+            _displayedMessageIds.add(sentMessage.id);
+            _messageRenderTimes[sentMessage.id] = DateTime.now().subtract(
+              Duration(seconds: 10),
+            );
+          } else {
+            // Fallback
+            messages.add(sentMessage);
+            _displayedMessageIds.add(sentMessage.id);
+            _messageRenderTimes[sentMessage.id] = DateTime.now().subtract(
+              Duration(seconds: 10),
+            );
+          }
+
+          _tempMessageId = null;
           isSending = false;
           _isUploading = false;
           _uploadProgress = 0.0;
+
+          // ✅ Bot Logic: Keep typing indicator if bot might reply
+          // Wait 3 seconds before hiding typing indicator or showing bot message
+          Future.delayed(const Duration(seconds: 3), () async {
+            if (!mounted) return;
+
+            // Check for new messages (bot reply)
+            try {
+              final newMessages = await _liveChatService.getMessages();
+              if (newMessages.length > messages.length) {
+                final lastMsg = newMessages.last;
+                if (lastMsg.senderType != 'CITIZEN' &&
+                    !_displayedMessageIds.contains(lastMsg.id)) {
+                  setState(() {
+                    messages = newMessages;
+                    _displayedMessageIds.add(lastMsg.id);
+                    _messageRenderTimes[lastMsg.id] = DateTime.now();
+                    isAdminTyping = false;
+                  });
+                  _scrollToBottom();
+                  return;
+                }
+              }
+            } catch (e) {
+              // Ignore error
+            }
+
+            // Hide typing indicator if no bot reply
+            if (mounted) {
+              setState(() {
+                isAdminTyping = false;
+              });
+            }
+          });
         });
         _scrollToBottom();
       }
     } catch (e) {
       print('❌ Error sending message: $e');
-      
-      if (mounted) {
+
+      if (mounted && _tempMessageId == tempId) {
         // Remove temporary message on error
         setState(() {
           messages.removeWhere((msg) => msg.id == tempId);
           isSending = false;
           _isUploading = false;
           _uploadProgress = 0.0;
+          isAdminTyping = false;
+          _tempMessageId = null;
         });
 
         // Show error with retry option
@@ -341,25 +466,32 @@ class _LiveChatPageState extends State<LiveChatPage>
   /// Get user-friendly error message based on error type
   String _getErrorMessage(dynamic error) {
     final errorString = error.toString();
-    
+
     if (errorString.contains('500')) {
       return 'সার্ভার সমস্যা। দয়া করে পরে আবার চেষ্টা করুন।';
-    } else if (errorString.contains('Network') || errorString.contains('connection')) {
+    } else if (errorString.contains('Network') ||
+        errorString.contains('connection')) {
       return 'ইন্টারনেট সংযোগ নেই।';
     } else if (errorString.contains('timeout')) {
       return 'সময় শেষ। দয়া করে আবার চেষ্টা করুন।';
-    } else if (errorString.contains('File size') || errorString.contains('10MB')) {
+    } else if (errorString.contains('File size') ||
+        errorString.contains('10MB')) {
       return 'ফাইল খুব বড়। সর্বোচ্চ 10MB।';
     } else if (errorString.contains('Invalid file type')) {
       return 'অসমর্থিত ফাইল ফরম্যাট।';
-    } else if (errorString.contains('401') || errorString.contains('Unauthorized')) {
+    } else if (errorString.contains('401') ||
+        errorString.contains('Unauthorized')) {
       return 'অনুমতি নেই। দয়া করে আবার লগইন করুন।';
-    } else if (errorString.contains('403') || errorString.contains('Forbidden')) {
+    } else if (errorString.contains('403') ||
+        errorString.contains('Forbidden')) {
       return 'এই কাজ করার অনুমতি নেই।';
-    } else if (errorString.contains('404') || errorString.contains('Not found')) {
+    } else if (errorString.contains('404') ||
+        errorString.contains('Not found')) {
       return 'সার্ভার খুঁজে পাওয়া যায়নি।';
     } else {
-      return errorString.length > 100 ? errorString.substring(0, 100) + '...' : errorString;
+      return errorString.length > 100
+          ? errorString.substring(0, 100) + '...'
+          : errorString;
     }
   }
 
@@ -367,29 +499,34 @@ class _LiveChatPageState extends State<LiveChatPage>
     try {
       final xfile = await _picker.pickImage(
         source: ImageSource.gallery,
-        imageQuality: 70,      // Reduced from 85 to 70 for faster upload
-        maxWidth: 1920,        // Limit max width for faster upload
-        maxHeight: 1920,       // Limit max height for faster upload
+        imageQuality: 70, // Reduced from 85 to 70 for faster upload
+        maxWidth: 1920, // Limit max width for faster upload
+        maxHeight: 1920, // Limit max height for faster upload
       );
       if (xfile == null) return;
-      
+
       // For web, we need to read bytes; for mobile, we can use File
       Uint8List? imageBytes;
       if (kIsWeb) {
         imageBytes = await xfile.readAsBytes();
       }
-      
+
       setState(() {
         _attachedImageXFile = xfile;
         _attachedImageBytes = imageBytes;
         // Reset voice if image is picked
         _recordedFilePath = null;
-        _showVoicePreview = false; 
+        _showVoicePreview = false;
       });
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: TranslatedText('ছবি নির্বাচন করতে ব্যর্থ: ${e.toString()}'), backgroundColor: Colors.red),
+          SnackBar(
+            content: TranslatedText(
+              'ছবি নির্বাচন করতে ব্যর্থ: ${e.toString()}',
+            ),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -442,11 +579,7 @@ class _LiveChatPageState extends State<LiveChatPage>
                     color: Colors.black54,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
-                    Icons.close,
-                    size: 16,
-                    color: Colors.white,
-                  ),
+                  child: const Icon(Icons.close, size: 16, color: Colors.white),
                 ),
               ),
             ),
@@ -479,16 +612,22 @@ class _LiveChatPageState extends State<LiveChatPage>
         if (!hasPermission) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: TranslatedText('মাইক্রোফোন অনুমতি প্রয়োজন'), backgroundColor: Colors.red),
+              const SnackBar(
+                content: TranslatedText('মাইক্রোফোন অনুমতি প্রয়োজন'),
+                backgroundColor: Colors.red,
+              ),
             );
           }
           return;
         }
 
         final dir = await getTemporaryDirectory();
-        final filePath = p.join(dir.path, 'live_chat_voice_${DateTime.now().millisecondsSinceEpoch}.m4a');
+        final filePath = p.join(
+          dir.path,
+          'live_chat_voice_${DateTime.now().millisecondsSinceEpoch}.m4a',
+        );
         await _recorder!.start(const RecordConfig(), path: filePath);
-        
+
         setState(() {
           isRecording = true;
           _recordDuration = Duration.zero;
@@ -504,14 +643,14 @@ class _LiveChatPageState extends State<LiveChatPage>
         // Stop Recording
         final path = await _recorder!.stop();
         _recordTimer?.cancel();
-        
+
         setState(() {
           isRecording = false;
           _recordTimer = null;
         });
 
         if (path == null) return;
-        
+
         setState(() {
           _recordedFilePath = path;
           _showVoicePreview = true;
@@ -526,24 +665,27 @@ class _LiveChatPageState extends State<LiveChatPage>
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: TranslatedText('ভয়েস পাঠাতে ব্যর্থ: ${e.toString()}'), backgroundColor: Colors.red),
+          SnackBar(
+            content: TranslatedText('ভয়েস পাঠাতে ব্যর্থ: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
   }
 
   void _cancelRecording() async {
-     if (isRecording) {
-       await _recorder?.stop();
-     }
-     _recordTimer?.cancel();
-     setState(() {
-       isRecording = false;
-       _recordTimer = null;
-       _showVoicePreview = false;
-       _recordedFilePath = null;
-       _recordDuration = Duration.zero;
-     });
+    if (isRecording) {
+      await _recorder?.stop();
+    }
+    _recordTimer?.cancel();
+    setState(() {
+      isRecording = false;
+      _recordTimer = null;
+      _showVoicePreview = false;
+      _recordedFilePath = null;
+      _recordDuration = Duration.zero;
+    });
   }
 
   Widget _buildVoiceRecorderUI() {
@@ -558,46 +700,61 @@ class _LiveChatPageState extends State<LiveChatPage>
           ),
           child: Row(
             children: [
-               const Icon(Icons.fiber_manual_record, color: Colors.red, size: 16),
-               const SizedBox(width: 8),
-               Text(
-                 '${_recordDuration.inMinutes.toString().padLeft(2, '0')}:${(_recordDuration.inSeconds % 60).toString().padLeft(2, '0')}',
-                 style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 14),
-               ),
-               const SizedBox(width: 8),
-               // Animated recording indicator
-               Expanded(
-                 child: Container(
-                   height: 30,
-                   child: Row(
-                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                     crossAxisAlignment: CrossAxisAlignment.center,
-                     children: List.generate(
-                       20,
-                       (index) => AnimatedContainer(
-                         duration: Duration(milliseconds: 300 + (index * 50)),
-                         width: 2,
-                         height: (10 + (_recordDuration.inSeconds % 3) * 5 + (index % 3) * 3).toDouble(),
-                         decoration: BoxDecoration(
-                           color: Colors.red.withOpacity(0.6),
-                           borderRadius: BorderRadius.circular(1),
-                         ),
-                       ),
-                     ),
-                   ),
-                 ),
-               ),
-               const Spacer(),
-               TextButton(
-                 onPressed: _cancelRecording,
-                 child: const TranslatedText('বাতিল', style: TextStyle(color: Colors.red)),
-               )
+              const Icon(
+                Icons.fiber_manual_record,
+                color: Colors.red,
+                size: 16,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '${_recordDuration.inMinutes.toString().padLeft(2, '0')}:${(_recordDuration.inSeconds % 60).toString().padLeft(2, '0')}',
+                style: const TextStyle(
+                  color: Colors.red,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Animated recording indicator
+              Expanded(
+                child: Container(
+                  height: 30,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: List.generate(
+                      20,
+                      (index) => AnimatedContainer(
+                        duration: Duration(milliseconds: 300 + (index * 50)),
+                        width: 2,
+                        height:
+                            (10 +
+                                    (_recordDuration.inSeconds % 3) * 5 +
+                                    (index % 3) * 3)
+                                .toDouble(),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withOpacity(0.6),
+                          borderRadius: BorderRadius.circular(1),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const Spacer(),
+              TextButton(
+                onPressed: _cancelRecording,
+                child: const TranslatedText(
+                  'বাতিল',
+                  style: TextStyle(color: Colors.red),
+                ),
+              ),
             ],
           ),
         ),
       );
     } else if (_showVoicePreview) {
-       return Expanded(
+      return Expanded(
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           height: 50,
@@ -608,58 +765,66 @@ class _LiveChatPageState extends State<LiveChatPage>
           ),
           child: Row(
             children: [
-               GestureDetector(
-                 onTap: () async {
-                   if (_recordedFilePath != null) {
-                      await _audioPlayer.play(DeviceFileSource(_recordedFilePath!));
-                   }
-                 },
-                 child: Container(
-                   padding: const EdgeInsets.all(6),
-                   decoration: const BoxDecoration(
-                     color: Color(0xFF2E8B57),
-                     shape: BoxShape.circle,
-                   ),
-                   child: const Icon(Icons.play_arrow, color: Colors.white, size: 18),
-                 ),
-               ),
-               const SizedBox(width: 8),
-               // Audio waveform visualization
-               Expanded(
-                 child: Container(
-                   height: 30,
-                   child: Row(
-                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                     crossAxisAlignment: CrossAxisAlignment.center,
-                     children: List.generate(
-                       20,
-                       (index) => Container(
-                         width: 2,
-                         height: (index % 3 == 0 ? 18.0 : (index % 2 == 0 ? 12.0 : 8.0)),
-                         decoration: BoxDecoration(
-                           color: const Color(0xFF2E8B57).withOpacity(0.6),
-                           borderRadius: BorderRadius.circular(1),
-                         ),
-                       ),
-                     ),
-                   ),
-                 ),
-               ),
-               const SizedBox(width: 8),
-               Text(
-                 '${_recordDuration.inMinutes}:${(_recordDuration.inSeconds % 60).toString().padLeft(2, '0')}',
-                 style: const TextStyle(
-                   color: Color(0xFF2E8B57),
-                   fontSize: 12,
-                   fontWeight: FontWeight.w600,
-                 ),
-               ),
-               IconButton(
-                 icon: const Icon(Icons.close, color: Colors.red, size: 20),
-                 onPressed: _cancelRecording,
-                 padding: EdgeInsets.zero,
-                 constraints: const BoxConstraints(),
-               ),
+              GestureDetector(
+                onTap: () async {
+                  if (_recordedFilePath != null) {
+                    await _audioPlayer.play(
+                      DeviceFileSource(_recordedFilePath!),
+                    );
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF2E8B57),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.play_arrow,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Audio waveform visualization
+              Expanded(
+                child: Container(
+                  height: 30,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: List.generate(
+                      20,
+                      (index) => Container(
+                        width: 2,
+                        height: (index % 3 == 0
+                            ? 18.0
+                            : (index % 2 == 0 ? 12.0 : 8.0)),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2E8B57).withOpacity(0.6),
+                          borderRadius: BorderRadius.circular(1),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '${_recordDuration.inMinutes}:${(_recordDuration.inSeconds % 60).toString().padLeft(2, '0')}',
+                style: const TextStyle(
+                  color: Color(0xFF2E8B57),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close, color: Colors.red, size: 20),
+                onPressed: _cancelRecording,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
             ],
           ),
         ),
@@ -690,11 +855,7 @@ class _LiveChatPageState extends State<LiveChatPage>
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFE9F6EE),
-              Color(0xFFF7FCF9),
-              Color(0xFFF3FAF5),
-            ],
+            colors: [Color(0xFFE9F6EE), Color(0xFFF7FCF9), Color(0xFFF3FAF5)],
           ),
         ),
         child: SafeArea(
@@ -702,9 +863,7 @@ class _LiveChatPageState extends State<LiveChatPage>
           child: Column(
             children: [
               if (adminInfo != null) AdminInfoCard(adminInfo: adminInfo!),
-              Expanded(
-                child: _buildChatArea(),
-              ),
+              Expanded(child: _buildChatArea()),
               _buildMessageInput(),
             ],
           ),
@@ -758,11 +917,7 @@ class _LiveChatPageState extends State<LiveChatPage>
           const CircleAvatar(
             radius: 16,
             backgroundColor: Color(0xFF3CB371),
-            child: Icon(
-              Icons.chat_bubble,
-              color: Colors.white,
-              size: 18,
-            ),
+            child: Icon(Icons.chat_bubble, color: Colors.white, size: 18),
           ),
           const SizedBox(width: 12),
           const Expanded(
@@ -781,10 +936,7 @@ class _LiveChatPageState extends State<LiveChatPage>
                 SizedBox(height: 2),
                 Text(
                   'Clean Care Support',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: Colors.white70, fontSize: 12),
                 ),
               ],
             ),
@@ -817,18 +969,11 @@ class _LiveChatPageState extends State<LiveChatPage>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
-                Icons.error_outline,
-                size: 64,
-                color: Colors.red,
-              ),
+              const Icon(Icons.error_outline, size: 64, color: Colors.red),
               const SizedBox(height: 16),
               const TranslatedText(
                 'চ্যাট লোড করতে ব্যর্থ',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               Text(
@@ -874,11 +1019,7 @@ class _LiveChatPageState extends State<LiveChatPage>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: const [
-              Icon(
-                Icons.chat_bubble_outline,
-                size: 64,
-                color: Colors.grey,
-              ),
+              Icon(Icons.chat_bubble_outline, size: 64, color: Colors.grey),
               SizedBox(height: 16),
               TranslatedText(
                 'এখনো কোনো মেসেজ নেই',
@@ -904,25 +1045,128 @@ class _LiveChatPageState extends State<LiveChatPage>
       padding: const EdgeInsets.all(16),
       child: ListView.builder(
         controller: _scrollController,
-        itemCount: messages.length,
+        itemCount:
+            messages.length + (isAdminTyping ? 1 : 0), // Add typing indicator
         itemBuilder: (context, index) {
+          // Show typing indicator at the end
+          if (index == messages.length && isAdminTyping) {
+            return _buildTypingIndicator();
+          }
           return _buildMessageBubble(messages[index], index);
         },
       ),
     );
   }
 
+  /// Build typing indicator for admin
+  Widget _buildTypingIndicator() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF2E8B57), Color(0xFF3CB371)],
+              ),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(
+              Icons.support_agent,
+              color: Colors.white,
+              size: 16,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(16),
+                topRight: Radius.circular(16),
+                bottomLeft: Radius.circular(4),
+                bottomRight: Radius.circular(16),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  offset: const Offset(0, 2),
+                  blurRadius: 8,
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildTypingDot(0),
+                const SizedBox(width: 4),
+                _buildTypingDot(1),
+                const SizedBox(width: 4),
+                _buildTypingDot(2),
+                const SizedBox(width: 8),
+                const Text(
+                  'টাইপ করছে...',
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 12,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Build animated typing dot
+  Widget _buildTypingDot(int index) {
+    return Container(
+          width: 8,
+          height: 8,
+          decoration: const BoxDecoration(
+            color: Color(0xFF2E8B57),
+            shape: BoxShape.circle,
+          ),
+        )
+        .animate(onPlay: (controller) => controller.repeat())
+        .scaleXY(
+          begin: 0.8,
+          end: 1.2,
+          duration: 600.ms,
+          delay: (index * 200).ms,
+          curve: Curves.easeInOut,
+        );
+  }
+
   Widget _buildMessageBubble(model.ChatMessage message, int index) {
     // IMPORTANT: Bot messages should look like admin messages to users
     // So we treat BOT messages as ADMIN messages in the UI
     // This way users won't know it's an automated message
-    final isUser = message.isUser; // Only CITIZEN messages are shown as user messages
+    final isUser =
+        message.isUser; // Only CITIZEN messages are shown as user messages
 
-    return Container(
+    // Check if this is a temporary message (negative ID means optimistic update)
+    final isTemporaryMessage = message.id < 0;
+
+    // ✅ CRITICAL FIX: Check if this message was JUST rendered (within last 5 seconds)
+    final renderTime = _messageRenderTimes[message.id];
+    final isNewMessage =
+        renderTime != null &&
+        DateTime.now().difference(renderTime).inSeconds < 5;
+
+    final messageWidget = Container(
       margin: const EdgeInsets.only(bottom: 16),
       child: Row(
-        mainAxisAlignment:
-            isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment: isUser
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!isUser) ...[
@@ -1002,7 +1246,9 @@ class _LiveChatPageState extends State<LiveChatPage>
                           context,
                           MaterialPageRoute(
                             builder: (context) => _FullScreenChatImage(
-                              imageUrl: UrlHelper.getImageUrl(message.imageUrl!),
+                              imageUrl: UrlHelper.getImageUrl(
+                                message.imageUrl!,
+                              ),
                             ),
                           ),
                         );
@@ -1016,12 +1262,16 @@ class _LiveChatPageState extends State<LiveChatPage>
                           maxHeightDiskCache: 600,
                           placeholder: (context, url) => Container(
                             height: 200,
-                            color: isUser ? Colors.white.withOpacity(0.2) : Colors.grey[200],
+                            color: isUser
+                                ? Colors.white.withOpacity(0.2)
+                                : Colors.grey[200],
                             child: Center(
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
                                 valueColor: AlwaysStoppedAnimation<Color>(
-                                  isUser ? Colors.white : const Color(0xFF2E8B57),
+                                  isUser
+                                      ? Colors.white
+                                      : const Color(0xFF2E8B57),
                                 ),
                               ),
                             ),
@@ -1029,20 +1279,26 @@ class _LiveChatPageState extends State<LiveChatPage>
                           errorWidget: (context, url, error) => Container(
                             height: 200,
                             padding: const EdgeInsets.all(16),
-                            color: isUser ? Colors.white.withOpacity(0.2) : Colors.grey[200],
+                            color: isUser
+                                ? Colors.white.withOpacity(0.2)
+                                : Colors.grey[200],
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Icon(
                                   Icons.broken_image,
-                                  color: isUser ? Colors.white70 : Colors.grey[600],
+                                  color: isUser
+                                      ? Colors.white70
+                                      : Colors.grey[600],
                                   size: 40,
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
                                   'ছবি লোড করতে ব্যর্থ',
                                   style: TextStyle(
-                                    color: isUser ? Colors.white70 : Colors.grey[600],
+                                    color: isUser
+                                        ? Colors.white70
+                                        : Colors.grey[600],
                                     fontSize: 12,
                                   ),
                                 ),
@@ -1062,7 +1318,7 @@ class _LiveChatPageState extends State<LiveChatPage>
                       onPlayStateChanged: (url, isPlaying) {
                         if (isPlaying) {
                           // If this player started playing, stop others if needed
-                          // Note: The widget handles its own audio player instance, 
+                          // Note: The widget handles its own audio player instance,
                           // but for optimal resource usage we could manage a single instance here
                           // For now, independent instances work fine
                         }
@@ -1091,20 +1347,23 @@ class _LiveChatPageState extends State<LiveChatPage>
                 color: const Color(0xFFF6D66B),
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: const Icon(
-                Icons.person,
-                color: Colors.white,
-                size: 16,
-              ),
+              child: const Icon(Icons.person, color: Colors.white, size: 16),
             ),
           ],
         ],
       ),
-    ).animate(delay: (index * 100).ms).fadeIn(duration: 400.ms).slideY(
-          begin: 0.3,
-          duration: 300.ms,
-          curve: Curves.easeOut,
-        );
+    );
+
+    // ✅ CRITICAL FIX: Only animate TRULY NEW messages (just received within 5 seconds)
+    // This prevents blinking when polling re-fetches the same messages
+    if (isTemporaryMessage || !isNewMessage) {
+      return messageWidget; // No animation for temporary or old messages
+    }
+
+    return messageWidget
+        .animate(delay: (index * 100).ms)
+        .fadeIn(duration: 400.ms)
+        .slideY(begin: 0.3, duration: 300.ms, curve: Curves.easeOut);
   }
 
   Widget _buildMessageInput() {
@@ -1145,7 +1404,9 @@ class _LiveChatPageState extends State<LiveChatPage>
                     child: CircularProgressIndicator(
                       value: _uploadProgress > 0 ? _uploadProgress : null,
                       strokeWidth: 2,
-                      valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF2E8B57)),
+                      valueColor: const AlwaysStoppedAnimation<Color>(
+                        Color(0xFF2E8B57),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -1154,7 +1415,9 @@ class _LiveChatPageState extends State<LiveChatPage>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          _uploadingType == 'voice' ? 'ভয়েস আপলোড হচ্ছে...' : 'ছবি আপলোড হচ্ছে...',
+                          _uploadingType == 'voice'
+                              ? 'ভয়েস আপলোড হচ্ছে...'
+                              : 'ছবি আপলোড হচ্ছে...',
                           style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
@@ -1184,7 +1447,7 @@ class _LiveChatPageState extends State<LiveChatPage>
           _buildAttachmentPreview(),
           Row(
             children: [
-              if (!isRecording && !_showVoicePreview) ...[ 
+              if (!isRecording && !_showVoicePreview) ...[
                 IconButton(
                   onPressed: isSending ? null : _pickImage,
                   icon: const Icon(Icons.image, color: Color(0xFF2E8B57)),
@@ -1216,34 +1479,29 @@ class _LiveChatPageState extends State<LiveChatPage>
                   ),
                 ),
               ] else ...[
-                 _buildVoiceRecorderUI(),
-                 if (isRecording)
-                   IconButton(
-                     onPressed: _toggleRecord,
-                     icon: const Icon(Icons.stop_circle, color: Colors.red, size: 32),
-                   ),
+                _buildVoiceRecorderUI(),
+                if (isRecording)
+                  IconButton(
+                    onPressed: _toggleRecord,
+                    icon: const Icon(
+                      Icons.stop_circle,
+                      color: Colors.red,
+                      size: 32,
+                    ),
+                  ),
               ],
               const SizedBox(width: 8),
-              if (!isRecording) 
-              Container(
-                decoration: const BoxDecoration(
-                  color: Color(0xFF2E8B57),
-                  shape: BoxShape.circle,
+              if (!isRecording)
+                Container(
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF2E8B57),
+                    shape: BoxShape.circle,
+                  ),
+                  child: IconButton(
+                    onPressed: isSending ? null : _sendMessage,
+                    icon: const Icon(Icons.send, color: Colors.white),
+                  ),
                 ),
-                child: IconButton(
-                  onPressed: isSending ? null : _sendMessage,
-                  icon: isSending
-                      ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : const Icon(Icons.send, color: Colors.white),
-                ),
-              ),
             ],
           ),
         ],
@@ -1304,11 +1562,7 @@ class _FullScreenChatImage extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.broken_image,
-                    color: Colors.white,
-                    size: 64,
-                  ),
+                  Icon(Icons.broken_image, color: Colors.white, size: 64),
                   SizedBox(height: 16),
                   Text(
                     'ছবি লোড করতে ব্যর্থ',

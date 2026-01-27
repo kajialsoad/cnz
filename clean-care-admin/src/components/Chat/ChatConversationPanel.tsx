@@ -392,7 +392,9 @@ const ChatConversationPanel: React.FC<ChatConversationPanelProps> = ({
                             zone: complaintDetails.zone?.name || (typeof complaintDetails.user.zone === 'string' ? complaintDetails.user.zone : complaintDetails.user.zone?.name) || 'N/A',
                             district: complaintDetails.locationDetails?.district || complaintDetails.user.cityCorporation?.name || 'N/A',
                             upazila: complaintDetails.locationDetails?.thana || complaintDetails.user.thana?.name || 'N/A',
-                            ward: complaintDetails.locationDetails?.ward || complaintDetails.wards?.wardNumber?.toString() || (typeof complaintDetails.user.ward === 'object' ? complaintDetails.user.ward?.wardNumber?.toString() : complaintDetails.user.ward) || 'N/A',
+                            ward: complaintDetails.locationDetails?.ward || 
+                                  complaintDetails.wards?.wardNumber?.toString() || 
+                                  (complaintDetails.user.ward && typeof complaintDetails.user.ward === 'object' && 'wardNumber' in complaintDetails.user.ward ? complaintDetails.user.ward.wardNumber?.toString() : String(complaintDetails.user.ward || 'N/A')),
                             address: complaintDetails.locationDetails?.address || complaintDetails.location || '',
                             profilePicture: complaintDetails.user.avatar || undefined,
                             wardInspector: complaintDetails.wards?.inspectorName ? {

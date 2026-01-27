@@ -422,73 +422,168 @@ const LiveChatConversationPanel: React.FC<LiveChatConversationPanelProps> = ({
                     <EmptyState type="no-messages" />
                 ) : (
                     <>
-                        {messages.map((message) => (
-                            <Box
-                                key={message.id}
-                                sx={{
-                                    display: 'flex',
-                                    justifyContent: message.senderType === 'ADMIN' ? 'flex-end' : 'flex-start',
-                                    mb: 1.5,
-                                }}
-                            >
-                                <Box
-                                    sx={{
-                                        maxWidth: '70%',
-                                        p: 1.5,
-                                        borderRadius: 2,
-                                        bgcolor: message.senderType === 'ADMIN' ? 'primary.main' : 'white',
-                                        color: message.senderType === 'ADMIN' ? 'white' : 'text.primary',
-                                        boxShadow: 1,
-                                    }}
-                                >
-                                    {/* Image Display */}
-                                    {message.type === 'IMAGE' && message.fileUrl && (
-                                        <Box
-                                            component="img"
-                                            src={message.fileUrl}
-                                            alt="Message attachment"
-                                            sx={{
-                                                maxWidth: '100%',
-                                                borderRadius: 1,
-                                                mb: message.content ? 1 : 0,
-                                                cursor: 'pointer',
-                                            }}
-                                            onClick={() => window.open(message.fileUrl, '_blank')}
-                                        />
-                                    )}
+                        {messages.map((message) => {
+                            // Check if this is a bot message
+                            const isBot = message.senderType === 'BOT';
 
-                                    {/* Voice Message Display */}
-                                    {message.type === 'VOICE' && message.voiceUrl && (
-                                        <Box
-                                            sx={{
-                                                mt: message.content ? 1 : 0,
-                                                mb: message.content ? 1 : 0,
-                                            }}
-                                        >
-                                            <VoiceMessagePlayer
-                                                voiceUrl={message.voiceUrl}
-                                                isAdmin={message.senderType === 'ADMIN'}
-                                            />
-                                        </Box>
-                                    )}
-
-                                    {/* Text Content */}
-                                    {message.content && (
-                                        <Typography variant="body2">{message.content}</Typography>
-                                    )}
-                                    <Typography
-                                        variant="caption"
+                            // Bot messages are centered with special styling
+                            if (isBot) {
+                                return (
+                                    <Box
+                                        key={message.id}
                                         sx={{
-                                            display: 'block',
-                                            mt: 0.5,
-                                            opacity: 0.7,
+                                            display: 'flex',
+                                            justifyContent: 'center',
+                                            mb: 1.5,
                                         }}
                                     >
-                                        {new Date(message.createdAt).toLocaleTimeString()}
-                                    </Typography>
+                                        <Box
+                                            sx={{
+                                                maxWidth: '75%',
+                                                p: 1.5,
+                                                borderRadius: 2,
+                                                bgcolor: '#f5f5f5',
+                                                border: '1px solid #e0e0e0',
+                                                color: '#424242',
+                                                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+                                                display: 'flex',
+                                                alignItems: 'flex-start',
+                                                gap: 1,
+                                            }}
+                                        >
+                                            {/* Bot Icon */}
+                                            <Box
+                                                sx={{
+                                                    bgcolor: '#757575',
+                                                    borderRadius: '50%',
+                                                    width: 24,
+                                                    height: 24,
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    flexShrink: 0,
+                                                    mt: 0.2,
+                                                }}
+                                            >
+                                                <Typography sx={{ color: 'white', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                                                    🤖
+                                                </Typography>
+                                            </Box>
+
+                                            <Box sx={{ flex: 1 }}>
+                                                {/* Bot Label */}
+                                                <Typography
+                                                    variant="caption"
+                                                    sx={{
+                                                        color: '#757575',
+                                                        fontWeight: 600,
+                                                        display: 'block',
+                                                        mb: 0.5,
+                                                        fontSize: '0.75rem',
+                                                    }}
+                                                >
+                                                    [BOT] Clean Care Support System
+                                                </Typography>
+
+                                                {/* Bot Message Content */}
+                                                <Typography
+                                                    variant="body2"
+                                                    sx={{
+                                                        whiteSpace: 'pre-wrap',
+                                                        wordBreak: 'break-word',
+                                                        lineHeight: 1.5,
+                                                    }}
+                                                >
+                                                    {message.content}
+                                                </Typography>
+
+                                                {/* Timestamp */}
+                                                <Typography
+                                                    variant="caption"
+                                                    sx={{
+                                                        display: 'block',
+                                                        mt: 0.5,
+                                                        color: '#9e9e9e',
+                                                        fontSize: '0.7rem',
+                                                    }}
+                                                >
+                                                    {new Date(message.createdAt).toLocaleTimeString()}
+                                                </Typography>
+                                            </Box>
+                                        </Box>
+                                    </Box>
+                                );
+                            }
+
+                            // Regular user/admin messages
+                            return (
+                                <Box
+                                    key={message.id}
+                                    sx={{
+                                        display: 'flex',
+                                        justifyContent: message.senderType === 'ADMIN' ? 'flex-end' : 'flex-start',
+                                        mb: 1.5,
+                                    }}
+                                >
+                                    <Box
+                                        sx={{
+                                            maxWidth: '70%',
+                                            p: 1.5,
+                                            borderRadius: 2,
+                                            bgcolor: message.senderType === 'ADMIN' ? 'primary.main' : 'white',
+                                            color: message.senderType === 'ADMIN' ? 'white' : 'text.primary',
+                                            boxShadow: 1,
+                                        }}
+                                    >
+                                        {/* Image Display */}
+                                        {message.type === 'IMAGE' && message.fileUrl && (
+                                            <Box
+                                                component="img"
+                                                src={message.fileUrl}
+                                                alt="Message attachment"
+                                                sx={{
+                                                    maxWidth: '100%',
+                                                    borderRadius: 1,
+                                                    mb: message.content ? 1 : 0,
+                                                    cursor: 'pointer',
+                                                }}
+                                                onClick={() => window.open(message.fileUrl, '_blank')}
+                                            />
+                                        )}
+
+                                        {/* Voice Message Display */}
+                                        {message.type === 'VOICE' && message.voiceUrl && (
+                                            <Box
+                                                sx={{
+                                                    mt: message.content ? 1 : 0,
+                                                    mb: message.content ? 1 : 0,
+                                                }}
+                                            >
+                                                <VoiceMessagePlayer
+                                                    voiceUrl={message.voiceUrl}
+                                                    isAdmin={message.senderType === 'ADMIN'}
+                                                />
+                                            </Box>
+                                        )}
+
+                                        {/* Text Content */}
+                                        {message.content && (
+                                            <Typography variant="body2">{message.content}</Typography>
+                                        )}
+                                        <Typography
+                                            variant="caption"
+                                            sx={{
+                                                display: 'block',
+                                                mt: 0.5,
+                                                opacity: 0.7,
+                                            }}
+                                        >
+                                            {new Date(message.createdAt).toLocaleTimeString()}
+                                        </Typography>
+                                    </Box>
                                 </Box>
-                            </Box>
-                        ))}
+                            );
+                        })}
                         <div ref={messagesEndRef} />
                     </>
                 )}

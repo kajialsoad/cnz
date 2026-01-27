@@ -33,6 +33,11 @@ export class BotMessageService {
      * Check if bot should send a message
      * Called after every user message
      * 
+     * CRITICAL LOGIC:
+     * - Bot is ACTIVE (isActive=true): Send next step, loop back to step 1 if no more steps
+     * - Bot is INACTIVE (isActive=false): Count user messages, reactivate when threshold reached
+     * - Admin reply IMMEDIATELY deactivates bot (isActive=false) and resets counter
+     * 
      * @param input - Chat type, conversation ID, and admin reply status
      * @returns Whether bot should send, the message, and step number
      */
@@ -42,6 +47,7 @@ export class BotMessageService {
             const rules = await this.getTriggerRules(input.chatType);
 
             if (!rules || !rules.isEnabled) {
+                console.log(`[BOT] shouldTriggerBot: Bot disabled for ${input.chatType}`);
                 return { shouldSend: false };
             }
 
@@ -49,65 +55,83 @@ export class BotMessageService {
             let state = await this.getConversationState(input.chatType, input.conversationId);
 
             if (!state) {
+                console.log(`[BOT] shouldTriggerBot: Creating new conversation state for ${input.conversationId}`);
                 state = await this.createConversationState({
                     chatType: input.chatType,
                     conversationId: input.conversationId
                 });
             }
 
-            // 3. Determine if bot should send based on admin reply status
-            if (!input.hasAdminReplied) {
-                // Case 1: Admin hasn't replied yet
-                // ✅ FIX: Only send bot message if bot is ACTIVE
-                // This prevents loop - bot won't send on every user message
-                if (!state.isActive) {
-                    console.log(`[BOT] shouldTriggerBot: Bot is inactive (admin hasn't replied yet but bot already sent), skipping`);
-                    return { shouldSend: false };
-                }
+            console.log(`[BOT] shouldTriggerBot: Current state - isActive=${state.isActive}, currentStep=${state.currentStep}, userMessageCount=${state.userMessageCount}`);
+
+            // 3. Determine if bot should send based on state.isActive
+            if (state.isActive) {
+                // ✅ CASE 1: Bot is ACTIVE - Admin hasn't replied yet or bot was reactivated
+                // Bot will continuously loop through steps until admin replies
 
                 const nextStep = state.currentStep + 1;
-                const botMessage = await this.getBotMessageByStep(input.chatType, nextStep);
+                let botMessage = await this.getBotMessageByStep(input.chatType, nextStep);
 
-                if (botMessage) {
-                    // Update state - keep bot ACTIVE but increment step
-                    await this.updateConversationState(state.id, {
-                        currentStep: nextStep,
-                        lastBotMessageAt: new Date()
-                    });
+                // ✅ LOOPING LOGIC: If no message for next step, LOOP back to step 1
+                if (!botMessage) {
+                    console.log(`[BOT] shouldTriggerBot: No message for step ${nextStep}, LOOPING back to step 1`);
+                    botMessage = await this.getBotMessageByStep(input.chatType, 1);
 
-                    // Track analytics
-                    await this.trackBotTrigger(input.chatType, botMessage.messageKey, nextStep);
+                    if (botMessage) {
+                        // Reset to step 1 and keep bot ACTIVE for continuous looping
+                        await this.updateConversationState(state.id, {
+                            currentStep: 1,
+                            isActive: true,  // ✅ Keep bot active to continue loop
+                            lastBotMessageAt: new Date()
+                        });
 
-                    console.log(`[BOT] shouldTriggerBot: Sending bot step ${nextStep} (admin hasn't replied)`);
-                    return {
-                        shouldSend: true,
-                        botMessage,
-                        step: nextStep
-                    };
-                } else {
-                    // No more bot messages available - deactivate bot
-                    console.log(`[BOT] shouldTriggerBot: No more bot messages for step ${nextStep}, deactivating bot`);
-                    await this.updateConversationState(state.id, {
-                        isActive: false
-                    });
+                        // Track analytics
+                        await this.trackBotTrigger(input.chatType, botMessage.messageKey, 1);
+
+                        console.log(`[BOT] ✅ Bot LOOPED! Sending step 1 again (admin hasn't replied)`);
+                        return {
+                            shouldSend: true,
+                            botMessage,
+                            step: 1
+                        };
+                    } else {
+                        // No step 1 message found - deactivate bot
+                        console.log(`[BOT] ⚠️  No step 1 message found, deactivating bot`);
+                        await this.updateConversationState(state.id, {
+                            isActive: false
+                        });
+                        return { shouldSend: false };
+                    }
                 }
+
+                // Normal case: Send next step and keep bot active
+                await this.updateConversationState(state.id, {
+                    currentStep: nextStep,
+                    isActive: true,  // ✅ Keep bot active for continuous operation
+                    lastBotMessageAt: new Date()
+                });
+
+                // Track analytics
+                await this.trackBotTrigger(input.chatType, botMessage.messageKey, nextStep);
+
+                console.log(`[BOT] ✅ Sending bot step ${nextStep} (bot is active, admin hasn't replied)`);
+                return {
+                    shouldSend: true,
+                    botMessage,
+                    step: nextStep
+                };
             } else {
-                // Case 2 & 3: Admin has replied - check if bot should reactivate
-                // Re-fetch state to ensure we have the latest userMessageCount
-                const freshState = await this.getConversationState(input.chatType, input.conversationId);
+                // ✅ CASE 2 & 3: Bot is INACTIVE - Admin has replied
+                // Check if bot should reactivate based on threshold
 
-                if (!freshState) {
-                    console.log(`[BOT] shouldTriggerBot: No fresh state found for conversation ${input.conversationId}`);
-                    return { shouldSend: false };
-                }
-
-                const userMessagesSinceReply = freshState.userMessageCount;
-                console.log(`[BOT] shouldTriggerBot: Admin has replied. userMessageCount=${userMessagesSinceReply}, threshold=${rules.reactivationThreshold}, isActive=${freshState.isActive}`);
+                const userMessagesSinceReply = state.userMessageCount;
+                console.log(`[BOT] shouldTriggerBot: Bot is INACTIVE. userMessageCount=${userMessagesSinceReply}, threshold=${rules.reactivationThreshold}`);
 
                 if (userMessagesSinceReply >= rules.reactivationThreshold) {
-                    console.log(`[BOT] shouldTriggerBot: Threshold reached! Reactivating bot...`);
-                    // Reactivate bot
-                    let nextStep = rules.resetStepsOnReactivate ? 1 : freshState.currentStep + 1;
+                    console.log(`[BOT] 🔄 Threshold reached! Reactivating bot...`);
+
+                    // Determine next step based on reset setting
+                    let nextStep = rules.resetStepsOnReactivate ? 1 : state.currentStep + 1;
                     let botMessage = await this.getBotMessageByStep(input.chatType, nextStep);
 
                     // If no message found for next step, reset to step 1
@@ -118,40 +142,40 @@ export class BotMessageService {
                     }
 
                     if (botMessage) {
-                        await this.updateConversationState(freshState.id, {
+                        await this.updateConversationState(state.id, {
                             currentStep: nextStep,
-                            isActive: true,
-                            userMessageCount: 0, // Reset counter
+                            isActive: true,  // ✅ Reactivate bot
+                            userMessageCount: 0, // ✅ Reset counter
                             lastBotMessageAt: new Date()
                         });
 
                         // Track analytics
                         await this.trackBotTrigger(input.chatType, botMessage.messageKey, nextStep);
 
-                        console.log(`[BOT] shouldTriggerBot: Bot reactivated! Sending step ${nextStep}`);
+                        console.log(`[BOT] ✅ Bot REACTIVATED! Sending step ${nextStep}`);
                         return {
                             shouldSend: true,
                             botMessage,
                             step: nextStep
                         };
                     } else {
-                        console.log(`[BOT] shouldTriggerBot: No bot message found for step ${nextStep}`);
+                        console.log(`[BOT] ⚠️  No bot message found for step ${nextStep}`);
                     }
                 } else {
-                    console.log(`[BOT] shouldTriggerBot: Threshold not reached yet (${userMessagesSinceReply}/${rules.reactivationThreshold})`);
+                    console.log(`[BOT] ⏳ Threshold not reached yet (${userMessagesSinceReply}/${rules.reactivationThreshold})`);
                 }
             }
 
             return { shouldSend: false };
         } catch (error) {
-            console.error('Error in shouldTriggerBot:', error);
+            console.error('❌ Error in shouldTriggerBot:', error);
             throw new Error(`Failed to check bot trigger: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }
 
     /**
      * Handle admin reply
-     * Deactivates bot for this conversation
+     * Deactivates bot for this conversation IMMEDIATELY and SYNCHRONOUSLY
      * 
      * @param input - Chat type and conversation ID
      */
@@ -160,24 +184,50 @@ export class BotMessageService {
             const state = await this.getConversationState(input.chatType, input.conversationId);
 
             if (state) {
+                console.log(`[BOT] 🛑 handleAdminReply: IMMEDIATELY deactivating bot for conversation ${input.conversationId}`);
+                console.log(`[BOT] Previous state: isActive=${state.isActive}, currentStep=${state.currentStep}, userMessageCount=${state.userMessageCount}`);
+
+                // ✅ CRITICAL: Deactivate bot IMMEDIATELY and SYNCHRONOUSLY
                 await this.updateConversationState(state.id, {
-                    isActive: false,
+                    isActive: false,  // ✅ Bot stops sending messages
                     lastAdminReplyAt: new Date(),
-                    userMessageCount: 0
+                    userMessageCount: 0  // ✅ Reset counter to 0
                 });
+
+                console.log(`[BOT] ✅ Bot deactivated IMMEDIATELY! isActive=false, userMessageCount=0`);
+                console.log(`[BOT] Bot will NOT send any more messages until threshold (${await this.getTriggerRules(input.chatType).then(r => r?.reactivationThreshold || 5)}) is reached`);
 
                 // Track admin reply in analytics
                 await this.trackAdminReply(input.chatType, state.currentStep);
+            } else {
+                console.log(`[BOT] ⚠️  handleAdminReply: No state found for conversation ${input.conversationId}, creating new state with bot INACTIVE`);
+
+                // Create new state with bot INACTIVE
+                await this.createConversationState({
+                    chatType: input.chatType,
+                    conversationId: input.conversationId
+                });
+
+                // Immediately deactivate it
+                const newState = await this.getConversationState(input.chatType, input.conversationId);
+                if (newState) {
+                    await this.updateConversationState(newState.id, {
+                        isActive: false,
+                        lastAdminReplyAt: new Date(),
+                        userMessageCount: 0
+                    });
+                }
             }
         } catch (error) {
-            console.error('Error in handleAdminReply:', error);
+            console.error('❌ Error in handleAdminReply:', error);
             throw new Error(`Failed to handle admin reply: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }
 
     /**
      * Handle user message
-     * Increments counter if bot is inactive (admin has replied)
+     * Increments counter ONLY if bot is inactive (admin has replied)
+     * Does NOT increment if bot is active (to prevent interference with looping)
      * 
      * @param input - Chat type and conversation ID
      */
@@ -185,23 +235,26 @@ export class BotMessageService {
         try {
             const state = await this.getConversationState(input.chatType, input.conversationId);
 
-            if (state && !state.isActive) {
-                // Bot is inactive (admin has replied), increment counter
+            if (!state) {
+                console.log(`[BOT] handleUserMessage: No state found for conversation ${input.conversationId}`);
+                return;
+            }
+
+            if (!state.isActive) {
+                // ✅ Bot is INACTIVE (admin has replied) - increment counter
                 const newCount = state.userMessageCount + 1;
-                console.log(`[BOT] handleUserMessage: Bot inactive - incrementing counter from ${state.userMessageCount} to ${newCount} for conversation ${input.conversationId}`);
+                console.log(`[BOT] handleUserMessage: Bot INACTIVE - incrementing counter from ${state.userMessageCount} to ${newCount} for conversation ${input.conversationId}`);
 
                 await this.updateConversationState(state.id, {
                     userMessageCount: newCount
                 });
-            } else if (state && state.isActive) {
-                // ✅ FIX: Bot is active - don't increment counter
-                // This prevents the counter from increasing while bot is still sending messages
-                console.log(`[BOT] handleUserMessage: Bot is active, not incrementing counter for conversation ${input.conversationId}`);
             } else {
-                console.log(`[BOT] handleUserMessage: No state found for conversation ${input.conversationId}`);
+                // ✅ Bot is ACTIVE - don't increment counter
+                // This prevents the counter from increasing while bot is still sending messages
+                console.log(`[BOT] handleUserMessage: Bot is ACTIVE, not incrementing counter for conversation ${input.conversationId}`);
             }
         } catch (error) {
-            console.error('Error in handleUserMessage:', error);
+            console.error('❌ Error in handleUserMessage:', error);
             throw new Error(`Failed to handle user message: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }
