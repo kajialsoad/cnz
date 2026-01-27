@@ -280,6 +280,9 @@ const UserListPanel: React.FC<UserListPanelProps> = ({
                     flex: 1,
                     overflowY: 'auto',
                     overflowX: 'hidden',
+                    opacity: loading ? 0.6 : 1,
+                    pointerEvents: loading ? 'none' : 'auto',
+                    transition: 'opacity 0.2s',
                 }}
             >
                 {loading && conversations.length === 0 ? (

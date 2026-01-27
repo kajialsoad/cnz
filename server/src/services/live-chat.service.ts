@@ -421,7 +421,18 @@ export class LiveChatService {
 
     console.log('🔍 Live Chat - Final userWhere query:', JSON.stringify(userWhere, null, 2));
 
-    if (filters.cityCorporationCode) userWhere.cityCorporationCode = filters.cityCorporationCode; if (filters.zoneId) userWhere.zoneId = filters.zoneId; if (filters.wardId) userWhere.wardId = filters.wardId; if (filters.search) { userWhere.OR = [{ firstName: { contains: filters.search } }, { lastName: { contains: filters.search } }, { phone: { contains: filters.search } }]; }
+    if (filters.cityCorporationCode) userWhere.cityCorporationCode = filters.cityCorporationCode;
+    if (filters.zoneId) userWhere.zoneId = filters.zoneId;
+    if (filters.wardId) userWhere.wardId = filters.wardId;
+    
+    if (filters.search) {
+      console.log('🔍 Applying search filter:', filters.search);
+      userWhere.OR = [
+        { firstName: { contains: filters.search } },
+        { lastName: { contains: filters.search } },
+        { phone: { contains: filters.search } }
+      ];
+    }
 
     const users = await prisma.user.findMany({ where: { ...userWhere }, select: { id: true, firstName: true, lastName: true, phone: true, avatar: true, wardId: true, zoneId: true, cityCorporationCode: true, ward: { select: { id: true, wardNumber: true } }, zone: { select: { id: true, name: true } } }, skip, take: limit });
 

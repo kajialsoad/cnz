@@ -39,7 +39,7 @@ export class AdminLiveChatController {
             const page = parseInt(req.query.page as string) || 1;
             const limit = parseInt(req.query.limit as string) || 20;
             const unreadOnly = req.query.unreadOnly === 'true';
-            const search = req.query.search as string;
+            const search = (req.query.search as string)?.trim();
 
             // Get filters
             const filters: any = {
