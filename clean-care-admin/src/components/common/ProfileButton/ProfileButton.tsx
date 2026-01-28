@@ -106,8 +106,8 @@ const ProfileButton: React.FC<ProfileButtonProps> = ({
         // Only trigger if touch was quick (not a scroll)
         if (touchDuration < 300) {
             handleClick();
+            e.preventDefault();
         }
-        e.preventDefault();
     }, [touchStartTime, handleClick]);
 
     /**

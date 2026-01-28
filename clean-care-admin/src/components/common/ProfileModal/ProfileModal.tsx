@@ -63,6 +63,18 @@ interface ProfileModalProps {
     onClose: () => void;
 }
 
+/**
+ * Transition component for mobile slide-up animation
+ */
+const Transition = React.forwardRef(function Transition(
+    props: TransitionProps & {
+        children: React.ReactElement;
+    },
+    ref: React.Ref<unknown>,
+) {
+    return <Slide direction="up" ref={ref} {...props} />;
+});
+
 const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
     const theme = useTheme();
     const navigate = useNavigate();
@@ -200,18 +212,6 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
         touchStartY.current = 0;
         touchEndY.current = 0;
     }, [isMobile, isEditMode, handleClose]);
-
-    /**
-     * Prevent body scroll when modal is open on mobile
-     */
-    useEffect(() => {
-        if (isOpen && isMobile) {
-            document.body.style.overflow = 'hidden';
-            return () => {
-                document.body.style.overflow = '';
-            };
-        }
-    }, [isOpen, isMobile]);
 
     /**
      * Render loading skeleton
@@ -568,18 +568,6 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
             </Box>
         </Paper>
     );
-
-    /**
-     * Transition component for mobile slide-up animation
-     */
-    const Transition = React.forwardRef(function Transition(
-        props: TransitionProps & {
-            children: React.ReactElement;
-        },
-        ref: React.Ref<unknown>,
-    ) {
-        return <Slide direction="up" ref={ref} {...props} />;
-    });
 
     /**
      * Get modal max width based on screen size
