@@ -192,3 +192,4 @@ problems-report.html
 **/tests/**/*.js
 clean-care-admin/test-*.cjs
 clean-care-admin/test-*.js
+*.hprof
