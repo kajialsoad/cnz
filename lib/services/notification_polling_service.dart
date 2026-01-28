@@ -1,17 +1,20 @@
 import 'dart:async';
 import 'api_client.dart';
+import 'smart_api_client.dart';
 import '../config/api_config.dart';
 
 /// Service for polling notifications from the server
 /// Checks for new notifications every 30 seconds
 class NotificationPollingService {
   static Timer? _pollingTimer;
-  static final ApiClient _apiClient = ApiClient(ApiConfig.baseUrl);
+  static final ApiClient _apiClient = SmartApiClient.instance;
   static final List<Function(Map<String, dynamic>)> _listeners = [];
   static bool _isPolling = false;
+  static int _consecutiveErrors = 0;
+  static const int _maxConsecutiveErrors = 5;
 
   /// Start polling for notifications
-  /// Polls every 30 seconds and notifies listeners of new notifications
+  /// Polls every 5 seconds and notifies listeners of new notifications
   static void startPolling() {
     if (_isPolling) {
       print('⚠️ Notification polling already started');
@@ -19,6 +22,7 @@ class NotificationPollingService {
     }
 
     _isPolling = true;
+    _consecutiveErrors = 0;
 
     // Poll every 5 seconds for near real-time notification delivery
     _pollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
@@ -52,6 +56,7 @@ class NotificationPollingService {
       final response = await _apiClient.get('/api/notifications/unread');
 
       if (response['success'] == true) {
+        _consecutiveErrors = 0; // Reset error count on success
         final List notifications = response['data'] ?? [];
 
         if (notifications.isNotEmpty) {
@@ -66,12 +71,40 @@ class NotificationPollingService {
         }
       }
     } catch (e) {
+      _consecutiveErrors++;
+
       // Only log error if it's not an authentication error
-      if (!e.toString().contains('401') && !e.toString().contains('Invalid credentials')) {
-        print('❌ Failed to check notifications: $e');
+      final errorStr = e.toString();
+      if (!errorStr.contains('401') &&
+          !errorStr.contains('Invalid credentials')) {
+        // Reduce log noise for frequent network errors
+        if (_consecutiveErrors <= 1 || _consecutiveErrors % 10 == 0) {
+          print(
+            '❌ Failed to check notifications (Attempt $_consecutiveErrors): $e',
+          );
+        }
       }
-      // Don't throw error - just log it and continue polling
+
+      // If too many errors, back off temporarily
+      if (_consecutiveErrors >= _maxConsecutiveErrors) {
+        print(
+          '⚠️ Notification polling encountering frequent errors. Backing off...',
+        );
+        _backOffPolling();
+      }
     }
+  }
+
+  /// Temporarily increase polling interval on errors
+  static void _backOffPolling() {
+    stopPolling();
+    // Restart after 30 seconds instead of 5
+    Future.delayed(const Duration(seconds: 30), () {
+      if (!_isPolling) {
+        // Check if it wasn't stopped manually
+        startPolling();
+      }
+    });
   }
 
   /// Add a listener for new notifications

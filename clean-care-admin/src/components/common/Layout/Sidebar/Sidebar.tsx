@@ -102,6 +102,13 @@ const baseMenuItems = [
     roles: ['MASTER_ADMIN'],
   },
   {
+    id: 'waste-management',
+    label: 'Waste Management',
+    icon: settingsIcon,
+    path: '/waste-management',
+    roles: ['MASTER_ADMIN', 'SUPER_ADMIN', 'ADMIN'],
+  },
+  {
     id: 'system-control',
     label: 'Bot Message System Control',
     icon: settingsIcon,

@@ -2,7 +2,7 @@ import 'api_config.dart';
 
 /// Helper class for handling and fixing URLs from the backend
 class UrlHelper {
-  /// Fix URL by replacing localhost with the actual server IP
+  /// Fix URL by replacing localhost with the actual server IP from ApiConfig
   /// This is needed because the server stores URLs with localhost
   /// which doesn't work on Android devices
   /// 

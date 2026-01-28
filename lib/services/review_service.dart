@@ -32,7 +32,7 @@ class ReviewService {
         throw Exception('Comment must be 300 characters or less');
       }
 
-      final url = Uri.parse('$baseUrl/complaints/$complaintId/review');
+      final url = Uri.parse('$baseUrl/api/complaints/$complaintId/review');
       
       final response = await http.post(
         url,
@@ -67,7 +67,7 @@ class ReviewService {
   /// Throws Exception on error
   Future<List<ReviewModel>> getReviews(String complaintId) async {
     try {
-      final url = Uri.parse('$baseUrl/complaints/$complaintId/reviews');
+      final url = Uri.parse('$baseUrl/api/complaints/$complaintId/reviews');
       
       final response = await http.get(
         url,
@@ -143,7 +143,7 @@ class ReviewService {
   /// The user ID is stored in the UserModel returned by the /api/users/me endpoint.
   Future<String> _getCurrentUserId() async {
     try {
-      final url = Uri.parse('$baseUrl/users/me');
+      final url = Uri.parse('$baseUrl/api/users/me');
       
       final response = await http.get(
         url,

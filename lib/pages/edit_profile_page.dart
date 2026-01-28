@@ -4,6 +4,7 @@ import '../config/api_config.dart';
 import '../models/user_model.dart';
 import '../repositories/user_repository.dart';
 import '../services/api_client.dart';
+import '../services/smart_api_client.dart';
 import '../widgets/translated_text.dart';
 
 class EditProfilePage extends StatefulWidget {
@@ -36,6 +37,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
   bool _isLoadingCityCorporations = false;
   bool _isLoadingZones = false;
   bool _isLoadingWards = false;
+
+  final ApiClient _apiClient = SmartApiClient.instance;
 
   @override
   void initState() {
@@ -71,8 +74,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     setState(() => _isLoadingCityCorporations = true);
     
     try {
-      final apiClient = ApiClient(ApiConfig.baseUrl);
-      final response = await apiClient.get('/api/city-corporations');
+      final response = await _apiClient.get('/api/city-corporations');
       
       if (!mounted) return;
 
@@ -110,10 +112,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
     });
     
     try {
-      final apiClient = ApiClient(ApiConfig.baseUrl);
-      
       // Use cityCorporationId directly (API expects ID, not code)
-      final response = await apiClient.get(
+      final response = await _apiClient.get(
         '/api/zones?cityCorporationId=$cityCorporationId'
       );
       
@@ -150,8 +150,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     });
     
     try {
-      final apiClient = ApiClient(ApiConfig.baseUrl);
-      final response = await apiClient.get('/api/wards?zoneId=$zoneId');
+      final response = await _apiClient.get('/api/wards?zoneId=$zoneId');
       
       if (!mounted) return;
 
@@ -182,7 +181,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     setState(() => _isLoading = true);
 
     try {
-      final userRepo = UserRepository(ApiClient(ApiConfig.baseUrl));
+      final userRepo = UserRepository(_apiClient);
       
       // Get cityCorporationCode from selected city corporation
       String? cityCorporationCode;

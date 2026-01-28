@@ -28,6 +28,7 @@ import zoneRoutes from './routes/zone.routes';
 import publicZoneRoutes from './routes/public-zone.routes';
 import wardRoutes from './routes/ward.routes';
 import publicWardRoutes from './routes/public-ward.routes';
+import wasteManagementRoutes from './routes/waste-management.routes';
 import notificationRoutes from './routes/notification.routes';
 import reviewRoutes from './routes/review.routes';
 import adminReviewRoutes from './routes/admin.review.routes';
@@ -238,6 +239,9 @@ console.log('✅ Ward routes registered at /api/admin/wards');
 
 app.use('/api/wards', publicWardRoutes); // Public Ward routes
 console.log('✅ Public Ward routes registered at /api/wards');
+
+app.use('/api/waste-management', wasteManagementRoutes); // Waste Management routes
+console.log('✅ Waste Management routes registered at /api/waste-management');
 
 // Add test route to verify admin path works
 app.get('/api/admin/test', (req, res) => {

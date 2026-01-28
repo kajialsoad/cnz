@@ -201,8 +201,17 @@ class _MyAppState extends State<MyApp> {
     // Delay notification setup until after first frame is rendered
     // This ensures the overlay is ready and user is logged in
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Give it a tiny bit more time for storage to be ready on web
+      await Future.delayed(const Duration(milliseconds: 500));
+      
       // Check if user is logged in before starting notifications
-      final isLoggedIn = await AuthService.isLoggedIn();
+      bool isLoggedIn = await AuthService.isLoggedIn();
+      
+      // Retry once if not logged in (to handle potential race conditions on web)
+      if (!isLoggedIn) {
+        await Future.delayed(const Duration(seconds: 1));
+        isLoggedIn = await AuthService.isLoggedIn();
+      }
       
       if (!isLoggedIn) {
         print('⚠️ User not logged in, skipping notification setup');

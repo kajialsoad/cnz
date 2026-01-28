@@ -259,6 +259,21 @@ class UserManagementService {
             throw error;
         }
     }
+
+    // Get user reactions for waste management posts
+    async getUserReactions(userId: number): Promise<any[]> {
+        try {
+            const response = await this.apiClient.get(`/api/waste-management/admin/users/${userId}/reactions`);
+            return response.data;
+        } catch (error) {
+            if (axios.isAxiosError(error)) {
+                throw new Error(
+                    error.response?.data?.message || 'Failed to fetch user reactions'
+                );
+            }
+            throw error;
+        }
+    }
 }
 
 export const userManagementService = new UserManagementService();

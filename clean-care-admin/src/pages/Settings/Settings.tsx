@@ -46,7 +46,7 @@ const Settings: React.FC = () => {
             buttonLabel="ছবি আপলোড করুন"
             color="green"
             icon={<ImageOutlined sx={{ color: '#3fa564' }} />}
-            onClick={() => console.log('Waste management upload clicked')}
+            onClick={() => navigate('/waste-management')}
           />
 
           <SettingsCard

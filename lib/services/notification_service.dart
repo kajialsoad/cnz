@@ -1,11 +1,11 @@
 import '../models/notification_model.dart';
 import '../services/api_client.dart';
-import '../config/api_config.dart';
+import '../services/smart_api_client.dart';
 
 /// Service for managing notifications
 /// Handles fetching, marking as read, and managing notification state
 class NotificationService {
-  final ApiClient _apiClient;
+  final ApiClient _apiClient = SmartApiClient.instance;
   
   // Cache for notifications
   NotificationResponse? _cachedNotifications;
@@ -17,11 +17,7 @@ class NotificationService {
   DateTime? _unreadCountCacheTimestamp;
   static const Duration _unreadCountCacheDuration = Duration(seconds: 30);
 
-  NotificationService()
-      : _apiClient = ApiClient(
-          ApiConfig.baseUrl,
-          timeout: const Duration(seconds: 30),
-        );
+  NotificationService();
 
   /// Get user notifications with pagination
   /// 
