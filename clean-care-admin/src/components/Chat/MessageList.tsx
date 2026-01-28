@@ -91,8 +91,10 @@ const MessageList: React.FC<MessageListProps> = ({
                 flex: 1,
                 overflowY: 'auto',
                 overflowX: 'hidden',
-                p: { xs: 1.5, sm: 2, md: 2 },
-                backgroundColor: '#f5f5f5',
+                p: { xs: 2, md: 3 }, // More padding on sides
+                backgroundColor: '#f0f2f5', // WhatsApp-like subtle gray
+                backgroundImage: 'radial-gradient(#e5e7eb 1px, transparent 1px)', // Subtle pattern
+                backgroundSize: '20px 20px',
                 display: 'flex',
                 flexDirection: 'column',
             }}

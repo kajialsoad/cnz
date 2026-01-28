@@ -134,41 +134,42 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 
     // Determine border radius based on sender (different radius on sender side)
     const borderRadius = isAdmin
-        ? '16px 16px 4px 16px' // Right side has smaller radius
-        : '16px 16px 16px 4px'; // Left side has smaller radius
+        ? '20px 20px 4px 20px' // Right side has smaller radius
+        : '20px 20px 20px 4px'; // Left side has smaller radius
 
-    // Admin message gradient (blue to green)
-    const adminGradient = 'linear-gradient(135deg, #1976d2 0%, #2e7d32 100%)';
+    // Admin message styling - Solid Green (Brand Color)
+    const adminBg = '#15803d'; // Green-700
+    const adminColor = '#ffffff';
+
+    // Citizen message styling - White
+    const citizenBg = '#ffffff';
+    const citizenColor = '#1f2937'; // Gray-800
 
     return (
         <>
             <Box
                 sx={{
-                    mb: 1.5,
+                    mb: 2,
                     display: 'flex',
                     justifyContent: isAdmin ? 'flex-end' : 'flex-start',
                     animation: `${fadeIn} ${animationConfig.normal.duration} ${animationConfig.normal.timing}, ${slideInUp} ${animationConfig.normal.duration} ${animationConfig.smooth.timing}`,
                     animationFillMode: 'both',
+                    px: 1 // Add some padding for the container
                 }}
             >
                 <Box
                     sx={{
-                        maxWidth: { xs: '85%', sm: '75%', md: '70%' },
-                        minWidth: '100px',
-                        p: 1.5,
+                        maxWidth: { xs: '92%', sm: '88%', md: '85%' }, // Increased width for better readability
+                        minWidth: '120px',
+                        p: '12px 16px', // More padding
                         borderRadius: borderRadius,
-                        background: isAdmin ? adminGradient : '#ffffff',
-                        color: isAdmin ? '#ffffff' : '#1a1a1a',
-                        boxShadow: isAdmin
-                            ? '0 2px 8px rgba(25, 118, 210, 0.25)'
-                            : '0 2px 8px rgba(0, 0, 0, 0.08)',
-                        border: isAdmin ? 'none' : '1px solid #e0e0e0',
+                        background: isAdmin ? adminBg : citizenBg,
+                        color: isAdmin ? adminColor : citizenColor,
+                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.12)', // Slightly stronger shadow
+                        position: 'relative',
                         transition: `all ${animationConfig.fast.duration} ${animationConfig.fast.timing}`,
                         '&:hover': {
-                            boxShadow: isAdmin
-                                ? '0 4px 12px rgba(25, 118, 210, 0.35)'
-                                : '0 4px 12px rgba(0, 0, 0, 0.12)',
-                            transform: 'translateY(-1px)',
+                            boxShadow: '0 4px 8px rgba(0, 0, 0, 0.15)',
                         },
                     }}
                 >
@@ -180,9 +181,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                                 fontWeight: 700,
                                 display: 'block',
                                 mb: 0.5,
-                                color: '#1976d2',
-                                fontSize: '0.75rem',
-                                letterSpacing: '0.02em',
+                                color: '#eab308',
+                                fontSize: '0.8rem', // Slightly larger
                             }}
                         >
                             {message.senderName}
@@ -191,12 +191,14 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 
                     {/* Message text with proper line breaks */}
                     <Typography
-                        variant="body2"
+                        variant="body1" // Changed to body1 for better readability
                         sx={{
                             whiteSpace: 'pre-wrap',
                             wordBreak: 'break-word',
-                            lineHeight: 1.5,
-                            fontSize: '0.9rem',
+                            lineHeight: 1.6,
+                            fontSize: '1rem', // Standard readable size (16px usually)
+                            fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
+                            letterSpacing: '0.01em',
                         }}
                     >
                         {message.message}

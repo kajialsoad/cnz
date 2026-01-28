@@ -148,18 +148,18 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
     return (
         <Box
             sx={{
-                borderBottom: '1px solid',
-                borderColor: 'divider',
-                backgroundColor: 'background.paper',
+                borderBottom: '1px solid #f3f4f6',
+                backgroundColor: '#ffffff',
+                zIndex: 10
             }}
         >
             {/* Main Header Content */}
             <Box
                 sx={{
-                    p: { xs: 1.5, sm: 2, md: 2 },
+                    p: 2,
                     display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: { xs: 1.5, sm: 2, md: 2 },
+                    alignItems: 'center',
+                    gap: 2,
                 }}
             >
                 {/* Citizen Avatar */}
@@ -167,11 +167,12 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
                     src={citizen.profilePicture}
                     alt={`${citizen.firstName} ${citizen.lastName}`}
                     sx={{
-                        width: isSmallMobile ? 40 : 48,
-                        height: isSmallMobile ? 40 : 48,
-                        backgroundColor: '#4CAF50',
-                        fontSize: isSmallMobile ? '1rem' : '1.25rem',
+                        width: 48,
+                        height: 48,
+                        backgroundColor: '#3fa564', // Brand green
+                        fontSize: '1.25rem',
                         fontWeight: 600,
+                        border: '2px solid #f0fdf4'
                     }}
                 >
                     {!citizen.profilePicture && getCitizenInitials()}
@@ -179,19 +180,34 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
 
                 {/* Header Info */}
                 <Box sx={{ flex: 1, minWidth: 0 }}>
-                    {/* Citizen Name */}
-                    <Typography
-                        variant={isSmallMobile ? 'subtitle2' : 'subtitle1'}
-                        sx={{
-                            fontWeight: 600,
-                            mb: 0.5,
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                        }}
-                    >
-                        {citizen.firstName} {citizen.lastName}
-                    </Typography>
+                    {/* Name and Status Row */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
+                        <Typography
+                            variant="subtitle1"
+                            sx={{
+                                fontWeight: 700,
+                                color: '#111827',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                            }}
+                        >
+                            {citizen.firstName} {citizen.lastName}
+                        </Typography>
+                        
+                        <Chip
+                            label={getStatusLabel(complaint.status)}
+                            size="small"
+                            sx={{
+                                backgroundColor: getStatusColor(complaint.status) + '20', // 20% opacity
+                                color: getStatusColor(complaint.status),
+                                fontWeight: 700,
+                                fontSize: '0.7rem',
+                                height: 24,
+                                border: `1px solid ${getStatusColor(complaint.status)}40`
+                            }}
+                        />
+                    </Box>
 
                     {/* Complaint Info */}
                     <Box
@@ -199,81 +215,24 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
                             display: 'flex',
                             alignItems: 'center',
                             gap: 1,
-                            flexWrap: 'wrap',
-                            mb: 0.5,
+                            flexWrap: 'nowrap',
                         }}
                     >
                         <Typography
-                            variant="body2"
-                            color="text.secondary"
+                            variant="caption"
                             sx={{
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
+                                color: '#6b7280',
+                                fontWeight: 500,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 0.5
                             }}
                         >
-                            {complaint.trackingNumber}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                            •
-                        </Typography>
-                        <Typography
-                            variant="body2"
-                            color="text.secondary"
-                            sx={{
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
-                            }}
-                        >
-                            {complaint.category}
-                        </Typography>
-                    </Box>
-
-                    {/* Complaint Title */}
-                    <Typography
-                        variant="body2"
-                        sx={{
-                            mb: 1,
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            display: '-webkit-box',
-                            WebkitLineClamp: 2,
-                            WebkitBoxOrient: 'vertical',
-                        }}
-                    >
-                        {complaint.title}
-                    </Typography>
-
-                    {/* Status Badge */}
-                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 0.5 }}>
-                        <Chip
-                            label={getStatusLabel(complaint.status)}
-                            size="small"
-                            sx={{
-                                backgroundColor: getStatusColor(complaint.status),
-                                color: 'white',
-                                fontWeight: 600,
-                                fontSize: '0.75rem',
-                            }}
-                        />
-                        {/* Address Display - Always visible */}
-                        {citizen.address && (
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, maxWidth: '60%' }}>
-                                <LocationIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
-                                <Typography
-                                    variant="caption"
-                                    color="text.secondary"
-                                    sx={{
-                                        overflow: 'hidden',
-                                        textOverflow: 'ellipsis',
-                                        whiteSpace: 'nowrap',
-                                    }}
-                                >
-                                    {citizen.address}
-                                </Typography>
+                            <Box component="span" sx={{ bgcolor: '#e5e7eb', px: 0.5, borderRadius: 0.5, color: '#374151' }}>
+                                {complaint.trackingNumber}
                             </Box>
-                        )}
+                             • {complaint.category}
+                        </Typography>
                     </Box>
                 </Box>
 
@@ -283,7 +242,9 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
                         onClick={toggleExpanded}
                         size="small"
                         sx={{
-                            alignSelf: 'flex-start',
+                            color: '#9ca3af',
+                            bgcolor: '#f9fafb',
+                            '&:hover': { bgcolor: '#f3f4f6' }
                         }}
                     >
                         {expanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}

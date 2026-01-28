@@ -2084,12 +2084,10 @@ const ComplaintDetails: React.FC = () => {
                     {/* Right Column - Chat Section - Full Height */}
                     <Grid size={{ xs: 12, md: 5 }}>
                         <Card sx={{
-                            borderRadius: 1.5,
-                            position: 'sticky',
-                            top: 16,
-                            boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
-                            height: 'calc(100vh - 48px)',
-                            maxHeight: 'calc(100vh - 48px)',
+                            borderRadius: 3,
+                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                            border: '1px solid #e5e7eb',
+                            height: '1000px', // Increased height to 1000px
                             display: 'flex',
                             flexDirection: 'column',
                             overflow: 'hidden',

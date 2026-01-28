@@ -291,22 +291,24 @@ const MessageInput: React.FC<MessageInputProps> = ({
     return (
         <Box
             sx={{
-                p: { xs: 1.5, sm: 2, md: 2 },
-                borderTop: '1px solid',
-                borderColor: 'divider',
-                backgroundColor: 'background.paper',
+                p: 2,
+                backgroundColor: '#ffffff',
+                borderTop: '1px solid #f3f4f6',
             }}
         >
             {/* Image Preview */}
             {imagePreview && (
                 <Paper
-                    elevation={2}
+                    elevation={0}
                     sx={{
                         mb: 2,
                         p: 1,
                         position: 'relative',
                         display: 'inline-block',
                         maxWidth: '200px',
+                        borderRadius: 3,
+                        border: '1px solid #e5e7eb',
+                        overflow: 'hidden'
                     }}
                 >
                     <Box
@@ -318,7 +320,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
                             height: 'auto',
                             maxHeight: '150px',
                             objectFit: 'cover',
-                            borderRadius: '4px',
+                            borderRadius: 2,
                         }}
                     />
 
@@ -329,8 +331,8 @@ const MessageInput: React.FC<MessageInputProps> = ({
                         disabled={uploading}
                         sx={{
                             position: 'absolute',
-                            top: 4,
-                            right: 4,
+                            top: 8,
+                            right: 8,
                             backgroundColor: 'rgba(0, 0, 0, 0.6)',
                             color: 'white',
                             '&:hover': {
@@ -354,7 +356,6 @@ const MessageInput: React.FC<MessageInputProps> = ({
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 backgroundColor: 'rgba(255, 255, 255, 0.8)',
-                                borderRadius: '4px',
                             }}
                         >
                             <CircularProgress size={24} />
@@ -364,7 +365,20 @@ const MessageInput: React.FC<MessageInputProps> = ({
             )}
 
             {/* Input Area */}
-            <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-end' }}>
+            <Box sx={{ 
+                display: 'flex', 
+                gap: 1.5, 
+                alignItems: 'flex-end',
+                bgcolor: '#f9fafb',
+                p: 1.5,
+                borderRadius: '24px', // Pill shape
+                border: '1px solid #e5e7eb',
+                transition: 'border-color 0.2s, box-shadow 0.2s',
+                '&:focus-within': {
+                    borderColor: '#3fa564',
+                    boxShadow: '0 0 0 3px rgba(63, 165, 100, 0.1)'
+                }
+            }}>
                 {/* Hidden file input */}
                 <input
                     ref={fileInputRef}
@@ -375,19 +389,18 @@ const MessageInput: React.FC<MessageInputProps> = ({
                 />
 
                 {/* Image upload button */}
-                <Tooltip title="Attach image">
-                    <span>
-                        <IconButton
-                            color="primary"
-                            onClick={handleImageButtonClick}
-                            disabled={disabled || sending || uploading || !!imageFile}
-                            sx={{
-                                mb: 0.5,
-                            }}
-                        >
-                            <ImageIcon />
-                        </IconButton>
-                    </span>
+                <Tooltip title="ছবি সংযুক্ত করুন">
+                    <IconButton
+                        onClick={handleImageButtonClick}
+                        disabled={disabled || sending || uploading || !!imageFile}
+                        sx={{
+                            color: '#6b7280',
+                            '&:hover': { color: '#3fa564', bgcolor: '#f0fdf4' },
+                            p: 1
+                        }}
+                    >
+                        <ImageIcon />
+                    </IconButton>
                 </Tooltip>
 
                 {/* Text input */}
@@ -395,49 +408,50 @@ const MessageInput: React.FC<MessageInputProps> = ({
                     inputRef={textFieldRef}
                     fullWidth
                     multiline
-                    maxRows={4}
+                    maxRows={6} // Increased max rows
                     placeholder="Type a message..."
                     value={text}
                     onChange={handleTextChange}
                     onKeyDown={handleKeyDown}
                     disabled={disabled || sending}
-                    variant="outlined"
-                    size="small"
+                    variant="standard"
+                    InputProps={{
+                        disableUnderline: true,
+                    }}
                     sx={{
-                        '& .MuiOutlinedInput-root': {
-                            borderRadius: '20px',
-                            backgroundColor: 'background.default',
+                        '& .MuiInputBase-root': {
+                            fontSize: '1rem', // Larger font
+                            py: 1, // More vertical padding
+                            color: '#1f2937',
+                            lineHeight: 1.5
                         },
                     }}
                 />
 
                 {/* Send button */}
-                <Tooltip title={sending ? 'Sending...' : 'Send message (Enter)'}>
-                    <span>
-                        <IconButton
-                            color="primary"
-                            onClick={handleSend}
-                            disabled={isSendDisabled}
-                            sx={{
-                                mb: 0.5,
-                                backgroundColor: 'primary.main',
-                                color: 'white',
-                                '&:hover': {
-                                    backgroundColor: 'primary.dark',
-                                },
-                                '&.Mui-disabled': {
-                                    backgroundColor: 'action.disabledBackground',
-                                    color: 'action.disabled',
-                                },
-                            }}
-                        >
-                            {sending ? (
-                                <CircularProgress size={24} color="inherit" />
-                            ) : (
-                                <SendIcon />
-                            )}
-                        </IconButton>
-                    </span>
+                <Tooltip title={sending ? 'পাঠানো হচ্ছে...' : 'পাঠান (Enter)'}>
+                    <IconButton
+                        onClick={handleSend}
+                        disabled={isSendDisabled}
+                        sx={{
+                            backgroundColor: isSendDisabled ? '#e5e7eb' : '#3fa564',
+                            color: 'white',
+                            width: 40,
+                            height: 40,
+                            '&:hover': {
+                                backgroundColor: isSendDisabled ? '#e5e7eb' : '#15803d',
+                            },
+                            transition: 'all 0.2s',
+                            transform: sending ? 'scale(0.9)' : 'scale(1)',
+                            boxShadow: isSendDisabled ? 'none' : '0 2px 4px rgba(63, 165, 100, 0.3)'
+                        }}
+                    >
+                        {sending ? (
+                            <CircularProgress size={20} color="inherit" />
+                        ) : (
+                            <SendIcon fontSize="small" sx={{ ml: 0.5 }} />
+                        )}
+                    </IconButton>
                 </Tooltip>
             </Box>
 
@@ -445,7 +459,8 @@ const MessageInput: React.FC<MessageInputProps> = ({
             {text.length > 0 && (
                 <Box
                     sx={{
-                        mt: 0.5,
+                        mt: 1,
+                        mr: 1,
                         textAlign: 'right',
                     }}
                 >
@@ -454,6 +469,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
                         sx={{
                             fontSize: '0.75rem',
                             color: text.length > 1000 ? 'error.main' : 'text.secondary',
+                            fontWeight: 500
                         }}
                     >
                         {text.length} / 1000
