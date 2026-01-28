@@ -197,6 +197,7 @@ const Notifications: React.FC = () => {
                         )}
                       </Box>
                     }
+                    primaryTypographyProps={{ component: 'div' }}
                     secondary={
                       <React.Fragment>
                         <Typography

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Dialog,
     DialogTitle,
@@ -14,6 +14,7 @@ import {
     ListItem,
     ListItemText,
     IconButton,
+    CircularProgress,
 } from '@mui/material';
 import {
     Close as CloseIcon,
@@ -23,11 +24,14 @@ import {
     CalendarToday as CalendarIcon,
     CheckCircle as CheckCircleIcon,
     Edit as EditIcon,
+    ThumbUp as ThumbUpIcon,
+    ThumbDown as ThumbDownIcon,
 } from '@mui/icons-material';
 import type { UserWithStats, ComplaintSummary } from '../../types/userManagement.types';
 import { format } from 'date-fns';
 import { scaleIn, slideInUp, animationConfig, statusBadgeTransition, fadeIn } from '../../styles/animations';
 import { useAuth } from '../../contexts/AuthContext';
+import { userManagementService } from '../../services/userManagementService';
 
 interface UserDetailsModalProps {
     user: UserWithStats | null;
@@ -46,6 +50,29 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
     onEdit,
 }) => {
     const { user: currentUser } = useAuth();
+    const [reactions, setReactions] = useState<any[]>([]);
+    const [loadingReactions, setLoadingReactions] = useState(false);
+
+    useEffect(() => {
+        if (open && user) {
+            fetchReactions();
+        } else {
+            setReactions([]);
+        }
+    }, [open, user]);
+
+    const fetchReactions = async () => {
+        if (!user) return;
+        try {
+            setLoadingReactions(true);
+            const data = await userManagementService.getUserReactions(user.id);
+            setReactions(data);
+        } catch (error) {
+            console.error('Error fetching reactions:', error);
+        } finally {
+            setLoadingReactions(false);
+        }
+    };
 
     if (!user) return null;
 
@@ -495,6 +522,8 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                                                     {formatDate(complaint.createdAt)}
                                                 </Typography>
                                             }
+                                            primaryTypographyProps={{ component: 'div' }}
+                                            secondaryTypographyProps={{ component: 'div' }}
                                         />
                                     </ListItem>
                                 </React.Fragment>
@@ -511,6 +540,79 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                             }}
                         >
                             No complaints yet
+                        </Typography>
+                    )}
+                </Box>
+
+                {/* Waste Management Interactions */}
+                <Box sx={{ mt: { xs: 2, sm: 3 } }}>
+                    <Typography
+                        variant="h6"
+                        sx={{
+                            fontWeight: 600,
+                            mb: { xs: 1.5, sm: 2 },
+                            fontSize: { xs: '1rem', sm: '1.25rem' }
+                        }}
+                    >
+                        Waste Management Interactions
+                    </Typography>
+                    {loadingReactions ? (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                            <CircularProgress size={24} />
+                        </Box>
+                    ) : reactions.length > 0 ? (
+                        <List sx={{ p: 0 }}>
+                            {reactions.map((reaction) => (
+                                <ListItem
+                                    key={reaction.id}
+                                    sx={{
+                                        px: { xs: 1.5, sm: 2 },
+                                        py: { xs: 1, sm: 1.5 },
+                                        backgroundColor: '#f8f9fa',
+                                        borderRadius: 1,
+                                        mb: 1,
+                                    }}
+                                >
+                                    <ListItemText
+                                        primary={
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                {reaction.reactionType === 'LIKE' ? (
+                                                    <ThumbUpIcon sx={{ fontSize: 18, color: '#4CAF50' }} />
+                                                ) : (
+                                                    <ThumbDownIcon sx={{ fontSize: 18, color: '#F44336' }} />
+                                                )}
+                                                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                                    {reaction.post.title}
+                                                </Typography>
+                                            </Box>
+                                        }
+                                        secondary={
+                                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
+                                                <Typography variant="caption" color="text.secondary">
+                                                    Category: {reaction.post.category.replace('_', ' ')}
+                                                </Typography>
+                                                <Typography variant="caption" color="text.secondary">
+                                                    {formatDate(reaction.createdAt)}
+                                                </Typography>
+                                            </Box>
+                                        }
+                                        primaryTypographyProps={{ component: 'div' }}
+                                        secondaryTypographyProps={{ component: 'div' }}
+                                    />
+                                </ListItem>
+                            ))}
+                        </List>
+                    ) : (
+                        <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            sx={{
+                                textAlign: 'center',
+                                py: { xs: 2, sm: 3 },
+                                fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                            }}
+                        >
+                            No interactions yet
                         </Typography>
                     )}
                 </Box>

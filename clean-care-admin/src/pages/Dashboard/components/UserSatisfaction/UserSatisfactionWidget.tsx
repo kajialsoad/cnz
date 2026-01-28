@@ -378,6 +378,7 @@ const UserSatisfactionWidget: React.FC<UserSatisfactionWidgetProps> = ({
                                                 </Typography>
                                             </Box>
                                         }
+                                        primaryTypographyProps={{ component: 'div' }}
                                         sx={{ my: 0 }}
                                     />
                                 </ListItem>

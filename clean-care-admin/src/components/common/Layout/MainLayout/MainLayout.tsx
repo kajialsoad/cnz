@@ -58,7 +58,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({
           pl: isMobile ? 0 : `${collapsed ? 72 : DRAWER_WIDTH}px`,
           bgcolor: 'background.default',
           minHeight: '100vh',
-          transition: theme.transitions.create(['margin-left'], {
+          width: '100%',
+          transition: theme.transitions.create(['margin-left', 'padding-left'], {
             easing: theme.transitions.easing.sharp,
             duration: theme.transitions.duration.leavingScreen,
           }),
@@ -66,10 +67,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({
       >
         <Box
           sx={{
-            px: 3, // Increased horizontal padding
-            py: 3, // Increased vertical padding
+            px: { xs: 2, sm: 3 }, // Responsive horizontal padding
+            py: { xs: 2, sm: 3 }, // Responsive vertical padding
             width: '100%',
             maxWidth: '100%',
+            overflowX: 'hidden', // Prevent horizontal scroll on main content
           }}
         >
           {children}

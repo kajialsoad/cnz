@@ -12,6 +12,7 @@ import {
   MenuItem,
   FormControl,
   Popover,
+  Tooltip,
   List,
   ListItem,
   ListItemButton,
@@ -133,7 +134,7 @@ const Header: React.FC<HeaderProps> = ({
     <AppBar position="fixed" elevation={1} sx={{ bgcolor: 'white', color: 'black' }}>
       <Toolbar sx={{ minHeight: '70px !important', px: 3 }}>
         {/* Left Section - Menu + Title */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mr: 4 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 2 }, mr: { xs: 1, md: 4 } }}>
           <IconButton
             edge="start"
             sx={{ color: 'text.primary' }}
@@ -143,11 +144,27 @@ const Header: React.FC<HeaderProps> = ({
             <MenuIcon />
           </IconButton>
 
-          <Box>
-            <Typography variant="h6" component="h1" sx={{ fontWeight: 600, color: 'text.primary' }}>
+          <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
+            <Typography 
+              variant="h6" 
+              component="h1" 
+              sx={{ 
+                fontWeight: 600, 
+                color: 'text.primary',
+                fontSize: { xs: '0.9rem', md: '1.25rem' },
+                whiteSpace: 'nowrap'
+              }}
+            >
               {title}
             </Typography>
-            <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.875rem' }}>
+            <Typography 
+              variant="body2" 
+              sx={{ 
+                color: 'text.secondary', 
+                fontSize: '0.875rem',
+                display: { xs: 'none', lg: 'block' }
+              }}
+            >
               Real-time analytics and system insights
             </Typography>
           </Box>
@@ -155,11 +172,15 @@ const Header: React.FC<HeaderProps> = ({
 
         {/* Center Section - Search Bars */}
         <Box sx={{
-          display: 'flex',
+          display: { xs: 'none', md: 'flex' },
           alignItems: 'center',
           gap: 1.5,
           flex: 1,
           mr: 3,
+          overflowX: 'auto',
+          '&::-webkit-scrollbar': { display: 'none' }, // Hide scrollbar for search bar container
+          msOverflowStyle: 'none',
+          scrollbarWidth: 'none',
         }}>
           {/* Complaint Search */}
           <TextField
@@ -371,7 +392,16 @@ const Header: React.FC<HeaderProps> = ({
         </Box>
 
         {/* Right Section - Notifications + User */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.5, sm: 2 }, ml: 'auto' }}>
+          <Tooltip title="Search">
+            <IconButton
+              sx={{ display: { xs: 'flex', md: 'none' }, color: 'text.primary' }}
+              onClick={() => {/* Toggle mobile search bar if implemented */}}
+            >
+              <SearchIcon />
+            </IconButton>
+          </Tooltip>
+
           <IconButton
             sx={{ color: 'text.primary' }}
             onClick={handleNotificationClick}
@@ -443,7 +473,7 @@ const Header: React.FC<HeaderProps> = ({
                           </Typography>
                         }
                         secondary={
-                          <Box component="span">
+                          <Box component="div">
                             <Typography
                               component="span"
                               variant="body2"
@@ -461,6 +491,7 @@ const Header: React.FC<HeaderProps> = ({
                             </Typography>
                           </Box>
                         }
+                        secondaryTypographyProps={{ component: 'div' }}
                       />
                       {!notification.isRead && (
                         <CircleIcon sx={{ fontSize: 10, color: 'primary.main', ml: 1, mt: 1 }} />

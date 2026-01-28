@@ -614,3 +614,51 @@ model BotMessageAnalytics {
   @@map("bot_message_analytics")
 }
 
+// Waste Management System
+model WastePost {
+  id          Int                  @id @default(autoincrement())
+  title       String               @db.VarChar(255)
+  content     String               @db.Text
+  imageUrl    String?              @db.VarChar(500)
+  category    WastePostCategory
+  status      WastePostStatus      @default(DRAFT)
+  createdBy   Int
+  publishedAt DateTime?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  reactions   WastePostReaction[]
+
+  @@index([status])
+  @@index([category])
+  @@index([createdBy])
+  @@index([publishedAt])
+  @@index([status, category])
+  @@map("waste_posts")
+}
+
+model WastePostReaction {
+  id           Int       @id @default(autoincrement())
+  postId       Int
+  userId       Int
+  reactionType String    @db.VarChar(20) // "LIKE" or "LOVE"
+  createdAt    DateTime  @default(now())
+  post         WastePost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@index([postId])
+  @@index([userId])
+  @@index([reactionType])
+  @@map("waste_post_reactions")
+}
+
+enum WastePostCategory {
+  CURRENT_WASTE
+  FUTURE_WASTE
+}
+
+enum WastePostStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+

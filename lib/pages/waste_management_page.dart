@@ -1,50 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import '../components/custom_bottom_nav.dart';
 import '../widgets/translated_text.dart';
-
-class MapPatternPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white.withOpacity(0.1)
-      ..strokeWidth = 1.0
-      ..style = PaintingStyle.stroke;
-
-    // Draw grid pattern
-    for (double i = 0; i < size.width; i += 20) {
-      canvas.drawLine(Offset(i, 0), Offset(i, size.height), paint);
-    }
-
-    for (double i = 0; i < size.height; i += 20) {
-      canvas.drawLine(Offset(0, i), Offset(size.width, i), paint);
-    }
-
-    // Draw some decorative circles
-    final circlePaint = Paint()
-      ..color = Colors.white.withOpacity(0.05)
-      ..style = PaintingStyle.fill;
-
-    canvas.drawCircle(
-      Offset(size.width * 0.2, size.height * 0.3),
-      30,
-      circlePaint,
-    );
-    canvas.drawCircle(
-      Offset(size.width * 0.8, size.height * 0.7),
-      25,
-      circlePaint,
-    );
-    canvas.drawCircle(
-      Offset(size.width * 0.7, size.height * 0.2),
-      20,
-      circlePaint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(CustomPainter oldDelegate) => false;
-}
+import '../services/auth_service.dart';
+import '../services/waste_management_service.dart';
+import '../models/waste_post_model.dart';
 
 class WasteManagementPage extends StatefulWidget {
   const WasteManagementPage({super.key});
@@ -53,75 +15,141 @@ class WasteManagementPage extends StatefulWidget {
   _WasteManagementPageState createState() => _WasteManagementPageState();
 }
 
-class _WasteManagementPageState extends State<WasteManagementPage>
-    with TickerProviderStateMixin {
-  late AnimationController _truckController1;
-  late AnimationController _truckController2;
-  late AnimationController _truckController3;
-  late AnimationController _truckController4;
-  late AnimationController _mapController;
-  late AnimationController _centerIconController;
-  late AnimationController _pulseController;
+class _WasteManagementPageState extends State<WasteManagementPage> {
+  final WasteManagementService _service = WasteManagementService();
+
+  List<WastePost> _posts = [];
+  bool _isLoading = true;
+  String? _error;
+  String _selectedCategory = 'CURRENT_WASTE'; // CURRENT_WASTE or FUTURE_WASTE
+  String? _token;
 
   // Color palette
   static const Color primaryGreen = Color(0xFF4CAF50);
   static const Color lightGreen = Color(0xFFE8F5E8);
   static const Color darkGreen = Color(0xFF2E7D32);
-  static const Color warningOrange = Color(0xFFFF9800);
-  static const Color successGreen = Color(0xFF4CAF50);
-  static const Color upcomingBlue = Color(0xFF2196F3);
 
   @override
   void initState() {
     super.initState();
-
-    // Initialize animation controllers
-    _truckController1 = AnimationController(
-      duration: Duration(seconds: 4),
-      vsync: this,
-    )..repeat();
-
-    _truckController2 = AnimationController(
-      duration: Duration(seconds: 5),
-      vsync: this,
-    )..repeat();
-
-    _truckController3 = AnimationController(
-      duration: Duration(seconds: 6),
-      vsync: this,
-    )..repeat();
-
-    _truckController4 = AnimationController(
-      duration: Duration(milliseconds: 4500),
-      vsync: this,
-    )..repeat();
-
-    _mapController = AnimationController(
-      duration: Duration(seconds: 3),
-      vsync: this,
-    )..repeat();
-
-    _centerIconController = AnimationController(
-      duration: Duration(seconds: 2),
-      vsync: this,
-    )..repeat();
-
-    _pulseController = AnimationController(
-      duration: Duration(milliseconds: 1500),
-      vsync: this,
-    )..repeat(reverse: true);
+    _loadToken();
   }
 
-  @override
-  void dispose() {
-    _truckController1.dispose();
-    _truckController2.dispose();
-    _truckController3.dispose();
-    _truckController4.dispose();
-    _mapController.dispose();
-    _centerIconController.dispose();
-    _pulseController.dispose();
-    super.dispose();
+  Future<void> _loadToken() async {
+    try {
+      final token = await AuthService.getAccessToken();
+
+      if (token == null) {
+        setState(() {
+          _error = 'Please login first';
+          _isLoading = false;
+        });
+        return;
+      }
+
+      setState(() {
+        _token = token;
+      });
+
+      await _fetchPosts();
+    } catch (e) {
+      setState(() {
+        _error = 'Failed to load: $e';
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _fetchPosts() async {
+    if (_token == null) return;
+
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final posts = await _service.getPostsByCategory(
+        _token!,
+        _selectedCategory,
+      );
+
+      setState(() {
+        _posts = posts;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = 'Failed to load posts: $e';
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _toggleReaction(int postId, String reactionType) async {
+    if (_token == null) return;
+
+    // Find the post and its current state
+    final postIndex = _posts.indexWhere((p) => p.id == postId);
+    if (postIndex == -1) return;
+
+    final oldPost = _posts[postIndex];
+    final String? oldReaction = oldPost.userReaction;
+
+    // Optimistic UI update
+    setState(() {
+      int newLikeCount = oldPost.likeCount;
+      int newLoveCount = oldPost.loveCount;
+      String? newReaction;
+
+      if (oldReaction == reactionType) {
+        // Removing reaction
+        newReaction = null;
+        if (reactionType == 'LIKE') newLikeCount--;
+        if (reactionType == 'LOVE') newLoveCount--;
+      } else {
+        // Adding or changing reaction
+        newReaction = reactionType;
+        if (reactionType == 'LIKE') {
+          newLikeCount++;
+          if (oldReaction == 'LOVE') newLoveCount--;
+        } else {
+          newLoveCount++;
+          if (oldReaction == 'LIKE') newLikeCount--;
+        }
+      }
+
+      _posts[postIndex] = oldPost.copyWith(
+        likeCount: newLikeCount,
+        loveCount: newLoveCount,
+        userReaction: newReaction,
+      );
+    });
+
+    try {
+      final response = await _service.toggleReaction(
+        _token!,
+        postId,
+        reactionType,
+      );
+
+      // If the server returns the updated post, use it to ensure sync
+      if (response.containsKey('post')) {
+        setState(() {
+          _posts[postIndex] = WastePost.fromJson(response['post']);
+        });
+      }
+    } catch (e) {
+      // Revert on error
+      setState(() {
+        _posts[postIndex] = oldPost;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   @override
@@ -133,29 +161,36 @@ class _WasteManagementPageState extends State<WasteManagementPage>
           children: [
             _buildHeader(),
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.only(
-                  left: 16,
-                  right: 16,
-                  top: 16,
-                  bottom: 100,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildTopSelector(),
-                    const SizedBox(height: 24),
-                    _buildRectangleImage('assets/Rectangle 6.png'),
-                    const SizedBox(height: 16),
-                    _buildRectangleImage('assets/Rectangle 7.png'),
-                    const SizedBox(height: 16),
-                    _buildRectangleImage('assets/Rectangle 8.png'),
-                    const SizedBox(height: 16),
-                    _buildRectangleImage('assets/Rectangle 9.png'),
-                    const SizedBox(height: 16),
-                    _buildWasteSeparationTips(),
-                    const SizedBox(height: 20),
-                  ],
+              child: RefreshIndicator(
+                onRefresh: _fetchPosts,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.only(
+                    left: 16,
+                    right: 16,
+                    top: 16,
+                    bottom: 100,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildCategorySelector(),
+                      const SizedBox(height: 24),
+
+                      if (_isLoading)
+                        _buildLoadingState()
+                      else if (_error != null)
+                        _buildErrorState()
+                      else if (_posts.isEmpty)
+                        _buildEmptyState()
+                      else
+                        _buildPostsList(),
+
+                      const SizedBox(height: 16),
+                      _buildWasteSeparationTips(),
+                      const SizedBox(height: 20),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -185,13 +220,7 @@ class _WasteManagementPageState extends State<WasteManagementPage>
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: const BoxDecoration(
-        color: Color(0xFF2E8B57),
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(0),
-          bottomRight: Radius.circular(0),
-        ),
-      ),
+      decoration: const BoxDecoration(color: Color(0xFF2E8B57)),
       child: Row(
         children: [
           GestureDetector(
@@ -206,7 +235,7 @@ class _WasteManagementPageState extends State<WasteManagementPage>
             ),
           ),
           const SizedBox(width: 12),
-          TranslatedText(
+          const TranslatedText(
             'Waste Management',
             style: TextStyle(
               color: Colors.white,
@@ -219,7 +248,7 @@ class _WasteManagementPageState extends State<WasteManagementPage>
     );
   }
 
-  Widget _buildTopSelector() {
+  Widget _buildCategorySelector() {
     return Container(
       width: double.infinity,
       height: 69,
@@ -230,47 +259,68 @@ class _WasteManagementPageState extends State<WasteManagementPage>
       ),
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Rectangle 5 (active)
-          Container(
-            width: 176,
-            height: 53,
-            decoration: BoxDecoration(
-              color: const Color(0xFF3FA564),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            padding: const EdgeInsets.fromLTRB(20, 16, 5, 14),
-            child: const SizedBox(
-              width: 151,
-              child: Text(
-                'বর্তমান বর্জ্য ব্যবস্থাপনা',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: Color(0xFFF2F4F5),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  height: 24 / 14,
+          // Current Waste Button
+          Expanded(
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  _selectedCategory = 'CURRENT_WASTE';
+                });
+                _fetchPosts();
+              },
+              child: Container(
+                height: 53,
+                decoration: BoxDecoration(
+                  color: _selectedCategory == 'CURRENT_WASTE'
+                      ? const Color(0xFF3FA564)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  'বর্তমান বর্জ্য ব্যবস্থাপনা',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: _selectedCategory == 'CURRENT_WASTE'
+                        ? const Color(0xFFF2F4F5)
+                        : const Color(0xFF8E8C8C),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 16),
-          // ভবিষ্যৎ বাটন লেবেল
-          Padding(
-            padding: const EdgeInsets.only(top: 16),
-            child: const SizedBox(
-              width: 151,
-              child: Text(
-                'ভবিষ্যৎ বর্জ্য ব্যবস্থাপনা',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: Color(0xFF8E8C8C),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  height: 24 / 14,
+          const SizedBox(width: 8),
+          // Future Waste Button
+          Expanded(
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  _selectedCategory = 'FUTURE_WASTE';
+                });
+                _fetchPosts();
+              },
+              child: Container(
+                height: 53,
+                decoration: BoxDecoration(
+                  color: _selectedCategory == 'FUTURE_WASTE'
+                      ? const Color(0xFF3FA564)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  'ভবিষ্যৎ বর্জ্য ব্যবস্থাপনা',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: _selectedCategory == 'FUTURE_WASTE'
+                        ? const Color(0xFFF2F4F5)
+                        : const Color(0xFF8E8C8C),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ),
@@ -280,160 +330,172 @@ class _WasteManagementPageState extends State<WasteManagementPage>
     );
   }
 
-  Widget _buildRectangleImage(String assetPath) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
-      child: Image.asset(
-        assetPath,
-        width: double.infinity,
-        height: 195,
-        fit: BoxFit.cover,
-        errorBuilder: (c, e, s) => Container(
-          height: 195,
-          color: Colors.black12,
-          alignment: Alignment.center,
-          child: Text(
-            'Missing asset: ' + assetPath,
-            style: const TextStyle(color: Colors.red),
-          ),
-        ),
+  Widget _buildLoadingState() {
+    return Center(
+      child: Column(
+        children: const [
+          SizedBox(height: 100),
+          CircularProgressIndicator(color: primaryGreen),
+          SizedBox(height: 16),
+          Text('Loading posts...'),
+        ],
       ),
     );
   }
 
-  List<Widget> _buildAnimatedTrucks() {
-    return [
-      _buildMovingTruck(_truckController1, 0),
-      _buildMovingTruck(_truckController2, 1),
-      _buildMovingTruck(_truckController3, 2),
-      _buildMovingTruck(_truckController4, 3),
-    ];
-  }
-
-  Widget _buildMovingTruck(AnimationController controller, int truckIndex) {
-    return AnimatedBuilder(
-      animation: controller,
-      builder: (context, child) {
-        final progress = controller.value;
-
-        // Simple right to left movement for all trucks
-        late double x, y;
-        late double rotation;
-        late bool isVisible;
-
-        // Different Y positions for each truck to avoid overlap
-        final baseY =
-            40.0 + (truckIndex * 35.0); // Vertical spacing between trucks
-
-        // All trucks move from left to right
-        if (progress < 0.1) {
-          // Starting from outside left edge
-          x = -50;
-          y = baseY;
-          rotation = 0; // Facing right
-          isVisible = false; // Not visible yet
-        } else if (progress < 0.9) {
-          // Moving from left to right across the map
-          final moveProgress = (progress - 0.1) / 0.8;
-          x = -50 + (moveProgress * 400); // Move 400 pixels from left to right
-          y = baseY;
-          rotation = 0; // Facing right
-          isVisible = true;
-        } else {
-          // Exiting on the right side
-          final exitProgress = (progress - 0.9) / 0.1;
-          x = 350 + (exitProgress * 50);
-          y = baseY;
-          rotation = 0; // Facing right
-          isVisible = exitProgress < 0.5; // Fade out
-        }
-
-        if (!isVisible) {
-          return const SizedBox.shrink();
-        }
-
-        return Positioned(
-          left: x,
-          top: y,
-          child: Transform.rotate(
-            angle: rotation,
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: primaryGreen.withOpacity(0.9),
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: primaryGreen.withOpacity(0.3),
-                    offset: const Offset(0, 2),
-                    blurRadius: 8,
-                  ),
-                ],
-              ),
-              child: const Icon(
-                Icons.local_shipping,
-                color: Colors.white,
-                size: 20,
-              ),
-            ),
+  Widget _buildErrorState() {
+    return Center(
+      child: Column(
+        children: [
+          const SizedBox(height: 100),
+          const Icon(Icons.error_outline, size: 64, color: Colors.red),
+          const SizedBox(height: 16),
+          Text(_error ?? 'Unknown error'),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: _fetchPosts,
+            style: ElevatedButton.styleFrom(backgroundColor: primaryGreen),
+            child: const Text('Retry'),
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 
-  Widget _buildNextPickupCard() {
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        children: const [
+          SizedBox(height: 100),
+          Icon(Icons.inbox_outlined, size: 64, color: Colors.grey),
+          SizedBox(height: 16),
+          Text(
+            'কোনো পোস্ট নেই',
+            style: TextStyle(fontSize: 18, color: Colors.grey),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'এই বিভাগে এখনো কোনো পোস্ট প্রকাশ করা হয়নি',
+            style: TextStyle(fontSize: 14, color: Colors.grey),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPostsList() {
+    return Column(
+      children: _posts.map((post) => _buildPostCard(post)).toList(),
+    );
+  }
+
+  Widget _buildPostCard(WastePost post) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: primaryGreen,
-        borderRadius: BorderRadius.circular(16),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: primaryGreen.withOpacity(0.3),
-            offset: const Offset(0, 4),
-            blurRadius: 12,
-            spreadRadius: 0,
+            color: Colors.black.withOpacity(0.05),
+            offset: const Offset(0, 2),
+            blurRadius: 8,
           ),
         ],
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(12),
+          // Image
+          if (post.imageUrl != null && post.imageUrl!.isNotEmpty)
+            ClipRRect(
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(12),
+                topRight: Radius.circular(12),
+              ),
+              child: CachedNetworkImage(
+                imageUrl: post.imageUrl!,
+                width: double.infinity,
+                height: 200,
+                fit: BoxFit.cover,
+                placeholder: (context, url) => Container(
+                  height: 200,
+                  color: Colors.grey[200],
+                  child: const Center(
+                    child: CircularProgressIndicator(color: primaryGreen),
+                  ),
+                ),
+                errorWidget: (context, url, error) => Container(
+                  height: 200,
+                  color: Colors.grey[200],
+                  child: const Icon(Icons.image_not_supported, size: 50),
+                ),
+              ),
             ),
-            child: const Icon(Icons.access_time, color: Colors.white, size: 24),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
+
+          // Content
+          Padding(
+            padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                TranslatedText(
-                  'Next Pickup in Your Area',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
+                // Title
+                Text(
+                  post.title,
+                  style: const TextStyle(
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
+                    color: Color(0xFF2D3748),
                   ),
                 ),
-                SizedBox(height: 4),
-                TranslatedText(
-                  'Tomorrow, 8:00 AM - 10:00 AM',
-                  style: TextStyle(color: Colors.white, fontSize: 14),
-                ),
-                SizedBox(height: 2),
-                TranslatedText(
-                  'Ward 12, Dhanmondi',
-                  style: TextStyle(
-                    color: Colors.white,
+                const SizedBox(height: 8),
+
+                // Content
+                Text(
+                  post.content,
+                  style: const TextStyle(
                     fontSize: 14,
-                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF718096),
+                    height: 1.5,
                   ),
+                ),
+                const SizedBox(height: 16),
+
+                // Like/Love Row
+                Row(
+                  children: [
+                    // Like Button
+                    _ReactionButton(
+                      icon: Icons.thumb_up,
+                      count: post.likeCount,
+                      isSelected: post.userReaction == 'LIKE',
+                      color: primaryGreen,
+                      onTap: () => _toggleReaction(post.id, 'LIKE'),
+                    ),
+                    const SizedBox(width: 12),
+
+                    // Love Button
+                    _ReactionButton(
+                      icon: Icons.favorite,
+                      count: post.loveCount,
+                      isSelected: post.userReaction == 'LOVE',
+                      color: Colors.pink,
+                      onTap: () => _toggleReaction(post.id, 'LOVE'),
+                    ),
+
+                    const Spacer(),
+
+                    // Published Date
+                    if (post.publishedAt != null)
+                      Text(
+                        _formatDate(post.publishedAt!),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF718096),
+                        ),
+                      ),
+                  ],
                 ),
               ],
             ),
@@ -443,148 +505,19 @@ class _WasteManagementPageState extends State<WasteManagementPage>
     );
   }
 
-  Widget _buildCollectionSchedule() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        TranslatedText(
-          'Collection Schedule',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF2D3748),
-          ),
-        ),
-        const SizedBox(height: 16),
-        _buildScheduleCard(
-          ward: 'Ward 12',
-          time: '8:00 AM - 10:00 AM',
-          days: 'Monday, Wednesday, Friday',
-          status: 'Collected',
-          statusColor: successGreen,
-          delay: 0,
-        ),
-        const SizedBox(height: 12),
-        _buildScheduleCard(
-          ward: 'Ward 13',
-          time: '10:00 AM - 12:00 PM',
-          days: 'Tuesday, Thursday, Saturday',
-          status: 'Upcoming',
-          statusColor: upcomingBlue,
-          delay: 200,
-        ),
-        const SizedBox(height: 12),
-        _buildScheduleCard(
-          ward: 'Ward 14',
-          time: '2:00 PM - 4:00 PM',
-          days: 'Monday, Wednesday, Friday',
-          status: 'In Progress',
-          statusColor: warningOrange,
-          delay: 400,
-        ),
-      ],
-    );
-  }
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date);
 
-  Widget _buildScheduleCard({
-    required String ward,
-    required String time,
-    required String days,
-    required String status,
-    required Color statusColor,
-    required int delay,
-  }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            offset: const Offset(0, 2),
-            blurRadius: 8,
-            spreadRadius: 0,
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(Icons.local_shipping, color: statusColor, size: 20),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        TranslatedText(
-                          ward,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF2D3748),
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: statusColor,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: TranslatedText(
-                            status,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    TranslatedText(
-                      time,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Color(0xFF718096),
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              const Icon(Icons.schedule, size: 16, color: Color(0xFF718096)),
-              const SizedBox(width: 8),
-              TranslatedText(
-                days,
-                style: const TextStyle(fontSize: 14, color: Color(0xFF718096)),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
+    if (difference.inDays == 0) {
+      return 'আজ';
+    } else if (difference.inDays == 1) {
+      return 'গতকাল';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays} দিন আগে';
+    } else {
+      return '${date.day}/${date.month}/${date.year}';
+    }
   }
 
   Widget _buildWasteSeparationTips() {
@@ -609,7 +542,7 @@ class _WasteManagementPageState extends State<WasteManagementPage>
                 child: const Text('♻️', style: TextStyle(fontSize: 20)),
               ),
               const SizedBox(width: 12),
-              TranslatedText(
+              const TranslatedText(
                 'Waste Separation Tips',
                 style: TextStyle(
                   fontSize: 16,
@@ -620,9 +553,9 @@ class _WasteManagementPageState extends State<WasteManagementPage>
             ],
           ),
           const SizedBox(height: 16),
-          _buildTipItem('• Separate organic and non-organic waste'),
-          _buildTipItem('• Keep recyclables clean and dry'),
-          _buildTipItem('• Place waste bags outside before pickup time'),
+          _buildTipItem('• জৈব এবং অজৈব বর্জ্য আলাদা করুন'),
+          _buildTipItem('• পুনর্ব্যবহারযোগ্য জিনিস পরিষ্কার এবং শুকনো রাখুন'),
+          _buildTipItem('• সংগ্রহের সময়ের আগে বর্জ্যের ব্যাগ বাইরে রাখুন'),
         ],
       ),
     );
@@ -631,12 +564,104 @@ class _WasteManagementPageState extends State<WasteManagementPage>
   Widget _buildTipItem(String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: TranslatedText(
+      child: Text(
         text,
         style: const TextStyle(
           fontSize: 14,
           color: Color(0xFF2D3748),
           height: 1.4,
+        ),
+      ),
+    );
+  }
+}
+
+class _ReactionButton extends StatefulWidget {
+  final IconData icon;
+  final int count;
+  final bool isSelected;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _ReactionButton({
+    required this.icon,
+    required this.count,
+    required this.isSelected,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  State<_ReactionButton> createState() => _ReactionButtonState();
+}
+
+class _ReactionButtonState extends State<_ReactionButton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 200),
+      vsync: this,
+    );
+    _scaleAnimation = Tween<double>(
+      begin: 1.0,
+      end: 1.2,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+  }
+
+  @override
+  void didUpdateWidget(_ReactionButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isSelected && !oldWidget.isSelected) {
+      _controller.forward().then((_) => _controller.reverse());
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: widget.onTap,
+      child: ScaleTransition(
+        scale: _scaleAnimation,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: widget.isSelected
+                ? widget.color.withOpacity(0.1)
+                : Colors.grey[100],
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: widget.isSelected ? widget.color : Colors.grey[300]!,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                widget.icon,
+                size: 18,
+                color: widget.isSelected ? widget.color : Colors.grey[600],
+              ),
+              const SizedBox(width: 6),
+              Text(
+                '${widget.count}',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: widget.isSelected ? widget.color : Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

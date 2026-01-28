@@ -352,6 +352,7 @@ const OthersAnalyticsWidget: React.FC<OthersAnalyticsWidgetProps> = ({
                                                     </Typography>
                                                 </Box>
                                             }
+                                            primaryTypographyProps={{ component: 'div' }}
                                             sx={{ my: 0 }}
                                         />
                                     </ListItem>
