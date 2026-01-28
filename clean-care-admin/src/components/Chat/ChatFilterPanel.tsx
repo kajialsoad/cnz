@@ -428,7 +428,7 @@ const ChatFilterPanel: React.FC<ChatFilterPanelProps> = ({
 
                 {/* Ward Filter */}
                 <FormControl fullWidth size="small">
-                    <InputLabel id="ward-filter-label">Ward</InputLabel>
+                    <InputLabel id="ward-filter-label" shrink={true}>Ward</InputLabel>
                     <Select
                         labelId="ward-filter-label"
                         label="Ward"

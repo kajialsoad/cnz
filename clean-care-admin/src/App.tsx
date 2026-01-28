@@ -254,7 +254,9 @@ function App() {
                           path="/waste-management"
                           element={
                             <ProtectedRoute>
-                              <WasteManagementPage />
+                              <RoleBasedRoute allowedRoles={['MASTER_ADMIN']}>
+                                <WasteManagementPage />
+                              </RoleBasedRoute>
                             </ProtectedRoute>
                           }
                         />

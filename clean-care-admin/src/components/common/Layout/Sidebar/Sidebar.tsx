@@ -66,14 +66,6 @@ const baseMenuItems = [
     roles: ['MASTER_ADMIN', 'SUPER_ADMIN', 'ADMIN'], // All roles can see Live Chat
   },
   {
-    id: 'chats',
-    label: 'Messages',
-    icon: chatIcon,
-    path: '/chats',
-    dynamicBadge: true, // Will be populated from API
-    roles: ['MASTER_ADMIN', 'SUPER_ADMIN', 'ADMIN'], // All roles can see Messages
-  },
-  {
     id: 'super-admins',
     label: 'Super Admin Management',
     icon: adminIcon,
@@ -106,7 +98,7 @@ const baseMenuItems = [
     label: 'Waste Management',
     icon: settingsIcon,
     path: '/waste-management',
-    roles: ['MASTER_ADMIN', 'SUPER_ADMIN', 'ADMIN'],
+    roles: ['MASTER_ADMIN'],
   },
   {
     id: 'system-control',
