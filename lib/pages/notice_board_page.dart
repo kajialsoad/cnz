@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:provider/provider.dart';
 import '../components/custom_bottom_nav.dart';
+import '../providers/notice_provider.dart';
+import '../providers/language_provider.dart';
+import '../models/notice_model.dart';
+import 'notice_detail_page.dart';
 
 class NoticeBoardPage extends StatefulWidget {
   const NoticeBoardPage({super.key});
@@ -13,6 +18,7 @@ class _NoticeBoardPageState extends State<NoticeBoardPage>
     with TickerProviderStateMixin {
   late AnimationController _animationController;
   int _currentIndex = 0;
+  int? _selectedCategoryId;
 
   // Color scheme matching the home page
   static const Color green = Color(0xFF2E8B57);
@@ -34,6 +40,13 @@ class _NoticeBoardPageState extends State<NoticeBoardPage>
       vsync: this,
     );
     _animationController.forward();
+    
+    // Load notices and categories
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final noticeProvider = Provider.of<NoticeProvider>(context, listen: false);
+      noticeProvider.loadNotices();
+      noticeProvider.loadCategories();
+    });
   }
 
   @override
@@ -44,6 +57,10 @@ class _NoticeBoardPageState extends State<NoticeBoardPage>
 
   @override
   Widget build(BuildContext context) {
+    final noticeProvider = Provider.of<NoticeProvider>(context);
+    final languageProvider = Provider.of<LanguageProvider>(context);
+    final currentLanguage = languageProvider.languageCode;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF3FAF5),
       body: Container(
@@ -62,20 +79,31 @@ class _NoticeBoardPageState extends State<NoticeBoardPage>
           child: Column(
             children: [
               _buildHeader(),
+              _buildCategoryFilter(noticeProvider),
               Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      _buildLatestAnnouncementsSection(),
-                      const SizedBox(height: 20),
-                      _buildNoticesList(),
-                      const SizedBox(height: 20),
-                      _buildStayUpdatedCard(),
-                      const SizedBox(height: 100), // Space for bottom nav
-                    ],
-                  ),
-                ),
+                child: noticeProvider.isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : noticeProvider.error != null
+                        ? _buildErrorState(noticeProvider.error!)
+                        : RefreshIndicator(
+                            onRefresh: () => noticeProvider.loadNotices(refresh: true),
+                            child: SingleChildScrollView(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                children: [
+                                  _buildLatestAnnouncementsSection(),
+                                  const SizedBox(height: 20),
+                                  _buildNoticesList(
+                                    noticeProvider.filteredNotices,
+                                    currentLanguage,
+                                  ),
+                                  const SizedBox(height: 20),
+                                  _buildStayUpdatedCard(),
+                                  const SizedBox(height: 100),
+                                ],
+                              ),
+                            ),
+                          ),
               ),
             ],
           ),
@@ -187,180 +215,451 @@ class _NoticeBoardPageState extends State<NoticeBoardPage>
     ).animate().slideX(begin: -1, duration: 800.ms).fadeIn();
   }
 
-  Widget _buildNoticesList() {
-    final notices = [
-      {
-        'title': 'Waste Collection Schedule Update',
-        'description': 'New waste collection timings for Ward 10-15. Morning collection will now start at 7:00 AM instead of 8:00 AM.',
-        'date': 'Oct 24, 2025',
-        'tags': ['NEW', 'Schedule'],
-        'tagColors': [red, blue],
-      },
-      {
-        'title': 'Tree Plantation Campaign',
-        'description': 'Join us for a city-wide tree plantation drive this Friday. Register through the app to participate.',
-        'date': 'Oct 20, 2025',
-        'tags': ['NEW', 'Event'],
-        'tagColors': [red, greenSoft],
-      },
-      {
-        'title': 'Recycling Bin Installation',
-        'description': 'New recycling bins have been installed in Dhanmondi area. Please use separate bins for plastic, paper, and organic waste.',
-        'date': 'Oct 18, 2025',
-        'tags': ['Infrastructure'],
-        'tagColors': [purple],
-      },
-      {
-        'title': 'Public Holiday - Waste Collection',
-        'description': 'Waste collection services will be suspended on public holidays. Next collection date will be announced separately.',
-        'date': 'Oct 15, 2025',
-        'tags': ['Holiday'],
-        'tagColors': [orange],
-      },
-      {
-        'title': 'Clean Dhaka Campaign Launch',
-        'description': 'DSCC launches \'Clean Dhaka 2025\' campaign. Citizens are encouraged to report illegal dumping and participate in weekly cleaning drives.',
-        'date': 'Oct 10, 2025',
-        'tags': ['Campaign'],
-        'tagColors': [red],
-      },
-    ];
+  Widget _buildCategoryFilter(NoticeProvider noticeProvider) {
+    if (noticeProvider.categories.isEmpty) return const SizedBox.shrink();
 
-    return Column(
-      children: notices.asMap().entries.map((entry) {
-        int index = entry.key;
-        Map<String, dynamic> notice = entry.value;
-        
-        return Container(
-          margin: const EdgeInsets.only(bottom: 16),
-          child: _buildNoticeCard(
-            title: notice['title'],
-            description: notice['description'],
-            date: notice['date'],
-            tags: List<String>.from(notice['tags']),
-            tagColors: List<Color>.from(notice['tagColors']),
-          ),
-        ).animate(delay: (index * 200).ms).slideX(begin: 1, duration: 600.ms).fadeIn();
-      }).toList(),
+    return Container(
+      height: 60,
+      margin: const EdgeInsets.symmetric(vertical: 10),
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: noticeProvider.categories.length + 1,
+        itemBuilder: (context, index) {
+          if (index == 0) {
+            return _buildCategoryChip(
+              'All',
+              null,
+              green,
+              _selectedCategoryId == null,
+              () {
+                setState(() => _selectedCategoryId = null);
+                noticeProvider.setCategoryFilter(null);
+              },
+            );
+          }
+
+          final category = noticeProvider.categories[index - 1];
+          return _buildCategoryChip(
+            category.name,
+            category.icon,
+            Color(int.parse(category.color.replaceFirst('#', '0xFF'))),
+            _selectedCategoryId == category.id,
+            () {
+              setState(() => _selectedCategoryId = category.id);
+              noticeProvider.setCategoryFilter(category.id);
+            },
+          );
+        },
+      ),
     );
   }
 
-  Widget _buildNoticeCard({
-    required String title,
-    required String description,
-    required String date,
-    required List<String> tags,
-    required List<Color> tagColors,
-  }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.grey.withOpacity(0.1),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            offset: const Offset(0, 2),
-            blurRadius: 8,
-            spreadRadius: 0,
+  Widget _buildCategoryChip(
+    String label,
+    String? icon,
+    Color color,
+    bool isSelected,
+    VoidCallback onTap,
+  ) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(right: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? color : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? color : Colors.grey.shade300,
+            width: 1.5,
           ),
-          BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            offset: const Offset(0, 8),
-            blurRadius: 24,
-            spreadRadius: 0,
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Tags
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: tags.asMap().entries.map((entry) {
-              int index = entry.key;
-              String tag = entry.value;
-              Color color = tagColors[index % tagColors.length];
-              
-              return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: color,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: color.withOpacity(0.3),
-                      offset: const Offset(0, 2),
-                      blurRadius: 4,
-                      spreadRadius: 0,
-                    ),
-                  ],
-                ),
-                child: Text(
-                  tag,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: color.withOpacity(0.3),
+                    offset: const Offset(0, 2),
+                    blurRadius: 8,
                   ),
-                ),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 12),
-          
-          // Title
+                ]
+              : [],
+        ),
+        child: Row(
+          children: [
+            if (icon != null) ...[
+              Text(icon, style: const TextStyle(fontSize: 16)),
+              const SizedBox(width: 6),
+            ],
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? Colors.white : Colors.grey.shade700,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState(String error) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.error_outline, size: 64, color: Colors.grey.shade400),
+          const SizedBox(height: 16),
           Text(
-            title,
-            style: const TextStyle(
+            'Failed to load notices',
+            style: TextStyle(
               fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF2C3E50),
-              height: 1.3,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey.shade700,
             ),
           ),
           const SizedBox(height: 8),
-          
-          // Description
           Text(
-            description,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[600],
-              height: 1.5,
-            ),
+            error,
+            style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+            textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 16),
-          
-          // Date
-          Row(
-            children: [
-              Icon(
-                Icons.calendar_today,
-                size: 16,
-                color: Colors.grey[500],
-              ),
-              const SizedBox(width: 8),
-              Text(
-                date,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.grey[500],
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
+          const SizedBox(height: 24),
+          ElevatedButton(
+            onPressed: () {
+              Provider.of<NoticeProvider>(context, listen: false)
+                  .loadNotices(refresh: true);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: green,
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+            ),
+            child: const Text('Retry'),
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildNoticesList(List<Notice> notices, String currentLanguage) {
+    if (notices.isEmpty) {
+      return Center(
+        child: Column(
+          children: [
+            Icon(Icons.inbox_outlined, size: 64, color: Colors.grey.shade400),
+            const SizedBox(height: 16),
+            Text(
+              'No notices available',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey.shade600,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: notices.length,
+      itemBuilder: (context, index) {
+        final notice = notices[index];
+        final bool isLast = index == notices.length - 1;
+
+        return IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Timeline Indicator
+              Column(
+                children: [
+                  Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: notice.isUrgent ? red : green,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: (notice.isUrgent ? red : green).withOpacity(0.4),
+                          blurRadius: 8,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (!isLast)
+                    Expanded(
+                      child: Container(
+                        width: 2,
+                        color: Colors.grey.shade300,
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(width: 16),
+              // Notice Card
+              Expanded(
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 24),
+                  child: _buildNoticeCard(notice, currentLanguage),
+                ).animate(delay: (index * 100).ms).slideX(begin: 0.1, duration: 400.ms).fadeIn(),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildNoticeCard(Notice notice, String currentLanguage) {
+    final title = notice.getLocalizedTitle(currentLanguage);
+    final description = notice.getLocalizedDescription(currentLanguage);
+    
+    // Determine tags and colors based on notice properties
+    final List<String> tags = [];
+    final List<Color> tagColors = [];
+
+    if (notice.isUrgent) {
+      tags.add('URGENT');
+      tagColors.add(red);
+    }
+
+    if (notice.type == 'EVENT') {
+      tags.add('Event');
+      tagColors.add(greenSoft);
+    } else if (notice.type == 'SCHEDULED') {
+      tags.add('Scheduled');
+      tagColors.add(blue);
+    }
+
+    if (notice.category != null) {
+      tags.add(notice.category!.name);
+      tagColors.add(
+        Color(int.parse(notice.category!.color.replaceFirst('#', '0xFF'))),
+      );
+    }
+
+    return GestureDetector(
+      onTap: () {
+        // Navigate to detail page
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => NoticeDetailPage(noticeId: notice.id),
+          ),
+        );
+      },
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: Colors.grey.withOpacity(0.1),
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              offset: const Offset(0, 2),
+              blurRadius: 8,
+              spreadRadius: 0,
+            ),
+            BoxShadow(
+              color: Colors.black.withOpacity(0.02),
+              offset: const Offset(0, 8),
+              blurRadius: 24,
+              spreadRadius: 0,
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Tags
+              if (tags.isNotEmpty)
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: tags.asMap().entries.map((entry) {
+                    int index = entry.key;
+                    String tag = entry.value;
+                    Color color = tagColors[index % tagColors.length];
+
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: color,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: color.withOpacity(0.3),
+                            offset: const Offset(0, 2),
+                            blurRadius: 4,
+                            spreadRadius: 0,
+                          ),
+                        ],
+                      ),
+                      child: Text(
+                        tag,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              if (tags.isNotEmpty) const SizedBox(height: 12),
+
+              // Title
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF2C3E50),
+                  height: 1.3,
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              // Description
+              Text(
+                description,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                  height: 1.5,
+                ),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 16),
+
+              // Date and stats
+              Row(
+                children: [
+                  Icon(
+                    Icons.calendar_today,
+                    size: 16,
+                    color: Colors.grey[500],
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    _formatDate(notice.publishDate),
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey[500],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const Spacer(),
+                  Icon(
+                    Icons.visibility,
+                    size: 16,
+                    color: Colors.grey[500],
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${notice.viewCount}',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey[500],
+                    ),
+                  ),
+                ],
+              ),
+              const Divider(height: 32),
+              // Interaction Buttons
+              _buildInteractionBar(notice),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInteractionBar(Notice notice) {
+    final noticeProvider = Provider.of<NoticeProvider>(context, listen: false);
+    final bool isLiked = notice.userInteractions?.contains('LIKE') ?? false;
+    final bool isLoved = notice.userInteractions?.contains('LOVE') ?? false;
+    final bool hasRsvpYes = notice.userInteractions?.contains('RSVP_YES') ?? false;
+
+    return Row(
+      children: [
+        _buildInteractionButton(
+          icon: isLiked ? Icons.thumb_up : Icons.thumb_up_outlined,
+          label: '${notice.interactionCounts?['LIKE'] ?? 0}',
+          color: isLiked ? blue : Colors.grey[600]!,
+          onTap: () => noticeProvider.toggleInteraction(notice.id, 'LIKE'),
+        ),
+        const SizedBox(width: 16),
+        _buildInteractionButton(
+          icon: isLoved ? Icons.favorite : Icons.favorite_border,
+          label: '${notice.interactionCounts?['LOVE'] ?? 0}',
+          color: isLoved ? red : Colors.grey[600]!,
+          onTap: () => noticeProvider.toggleInteraction(notice.id, 'LOVE'),
+        ),
+        const Spacer(),
+        if (notice.type == 'EVENT')
+          ElevatedButton.icon(
+            onPressed: () => noticeProvider.toggleInteraction(notice.id, 'RSVP_YES'),
+            icon: Icon(hasRsvpYes ? Icons.check_circle : Icons.event_available, size: 18),
+            label: Text(hasRsvpYes ? 'Going' : 'RSVP'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: hasRsvpYes ? green : Colors.white,
+              foregroundColor: hasRsvpYes ? Colors.white : green,
+              side: BorderSide(color: green),
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildInteractionButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    final months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
 
   Widget _buildStayUpdatedCard() {

@@ -8,6 +8,7 @@ import {
   PolicyOutlined,
   DescriptionOutlined,
   SettingsOutlined,
+  NotificationsOutlined,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import MainLayout from '../../components/common/Layout/MainLayout';
@@ -92,6 +93,15 @@ const Settings: React.FC = () => {
             color="orange"
             icon={<DescriptionOutlined sx={{ color: '#ff6900' }} />}
             onClick={() => console.log('Terms edit clicked')}
+          />
+
+          <SettingsCard
+            title="নোটিস বোর্ড"
+            description="নোটিস তৈরি, আপডেট এবং ম্যানেজ করুন"
+            buttonLabel="ম্যানেজ করুন"
+            color="blue"
+            icon={<NotificationsOutlined sx={{ color: '#2b7fff' }} />}
+            onClick={() => navigate('/notices')}
           />
 
           <SettingsCard

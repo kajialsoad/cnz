@@ -39,6 +39,7 @@ const Notifications = lazy(() => import('./pages/Notifications'));
 const Settings = lazy(() => import('./pages/Settings'));
 const SystemControl = lazy(() => import('./pages/SystemControl'));
 const WasteManagementPage = lazy(() => import('./pages/WasteManagement/WasteManagementPage'));
+const NoticeManagementPage = lazy(() => import('./pages/NoticeManagement/NoticeManagementPage'));
 
 function App() {
   return (
@@ -256,6 +257,16 @@ function App() {
                             <ProtectedRoute>
                               <RoleBasedRoute allowedRoles={['MASTER_ADMIN']}>
                                 <WasteManagementPage />
+                              </RoleBasedRoute>
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="/notices"
+                          element={
+                            <ProtectedRoute>
+                              <RoleBasedRoute allowedRoles={['MASTER_ADMIN']}>
+                                <NoticeManagementPage />
                               </RoleBasedRoute>
                             </ProtectedRoute>
                           }

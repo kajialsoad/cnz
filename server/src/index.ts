@@ -1,6 +1,7 @@
 import app from './app';
 import env from './config/env';
 import { PrismaClient } from '@prisma/client';
+import { initCronJobs } from './utils/cron';
 
 const prisma = new PrismaClient();
 
@@ -48,6 +49,9 @@ async function start() {
       }
       console.log(`✅ Cleanup complete. Updated ${updatedCount} users.`);
     }
+
+    // Initialize cron jobs
+    initCronJobs();
 
     app.listen(env.PORT, '0.0.0.0', () => {
       console.log(`\n✅ Server listening on:`);

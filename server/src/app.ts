@@ -243,6 +243,16 @@ console.log('✅ Public Ward routes registered at /api/wards');
 app.use('/api/waste-management', wasteManagementRoutes); // Waste Management routes
 console.log('✅ Waste Management routes registered at /api/waste-management');
 
+// Notice Board routes
+import noticeRoutes from './routes/notice.routes';
+import noticeCategoryRoutes from './routes/notice-category.routes';
+
+app.use('/api/notices', noticeRoutes); // Notice routes (public + admin)
+console.log('✅ Notice routes registered at /api/notices');
+
+app.use('/api/notice-categories', noticeCategoryRoutes); // Notice category routes
+console.log('✅ Notice category routes registered at /api/notice-categories');
+
 // Add test route to verify admin path works
 app.get('/api/admin/test', (req, res) => {
   res.json({

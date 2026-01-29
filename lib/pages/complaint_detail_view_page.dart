@@ -35,14 +35,16 @@ class _ComplaintDetailViewPageState extends State<ComplaintDetailViewPage> {
   @override
   void initState() {
     super.initState();
-    
+
     // Load complaint after frame is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final args = ModalRoute.of(context)?.settings.arguments;
       if (args != null) {
         complaintId = args.toString();
-        Provider.of<ComplaintProvider>(context, listen: false)
-            .loadComplaint(complaintId!);
+        Provider.of<ComplaintProvider>(
+          context,
+          listen: false,
+        ).loadComplaint(complaintId!);
         _loadReviews();
       }
     });
@@ -57,9 +59,12 @@ class _ComplaintDetailViewPageState extends State<ComplaintDetailViewPage> {
     });
 
     try {
-      final reviewProvider = Provider.of<ReviewProvider>(context, listen: false);
+      final reviewProvider = Provider.of<ReviewProvider>(
+        context,
+        listen: false,
+      );
       final reviews = await reviewProvider.getReviews(int.parse(complaintId!));
-      
+
       if (mounted) {
         setState(() {
           _reviews = reviews;
@@ -141,10 +146,7 @@ class _ComplaintDetailViewPageState extends State<ComplaintDetailViewPage> {
           SizedBox(height: 16),
           TranslatedText(
             'Loading complaint details...',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[600],
-            ),
+            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
           ),
         ],
       ),
@@ -158,11 +160,7 @@ class _ComplaintDetailViewPageState extends State<ComplaintDetailViewPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.error_outline,
-              size: 64,
-              color: Colors.red[300],
-            ),
+            Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
             SizedBox(height: 16),
             TranslatedText(
               'Failed to load complaint',
@@ -176,18 +174,17 @@ class _ComplaintDetailViewPageState extends State<ComplaintDetailViewPage> {
             Text(
               error,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
-              ),
+              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
             ),
             SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: () {
                 HapticFeedback.mediumImpact();
                 if (complaintId != null) {
-                  Provider.of<ComplaintProvider>(context, listen: false)
-                      .loadComplaint(complaintId!);
+                  Provider.of<ComplaintProvider>(
+                    context,
+                    listen: false,
+                  ).loadComplaint(complaintId!);
                 }
               },
               icon: Icon(Icons.refresh),
@@ -215,11 +212,7 @@ class _ComplaintDetailViewPageState extends State<ComplaintDetailViewPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.search_off,
-              size: 64,
-              color: Colors.grey[400],
-            ),
+            Icon(Icons.search_off, size: 64, color: Colors.grey[400]),
             SizedBox(height: 16),
             TranslatedText(
               'Complaint not found',
@@ -258,25 +251,27 @@ class _ComplaintDetailViewPageState extends State<ComplaintDetailViewPage> {
       _buildDescriptionCard(complaint),
       _buildLocationCard(complaint),
       _buildInspectorDetailsCard(complaint), // Ward Inspector & Zone Officer
-      if (complaint.imageUrls.isNotEmpty) _buildImagesSection(complaint.imageUrls),
-      if (complaint.audioUrls.isNotEmpty) _buildAudioSection(complaint.audioUrls),
-      
+      if (complaint.imageUrls.isNotEmpty)
+        _buildImagesSection(complaint.imageUrls),
+      if (complaint.audioUrls.isNotEmpty)
+        _buildAudioSection(complaint.audioUrls),
+
       // NEW: Status Timeline
       StatusTimeline(complaint: complaint),
-      
+
       // NEW: Resolution Details (for resolved complaints)
-      if (complaint.status == ComplaintStatus.resolved && complaint.hasResolution)
+      if (complaint.status == ComplaintStatus.resolved &&
+          complaint.hasResolution)
         ResolutionDetailsCard(
           complaint: complaint,
           onReviewSubmitted: complaint.canSubmitReview
               ? () => _showReviewModal(complaint)
               : null,
         ),
-      
+
       // NEW: Reviews Section
-      if (_reviews.isNotEmpty || _loadingReviews)
-        _buildReviewsSection(),
-      
+      if (_reviews.isNotEmpty || _loadingReviews) _buildReviewsSection(),
+
       _buildTimestampsCard(complaint),
       _buildChatButton(complaint),
     ];
@@ -290,15 +285,13 @@ class _ComplaintDetailViewPageState extends State<ComplaintDetailViewPage> {
             duration: const Duration(milliseconds: 375),
             childAnimationBuilder: (widget) => SlideAnimation(
               verticalOffset: 50.0,
-              child: FadeInAnimation(
-                child: widget,
-              ),
+              child: FadeInAnimation(child: widget),
             ),
             children: [
-              ...cards.map((card) => Padding(
-                padding: EdgeInsets.only(bottom: 16),
-                child: card,
-              )),
+              ...cards.map(
+                (card) =>
+                    Padding(padding: EdgeInsets.only(bottom: 16), child: card),
+              ),
               SizedBox(height: 64), // Space for bottom nav
             ],
           ),
@@ -316,8 +309,10 @@ class _ComplaintDetailViewPageState extends State<ComplaintDetailViewPage> {
         // Reload reviews after submission
         _loadReviews();
         // Reload complaint to update canSubmitReview status
-        Provider.of<ComplaintProvider>(context, listen: false)
-            .loadComplaint(complaint.id);
+        Provider.of<ComplaintProvider>(
+          context,
+          listen: false,
+        ).loadComplaint(complaint.id);
       },
     );
   }
@@ -500,9 +495,11 @@ class _ComplaintDetailViewPageState extends State<ComplaintDetailViewPage> {
               ),
             ),
           ],
-          
+
           // Geographical Information
-          if (complaint.cityCorporation != null || complaint.zone != null || complaint.ward != null) ...[
+          if (complaint.cityCorporation != null ||
+              complaint.zone != null ||
+              complaint.ward != null) ...[
             SizedBox(height: 16),
             Container(
               padding: EdgeInsets.all(12),
@@ -536,43 +533,47 @@ class _ComplaintDetailViewPageState extends State<ComplaintDetailViewPage> {
                     ],
                   ),
                   SizedBox(height: 8),
-                  
+
                   // City Corporation
                   if (complaint.cityCorporation != null)
                     _buildGeographicalRow(
                       icon: Icons.location_city,
                       label: 'City Corporation',
                       labelBangla: 'সিটি কর্পোরেশন',
-                      value: complaint.cityCorporation!['name'] ?? 
-                             complaint.cityCorporation!['nameBangla'] ?? 
-                             'N/A',
+                      value:
+                          complaint.cityCorporation!['name'] ??
+                          complaint.cityCorporation!['nameBangla'] ??
+                          'N/A',
                     ),
-                  
-                  if (complaint.cityCorporation != null && complaint.zone != null)
+
+                  if (complaint.cityCorporation != null &&
+                      complaint.zone != null)
                     SizedBox(height: 8),
-                  
+
                   // Zone
                   if (complaint.zone != null)
                     _buildGeographicalRow(
                       icon: Icons.map,
                       label: 'Zone',
                       labelBangla: 'জোন',
-                      value: complaint.zone!['name'] ?? 
-                             complaint.zone!['displayName'] ?? 
-                             'Zone ${complaint.zone!['zoneNumber'] ?? 'N/A'}',
+                      value:
+                          complaint.zone!['name'] ??
+                          complaint.zone!['displayName'] ??
+                          'Zone ${complaint.zone!['zoneNumber'] ?? 'N/A'}',
                     ),
-                  
+
                   if (complaint.zone != null && complaint.ward != null)
                     SizedBox(height: 8),
-                  
+
                   // Ward
                   if (complaint.ward != null)
                     _buildGeographicalRow(
                       icon: Icons.place,
                       label: 'Ward',
                       labelBangla: 'ওয়ার্ড',
-                      value: complaint.ward!['displayName'] ?? 
-                             'Ward ${complaint.ward!['wardNumber'] ?? 'N/A'}',
+                      value:
+                          complaint.ward!['displayName'] ??
+                          'Ward ${complaint.ward!['wardNumber'] ?? 'N/A'}',
                     ),
                 ],
               ),
@@ -582,7 +583,7 @@ class _ComplaintDetailViewPageState extends State<ComplaintDetailViewPage> {
       ),
     );
   }
-  
+
   Widget _buildGeographicalRow({
     required IconData icon,
     required String label,
@@ -591,11 +592,7 @@ class _ComplaintDetailViewPageState extends State<ComplaintDetailViewPage> {
   }) {
     return Row(
       children: [
-        Icon(
-          icon,
-          size: 14,
-          color: Color(0xFF4CAF50).withOpacity(0.7),
-        ),
+        Icon(icon, size: 14, color: Color(0xFF4CAF50).withOpacity(0.7)),
         SizedBox(width: 8),
         Expanded(
           child: Column(
@@ -603,10 +600,7 @@ class _ComplaintDetailViewPageState extends State<ComplaintDetailViewPage> {
             children: [
               Text(
                 '$label ($labelBangla)',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.grey[600],
-                ),
+                style: TextStyle(fontSize: 11, color: Colors.grey[600]),
               ),
               Text(
                 value,
@@ -625,13 +619,15 @@ class _ComplaintDetailViewPageState extends State<ComplaintDetailViewPage> {
 
   Widget _buildInspectorDetailsCard(Complaint complaint) {
     // Check if we have ward or zone data
-    final hasWardInspector = complaint.ward != null && 
-                             (complaint.ward!['inspectorName'] != null || 
-                              complaint.ward!['inspectorPhone'] != null);
-    final hasZoneOfficer = complaint.zone != null && 
-                          (complaint.zone!['officerName'] != null || 
-                           complaint.zone!['officerPhone'] != null);
-    
+    final hasWardInspector =
+        complaint.ward != null &&
+        (complaint.ward!['inspectorName'] != null ||
+            complaint.ward!['inspectorPhone'] != null);
+    final hasZoneOfficer =
+        complaint.zone != null &&
+        (complaint.zone!['officerName'] != null ||
+            complaint.zone!['officerPhone'] != null);
+
     if (!hasWardInspector && !hasZoneOfficer) {
       return SizedBox.shrink(); // Don't show if no data
     }
@@ -654,11 +650,7 @@ class _ComplaintDetailViewPageState extends State<ComplaintDetailViewPage> {
         children: [
           Row(
             children: [
-              Icon(
-                Icons.people_outline,
-                size: 20,
-                color: Color(0xFF4CAF50),
-              ),
+              Icon(Icons.people_outline, size: 20, color: Color(0xFF4CAF50)),
               SizedBox(width: 8),
               TranslatedText(
                 'Responsible Officers',
@@ -671,7 +663,7 @@ class _ComplaintDetailViewPageState extends State<ComplaintDetailViewPage> {
             ],
           ),
           SizedBox(height: 16),
-          
+
           // Ward Inspector Section
           if (hasWardInspector) ...[
             _buildOfficerCard(
@@ -683,11 +675,10 @@ class _ComplaintDetailViewPageState extends State<ComplaintDetailViewPage> {
               iconColor: Color(0xFF2196F3),
             ),
           ],
-          
+
           // Spacing between cards
-          if (hasWardInspector && hasZoneOfficer)
-            SizedBox(height: 12),
-          
+          if (hasWardInspector && hasZoneOfficer) SizedBox(height: 12),
+
           // Zone Officer Section
           if (hasZoneOfficer) ...[
             _buildOfficerCard(
@@ -717,10 +708,7 @@ class _ComplaintDetailViewPageState extends State<ComplaintDetailViewPage> {
       decoration: BoxDecoration(
         color: iconColor.withOpacity(0.05),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: iconColor.withOpacity(0.2),
-          width: 1,
-        ),
+        border: Border.all(color: iconColor.withOpacity(0.2), width: 1),
       ),
       child: Row(
         children: [
@@ -731,14 +719,10 @@ class _ComplaintDetailViewPageState extends State<ComplaintDetailViewPage> {
               color: iconColor.withOpacity(0.1),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(
-              icon,
-              size: 24,
-              color: iconColor,
-            ),
+            child: Icon(icon, size: 24, color: iconColor),
           ),
           SizedBox(width: 12),
-          
+
           // Details
           Expanded(
             child: Column(
@@ -754,7 +738,7 @@ class _ComplaintDetailViewPageState extends State<ComplaintDetailViewPage> {
                   ),
                 ),
                 SizedBox(height: 4),
-                
+
                 // Name
                 if (name != null && name.isNotEmpty)
                   Text(
@@ -765,17 +749,13 @@ class _ComplaintDetailViewPageState extends State<ComplaintDetailViewPage> {
                       color: Colors.grey[800],
                     ),
                   ),
-                
+
                 // Phone
                 if (phone != null && phone.isNotEmpty) ...[
                   SizedBox(height: 4),
                   Row(
                     children: [
-                      Icon(
-                        Icons.phone,
-                        size: 14,
-                        color: iconColor,
-                      ),
+                      Icon(Icons.phone, size: 14, color: iconColor),
                       SizedBox(width: 4),
                       Text(
                         phone,
@@ -815,11 +795,7 @@ class _ComplaintDetailViewPageState extends State<ComplaintDetailViewPage> {
         children: [
           Row(
             children: [
-              Icon(
-                Icons.image_outlined,
-                size: 20,
-                color: Color(0xFF4CAF50),
-              ),
+              Icon(Icons.image_outlined, size: 20, color: Color(0xFF4CAF50)),
               SizedBox(width: 8),
               TranslatedText(
                 'Images',
@@ -923,11 +899,7 @@ class _ComplaintDetailViewPageState extends State<ComplaintDetailViewPage> {
         children: [
           Row(
             children: [
-              Icon(
-                Icons.mic_outlined,
-                size: 20,
-                color: Color(0xFF4CAF50),
-              ),
+              Icon(Icons.mic_outlined, size: 20, color: Color(0xFF4CAF50)),
               SizedBox(width: 8),
               TranslatedText(
                 'Audio Recording',
@@ -940,7 +912,12 @@ class _ComplaintDetailViewPageState extends State<ComplaintDetailViewPage> {
             ],
           ),
           SizedBox(height: 12),
-          ...audioUrls.map((audioUrl) => AudioPlayerWidget(audioUrl: _getFullAudioUrl(audioUrl))).toList(),
+          ...audioUrls
+              .map(
+                (audioUrl) =>
+                    AudioPlayerWidget(audioUrl: _getFullAudioUrl(audioUrl)),
+              )
+              .toList(),
         ],
       ),
     );
@@ -965,11 +942,7 @@ class _ComplaintDetailViewPageState extends State<ComplaintDetailViewPage> {
         children: [
           Row(
             children: [
-              Icon(
-                Icons.access_time,
-                size: 20,
-                color: Color(0xFF4CAF50),
-              ),
+              Icon(Icons.access_time, size: 20, color: Color(0xFF4CAF50)),
               SizedBox(width: 8),
               TranslatedText(
                 'Timeline',
@@ -996,13 +969,7 @@ class _ComplaintDetailViewPageState extends State<ComplaintDetailViewPage> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            color: Colors.grey[600],
-          ),
-        ),
+        Text(label, style: TextStyle(fontSize: 14, color: Colors.grey[600])),
         Text(
           _formatDateTime(dateTime),
           style: TextStyle(
@@ -1019,19 +986,19 @@ class _ComplaintDetailViewPageState extends State<ComplaintDetailViewPage> {
     // Extract responsible officer info
     String? officerName;
     String? officerPhone;
-    
+
     // Try to get Ward Inspector info first (they have phone numbers)
     if (complaint.ward != null) {
       officerName = complaint.ward!['inspectorName'];
       officerPhone = complaint.ward!['inspectorPhone'];
     }
-    
+
     // If no ward inspector, try Zone Officer (no phone shown)
     if (officerName == null && complaint.zone != null) {
       officerName = complaint.zone!['officerName'];
       // Note: Zone officers don't have phone numbers displayed
     }
-    
+
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(16),
@@ -1062,7 +1029,9 @@ class _ComplaintDetailViewPageState extends State<ComplaintDetailViewPage> {
               context,
               MaterialPageRoute(
                 builder: (context) => ComplaintChatPage(
-                  key: ValueKey('chat_${complaint.id}'), // 🔑 Unique key to force new widget instance
+                  key: ValueKey(
+                    'chat_${complaint.id}',
+                  ), // 🔑 Unique key to force new widget instance
                   complaintId: complaint.id,
                   complaintTitle: complaint.title,
                   responsibleOfficerName: officerName,
@@ -1077,11 +1046,7 @@ class _ComplaintDetailViewPageState extends State<ComplaintDetailViewPage> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  Icons.chat_bubble_outline,
-                  color: Colors.white,
-                  size: 24,
-                ),
+                Icon(Icons.chat_bubble_outline, color: Colors.white, size: 24),
                 SizedBox(width: 12),
                 Expanded(
                   child: TranslatedText(
@@ -1095,11 +1060,7 @@ class _ComplaintDetailViewPageState extends State<ComplaintDetailViewPage> {
                   ),
                 ),
                 SizedBox(width: 8),
-                Icon(
-                  Icons.arrow_forward_ios,
-                  color: Colors.white,
-                  size: 16,
-                ),
+                Icon(Icons.arrow_forward_ios, color: Colors.white, size: 16),
               ],
             ),
           ),
@@ -1165,7 +1126,11 @@ class _ComplaintDetailViewPageState extends State<ComplaintDetailViewPage> {
     return UrlHelper.getAudioUrl(audioUrl);
   }
 
-  void _viewFullImage(String imageUrl, List<String> allImages, int initialIndex) {
+  void _viewFullImage(
+    String imageUrl,
+    List<String> allImages,
+    int initialIndex,
+  ) {
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -1179,13 +1144,23 @@ class _ComplaintDetailViewPageState extends State<ComplaintDetailViewPage> {
 
   String _formatDateTime(DateTime dateTime) {
     final months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
-    
+
     // Convert to local time
     final localTime = dateTime.toLocal();
-    
+
     return '${months[localTime.month - 1]} ${localTime.day}, ${localTime.year} at ${localTime.hour}:${localTime.minute.toString().padLeft(2, '0')}';
   }
 
@@ -1290,15 +1265,11 @@ class _FullScreenImageViewerState extends State<FullScreenImageViewer> {
   }
 }
 
-
 // Separate Audio Player Widget to prevent page rebuilds
 class AudioPlayerWidget extends StatefulWidget {
   final String audioUrl;
 
-  const AudioPlayerWidget({
-    super.key,
-    required this.audioUrl,
-  });
+  const AudioPlayerWidget({super.key, required this.audioUrl});
 
   @override
   State<AudioPlayerWidget> createState() => _AudioPlayerWidgetState();
@@ -1313,7 +1284,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
   @override
   void initState() {
     super.initState();
-    
+
     // Setup audio player listeners
     _audioPlayer.onDurationChanged.listen((duration) {
       if (mounted) {
@@ -1435,17 +1406,11 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                     children: [
                       Text(
                         _formatDuration(_position),
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                       ),
                       Text(
                         _formatDuration(_duration),
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                       ),
                     ],
                   ),

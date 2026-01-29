@@ -131,6 +131,8 @@ model User {
   user_activities         user_activities[]
   assignedByZones         UserZone[]               @relation("ZoneAssigner")
   assignedZones           UserZone[]               @relation("UserZones")
+  createdNotices          Notice[]                 @relation("NoticeCreator")
+  noticeInteractions      NoticeInteraction[]
   cityCorporation         CityCorporation?         @relation(fields: [cityCorporationCode], references: [code])
   ward                    Ward?                    @relation(fields: [wardId], references: [id])
   zone                    Zone?                    @relation(fields: [zoneId], references: [id])
@@ -660,5 +662,102 @@ enum WastePostStatus {
   DRAFT
   PUBLISHED
   ARCHIVED
+}
+
+// Notice Board System
+enum NoticeType {
+  GENERAL
+  URGENT
+  EVENT
+  SCHEDULED
+}
+
+enum NoticePriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+model NoticeCategory {
+  id        Int       @id @default(autoincrement())
+  name      String
+  nameBn    String?   @map("name_bn")
+  color     String    @default("#2E8B57")
+  icon      String?
+  parentId  Int?      @map("parent_id")
+  isActive  Boolean   @default(true) @map("is_active")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  
+  parent    NoticeCategory?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  children  NoticeCategory[] @relation("CategoryHierarchy")
+  notices   Notice[]
+
+  @@index([parentId])
+  @@index([isActive])
+  @@map("notice_categories")
+}
+
+model Notice {
+  id            Int            @id @default(autoincrement())
+  title         String
+  titleBn       String?        @map("title_bn")
+  description   String         @db.Text
+  descriptionBn String?        @map("description_bn") @db.Text
+  content       String         @db.Text
+  contentBn     String?        @map("content_bn") @db.Text
+  categoryId    Int            @map("category_id")
+  type          NoticeType     @default(GENERAL)
+  priority      NoticePriority @default(NORMAL)
+  isActive      Boolean        @default(true) @map("is_active")
+  publishDate   DateTime       @default(now()) @map("publish_date")
+  expiryDate    DateTime?      @map("expiry_date")
+  imageUrl      String?        @map("image_url")
+  attachments   Json?
+  targetZones   Json?          @map("target_zones")
+  targetWards   Json?          @map("target_wards")
+  targetCities  Json?          @map("target_cities")
+  viewCount     Int            @default(0) @map("view_count")
+  readCount     Int            @default(0) @map("read_count")
+  createdBy     Int            @map("created_by")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  category      NoticeCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  creator       User           @relation("NoticeCreator", fields: [createdBy], references: [id])
+  interactions  NoticeInteraction[]
+
+  @@index([categoryId])
+  @@index([isActive, publishDate])
+  @@index([expiryDate])
+  @@index([createdBy])
+  @@index([type])
+  @@index([priority])
+  @@map("notices")
+}
+
+model NoticeInteraction {
+  id            Int             @id @default(autoincrement())
+  noticeId      Int             @map("notice_id")
+  userId        Int             @map("user_id")
+  type          InteractionType
+  createdAt     DateTime        @default(now()) @map("created_at")
+
+  notice        Notice          @relation(fields: [noticeId], references: [id], onDelete: Cascade)
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([noticeId, userId, type])
+  @@index([noticeId])
+  @@index([userId])
+  @@map("notice_interactions")
+}
+
+enum InteractionType {
+  LIKE
+  LOVE
+  RSVP_YES
+  RSVP_NO
+  RSVP_MAYBE
 }
 

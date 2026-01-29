@@ -46,6 +46,9 @@ export const ROUTE_PATHS = {
   NOTIFICATION_TEMPLATES: '/notifications/templates',
   NOTIFICATION_HISTORY: '/notifications/history',
   
+  // Notice Board
+  NOTICES: '/notices',
+  
   // Settings
   SETTINGS: '/settings',
   SETTINGS_GENERAL: '/settings/general',

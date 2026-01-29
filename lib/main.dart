@@ -35,6 +35,7 @@ import 'pages/waste_management_page.dart';
 import 'pages/welcome_screen.dart';
 import 'providers/complaint_provider.dart';
 import 'providers/language_provider.dart';
+import 'providers/notice_provider.dart';
 import 'providers/notification_provider.dart';
 import 'providers/review_provider.dart';
 import 'repositories/complaint_repository.dart';
@@ -68,6 +69,7 @@ void main() async {
       providers: [
         ChangeNotifierProvider(create: (_) => LanguageProvider()),
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
+        ChangeNotifierProvider(create: (_) => NoticeProvider()),
         Provider<ApiClient>(
           create: (_) => SmartApiClient.instance,
           dispose: (_, apiClient) => apiClient,

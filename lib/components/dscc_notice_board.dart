@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:provider/provider.dart';
 
 import '../widgets/translated_text.dart';
+import '../providers/notice_provider.dart';
+import '../providers/language_provider.dart';
 
 class DSCCNoticeBoard extends StatefulWidget {
   const DSCCNoticeBoard({super.key});
@@ -14,13 +17,6 @@ class _DSCCNoticeBoardState extends State<DSCCNoticeBoard>
     with SingleTickerProviderStateMixin {
   late AnimationController _scrollController;
   late Animation<Offset> _scrollAnimation;
-
-  final List<String> notices = [
-    "🗓️ This Friday at Ramna Park ✨ Clean Dhaka Campaign",
-    "🌱 New recycling bins installed - Ward 15",
-    "🚛 Waste collection time changed - 6 AM",
-    "🌳 Tree planting program - Next Sunday",
-  ];
 
   @override
   void initState() {
@@ -36,6 +32,11 @@ class _DSCCNoticeBoardState extends State<DSCCNoticeBoard>
     ).animate(CurvedAnimation(parent: _scrollController, curve: Curves.linear));
 
     _startScrolling();
+    
+    // Load notices
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<NoticeProvider>(context, listen: false).loadNotices();
+    });
   }
 
   void _startScrolling() {
@@ -50,6 +51,34 @@ class _DSCCNoticeBoardState extends State<DSCCNoticeBoard>
 
   @override
   Widget build(BuildContext context) {
+    final noticeProvider = Provider.of<NoticeProvider>(context);
+    final languageProvider = Provider.of<LanguageProvider>(context);
+    final currentLanguage = languageProvider.languageCode;
+
+    // Get urgent and recent notices for scrolling
+    final urgentNotices = noticeProvider.notices
+        .where((n) => n.isUrgent && !n.isExpired)
+        .take(3)
+        .toList();
+    
+    final recentNotices = noticeProvider.notices
+        .where((n) => !n.isUrgent && !n.isExpired)
+        .take(2)
+        .toList();
+
+    final displayNotices = [...urgentNotices, ...recentNotices];
+
+    if (displayNotices.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    // Create scrolling text from notices
+    final noticeTexts = displayNotices.map((notice) {
+      final title = notice.getLocalizedTitle(currentLanguage);
+      final icon = notice.isUrgent ? '🚨' : '📢';
+      return '$icon $title';
+    }).toList();
+
     return Container(
           margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
           padding: const EdgeInsets.all(16),
@@ -113,9 +142,8 @@ class _DSCCNoticeBoardState extends State<DSCCNoticeBoard>
                   child: AnimatedBuilder(
                     animation: _scrollAnimation,
                     builder: (context, child) {
-                      // Create a single scrolling text string
                       final String scrollingText =
-                          '${notices.join(' • ')} • ${notices.join(' • ')}';
+                          '${noticeTexts.join(' • ')} • ${noticeTexts.join(' • ')}';
 
                       return SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
@@ -129,7 +157,7 @@ class _DSCCNoticeBoardState extends State<DSCCNoticeBoard>
                           child: Container(
                             height: 30,
                             alignment: Alignment.centerLeft,
-                            child: TranslatedText(
+                            child: Text(
                               scrollingText,
                               style: const TextStyle(
                                 fontSize: 14,

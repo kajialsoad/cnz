@@ -101,6 +101,13 @@ const baseMenuItems = [
     roles: ['MASTER_ADMIN'],
   },
   {
+    id: 'notices',
+    label: 'Notice Board',
+    icon: notificationIcon,
+    path: '/notices',
+    roles: ['MASTER_ADMIN'],
+  },
+  {
     id: 'system-control',
     label: 'Bot Message System Control',
     icon: settingsIcon,
