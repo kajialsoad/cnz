@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../components/custom_bottom_nav.dart';
 import '../widgets/translated_text.dart';
 import 'live_chat_page.dart';
@@ -45,8 +46,86 @@ class _CustomerCarePageState extends State<CustomerCarePage> {
           setState(() {
             _currentIndex = index;
           });
+          _handleNavigation(index);
         },
       ),
+    );
+  }
+
+  void _handleNavigation(int index) {
+    switch (index) {
+      case 0:
+        // Home - Navigate to home page and clear all previous routes
+        Navigator.of(context).pushNamedAndRemoveUntil(
+          '/home',
+          (route) => false,
+        );
+        break;
+      case 1:
+        // Complaint List
+        Navigator.pushNamed(context, '/complaint-list');
+        break;
+      case 4:
+        // Camera
+        _openCamera();
+        break;
+    }
+  }
+
+  void _openCamera() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              const Icon(Icons.camera_alt, color: Color(0xFF2E8B57)),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: TranslatedText(
+                  'Camera',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+          content: const TranslatedText(
+            'Do you want to use the camera to take a photo and submit a waste complaint?',
+            bn: 'আপনি একটি ছবি তুলতে এবং একটি ময়লা সংক্রান্ত অভিযোগ করতে ক্যামেরা ব্যবহার করতে চান?',
+            style: TextStyle(fontSize: 14),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const TranslatedText(
+                'Cancel',
+                bn: 'বাতিল',
+                style: TextStyle(color: Colors.grey),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/category-selection');
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF2E8B57),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const TranslatedText(
+                'Open Camera',
+                bn: 'ক্যামেরা খুলুন',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -57,11 +136,17 @@ class _CustomerCarePageState extends State<CustomerCarePage> {
       decoration: const BoxDecoration(color: Color(0xFF4CAF50)),
       child: Row(
         children: [
-          GestureDetector(
-            onTap: () => Navigator.pop(context),
-            child: const Icon(Icons.arrow_back, color: Colors.white, size: 24),
+          IconButton(
+            icon: const Icon(Icons.home, color: Colors.white, size: 24),
+            onPressed: () {
+              // Navigate to home and clear all previous routes
+              Navigator.of(context).pushNamedAndRemoveUntil(
+                '/home',
+                (route) => false,
+              );
+            },
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 8),
           const TranslatedText(
             'Customer Care',
             style: TextStyle(
@@ -76,45 +161,73 @@ class _CustomerCarePageState extends State<CustomerCarePage> {
   }
 
   Widget _buildCallButton() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF4CAF50), width: 2),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: const Color(0xFF4CAF50).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
+    return GestureDetector(
+      onTap: () async {
+        final Uri phoneUri = Uri(scheme: 'tel', path: '01577262723');
+        if (await canLaunchUrl(phoneUri)) {
+          await launchUrl(phoneUri);
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Could not open phone dialer'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+      },
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFF4CAF50), width: 2),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF4CAF50).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.phone, color: Color(0xFF4CAF50), size: 24),
             ),
-            child: const Icon(Icons.phone, color: Color(0xFF4CAF50), size: 24),
-          ),
-          const SizedBox(width: 16),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TranslatedText(
-                  'Call DSCC Hotline',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
+            const SizedBox(width: 16),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TranslatedText(
+                    'Clean Care Customer Care Number',
+                    bn: 'ক্লিন কেয়ার কাস্টমার কেয়ার নাম্বার',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
                   ),
-                ),
-                TranslatedText(
-                  '16106 (Toll Free)',
-                  style: TextStyle(fontSize: 14, color: Colors.grey),
-                ),
-              ],
+                  SizedBox(height: 4),
+                  Text(
+                    '01577262723',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF4CAF50),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+            const Icon(
+              Icons.arrow_forward_ios,
+              color: Color(0xFF4CAF50),
+              size: 16,
+            ),
+          ],
+        ),
       ),
     );
   }
