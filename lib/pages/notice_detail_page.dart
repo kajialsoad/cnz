@@ -17,7 +17,8 @@ class NoticeDetailPage extends StatefulWidget {
   State<NoticeDetailPage> createState() => _NoticeDetailPageState();
 }
 
-class _NoticeDetailPageState extends State<NoticeDetailPage> with SingleTickerProviderStateMixin {
+class _NoticeDetailPageState extends State<NoticeDetailPage>
+    with SingleTickerProviderStateMixin {
   Notice? _notice;
   bool _isLoading = true;
   String? _error;
@@ -51,12 +52,15 @@ class _NoticeDetailPageState extends State<NoticeDetailPage> with SingleTickerPr
 
   Future<void> _loadNotice() async {
     try {
-      final noticeProvider = Provider.of<NoticeProvider>(context, listen: false);
+      final noticeProvider = Provider.of<NoticeProvider>(
+        context,
+        listen: false,
+      );
       final notice = await noticeProvider.getNoticeById(widget.noticeId);
-      
+
       // Increment view count
       await noticeProvider.incrementViewCount(widget.noticeId);
-      
+
       if (mounted) {
         setState(() {
           _notice = notice;
@@ -71,6 +75,51 @@ class _NoticeDetailPageState extends State<NoticeDetailPage> with SingleTickerPr
         });
       }
     }
+  }
+
+  Future<void> _handleInteraction(String type) async {
+    if (!mounted || _notice == null) return;
+    final currentInteractions = List<String>.from(
+      _notice!.userInteractions ?? [],
+    );
+    final currentCounts = Map<String, int>.from(
+      _notice!.interactionCounts ?? {},
+    );
+    final bool isAdding = !currentInteractions.contains(type);
+
+    if (type == 'LIKE' || type == 'LOVE') {
+      final otherType = type == 'LIKE' ? 'LOVE' : 'LIKE';
+      if (currentInteractions.contains(otherType)) {
+        currentInteractions.remove(otherType);
+        currentCounts[otherType] = (currentCounts[otherType] ?? 1) - 1;
+        if ((currentCounts[otherType] ?? 0) < 0) {
+          currentCounts[otherType] = 0;
+        }
+      }
+    }
+
+    if (isAdding) {
+      currentInteractions.add(type);
+      currentCounts[type] = (currentCounts[type] ?? 0) + 1;
+    } else {
+      currentInteractions.remove(type);
+      currentCounts[type] = (currentCounts[type] ?? 1) - 1;
+      if ((currentCounts[type] ?? 0) < 0) {
+        currentCounts[type] = 0;
+      }
+    }
+
+    setState(() {
+      _notice = _notice!.copyWith(
+        interactionCounts: currentCounts,
+        userInteractions: currentInteractions,
+      );
+    });
+
+    await Provider.of<NoticeProvider>(
+      context,
+      listen: false,
+    ).toggleInteraction(_notice!.id, type);
   }
 
   @override
@@ -143,10 +192,10 @@ class _NoticeDetailPageState extends State<NoticeDetailPage> with SingleTickerPr
               ),
             )
           : _error != null
-              ? _buildErrorState(currentLanguage)
-              : _notice == null
-                  ? _buildNotFoundState(currentLanguage)
-                  : _buildNoticeContent(currentLanguage),
+          ? _buildErrorState(currentLanguage)
+          : _notice == null
+          ? _buildNotFoundState(currentLanguage)
+          : _buildNoticeContent(currentLanguage),
     );
   }
 
@@ -180,10 +229,7 @@ class _NoticeDetailPageState extends State<NoticeDetailPage> with SingleTickerPr
             const SizedBox(height: 24),
             Text(
               currentLanguage == 'bn' ? 'ত্রুটি ঘটেছে' : 'Error Occurred',
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
             Text(
@@ -195,11 +241,16 @@ class _NoticeDetailPageState extends State<NoticeDetailPage> with SingleTickerPr
             ElevatedButton.icon(
               onPressed: _loadNotice,
               icon: const Icon(Icons.refresh),
-              label: Text(currentLanguage == 'bn' ? 'পুনরায় চেষ্টা করুন' : 'Retry'),
+              label: Text(
+                currentLanguage == 'bn' ? 'পুনরায় চেষ্টা করুন' : 'Retry',
+              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: green,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 32,
+                  vertical: 16,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
@@ -240,11 +291,10 @@ class _NoticeDetailPageState extends State<NoticeDetailPage> with SingleTickerPr
             ),
             const SizedBox(height: 24),
             Text(
-              currentLanguage == 'bn' ? 'নোটিশ পাওয়া যায়নি' : 'Notice Not Found',
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+              currentLanguage == 'bn'
+                  ? 'নোটিশ পাওয়া যায়নি'
+                  : 'Notice Not Found',
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
             Text(
@@ -262,7 +312,10 @@ class _NoticeDetailPageState extends State<NoticeDetailPage> with SingleTickerPr
               style: ElevatedButton.styleFrom(
                 backgroundColor: green,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 32,
+                  vertical: 16,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
@@ -279,9 +332,7 @@ class _NoticeDetailPageState extends State<NoticeDetailPage> with SingleTickerPr
       slivers: [
         // Hero Image Section
         if (_notice!.imageUrl != null && _notice!.imageUrl!.isNotEmpty)
-          SliverToBoxAdapter(
-            child: _buildHeroImage(),
-          ),
+          SliverToBoxAdapter(child: _buildHeroImage()),
 
         // Content Section
         SliverToBoxAdapter(
@@ -300,7 +351,8 @@ class _NoticeDetailPageState extends State<NoticeDetailPage> with SingleTickerPr
                     Color(0xFFF3FAF5),
                   ],
                 ),
-                borderRadius: _notice!.imageUrl != null && _notice!.imageUrl!.isNotEmpty
+                borderRadius:
+                    _notice!.imageUrl != null && _notice!.imageUrl!.isNotEmpty
                     ? const BorderRadius.only(
                         topLeft: Radius.circular(30),
                         topRight: Radius.circular(30),
@@ -340,10 +392,7 @@ class _NoticeDetailPageState extends State<NoticeDetailPage> with SingleTickerPr
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [
-                    green.withOpacity(0.3),
-                    greenLight.withOpacity(0.2),
-                  ],
+                  colors: [green.withOpacity(0.3), greenLight.withOpacity(0.2)],
                 ),
               ),
               child: const Center(
@@ -356,14 +405,15 @@ class _NoticeDetailPageState extends State<NoticeDetailPage> with SingleTickerPr
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [
-                    green.withOpacity(0.3),
-                    greenLight.withOpacity(0.2),
-                  ],
+                  colors: [green.withOpacity(0.3), greenLight.withOpacity(0.2)],
                 ),
               ),
               child: const Center(
-                child: Icon(Icons.image_not_supported, size: 64, color: Colors.white),
+                child: Icon(
+                  Icons.image_not_supported,
+                  size: 64,
+                  color: Colors.white,
+                ),
               ),
             ),
           ),
@@ -374,10 +424,7 @@ class _NoticeDetailPageState extends State<NoticeDetailPage> with SingleTickerPr
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.transparent,
-                    Colors.black.withOpacity(0.3),
-                  ],
+                  colors: [Colors.transparent, Colors.black.withOpacity(0.3)],
                 ),
               ),
             ),
@@ -406,7 +453,11 @@ class _NoticeDetailPageState extends State<NoticeDetailPage> with SingleTickerPr
               if (_notice!.category != null)
                 _buildGlassBadge(
                   '${_notice!.category!.icon ?? '📢'} ${currentLanguage == 'bn' && _notice!.category!.nameBn != null ? _notice!.category!.nameBn! : _notice!.category!.name}',
-                  Color(int.parse(_notice!.category!.color.replaceFirst('#', '0xFF'))),
+                  Color(
+                    int.parse(
+                      _notice!.category!.color.replaceFirst('#', '0xFF'),
+                    ),
+                  ),
                 ),
               _buildGlassBadge(
                 _getTypeLabel(_notice!.type, currentLanguage),
@@ -432,36 +483,37 @@ class _NoticeDetailPageState extends State<NoticeDetailPage> with SingleTickerPr
 
           // Description
           Text(
-            _notice!.getLocalizedDescription(currentLanguage),
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey[700],
-              height: 1.5,
-            ),
-          ).animate(delay: 100.ms).slideY(begin: 0.3, duration: 600.ms).fadeIn(),
+                _notice!.getLocalizedDescription(currentLanguage),
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey[700],
+                  height: 1.5,
+                ),
+              )
+              .animate(delay: 100.ms)
+              .slideY(begin: 0.3, duration: 600.ms)
+              .fadeIn(),
 
           const SizedBox(height: 20),
 
           // Date Info
-          _buildGlassInfoCard(
-            [
+          _buildGlassInfoCard([
+            _buildInfoRow(
+              Icons.calendar_today,
+              currentLanguage == 'bn' ? 'প্রকাশিত' : 'Published',
+              _formatDate(_notice!.publishDate, currentLanguage),
+              green,
+            ),
+            if (_notice!.expiryDate != null) ...[
+              const SizedBox(height: 12),
               _buildInfoRow(
-                Icons.calendar_today,
-                currentLanguage == 'bn' ? 'প্রকাশিত' : 'Published',
-                _formatDate(_notice!.publishDate, currentLanguage),
-                green,
+                Icons.event_busy,
+                currentLanguage == 'bn' ? 'মেয়াদ শেষ' : 'Expires',
+                _formatDate(_notice!.expiryDate!, currentLanguage),
+                orange,
               ),
-              if (_notice!.expiryDate != null) ...[
-                const SizedBox(height: 12),
-                _buildInfoRow(
-                  Icons.event_busy,
-                  currentLanguage == 'bn' ? 'মেয়াদ শেষ' : 'Expires',
-                  _formatDate(_notice!.expiryDate!, currentLanguage),
-                  orange,
-                ),
-              ],
             ],
-          ).animate(delay: 200.ms).scale(duration: 500.ms).fadeIn(),
+          ]).animate(delay: 200.ms).scale(duration: 500.ms).fadeIn(),
         ],
       ),
     );
@@ -474,10 +526,7 @@ class _NoticeDetailPageState extends State<NoticeDetailPage> with SingleTickerPr
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.7),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.3),
-          width: 1.5,
-        ),
+        border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -505,7 +554,9 @@ class _NoticeDetailPageState extends State<NoticeDetailPage> with SingleTickerPr
                   ),
                   const SizedBox(width: 12),
                   Text(
-                    currentLanguage == 'bn' ? 'বিস্তারিত তথ্য' : 'Detailed Information',
+                    currentLanguage == 'bn'
+                        ? 'বিস্তারিত তথ্য'
+                        : 'Detailed Information',
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -537,10 +588,7 @@ class _NoticeDetailPageState extends State<NoticeDetailPage> with SingleTickerPr
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.7),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.3),
-          width: 1.5,
-        ),
+        border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -592,7 +640,6 @@ class _NoticeDetailPageState extends State<NoticeDetailPage> with SingleTickerPr
   }
 
   Widget _buildInteractionSection(String currentLanguage) {
-    final noticeProvider = Provider.of<NoticeProvider>(context, listen: false);
     final bool isLiked = _notice!.userInteractions?.contains('LIKE') ?? false;
     final bool isLoved = _notice!.userInteractions?.contains('LOVE') ?? false;
 
@@ -602,10 +649,7 @@ class _NoticeDetailPageState extends State<NoticeDetailPage> with SingleTickerPr
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.7),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.3),
-          width: 1.5,
-        ),
+        border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -625,21 +669,17 @@ class _NoticeDetailPageState extends State<NoticeDetailPage> with SingleTickerPr
                 isLiked ? Icons.thumb_up : Icons.thumb_up_outlined,
                 (_notice!.interactionCounts?['LIKE'] ?? 0).toString(),
                 currentLanguage == 'bn' ? 'লাইক' : 'Like',
-                isLiked ? blue : Colors.grey[600]!,
-                () async {
-                  await noticeProvider.toggleInteraction(_notice!.id, 'LIKE');
-                  _loadNotice();
-                },
+                blue,
+                isLiked,
+                () => _handleInteraction('LIKE'),
               ),
               _buildInteractionButton(
                 isLoved ? Icons.favorite : Icons.favorite_border,
                 (_notice!.interactionCounts?['LOVE'] ?? 0).toString(),
                 currentLanguage == 'bn' ? 'ভালোবাসা' : 'Love',
-                isLoved ? red : Colors.grey[600]!,
-                () async {
-                  await noticeProvider.toggleInteraction(_notice!.id, 'LOVE');
-                  _loadNotice();
-                },
+                red,
+                isLoved,
+                () => _handleInteraction('LOVE'),
               ),
             ],
           ),
@@ -655,78 +695,88 @@ class _NoticeDetailPageState extends State<NoticeDetailPage> with SingleTickerPr
         children: [
           // Mark as Read Button
           Container(
-            width: double.infinity,
-            height: 60,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [green, greenLight],
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-              ),
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: green.withOpacity(0.4),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
+                width: double.infinity,
+                height: 60,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [green, greenLight],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: green.withOpacity(0.4),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: _isMarkedAsRead
-                    ? null
-                    : () async {
-                        final noticeProvider = Provider.of<NoticeProvider>(context, listen: false);
-                        await noticeProvider.markAsRead(widget.noticeId);
-                        if (mounted) {
-                          setState(() {
-                            _isMarkedAsRead = true;
-                          });
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                currentLanguage == 'bn'
-                                    ? '✓ পড়া হয়েছে হিসেবে চিহ্নিত'
-                                    : '✓ Marked as read',
-                              ),
-                              backgroundColor: green,
-                              behavior: SnackBarBehavior.floating,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: _isMarkedAsRead
+                        ? null
+                        : () async {
+                            final noticeProvider = Provider.of<NoticeProvider>(
+                              context,
+                              listen: false,
+                            );
+                            await noticeProvider.markAsRead(widget.noticeId);
+                            if (mounted) {
+                              setState(() {
+                                _isMarkedAsRead = true;
+                              });
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    currentLanguage == 'bn'
+                                        ? '✓ পড়া হয়েছে হিসেবে চিহ্নিত'
+                                        : '✓ Marked as read',
+                                  ),
+                                  backgroundColor: green,
+                                  behavior: SnackBarBehavior.floating,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              );
+                            }
+                          },
+                    borderRadius: BorderRadius.circular(20),
+                    child: Center(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            _isMarkedAsRead ? Icons.check_circle : Icons.check,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            _isMarkedAsRead
+                                ? (currentLanguage == 'bn'
+                                      ? 'পড়া হয়েছে ✓'
+                                      : 'Marked as Read ✓')
+                                : (currentLanguage == 'bn'
+                                      ? 'পড়া হয়েছে হিসেবে চিহ্নিত করুন'
+                                      : 'Mark as Read'),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
                             ),
-                          );
-                        }
-                      },
-                borderRadius: BorderRadius.circular(20),
-                child: Center(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        _isMarkedAsRead ? Icons.check_circle : Icons.check,
-                        color: Colors.white,
-                        size: 24,
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 12),
-                      Text(
-                        _isMarkedAsRead
-                            ? (currentLanguage == 'bn' ? 'পড়া হয়েছে ✓' : 'Marked as Read ✓')
-                            : (currentLanguage == 'bn' ? 'পড়া হয়েছে হিসেবে চিহ্নিত করুন' : 'Mark as Read'),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
-              ),
-            ),
-          ).animate(delay: 600.ms).slideY(begin: 0.5, duration: 600.ms).fadeIn(),
+              )
+              .animate(delay: 600.ms)
+              .slideY(begin: 0.5, duration: 600.ms)
+              .fadeIn(),
         ],
       ),
     );
@@ -738,10 +788,7 @@ class _NoticeDetailPageState extends State<NoticeDetailPage> with SingleTickerPr
       decoration: BoxDecoration(
         color: color.withOpacity(0.15),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: color.withOpacity(0.3),
-          width: 1.5,
-        ),
+        border: Border.all(color: color.withOpacity(0.3), width: 1.5),
         boxShadow: [
           BoxShadow(
             color: color.withOpacity(0.2),
@@ -773,10 +820,7 @@ class _NoticeDetailPageState extends State<NoticeDetailPage> with SingleTickerPr
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.7),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.3),
-          width: 1.5,
-        ),
+        border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -836,7 +880,12 @@ class _NoticeDetailPageState extends State<NoticeDetailPage> with SingleTickerPr
     );
   }
 
-  Widget _buildStatItem(IconData icon, String value, String label, Color color) {
+  Widget _buildStatItem(
+    IconData icon,
+    String value,
+    String label,
+    Color color,
+  ) {
     return Column(
       children: [
         Container(
@@ -874,34 +923,85 @@ class _NoticeDetailPageState extends State<NoticeDetailPage> with SingleTickerPr
     String count,
     String label,
     Color color,
+    bool isActive,
     VoidCallback onTap,
   ) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 28),
-            const SizedBox(height: 6),
-            Text(
-              count,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
+    final baseColor = isActive ? Colors.white : Colors.grey[600]!;
+    final borderColor = isActive
+        ? color.withOpacity(0.4)
+        : Colors.grey.withOpacity(0.2);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0, end: isActive ? 1 : 0),
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeInOut,
+          builder: (context, value, child) {
+            return Transform(
+              alignment: Alignment.center,
+              transform: Matrix4.identity()
+                ..setEntry(3, 2, 0.001)
+                ..rotateX(0.08 * value)
+                ..rotateY(-0.08 * value)
+                ..scale(1 + 0.08 * value),
+              child: child,
+            );
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+            decoration: BoxDecoration(
+              gradient: isActive
+                  ? LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        color.withOpacity(0.85),
+                        color,
+                        color.withOpacity(0.9),
+                      ],
+                    )
+                  : null,
+              color: isActive ? null : Colors.white.withOpacity(0.8),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: borderColor, width: 1),
+              boxShadow: [
+                BoxShadow(
+                  color: (isActive ? color : Colors.black).withOpacity(
+                    isActive ? 0.35 : 0.08,
+                  ),
+                  blurRadius: isActive ? 18 : 10,
+                  offset: Offset(0, isActive ? 10 : 6),
+                ),
+              ],
             ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[600],
-              ),
+            child: Column(
+              children: [
+                Icon(icon, color: baseColor, size: 30),
+                const SizedBox(height: 6),
+                Text(
+                  count,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: baseColor,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isActive ? Colors.white70 : Colors.grey[600],
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -941,14 +1041,34 @@ class _NoticeDetailPageState extends State<NoticeDetailPage> with SingleTickerPr
   String _formatDate(DateTime date, String currentLanguage) {
     if (currentLanguage == 'bn') {
       final months = [
-        'জানুয়ারি', 'ফেব্রুয়ারি', 'মার্চ', 'এপ্রিল', 'মে', 'জুন',
-        'জুলাই', 'আগস্ট', 'সেপ্টেম্বর', 'অক্টোবর', 'নভেম্বর', 'ডিসেম্বর'
+        'জানুয়ারি',
+        'ফেব্রুয়ারি',
+        'মার্চ',
+        'এপ্রিল',
+        'মে',
+        'জুন',
+        'জুলাই',
+        'আগস্ট',
+        'সেপ্টেম্বর',
+        'অক্টোবর',
+        'নভেম্বর',
+        'ডিসেম্বর',
       ];
       return '${date.day} ${months[date.month - 1]}, ${date.year}';
     } else {
       final months = [
-        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
       ];
       return '${months[date.month - 1]} ${date.day}, ${date.year}';
     }

@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const app_1 = __importDefault(require("./app"));
 const env_1 = __importDefault(require("./config/env"));
 const client_1 = require("@prisma/client");
+const cron_1 = require("./utils/cron");
 const prisma = new client_1.PrismaClient();
 async function start() {
     try {
@@ -46,6 +47,8 @@ async function start() {
             }
             console.log(`✅ Cleanup complete. Updated ${updatedCount} users.`);
         }
+        // Initialize cron jobs
+        (0, cron_1.initCronJobs)();
         app_1.default.listen(env_1.default.PORT, '0.0.0.0', () => {
             console.log(`\n✅ Server listening on:`);
             console.log(`  - Local:   http://localhost:${env_1.default.PORT}`);

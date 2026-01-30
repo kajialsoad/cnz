@@ -229,7 +229,7 @@ async function sendChatMessage(req, res) {
                 });
             }
         }
-        const chatMessage = await chat_service_1.chatService.sendChatMessage({
+        const { message: sentMessage, botMessage } = await chat_service_1.chatService.sendChatMessage({
             complaintId,
             senderId: req.user.sub,
             senderType: 'ADMIN',
@@ -254,7 +254,10 @@ async function sendChatMessage(req, res) {
         res.status(201).json({
             success: true,
             message: 'Message sent successfully',
-            data: { message: chatMessage },
+            data: {
+                message: sentMessage,
+                botMessage // Return bot message so frontend can display it if needed
+            },
             notificationCreated: true
         });
     }

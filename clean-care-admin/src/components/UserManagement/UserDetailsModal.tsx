@@ -51,13 +51,17 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
 }) => {
     const { user: currentUser } = useAuth();
     const [reactions, setReactions] = useState<any[]>([]);
+    const [noticeInteractions, setNoticeInteractions] = useState<any[]>([]);
     const [loadingReactions, setLoadingReactions] = useState(false);
+    const [loadingNoticeInteractions, setLoadingNoticeInteractions] = useState(false);
 
     useEffect(() => {
         if (open && user) {
             fetchReactions();
+            fetchNoticeInteractions();
         } else {
             setReactions([]);
+            setNoticeInteractions([]);
         }
     }, [open, user]);
 
@@ -71,6 +75,19 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
             console.error('Error fetching reactions:', error);
         } finally {
             setLoadingReactions(false);
+        }
+    };
+
+    const fetchNoticeInteractions = async () => {
+        if (!user) return;
+        try {
+            setLoadingNoticeInteractions(true);
+            const data = await userManagementService.getUserNoticeInteractions(user.id);
+            setNoticeInteractions(data);
+        } catch (error) {
+            console.error('Error fetching notice interactions:', error);
+        } finally {
+            setLoadingNoticeInteractions(false);
         }
     };
 
@@ -613,6 +630,90 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                             }}
                         >
                             No interactions yet
+                        </Typography>
+                    )}
+                </Box>
+
+                {/* Notice Board Interactions */}
+                <Box sx={{ mt: { xs: 2, sm: 3 } }}>
+                    <Typography
+                        variant="h6"
+                        sx={{
+                            fontWeight: 600,
+                            mb: { xs: 1.5, sm: 2 },
+                            fontSize: { xs: '1rem', sm: '1.25rem' }
+                        }}
+                    >
+                        Notice Board Interactions
+                    </Typography>
+                    {loadingNoticeInteractions ? (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                            <CircularProgress size={24} />
+                        </Box>
+                    ) : noticeInteractions.length > 0 ? (
+                        <List sx={{ p: 0 }}>
+                            {noticeInteractions.map((interaction) => (
+                                <ListItem
+                                    key={interaction.id}
+                                    sx={{
+                                        px: { xs: 1.5, sm: 2 },
+                                        py: { xs: 1, sm: 1.5 },
+                                        backgroundColor: '#f8f9fa',
+                                        borderRadius: 1,
+                                        mb: 1,
+                                    }}
+                                >
+                                    <ListItemText
+                                        primary={
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                {interaction.type === 'LIKE' && <ThumbUpIcon sx={{ fontSize: 18, color: '#2196F3' }} />}
+                                                {interaction.type === 'LOVE' && <FavoriteIcon sx={{ fontSize: 18, color: '#E91E63' }} />}
+                                                {interaction.type === 'VIEW' && <VisibilityIcon sx={{ fontSize: 18, color: '#9E9E9E' }} />}
+                                                {interaction.type === 'READ' && <CheckCircleIcon sx={{ fontSize: 18, color: '#4CAF50' }} />}
+                                                {interaction.type.startsWith('RSVP') && <CalendarIcon sx={{ fontSize: 18, color: '#FF9800' }} />}
+                                                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                                    {interaction.notice.title}
+                                                </Typography>
+                                                <Chip
+                                                    label={interaction.type.replace('_', ' ')}
+                                                    size="small"
+                                                    sx={{
+                                                        height: 20,
+                                                        fontSize: '0.65rem',
+                                                        ml: 1,
+                                                        backgroundColor: interaction.type === 'READ' ? '#e8f5e8' : '#f5f5f5',
+                                                        color: interaction.type === 'READ' ? '#2e7d2e' : '#666'
+                                                    }}
+                                                />
+                                            </Box>
+                                        }
+                                        secondary={
+                                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
+                                                <Typography variant="caption" color="text.secondary">
+                                                    Category: {interaction.notice.category.name}
+                                                </Typography>
+                                                <Typography variant="caption" color="text.secondary">
+                                                    {formatDate(interaction.createdAt)}
+                                                </Typography>
+                                            </Box>
+                                        }
+                                        primaryTypographyProps={{ component: 'div' }}
+                                        secondaryTypographyProps={{ component: 'div' }}
+                                    />
+                                </ListItem>
+                            ))}
+                        </List>
+                    ) : (
+                        <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            sx={{
+                                textAlign: 'center',
+                                py: { xs: 2, sm: 3 },
+                                fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                            }}
+                        >
+                            No notice interactions yet
                         </Typography>
                     )}
                 </Box>

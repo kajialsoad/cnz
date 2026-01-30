@@ -5,6 +5,7 @@ import '../components/custom_bottom_nav.dart';
 import '../providers/notice_provider.dart';
 import '../providers/language_provider.dart';
 import '../models/notice_model.dart';
+import '../widgets/translated_text.dart';
 import 'notice_detail_page.dart';
 
 class NoticeBoardPage extends StatefulWidget {
@@ -40,10 +41,13 @@ class _NoticeBoardPageState extends State<NoticeBoardPage>
       vsync: this,
     );
     _animationController.forward();
-    
+
     // Load notices and categories
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final noticeProvider = Provider.of<NoticeProvider>(context, listen: false);
+      final noticeProvider = Provider.of<NoticeProvider>(
+        context,
+        listen: false,
+      );
       noticeProvider.loadNotices();
       noticeProvider.loadCategories();
     });
@@ -68,11 +72,7 @@ class _NoticeBoardPageState extends State<NoticeBoardPage>
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFE9F6EE),
-              Color(0xFFF7FCF9),
-              Color(0xFFF3FAF5),
-            ],
+            colors: [Color(0xFFE9F6EE), Color(0xFFF7FCF9), Color(0xFFF3FAF5)],
           ),
         ),
         child: SafeArea(
@@ -84,26 +84,27 @@ class _NoticeBoardPageState extends State<NoticeBoardPage>
                 child: noticeProvider.isLoading
                     ? const Center(child: CircularProgressIndicator())
                     : noticeProvider.error != null
-                        ? _buildErrorState(noticeProvider.error!)
-                        : RefreshIndicator(
-                            onRefresh: () => noticeProvider.loadNotices(refresh: true),
-                            child: SingleChildScrollView(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                children: [
-                                  _buildLatestAnnouncementsSection(),
-                                  const SizedBox(height: 20),
-                                  _buildNoticesList(
-                                    noticeProvider.filteredNotices,
-                                    currentLanguage,
-                                  ),
-                                  const SizedBox(height: 20),
-                                  _buildStayUpdatedCard(),
-                                  const SizedBox(height: 100),
-                                ],
+                    ? _buildErrorState(noticeProvider.error!)
+                    : RefreshIndicator(
+                        onRefresh: () =>
+                            noticeProvider.loadNotices(refresh: true),
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            children: [
+                              _buildLatestAnnouncementsSection(),
+                              const SizedBox(height: 20),
+                              _buildNoticesList(
+                                noticeProvider.filteredNotices,
+                                currentLanguage,
                               ),
-                            ),
+                              const SizedBox(height: 20),
+                              _buildStayUpdatedCard(),
+                              const SizedBox(height: 100),
+                            ],
                           ),
+                        ),
+                      ),
               ),
             ],
           ),
@@ -195,15 +196,12 @@ class _NoticeBoardPageState extends State<NoticeBoardPage>
               color: green.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(
-              Icons.notifications_active,
-              color: green,
-              size: 24,
-            ),
+            child: Icon(Icons.notifications_active, color: green, size: 24),
           ),
           const SizedBox(width: 16),
-          const Text(
+          const TranslatedText(
             'Latest Announcements',
+            bn: 'সর্বশেষ ঘোষণা',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
@@ -328,8 +326,10 @@ class _NoticeBoardPageState extends State<NoticeBoardPage>
           const SizedBox(height: 24),
           ElevatedButton(
             onPressed: () {
-              Provider.of<NoticeProvider>(context, listen: false)
-                  .loadNotices(refresh: true);
+              Provider.of<NoticeProvider>(
+                context,
+                listen: false,
+              ).loadNotices(refresh: true);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: green,
@@ -351,10 +351,7 @@ class _NoticeBoardPageState extends State<NoticeBoardPage>
             const SizedBox(height: 16),
             Text(
               'No notices available',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey.shade600,
-              ),
+              style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
             ),
           ],
         ),
@@ -384,7 +381,9 @@ class _NoticeBoardPageState extends State<NoticeBoardPage>
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: (notice.isUrgent ? red : green).withOpacity(0.4),
+                          color: (notice.isUrgent ? red : green).withOpacity(
+                            0.4,
+                          ),
                           blurRadius: 8,
                           spreadRadius: 2,
                         ),
@@ -393,20 +392,21 @@ class _NoticeBoardPageState extends State<NoticeBoardPage>
                   ),
                   if (!isLast)
                     Expanded(
-                      child: Container(
-                        width: 2,
-                        color: Colors.grey.shade300,
-                      ),
+                      child: Container(width: 2, color: Colors.grey.shade300),
                     ),
                 ],
               ),
               const SizedBox(width: 16),
               // Notice Card
               Expanded(
-                child: Container(
-                  margin: const EdgeInsets.only(bottom: 24),
-                  child: _buildNoticeCard(notice, currentLanguage),
-                ).animate(delay: (index * 100).ms).slideX(begin: 0.1, duration: 400.ms).fadeIn(),
+                child:
+                    Container(
+                          margin: const EdgeInsets.only(bottom: 24),
+                          child: _buildNoticeCard(notice, currentLanguage),
+                        )
+                        .animate(delay: (index * 100).ms)
+                        .slideX(begin: 0.1, duration: 400.ms)
+                        .fadeIn(),
               ),
             ],
           ),
@@ -418,7 +418,7 @@ class _NoticeBoardPageState extends State<NoticeBoardPage>
   Widget _buildNoticeCard(Notice notice, String currentLanguage) {
     final title = notice.getLocalizedTitle(currentLanguage);
     final description = notice.getLocalizedDescription(currentLanguage);
-    
+
     // Determine tags and colors based on notice properties
     final List<String> tags = [];
     final List<Color> tagColors = [];
@@ -458,10 +458,7 @@ class _NoticeBoardPageState extends State<NoticeBoardPage>
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: Colors.grey.withOpacity(0.1),
-            width: 1,
-          ),
+          border: Border.all(color: Colors.grey.withOpacity(0.1), width: 1),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.04),
@@ -493,7 +490,10 @@ class _NoticeBoardPageState extends State<NoticeBoardPage>
                     Color color = tagColors[index % tagColors.length];
 
                     return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: color,
                         borderRadius: BorderRadius.circular(20),
@@ -547,11 +547,7 @@ class _NoticeBoardPageState extends State<NoticeBoardPage>
               // Date and stats
               Row(
                 children: [
-                  Icon(
-                    Icons.calendar_today,
-                    size: 16,
-                    color: Colors.grey[500],
-                  ),
+                  Icon(Icons.calendar_today, size: 16, color: Colors.grey[500]),
                   const SizedBox(width: 8),
                   Text(
                     _formatDate(notice.publishDate),
@@ -562,18 +558,11 @@ class _NoticeBoardPageState extends State<NoticeBoardPage>
                     ),
                   ),
                   const Spacer(),
-                  Icon(
-                    Icons.visibility,
-                    size: 16,
-                    color: Colors.grey[500],
-                  ),
+                  Icon(Icons.visibility, size: 16, color: Colors.grey[500]),
                   const SizedBox(width: 4),
                   Text(
                     '${notice.viewCount}',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey[500],
-                    ),
+                    style: TextStyle(fontSize: 13, color: Colors.grey[500]),
                   ),
                 ],
               ),
@@ -591,28 +580,35 @@ class _NoticeBoardPageState extends State<NoticeBoardPage>
     final noticeProvider = Provider.of<NoticeProvider>(context, listen: false);
     final bool isLiked = notice.userInteractions?.contains('LIKE') ?? false;
     final bool isLoved = notice.userInteractions?.contains('LOVE') ?? false;
-    final bool hasRsvpYes = notice.userInteractions?.contains('RSVP_YES') ?? false;
+    final bool hasRsvpYes =
+        notice.userInteractions?.contains('RSVP_YES') ?? false;
 
     return Row(
       children: [
         _buildInteractionButton(
           icon: isLiked ? Icons.thumb_up : Icons.thumb_up_outlined,
           label: '${notice.interactionCounts?['LIKE'] ?? 0}',
-          color: isLiked ? blue : Colors.grey[600]!,
+          color: blue,
+          isActive: isLiked,
           onTap: () => noticeProvider.toggleInteraction(notice.id, 'LIKE'),
         ),
         const SizedBox(width: 16),
         _buildInteractionButton(
           icon: isLoved ? Icons.favorite : Icons.favorite_border,
           label: '${notice.interactionCounts?['LOVE'] ?? 0}',
-          color: isLoved ? red : Colors.grey[600]!,
+          color: red,
+          isActive: isLoved,
           onTap: () => noticeProvider.toggleInteraction(notice.id, 'LOVE'),
         ),
         const Spacer(),
         if (notice.type == 'EVENT')
           ElevatedButton.icon(
-            onPressed: () => noticeProvider.toggleInteraction(notice.id, 'RSVP_YES'),
-            icon: Icon(hasRsvpYes ? Icons.check_circle : Icons.event_available, size: 18),
+            onPressed: () =>
+                noticeProvider.toggleInteraction(notice.id, 'RSVP_YES'),
+            icon: Icon(
+              hasRsvpYes ? Icons.check_circle : Icons.event_available,
+              size: 18,
+            ),
             label: Text(hasRsvpYes ? 'Going' : 'RSVP'),
             style: ElevatedButton.styleFrom(
               backgroundColor: hasRsvpYes ? green : Colors.white,
@@ -633,31 +629,92 @@ class _NoticeBoardPageState extends State<NoticeBoardPage>
     required IconData icon,
     required String label,
     required Color color,
+    required bool isActive,
     required VoidCallback onTap,
   }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Row(
-        children: [
-          Icon(icon, size: 20, color: color),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 14,
-              color: color,
-              fontWeight: FontWeight.w600,
+    final displayColor = isActive ? Colors.white : color;
+    final borderColor = isActive
+        ? color.withOpacity(0.35)
+        : Colors.grey.withOpacity(0.2);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0, end: isActive ? 1 : 0),
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
+          builder: (context, value, child) {
+            return Transform(
+              alignment: Alignment.center,
+              transform: Matrix4.identity()
+                ..setEntry(3, 2, 0.001)
+                ..rotateX(0.06 * value)
+                ..rotateY(-0.06 * value)
+                ..scale(1 + 0.06 * value),
+              child: child,
+            );
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              gradient: isActive
+                  ? LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [color.withOpacity(0.85), color],
+                    )
+                  : null,
+              color: isActive ? null : Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: borderColor),
+              boxShadow: [
+                BoxShadow(
+                  color: (isActive ? color : Colors.black).withOpacity(
+                    isActive ? 0.35 : 0.08,
+                  ),
+                  blurRadius: isActive ? 12 : 6,
+                  offset: Offset(0, isActive ? 6 : 3),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Icon(icon, size: 18, color: displayColor),
+                const SizedBox(width: 4),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: displayColor,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
 
   String _formatDate(DateTime date) {
     final months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
@@ -670,16 +727,10 @@ class _NoticeBoardPageState extends State<NoticeBoardPage>
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            greenSoft.withOpacity(0.1),
-            green.withOpacity(0.05),
-          ],
+          colors: [greenSoft.withOpacity(0.1), green.withOpacity(0.05)],
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: green.withOpacity(0.2),
-          width: 1,
-        ),
+        border: Border.all(color: green.withOpacity(0.2), width: 1),
       ),
       child: Column(
         children: [

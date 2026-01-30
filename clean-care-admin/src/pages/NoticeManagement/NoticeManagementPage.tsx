@@ -44,6 +44,7 @@ import {
 } from '@mui/icons-material';
 import MainLayout from '../../components/common/Layout/MainLayout/MainLayout';
 import NoticeAnalyticsDashboard from './components/NoticeAnalyticsDashboard';
+import NoticeDetailModal from '../../components/Notice/NoticeDetailModal';
 import noticeService from '../../services/noticeService';
 import { cityCorporationService } from '../../services/cityCorporationService';
 import { zoneService } from '../../services/zoneService';
@@ -102,10 +103,13 @@ const NoticeManagementPage: React.FC = () => {
     const [categoryModalOpen, setCategoryModalOpen] = useState(false);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [deleteCategoryDialogOpen, setDeleteCategoryDialogOpen] = useState(false);
+    const [detailModalOpen, setDetailModalOpen] = useState(false);
     const [selectedNotice, setSelectedNotice] = useState<Notice | null>(null);
     const [selectedCategory, setSelectedCategory] = useState<NoticeCategory | null>(null);
     const [uploadingImage, setUploadingImage] = useState(false);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const [imageFile, setImageFile] = useState<File | null>(null);
+    const [cityCorporationsLoading, setCityCorporationsLoading] = useState(false);
 
     // Category form
     const [categoryForm, setCategoryForm] = useState<{
@@ -163,23 +167,47 @@ const NoticeManagementPage: React.FC = () => {
 
     const loadLocationData = async () => {
         try {
+            setCityCorporationsLoading(true);
+
+            // Fetch city corporations
             const cityResponse = await cityCorporationService.getCityCorporations('ACTIVE');
             const cityList = cityResponse.cityCorporations || [];
             setCities(cityList);
 
+            // Fetch all zones for all cities
             const zonesResponses = await Promise.all(
-                cityList.map((city) => zoneService.getZones({ cityCorporationId: city.id, status: 'ACTIVE' }))
+                cityList.map((city) =>
+                    zoneService.getZones({
+                        cityCorporationId: city.id,
+                        status: 'ACTIVE'
+                    }).catch(err => {
+                        console.error(`Error fetching zones for city ${city.id}:`, err);
+                        return { zones: [] };
+                    })
+                )
             );
             const allZones = zonesResponses.flatMap((response) => response.zones || []);
             setZones(allZones);
 
+            // Fetch all wards for all zones
             const wardsResponses = await Promise.all(
-                allZones.map((zone) => wardService.getWards({ zoneId: zone.id, status: 'ACTIVE' }))
+                allZones.map((zone) =>
+                    wardService.getWards({
+                        zoneId: zone.id,
+                        status: 'ACTIVE'
+                    }).catch(err => {
+                        console.error(`Error fetching wards for zone ${zone.id}:`, err);
+                        return { wards: [] };
+                    })
+                )
             );
             const allWards = wardsResponses.flatMap((response) => response.wards || []);
             setWards(allWards);
+
+            setCityCorporationsLoading(false);
         } catch (err) {
             console.error('Failed to load location data:', err);
+            setCityCorporationsLoading(false);
         }
     };
 
@@ -188,8 +216,18 @@ const NoticeManagementPage: React.FC = () => {
             setLoading(true);
             setError(null);
             const response = await noticeService.getAllNotices(filters);
+            console.log('🔵 Loaded notices:', {
+                count: response.notices.length,
+                noticesWithImages: response.notices.filter(n => n.imageUrl).length,
+                sampleNotice: response.notices[0] ? {
+                    id: response.notices[0].id,
+                    title: response.notices[0].title,
+                    imageUrl: response.notices[0].imageUrl || 'NO IMAGE'
+                } : 'No notices'
+            });
             setNotices(response.notices);
         } catch (err: any) {
+            console.error('❌ Failed to load notices:', err);
             setError(err.message || 'Failed to load notices');
         } finally {
             setLoading(false);
@@ -283,15 +321,34 @@ const NoticeManagementPage: React.FC = () => {
                 setError('Please select a category');
                 return;
             }
-            await noticeService.createNotice({
+
+            // Prepare create data with proper formatting
+            const createData = {
                 ...noticeForm,
                 categoryId: Number(noticeForm.categoryId),
+                publishDate: noticeForm.publishDate ? new Date(noticeForm.publishDate).toISOString() : new Date().toISOString(),
+                expiryDate: noticeForm.expiryDate ? new Date(noticeForm.expiryDate).toISOString() : undefined,
+                // Ensure arrays are proper number arrays
+                targetCities: Array.isArray(noticeForm.targetCities) ? noticeForm.targetCities.map(id => Number(id)) : [],
+                targetZones: Array.isArray(noticeForm.targetZones) ? noticeForm.targetZones.map(id => Number(id)) : [],
+                targetWards: Array.isArray(noticeForm.targetWards) ? noticeForm.targetWards.map(id => Number(id)) : [],
+            };
+
+            console.log('🔵 Creating notice with data:', {
+                ...createData,
+                imageUrl: createData.imageUrl || 'NO IMAGE URL',
             });
+
+            await noticeService.createNotice(createData);
+
+            console.log('✅ Notice created successfully');
+
             setSuccess('Notice created successfully!');
             setNoticeModalOpen(false);
             resetNoticeForm();
             loadNotices();
         } catch (err: any) {
+            console.error('❌ Failed to create notice:', err);
             setError(err.message || 'Failed to create notice');
         } finally {
             setLoading(false);
@@ -307,15 +364,35 @@ const NoticeManagementPage: React.FC = () => {
                 setError('Please select a category');
                 return;
             }
-            await noticeService.updateNotice(selectedNotice.id, {
+
+            // Prepare update data with proper formatting
+            const updateData = {
                 ...noticeForm,
                 categoryId: Number(noticeForm.categoryId),
+                publishDate: noticeForm.publishDate ? new Date(noticeForm.publishDate).toISOString() : new Date().toISOString(),
+                expiryDate: noticeForm.expiryDate ? new Date(noticeForm.expiryDate).toISOString() : undefined,
+                // Ensure arrays are proper number arrays
+                targetCities: Array.isArray(noticeForm.targetCities) ? noticeForm.targetCities.map(id => Number(id)) : [],
+                targetZones: Array.isArray(noticeForm.targetZones) ? noticeForm.targetZones.map(id => Number(id)) : [],
+                targetWards: Array.isArray(noticeForm.targetWards) ? noticeForm.targetWards.map(id => Number(id)) : [],
+            };
+
+            console.log('🔵 Updating notice with data:', {
+                noticeId: selectedNotice.id,
+                ...updateData,
+                imageUrl: updateData.imageUrl || 'NO IMAGE URL',
             });
+
+            await noticeService.updateNotice(selectedNotice.id, updateData);
+
+            console.log('✅ Notice updated successfully');
+
             setSuccess('Notice updated successfully!');
             setNoticeModalOpen(false);
             resetNoticeForm();
             loadNotices();
         } catch (err: any) {
+            console.error('❌ Failed to update notice:', err);
             setError(err.message || 'Failed to update notice');
         } finally {
             setLoading(false);
@@ -367,10 +444,17 @@ const NoticeManagementPage: React.FC = () => {
             targetWards: [],
         });
         setSelectedNotice(null);
+        setImageFile(null);
+
+        // Clean up preview URL
+        if (imagePreview && !imagePreview.startsWith('http')) {
+            URL.revokeObjectURL(imagePreview);
+        }
+
         setImagePreview(null);
     };
 
-    const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
 
@@ -386,22 +470,52 @@ const NoticeManagementPage: React.FC = () => {
             return;
         }
 
+        // Set file and create preview (don't upload yet)
+        setImageFile(file);
+
+        // Clean up old preview
+        if (imagePreview && !imagePreview.startsWith('http')) {
+            URL.revokeObjectURL(imagePreview);
+        }
+
+        // Create new preview
+        const preview = URL.createObjectURL(file);
+        setImagePreview(preview);
+    };
+
+    const handleUploadImage = async () => {
+        if (!imageFile) return;
+
         try {
             setUploadingImage(true);
             setError(null);
 
-            // Create preview
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setImagePreview(reader.result as string);
-            };
-            reader.readAsDataURL(file);
+            console.log('🔵 Starting image upload...', {
+                fileName: imageFile.name,
+                fileSize: imageFile.size,
+                fileType: imageFile.type
+            });
 
             // Upload to Cloudinary
-            const imageUrl = await noticeService.uploadImage(file);
+            const imageUrl = await noticeService.uploadImage(imageFile);
+
+            console.log('✅ Image uploaded successfully:', imageUrl);
+
+            // Update form data with uploaded URL
             setNoticeForm({ ...noticeForm, imageUrl });
+
+            console.log('✅ Form updated with imageUrl:', imageUrl);
+
+            // Update preview to show uploaded image
+            setImagePreview(imageUrl);
+
+            // Clear file input
+            setImageFile(null);
+
             setSuccess('Image uploaded successfully!');
+            setTimeout(() => setSuccess(null), 3000);
         } catch (err: any) {
+            console.error('❌ Image upload failed:', err);
             setError(err.message || 'Failed to upload image');
             setImagePreview(null);
         } finally {
@@ -410,8 +524,15 @@ const NoticeManagementPage: React.FC = () => {
     };
 
     const handleRemoveImage = () => {
-        setNoticeForm({ ...noticeForm, imageUrl: '' });
+        setImageFile(null);
+
+        // Clean up preview URL
+        if (imagePreview && !imagePreview.startsWith('http')) {
+            URL.revokeObjectURL(imagePreview);
+        }
+
         setImagePreview(null);
+        setNoticeForm({ ...noticeForm, imageUrl: '' });
     };
 
     const openEditModal = (notice: Notice) => {
@@ -693,6 +814,10 @@ const NoticeManagementPage: React.FC = () => {
                                                                     image={notice.imageUrl}
                                                                     alt={notice.title}
                                                                     sx={{ objectFit: 'cover' }}
+                                                                    onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                                                                        console.error('Failed to load image:', notice.imageUrl);
+                                                                        e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="120" height="120"%3E%3Crect fill="%23f0f0f0" width="120" height="120"/%3E%3Ctext fill="%23999" x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3ENo Image%3C/text%3E%3C/svg%3E';
+                                                                    }}
                                                                 />
                                                             </Card>
                                                         </Box>
@@ -759,6 +884,16 @@ const NoticeManagementPage: React.FC = () => {
                                                         justifyContent: { xs: 'flex-start', md: 'flex-end' },
                                                     }}
                                                 >
+                                                    <IconButton
+                                                        color="info"
+                                                        onClick={() => {
+                                                            setSelectedNotice(notice);
+                                                            setDetailModalOpen(true);
+                                                        }}
+                                                        title="View Details"
+                                                    >
+                                                        <ViewIcon />
+                                                    </IconButton>
                                                     <IconButton
                                                         color="primary"
                                                         onClick={() => openEditModal(notice)}
@@ -972,24 +1107,35 @@ const NoticeManagementPage: React.FC = () => {
                                     <Typography variant="subtitle2" sx={{ mb: 1 }}>
                                         Notice Image (Optional)
                                     </Typography>
-                                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+                                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start', flexWrap: 'wrap' }}>
                                         <Button
                                             variant="outlined"
                                             component="label"
-                                            startIcon={uploadingImage ? <CircularProgress size={20} /> : <UploadIcon />}
+                                            startIcon={<UploadIcon />}
                                             disabled={uploadingImage}
                                             sx={{ minWidth: 150 }}
                                         >
-                                            {uploadingImage ? 'Uploading...' : 'Upload Image'}
+                                            Select Image
                                             <input
                                                 type="file"
                                                 hidden
                                                 accept="image/*"
-                                                onChange={handleImageUpload}
+                                                onChange={handleImageSelect}
                                             />
                                         </Button>
+                                        {imageFile && (
+                                            <Button
+                                                variant="contained"
+                                                onClick={handleUploadImage}
+                                                disabled={uploadingImage}
+                                                startIcon={uploadingImage ? <CircularProgress size={20} /> : <UploadIcon />}
+                                                sx={{ minWidth: 150 }}
+                                            >
+                                                {uploadingImage ? 'Uploading...' : 'Upload'}
+                                            </Button>
+                                        )}
                                         {(imagePreview || noticeForm.imageUrl) && (
-                                            <Box sx={{ position: 'relative', flex: 1 }}>
+                                            <Box sx={{ position: 'relative', flex: 1, minWidth: 250 }}>
                                                 <Card sx={{ maxWidth: 300 }}>
                                                     <CardMedia
                                                         component="img"
@@ -1028,21 +1174,58 @@ const NoticeManagementPage: React.FC = () => {
                                         Geographical Targeting (Optional)
                                     </Typography>
                                 </Divider>
+                                {cityCorporationsLoading && (
+                                    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', my: 2 }}>
+                                        <CircularProgress size={24} />
+                                        <Typography variant="body2" color="text.secondary" sx={{ ml: 2 }}>
+                                            Loading locations...
+                                        </Typography>
+                                    </Box>
+                                )}
                             </Grid>
 
                             <Grid size={{ xs: 12, md: 4 }}>
                                 <Autocomplete
                                     multiple
                                     options={cities}
+                                    loading={cityCorporationsLoading}
                                     getOptionLabel={(option) => option.name || option.code}
                                     value={cities.filter(c => noticeForm.targetCities.includes(c.id))}
                                     onChange={(_e, newValue) => setNoticeForm({
                                         ...noticeForm,
                                         targetCities: newValue.map(v => v.id)
                                     })}
+                                    disabled={cityCorporationsLoading}
                                     renderInput={(params) => (
-                                        <TextField {...params} label="Target Cities" placeholder="Select Cities" />
+                                        <TextField
+                                            {...params}
+                                            label="Target Cities"
+                                            placeholder={cityCorporationsLoading ? "Loading cities..." : cities.length === 0 ? "No cities available" : "Select Cities"}
+                                            helperText={cityCorporationsLoading ? "Loading..." : `${cities.length} cities available`}
+                                            InputProps={{
+                                                ...params.InputProps,
+                                                endAdornment: (
+                                                    <>
+                                                        {cityCorporationsLoading ? <CircularProgress size={20} /> : null}
+                                                        {params.InputProps.endAdornment}
+                                                    </>
+                                                ),
+                                            }}
+                                        />
                                     )}
+                                    renderOption={(props, option) => {
+                                        const { key, ...otherProps } = props;
+                                        return (
+                                            <li key={`city-${option.id}`} {...otherProps}>
+                                                <Box>
+                                                    <Typography variant="body2">{option.name}</Typography>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        {option.code}
+                                                    </Typography>
+                                                </Box>
+                                            </li>
+                                        );
+                                    }}
                                 />
                             </Grid>
 
@@ -1050,6 +1233,7 @@ const NoticeManagementPage: React.FC = () => {
                                 <Autocomplete
                                     multiple
                                     options={zones}
+                                    loading={cityCorporationsLoading}
                                     getOptionLabel={(option) =>
                                         `${option.cityCorporation?.name ? `${option.cityCorporation.name} - ` : ''}Zone ${option.zoneNumber ?? option.number ?? ''}`
                                     }
@@ -1058,9 +1242,41 @@ const NoticeManagementPage: React.FC = () => {
                                         ...noticeForm,
                                         targetZones: newValue.map(v => v.id)
                                     })}
+                                    disabled={cityCorporationsLoading}
                                     renderInput={(params) => (
-                                        <TextField {...params} label="Target Zones" placeholder="Select Zones" />
+                                        <TextField
+                                            {...params}
+                                            label="Target Zones"
+                                            placeholder={cityCorporationsLoading ? "Loading zones..." : zones.length === 0 ? "No zones available" : "Select Zones"}
+                                            helperText={cityCorporationsLoading ? "Loading..." : `${zones.length} zones available`}
+                                            InputProps={{
+                                                ...params.InputProps,
+                                                endAdornment: (
+                                                    <>
+                                                        {cityCorporationsLoading ? <CircularProgress size={20} /> : null}
+                                                        {params.InputProps.endAdornment}
+                                                    </>
+                                                ),
+                                            }}
+                                        />
                                     )}
+                                    renderOption={(props, option) => {
+                                        const { key, ...otherProps } = props;
+                                        return (
+                                            <li key={`zone-${option.id}`} {...otherProps}>
+                                                <Box>
+                                                    <Typography variant="body2">
+                                                        Zone {option.zoneNumber ?? option.number}
+                                                    </Typography>
+                                                    {option.cityCorporation && (
+                                                        <Typography variant="caption" color="text.secondary">
+                                                            {option.cityCorporation.name}
+                                                        </Typography>
+                                                    )}
+                                                </Box>
+                                            </li>
+                                        );
+                                    }}
                                 />
                             </Grid>
 
@@ -1068,6 +1284,7 @@ const NoticeManagementPage: React.FC = () => {
                                 <Autocomplete
                                     multiple
                                     options={wards}
+                                    loading={cityCorporationsLoading}
                                     getOptionLabel={(option) =>
                                         `${option.zone?.cityCorporation?.name ? `${option.zone.cityCorporation.name} - ` : ''}Ward ${option.wardNumber ?? option.number ?? ''}`
                                     }
@@ -1076,9 +1293,41 @@ const NoticeManagementPage: React.FC = () => {
                                         ...noticeForm,
                                         targetWards: newValue.map(v => v.id)
                                     })}
+                                    disabled={cityCorporationsLoading}
                                     renderInput={(params) => (
-                                        <TextField {...params} label="Target Wards" placeholder="Select Wards" />
+                                        <TextField
+                                            {...params}
+                                            label="Target Wards"
+                                            placeholder={cityCorporationsLoading ? "Loading wards..." : wards.length === 0 ? "No wards available" : "Select Wards"}
+                                            helperText={cityCorporationsLoading ? "Loading..." : `${wards.length} wards available`}
+                                            InputProps={{
+                                                ...params.InputProps,
+                                                endAdornment: (
+                                                    <>
+                                                        {cityCorporationsLoading ? <CircularProgress size={20} /> : null}
+                                                        {params.InputProps.endAdornment}
+                                                    </>
+                                                ),
+                                            }}
+                                        />
                                     )}
+                                    renderOption={(props, option) => {
+                                        const { key, ...otherProps } = props;
+                                        return (
+                                            <li key={`ward-${option.id}`} {...otherProps}>
+                                                <Box>
+                                                    <Typography variant="body2">
+                                                        Ward {option.wardNumber ?? option.number}
+                                                    </Typography>
+                                                    {option.zone?.cityCorporation && (
+                                                        <Typography variant="caption" color="text.secondary">
+                                                            {option.zone.cityCorporation.name} - Zone {option.zone.zoneNumber}
+                                                        </Typography>
+                                                    )}
+                                                </Box>
+                                            </li>
+                                        );
+                                    }}
                                 />
                             </Grid>
                         </Grid >
@@ -1315,6 +1564,16 @@ const NoticeManagementPage: React.FC = () => {
                         </Button>
                     </DialogActions>
                 </Dialog >
+
+                {/* Notice Detail Modal */}
+                <NoticeDetailModal
+                    open={detailModalOpen}
+                    onClose={() => {
+                        setDetailModalOpen(false);
+                        setSelectedNotice(null);
+                    }}
+                    notice={selectedNotice}
+                />
             </Box >
         </MainLayout >
     );

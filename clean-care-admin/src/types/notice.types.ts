@@ -56,6 +56,16 @@ export interface Notice {
         lastName: string;
         email: string;
     };
+    interactions?: {
+        counts: {
+            LIKE?: number;
+            LOVE?: number;
+            RSVP_YES?: number;
+            RSVP_NO?: number;
+            RSVP_MAYBE?: number;
+        };
+        userInteractions: string[];
+    };
     createdAt: string;
     updatedAt: string;
 }

@@ -1,10 +1,11 @@
 import { Request, Response } from 'express';
+import { InteractionType } from '@prisma/client';
 import noticeService from '../services/notice.service';
 
 // Admin: Create notice
 export async function createNotice(req: Request, res: Response) {
     try {
-        const userId = (req as any).user?.id;
+        const userId = (req as any).user?.id ?? (req as any).user?.sub;
         if (!userId) {
             return res.status(401).json({ error: 'Unauthorized' });
         }
@@ -44,7 +45,7 @@ export async function getActiveNotices(req: Request, res: Response) {
     try {
         const page = parseInt(req.query.page as string) || 1;
         const limit = parseInt(req.query.limit as string) || 20;
-        const userId = (req as any).user?.id;
+        const userId = (req as any).user?.id ?? (req as any).user?.sub;
 
         const filters = {
             categoryId: req.query.categoryId ? parseInt(req.query.categoryId as string) : undefined,
@@ -66,7 +67,7 @@ export async function getActiveNotices(req: Request, res: Response) {
 export async function getNoticeById(req: Request, res: Response) {
     try {
         const id = parseInt(req.params.id);
-        const userId = (req as any).user?.id;
+        const userId = (req as any).user?.id ?? (req as any).user?.sub;
         const notice = await noticeService.getNoticeById(id, userId);
 
         if (!notice) {
@@ -84,10 +85,27 @@ export async function getNoticeById(req: Request, res: Response) {
 export async function updateNotice(req: Request, res: Response) {
     try {
         const id = parseInt(req.params.id);
+
+        console.log('🔵 Update notice request:', {
+            id,
+            body: req.body,
+            imageUrl: req.body.imageUrl || 'NO IMAGE URL'
+        });
+
         const notice = await noticeService.updateNotice(id, req.body);
+
+        console.log('✅ Notice updated successfully:', {
+            id: notice.id,
+            imageUrl: notice.imageUrl || 'NO IMAGE URL'
+        });
+
         res.json(notice);
     } catch (error: any) {
-        console.error('Update notice error:', error);
+        console.error('❌ Update notice error:', {
+            message: error.message,
+            stack: error.stack,
+            body: req.body
+        });
         res.status(500).json({ error: error.message });
     }
 }
@@ -120,7 +138,8 @@ export async function deleteNotice(req: Request, res: Response) {
 export async function incrementViewCount(req: Request, res: Response) {
     try {
         const id = parseInt(req.params.id);
-        await noticeService.incrementViewCount(id);
+        const userId = (req as any).user?.id ?? (req as any).user?.sub;
+        await noticeService.incrementViewCount(id, userId);
         res.json({ message: 'View count incremented' });
     } catch (error: any) {
         console.error('Increment view count error:', error);
@@ -132,10 +151,26 @@ export async function incrementViewCount(req: Request, res: Response) {
 export async function markAsRead(req: Request, res: Response) {
     try {
         const id = parseInt(req.params.id);
-        await noticeService.incrementReadCount(id);
+        const userId = (req as any).user?.id ?? (req as any).user?.sub;
+        await noticeService.incrementReadCount(id, userId);
         res.json({ message: 'Marked as read' });
     } catch (error: any) {
         console.error('Mark as read error:', error);
+        res.status(500).json({ error: error.message });
+    }
+}
+
+// Admin: Get notice interactions by user
+export async function getUserInteractions(req: Request, res: Response) {
+    try {
+        const userId = parseInt(req.params.userId);
+        if (isNaN(userId)) {
+            return res.status(400).json({ error: 'Invalid user ID' });
+        }
+        const interactions = await noticeService.getUserInteractionsByUserId(userId);
+        res.json(interactions);
+    } catch (error: any) {
+        console.error('Get user interactions error:', error);
         res.status(500).json({ error: error.message });
     }
 }
@@ -155,11 +190,20 @@ export async function getAnalytics(req: Request, res: Response) {
 export async function toggleInteraction(req: Request, res: Response) {
     try {
         const id = parseInt(req.params.id);
-        const userId = (req as any).user?.id;
+        const userId = (req as any).user?.id ?? (req as any).user?.sub;
         const { type } = req.body;
 
-        if (!type) {
+        if (isNaN(id)) {
+            return res.status(400).json({ error: 'Invalid notice ID' });
+        }
+
+        const normalizedType = typeof type === 'string' ? type.trim().toUpperCase() : '';
+        if (!normalizedType) {
             return res.status(400).json({ error: 'Interaction type is required' });
+        }
+
+        if (!Object.values(InteractionType).includes(normalizedType as InteractionType)) {
+            return res.status(400).json({ error: 'Invalid interaction type' });
         }
 
         // If no user, return error asking to login
@@ -170,10 +214,17 @@ export async function toggleInteraction(req: Request, res: Response) {
             });
         }
 
-        const result = await noticeService.toggleInteraction(id, userId, type);
+        const result = await noticeService.toggleInteraction(
+            id,
+            userId,
+            normalizedType as InteractionType
+        );
         res.json(result);
     } catch (error: any) {
         console.error('Toggle interaction error:', error);
+        if (error?.message === 'Notice not found') {
+            return res.status(404).json({ error: error.message });
+        }
         res.status(500).json({ error: error.message });
     }
 }
@@ -182,7 +233,7 @@ export async function toggleInteraction(req: Request, res: Response) {
 export async function getNoticeInteractions(req: Request, res: Response) {
     try {
         const id = parseInt(req.params.id);
-        const userId = (req as any).user?.id;
+        const userId = (req as any).user?.id ?? (req as any).user?.sub;
 
         const result = await noticeService.getNoticeInteractions(id, userId);
         res.json(result);

@@ -114,11 +114,11 @@ exports.getBotAnalyticsQuerySchema = zod_1.z.object({
         errorMap: () => ({ message: 'Chat type must be either LIVE_CHAT or COMPLAINT_CHAT' })
     }).optional(),
     startDate: zod_1.z.string()
-        .datetime('Start date must be a valid ISO 8601 date')
+        .refine((val) => !isNaN(Date.parse(val)), 'Start date must be a valid date')
         .transform(val => new Date(val))
         .optional(),
     endDate: zod_1.z.string()
-        .datetime('End date must be a valid ISO 8601 date')
+        .refine((val) => !isNaN(Date.parse(val)), 'End date must be a valid date')
         .transform(val => new Date(val))
         .optional()
 });

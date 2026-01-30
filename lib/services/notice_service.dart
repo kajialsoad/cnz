@@ -13,6 +13,7 @@ class NoticeService {
     int limit = 20,
   }) async {
     try {
+      final token = await AuthService.getAccessToken();
       final queryParams = <String, String>{
         'page': page.toString(),
         'limit': limit.toString(),
@@ -25,12 +26,16 @@ class NoticeService {
         queryParams['type'] = type;
       }
 
-      final uri = Uri.parse('${ApiConfig.baseUrl}/api/notices/active')
-          .replace(queryParameters: queryParams);
+      final uri = Uri.parse(
+        '${ApiConfig.baseUrl}/api/notices/active',
+      ).replace(queryParameters: queryParams);
 
       final response = await http.get(
         uri,
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
       );
 
       if (response.statusCode == 200) {
@@ -49,9 +54,13 @@ class NoticeService {
   // Get notice by ID
   Future<Notice> getNoticeById(int id) async {
     try {
+      final token = await AuthService.getAccessToken();
       final response = await http.get(
         Uri.parse('${ApiConfig.baseUrl}/api/notices/$id'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
       );
 
       if (response.statusCode == 200) {
@@ -76,7 +85,7 @@ class NoticeService {
 
       if (response.statusCode == 200) {
         final decoded = json.decode(response.body);
-        
+
         // Handle both formats: direct array or wrapped in {success, data}
         final List<dynamic> data;
         if (decoded is List) {
@@ -86,7 +95,7 @@ class NoticeService {
         } else {
           throw Exception('Unexpected response format');
         }
-        
+
         return data.map((json) => NoticeCategory.fromJson(json)).toList();
       } else {
         throw Exception('Failed to load categories: ${response.statusCode}');
@@ -97,12 +106,47 @@ class NoticeService {
     }
   }
 
+  // Get category tree (hierarchical with parent-child relationships)
+  Future<List<NoticeCategory>> getCategoryTree() async {
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}/api/notice-categories/tree'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final decoded = json.decode(response.body);
+
+        // Handle both formats: direct array or wrapped in {success, data}
+        final List<dynamic> data;
+        if (decoded is List) {
+          data = decoded;
+        } else if (decoded is Map && decoded['data'] is List) {
+          data = decoded['data'];
+        } else {
+          throw Exception('Unexpected response format');
+        }
+
+        return data.map((json) => NoticeCategory.fromJson(json)).toList();
+      } else {
+        throw Exception('Failed to load category tree: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error fetching category tree: $e');
+      throw Exception('Failed to load category tree: $e');
+    }
+  }
+
   // Increment view count
   Future<void> incrementViewCount(int id) async {
     try {
+      final token = await AuthService.getAccessToken();
       await http.post(
         Uri.parse('${ApiConfig.baseUrl}/api/notices/$id/view'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
       );
     } catch (e) {
       print('Error incrementing view count: $e');
@@ -112,9 +156,13 @@ class NoticeService {
   // Mark as read
   Future<void> markAsRead(int id) async {
     try {
+      final token = await AuthService.getAccessToken();
       await http.post(
         Uri.parse('${ApiConfig.baseUrl}/api/notices/$id/read'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
       );
     } catch (e) {
       print('Error marking as read: $e');

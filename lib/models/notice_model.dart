@@ -6,6 +6,8 @@ class NoticeCategory {
   final String? icon;
   final int? parentId;
   final bool isActive;
+  final List<NoticeCategory>? children;
+  final int? noticeCount;
 
   NoticeCategory({
     required this.id,
@@ -15,6 +17,8 @@ class NoticeCategory {
     this.icon,
     this.parentId,
     required this.isActive,
+    this.children,
+    this.noticeCount,
   });
 
   factory NoticeCategory.fromJson(Map<String, dynamic> json) {
@@ -26,7 +30,18 @@ class NoticeCategory {
       icon: json['icon'],
       parentId: json['parentId'],
       isActive: json['isActive'] ?? true,
+      children: json['children'] != null
+          ? (json['children'] as List)
+              .map((child) => NoticeCategory.fromJson(child))
+              .toList()
+          : null,
+      noticeCount: json['_count']?['notices'],
     );
+  }
+
+  // Get localized name based on language
+  String getLocalizedName(String language) {
+    return language == 'bn' && nameBn != null ? nameBn! : name;
   }
 }
 
@@ -104,6 +119,52 @@ class Notice {
       userInteractions: json['interactions'] != null && json['interactions']['userInteractions'] != null
           ? List<String>.from(json['interactions']['userInteractions'])
           : null,
+    );
+  }
+
+  Notice copyWith({
+    int? id,
+    String? title,
+    String? titleBn,
+    String? description,
+    String? descriptionBn,
+    String? content,
+    String? contentBn,
+    int? categoryId,
+    NoticeCategory? category,
+    String? type,
+    String? priority,
+    bool? isActive,
+    DateTime? publishDate,
+    DateTime? expiryDate,
+    String? imageUrl,
+    int? viewCount,
+    int? readCount,
+    DateTime? createdAt,
+    Map<String, int>? interactionCounts,
+    List<String>? userInteractions,
+  }) {
+    return Notice(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      titleBn: titleBn ?? this.titleBn,
+      description: description ?? this.description,
+      descriptionBn: descriptionBn ?? this.descriptionBn,
+      content: content ?? this.content,
+      contentBn: contentBn ?? this.contentBn,
+      categoryId: categoryId ?? this.categoryId,
+      category: category ?? this.category,
+      type: type ?? this.type,
+      priority: priority ?? this.priority,
+      isActive: isActive ?? this.isActive,
+      publishDate: publishDate ?? this.publishDate,
+      expiryDate: expiryDate ?? this.expiryDate,
+      imageUrl: imageUrl ?? this.imageUrl,
+      viewCount: viewCount ?? this.viewCount,
+      readCount: readCount ?? this.readCount,
+      createdAt: createdAt ?? this.createdAt,
+      interactionCounts: interactionCounts ?? this.interactionCounts,
+      userInteractions: userInteractions ?? this.userInteractions,
     );
   }
 

@@ -1,16 +1,93 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import '../components/custom_bottom_nav.dart';
 import '../widgets/translated_text.dart';
+import '../services/gallery_service.dart';
+import '../services/auth_service.dart';
+import '../models/gallery_image_model.dart';
 
-class GalleryPage extends StatelessWidget {
+class GalleryPage extends StatefulWidget {
   const GalleryPage({super.key});
 
   @override
+  State<GalleryPage> createState() => _GalleryPageState();
+}
+
+class _GalleryPageState extends State<GalleryPage> {
+  final GalleryService _galleryService = GalleryService();
+  List<GalleryImage> _images = [];
+  bool _isLoading = true;
+  String? _error;
+  String? _token;
+
+  static const primaryGreen = Color(0xFF4CAF50);
+
+  @override
+  void initState() {
+    super.initState();
+    _loadToken();
+  }
+
+  Future<void> _loadToken() async {
+    try {
+      final token = await AuthService.getAccessToken();
+
+      if (!mounted) return;
+
+      if (token == null) {
+        setState(() {
+          _error = 'Please login first';
+          _isLoading = false;
+        });
+        return;
+      }
+
+      setState(() {
+        _token = token;
+      });
+
+      await _fetchImages();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'Failed to load: $e';
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _fetchImages() async {
+    if (_token == null) return;
+
+    if (!mounted) return;
+
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final images = await _galleryService.getActiveImages(_token!);
+
+      if (!mounted) return;
+
+      setState(() {
+        _images = images;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'Failed to load images: $e';
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    const primaryGreen = Color(0xFF4CAF50);
-    
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
@@ -19,8 +96,6 @@ class GalleryPage extends StatelessWidget {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () {
-            // If this page was opened via pushReplacementNamed, popping may show a blank screen.
-            // Safely navigate: pop if possible, otherwise go to Home.
             if (Navigator.canPop(context)) {
               Navigator.pop(context);
             } else {
@@ -37,39 +112,19 @@ class GalleryPage extends StatelessWidget {
           ),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.only(
-          left: 16,
-          right: 16,
-          top: 16,
-          bottom: 100, // Extra padding for bottom navigation
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Clean Dhaka Activities Section
-            TranslatedText(
-              'Clean Dhaka Activities',
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF2D3748),
-              ),
-            ),
-            const SizedBox(height: 16),
-            
-            // Image Grid (2 rows, 3 columns)
-            _buildImageGrid(),
-            
-            const SizedBox(height: 32),
-            
-            // Latest Updates Section
-            _buildLatestUpdates(),
-          ],
-        ),
+      body: RefreshIndicator(
+        onRefresh: _fetchImages,
+        color: primaryGreen,
+        child: _isLoading
+            ? _buildLoadingState()
+            : _error != null
+                ? _buildErrorState()
+                : _images.isEmpty
+                    ? _buildEmptyState()
+                    : _buildGalleryGrid(),
       ),
       bottomNavigationBar: CustomBottomNav(
-        currentIndex: 3, // Gallery index
+        currentIndex: 3,
         onTap: (index) {
           switch (index) {
             case 0:
@@ -85,7 +140,6 @@ class GalleryPage extends StatelessWidget {
               // Already on Gallery page
               break;
             case 4:
-              // Camera
               Navigator.pushNamed(context, '/camera');
               break;
           }
@@ -94,361 +148,282 @@ class GalleryPage extends StatelessWidget {
     );
   }
 
-  Widget _buildImageGrid() {
-    // Sample image data - in real app, these would be actual image URLs
-    final List<String> imageDescriptions = [
-      'Railway cleaning drive',
-      'Waste collection bags',
-      'Modern building cleaning',
-      'Street cleaning worker',
-      'Railway maintenance',
-      'Recycling collection',
-    ];
-
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Colors.white,
-            Colors.grey.shade50,
-          ],
-        ),
-        boxShadow: [
-          // Main shadow for depth
-          BoxShadow(
-            color: Colors.black.withOpacity(0.15),
-            offset: const Offset(0, 10),
-            blurRadius: 30,
-            spreadRadius: 0,
-          ),
-          // Secondary shadow
-          BoxShadow(
-            color: const Color(0xFF4CAF50).withOpacity(0.1),
-            offset: const Offset(0, 5),
-            blurRadius: 20,
-            spreadRadius: 0,
-          ),
-          // Inner highlight
-          BoxShadow(
-            color: Colors.white.withOpacity(0.8),
-            offset: const Offset(0, -2),
-            blurRadius: 10,
-            spreadRadius: -2,
+  Widget _buildLoadingState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const CircularProgressIndicator(color: primaryGreen),
+          const SizedBox(height: 16),
+          Text(
+            'Loading gallery...',
+            style: TextStyle(color: Colors.grey[600]),
           ),
         ],
       ),
-      padding: const EdgeInsets.all(20),
-      child: GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          crossAxisSpacing: 8,
-          mainAxisSpacing: 8,
-          childAspectRatio: 1,
-        ),
-        itemCount: 6,
-        itemBuilder: (context, index) {
-          return Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Colors.grey.shade100,
-                  Colors.grey.shade200,
-                ],
-              ),
-              boxShadow: [
-                // Main card shadow
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
-                  offset: const Offset(0, 6),
-                  blurRadius: 15,
-                  spreadRadius: 0,
-                ),
-                // Inner highlight
-                BoxShadow(
-                  color: Colors.white.withOpacity(0.7),
-                  offset: const Offset(0, -1),
-                  blurRadius: 6,
-                  spreadRadius: -1,
-                ),
-                // Colored glow
-                BoxShadow(
-                  color: const Color(0xFF4CAF50).withOpacity(0.1),
-                  offset: const Offset(0, 3),
-                  blurRadius: 10,
-                  spreadRadius: 0,
-                ),
-              ],
-              border: Border.all(
-                color: Colors.white.withOpacity(0.5),
-                width: 1,
-              ),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: Stack(
-                children: [
-                  // Placeholder for image with gradient
-                  Container(
-                    width: double.infinity,
-                    height: double.infinity,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          Colors.grey.shade300,
-                          Colors.grey.shade400,
-                        ],
-                      ),
-                    ),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: RadialGradient(
-                          center: Alignment.center,
-                          radius: 0.8,
-                          colors: [
-                            const Color(0xFF4CAF50).withOpacity(0.1),
-                            Colors.transparent,
-                          ],
-                        ),
-                      ),
-                      child: Icon(
-                        Icons.photo_camera_outlined,
-                        size: 32,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ),
-                  // Enhanced overlay with description
-                  Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-                      decoration: BoxDecoration(
-                        borderRadius: const BorderRadius.only(
-                          bottomLeft: Radius.circular(16),
-                          bottomRight: Radius.circular(16),
-                        ),
-                        gradient: LinearGradient(
-                          begin: Alignment.bottomCenter,
-                          end: Alignment.topCenter,
-                          colors: [
-                            Colors.black.withOpacity(0.8),
-                            Colors.black.withOpacity(0.4),
-                            Colors.transparent,
-                          ],
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.3),
-                            offset: const Offset(0, -2),
-                            blurRadius: 8,
-                            spreadRadius: 0,
-                          ),
-                        ],
-                      ),
-                      child: TranslatedText(
-                        imageDescriptions[index],
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          shadows: [
-                            Shadow(
-                              offset: Offset(1, 1),
-                              blurRadius: 3,
-                              color: Colors.black54,
-                            ),
-                          ],
-                        ),
-                        textAlign: TextAlign.center,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ).animate(delay: (index * 100).ms)
-              .fadeIn(duration: 800.ms)
-              .scale(
-                begin: const Offset(0.8, 0.8),
-                duration: 600.ms,
-                curve: Curves.easeOutBack,
-              )
-              .slideY(
-                begin: 0.3,
-                duration: 500.ms,
-                curve: Curves.easeOutBack,
-              )
-              .shimmer(
-                duration: 1500.ms,
-                color: const Color(0xFF4CAF50).withOpacity(0.2),
-              );
-        },
-      ),
-    ).animate(delay: 200.ms)
-        .fadeIn(duration: 1000.ms)
-        .slideY(
-          begin: 0.2,
-          duration: 800.ms,
-          curve: Curves.easeOutBack,
-        );
+    );
   }
 
-  Widget _buildLatestUpdates() {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Colors.white,
-            Colors.grey.shade50,
-          ],
-        ),
-        boxShadow: [
-          // Main shadow
-          BoxShadow(
-            color: Colors.black.withOpacity(0.15),
-            offset: const Offset(0, 8),
-            blurRadius: 25,
-            spreadRadius: 0,
+  Widget _buildErrorState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
+          const SizedBox(height: 16),
+          Text(
+            _error ?? 'Unknown error',
+            style: TextStyle(color: Colors.grey[800]),
+            textAlign: TextAlign.center,
           ),
-          // Green accent shadow
-          BoxShadow(
-            color: const Color(0xFF4CAF50).withOpacity(0.1),
-            offset: const Offset(0, 4),
-            blurRadius: 15,
-            spreadRadius: 0,
-          ),
-          // Inner highlight
-          BoxShadow(
-            color: Colors.white.withOpacity(0.8),
-            offset: const Offset(0, -2),
-            blurRadius: 10,
-            spreadRadius: -2,
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: _fetchImages,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryGreen,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+            icon: const Icon(Icons.refresh),
+            label: const Text('Retry'),
           ),
         ],
       ),
-      padding: const EdgeInsets.all(24),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.green[50],
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.photo_library_outlined,
+              size: 64,
+              color: primaryGreen,
+            ),
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'No Images Yet',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF2D3748),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Gallery images will appear here',
+            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGalleryGrid() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.only(
+        left: 16,
+        right: 16,
+        top: 16,
+        bottom: 100,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           TranslatedText(
-            'Latest Updates',
+            'Clean Dhaka Activities',
             style: const TextStyle(
-              fontSize: 18,
+              fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF4CAF50),
+              color: Color(0xFF2D3748),
             ),
           ),
           const SizedBox(height: 16),
-          
-          // Tree plantation update
-          _buildUpdateItem(
-            '📸',
-            'Tree plantation drive - 500+ trees planted this month',
-          ),
-          
-          const SizedBox(height: 12),
-          
-          // Community cleaning update
-          _buildUpdateItem(
-            '🌱',
-            'Community cleaning event scheduled for next Saturday',
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+              childAspectRatio: 1,
+            ),
+            itemCount: _images.length,
+            itemBuilder: (context, index) {
+              return _buildImageCard(_images[index], index);
+            },
           ),
         ],
       ),
-    ).animate(delay: 600.ms)
-        .fadeIn(duration: 1000.ms)
-        .slideY(
-          begin: 0.3,
-          duration: 800.ms,
-          curve: Curves.easeOutBack,
-        )
-        .scale(
-          begin: const Offset(0.9, 0.9),
-          duration: 600.ms,
-          curve: Curves.easeOutBack,
-        )
-        .shimmer(
-          duration: 2000.ms,
-          color: const Color(0xFF4CAF50).withOpacity(0.1),
-        );
+    );
   }
 
-  Widget _buildUpdateItem(String emoji, String text) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                const Color(0xFFF0F9FF),
-                const Color(0xFFE6F7FF),
-              ],
+  Widget _buildImageCard(GalleryImage image, int index) {
+    return GestureDetector(
+      onTap: () => _showFullScreenImage(image),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              offset: const Offset(0, 6),
+              blurRadius: 15,
             ),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF4CAF50).withOpacity(0.2),
-                offset: const Offset(2, 2),
-                blurRadius: 8,
-                spreadRadius: -2,
+            BoxShadow(
+              color: primaryGreen.withOpacity(0.1),
+              offset: const Offset(0, 3),
+              blurRadius: 10,
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Stack(
+            children: [
+              CachedNetworkImage(
+                imageUrl: image.imageUrl,
+                width: double.infinity,
+                height: double.infinity,
+                fit: BoxFit.cover,
+                placeholder: (context, url) => Container(
+                  color: Colors.grey[200],
+                  child: const Center(
+                    child: CircularProgressIndicator(color: primaryGreen),
+                  ),
+                ),
+                errorWidget: (context, url, error) => Container(
+                  color: Colors.grey[200],
+                  child: Icon(
+                    Icons.broken_image,
+                    size: 32,
+                    color: Colors.grey[600],
+                  ),
+                ),
               ),
-              BoxShadow(
-                color: Colors.white.withOpacity(0.8),
-                offset: const Offset(-1, -1),
-                blurRadius: 6,
-                spreadRadius: -2,
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                      colors: [
+                        Colors.black.withOpacity(0.8),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                  child: Text(
+                    image.title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               ),
             ],
-            border: Border.all(
-              color: const Color(0xFF4CAF50).withOpacity(0.2),
-              width: 1,
-            ),
-          ),
-          child: Text(
-            emoji,
-            style: const TextStyle(fontSize: 18),
           ),
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: TranslatedText(
-            text,
-            style: const TextStyle(
-              fontSize: 14,
-              color: Color(0xFF2D3748),
-              height: 1.4,
-            ),
+      ).animate(delay: (index * 100).ms)
+          .fadeIn(duration: 800.ms)
+          .scale(
+            begin: const Offset(0.8, 0.8),
+            duration: 600.ms,
+            curve: Curves.easeOutBack,
           ),
+    );
+  }
+
+  void _showFullScreenImage(GalleryImage image) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.9),
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: EdgeInsets.zero,
+        child: Stack(
+          children: [
+            Center(
+              child: InteractiveViewer(
+                minScale: 0.5,
+                maxScale: 4.0,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CachedNetworkImage(
+                      imageUrl: image.imageUrl,
+                      fit: BoxFit.contain,
+                      placeholder: (context, url) => const Center(
+                        child: CircularProgressIndicator(color: primaryGreen),
+                      ),
+                      errorWidget: (context, url, error) =>
+                          const Icon(Icons.error, color: Colors.white, size: 50),
+                    ),
+                    if (image.description != null && image.description!.isNotEmpty)
+                      Container(
+                        margin: const EdgeInsets.only(top: 16),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.7),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          image.description!,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            Positioned(
+              top: 40,
+              right: 20,
+              child: IconButton(
+                icon: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.close_rounded,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                ),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+          ],
         ),
-      ],
-    ).animate(delay: 800.ms)
-        .fadeIn(duration: 600.ms)
-        .slideX(
-          begin: 0.2,
-          duration: 500.ms,
-          curve: Curves.easeOutBack,
-        );
+      ),
+    );
   }
 }

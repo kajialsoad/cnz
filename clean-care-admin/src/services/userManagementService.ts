@@ -274,6 +274,21 @@ class UserManagementService {
             throw error;
         }
     }
+
+    // Get user notice interactions
+    async getUserNoticeInteractions(userId: number): Promise<any[]> {
+        try {
+            const response = await this.apiClient.get(`/api/notices/admin/users/${userId}/interactions`);
+            return response.data;
+        } catch (error) {
+            if (axios.isAxiosError(error)) {
+                throw new Error(
+                    error.response?.data?.message || 'Failed to fetch user notice interactions'
+                );
+            }
+            throw error;
+        }
+    }
 }
 
 export const userManagementService = new UserManagementService();

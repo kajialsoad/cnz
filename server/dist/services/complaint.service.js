@@ -32,45 +32,56 @@ class ComplaintService {
     // Create a new complaint
     async createComplaint(input) {
         try {
-            // Check daily complaint limit
-            if (input.userId && !input.forSomeoneElse) {
-                const startOfToday = new Date();
-                startOfToday.setHours(0, 0, 0, 0);
-                const dailyCount = await prisma_1.default.complaint.count({
-                    where: {
-                        userId: input.userId,
-                        createdAt: {
-                            gte: startOfToday
+            console.log('🚀 Starting complaint creation...');
+            const startTime = Date.now();
+            // Parallel execution of independent operations
+            const [dailyLimitCheck, userDataFetch] = await Promise.all([
+                // Check daily complaint limit
+                (async () => {
+                    if (input.userId && !input.forSomeoneElse) {
+                        const startOfToday = new Date();
+                        startOfToday.setHours(0, 0, 0, 0);
+                        const [dailyCount, limitStr] = await Promise.all([
+                            prisma_1.default.complaint.count({
+                                where: {
+                                    userId: input.userId,
+                                    createdAt: { gte: startOfToday }
+                                }
+                            }),
+                            system_config_service_1.systemConfigService.get('daily_complaint_limit', '20')
+                        ]);
+                        const limit = parseInt(limitStr, 10) || 20;
+                        if (dailyCount >= limit) {
+                            throw new Error(`Daily complaint limit reached. You can submit up to ${limit} complaints per day.`);
                         }
                     }
-                });
-                // Get limit from config, default to 20 if not set
-                const limitStr = await system_config_service_1.systemConfigService.get('daily_complaint_limit', '20');
-                const limit = parseInt(limitStr, 10) || 20;
-                if (dailyCount >= limit) {
-                    throw new Error(`Daily complaint limit reached. You can submit up to ${limit} complaints per day.`);
-                }
-            }
+                })(),
+                // Fetch user data if needed
+                (async () => {
+                    if (input.userId && !input.forSomeoneElse) {
+                        return await prisma_1.default.user.findUnique({
+                            where: { id: input.userId },
+                            select: {
+                                id: true,
+                                wardId: true,
+                                zoneId: true,
+                                cityCorporationCode: true,
+                                wardImageCount: true,
+                                cityCorporation: true,
+                                zone: true,
+                                ward: true
+                            }
+                        });
+                    }
+                    return null;
+                })()
+            ]);
+            const user = userDataFetch;
+            console.log(`⏱️ Initial checks completed in ${Date.now() - startTime}ms`);
             // Validate category and subcategory combination
             if (!category_service_1.categoryService.validateCategorySubcategory(input.category, input.subcategory)) {
                 const validSubcategories = category_service_1.categoryService.getAllSubcategoryIds(input.category);
                 throw new Error(`Invalid category and subcategory combination. Category '${input.category}' does not have subcategory '${input.subcategory}'. Valid subcategories: ${validSubcategories.join(', ')}`);
-            }
-            // Auto-fetch user's city corporation, zone, and ward when creating complaint
-            let userCityCorporation = null;
-            let user = null;
-            if (input.userId && !input.forSomeoneElse) {
-                user = await prisma_1.default.user.findUnique({
-                    where: { id: input.userId },
-                    include: {
-                        cityCorporation: true,
-                        zone: true,
-                        ward: true
-                    }
-                });
-                if (user) {
-                    userCityCorporation = user.cityCorporation;
-                }
             }
             // Check ward image upload limit before processing files
             if (input.uploadedFiles && user && user.wardId) {
@@ -92,89 +103,103 @@ class ComplaintService {
                     throw new WardImageLimitError(user.wardId, user.wardImageCount, 10);
                 }
             }
-            // Generate tracking number
-            const trackingNumber = await this.generateTrackingNumber();
             let finalImageUrls = [];
             let finalAudioUrls = [];
-            // Process uploaded files if provided
+            // Process uploaded files if provided (optimized with parallel uploads)
             if (input.uploadedFiles) {
+                const fileStartTime = Date.now();
                 const files = input.uploadedFiles;
-                // Check if Cloudinary is enabled
                 const useCloudinary = (0, cloudinary_config_1.isCloudinaryEnabled)();
                 // With .any(), files come as an array, need to separate by fieldname
                 if (Array.isArray(files)) {
                     const imageFiles = files.filter((f) => f.fieldname === 'images');
                     const audioFiles = files.filter((f) => f.fieldname === 'audioFiles');
-                    if (imageFiles.length > 0) {
-                        if (useCloudinary) {
-                            // Upload to Cloudinary
-                            try {
-                                finalImageUrls = await this.uploadImagesToCloudinary(imageFiles);
+                    // Process images and audio in parallel
+                    const [imageUrls, audioUrls] = await Promise.all([
+                        // Process images
+                        (async () => {
+                            if (imageFiles.length > 0) {
+                                if (useCloudinary) {
+                                    try {
+                                        return await this.uploadImagesToCloudinary(imageFiles);
+                                    }
+                                    catch (error) {
+                                        console.error('Cloudinary upload failed, falling back to local storage:', error);
+                                        return imageFiles.map((file) => (0, upload_config_1.getFileUrl)(file.filename, 'image'));
+                                    }
+                                }
+                                else {
+                                    return imageFiles.map((file) => (0, upload_config_1.getFileUrl)(file.filename, 'image'));
+                                }
                             }
-                            catch (error) {
-                                console.error('Cloudinary upload failed, falling back to local storage:', error);
-                                // Fallback to local storage
-                                finalImageUrls = imageFiles.map((file) => (0, upload_config_1.getFileUrl)(file.filename, 'image'));
+                            return [];
+                        })(),
+                        // Process audio
+                        (async () => {
+                            if (audioFiles.length > 0) {
+                                if (useCloudinary) {
+                                    try {
+                                        return await Promise.all(audioFiles.map((file) => this.uploadAudioToCloudinary(file)));
+                                    }
+                                    catch (error) {
+                                        console.error('Cloudinary audio upload failed, falling back to local storage:', error);
+                                        return audioFiles.map((file) => (0, upload_config_1.getFileUrl)(file.filename, 'voice'));
+                                    }
+                                }
+                                else {
+                                    return audioFiles.map((file) => (0, upload_config_1.getFileUrl)(file.filename, 'voice'));
+                                }
                             }
-                        }
-                        else {
-                            // Use local storage
-                            finalImageUrls = imageFiles.map((file) => (0, upload_config_1.getFileUrl)(file.filename, 'image'));
-                        }
-                    }
-                    if (audioFiles.length > 0) {
-                        if (useCloudinary) {
-                            // Upload to Cloudinary
-                            try {
-                                const audioUrlPromises = audioFiles.map((file) => this.uploadAudioToCloudinary(file));
-                                finalAudioUrls = await Promise.all(audioUrlPromises);
-                            }
-                            catch (error) {
-                                console.error('Cloudinary audio upload failed, falling back to local storage:', error);
-                                // Fallback to local storage
-                                finalAudioUrls = audioFiles.map((file) => (0, upload_config_1.getFileUrl)(file.filename, 'voice'));
-                            }
-                        }
-                        else {
-                            // Use local storage
-                            finalAudioUrls = audioFiles.map((file) => (0, upload_config_1.getFileUrl)(file.filename, 'voice'));
-                        }
-                    }
+                            return [];
+                        })()
+                    ]);
+                    finalImageUrls = imageUrls;
+                    finalAudioUrls = audioUrls;
                 }
                 else {
-                    // Fallback for .fields() format (if we ever switch back)
-                    if (files.images) {
-                        const imageFiles = Array.isArray(files.images) ? files.images : [files.images];
-                        if (useCloudinary) {
-                            try {
-                                finalImageUrls = await this.uploadImagesToCloudinary(imageFiles);
+                    // Fallback for .fields() format
+                    const [imageUrls, audioUrls] = await Promise.all([
+                        (async () => {
+                            if (files.images) {
+                                const imageFiles = Array.isArray(files.images) ? files.images : [files.images];
+                                if (useCloudinary) {
+                                    try {
+                                        return await this.uploadImagesToCloudinary(imageFiles);
+                                    }
+                                    catch (error) {
+                                        console.error('Cloudinary upload failed, falling back to local storage:', error);
+                                        return imageFiles.map((file) => (0, upload_config_1.getFileUrl)(file.filename, 'image'));
+                                    }
+                                }
+                                else {
+                                    return imageFiles.map((file) => (0, upload_config_1.getFileUrl)(file.filename, 'image'));
+                                }
                             }
-                            catch (error) {
-                                console.error('Cloudinary upload failed, falling back to local storage:', error);
-                                finalImageUrls = imageFiles.map((file) => (0, upload_config_1.getFileUrl)(file.filename, 'image'));
+                            return [];
+                        })(),
+                        (async () => {
+                            if (files.audioFiles) {
+                                const audioFilesArray = Array.isArray(files.audioFiles) ? files.audioFiles : [files.audioFiles];
+                                if (useCloudinary) {
+                                    try {
+                                        return await Promise.all(audioFilesArray.map((file) => this.uploadAudioToCloudinary(file)));
+                                    }
+                                    catch (error) {
+                                        console.error('Cloudinary audio upload failed, falling back to local storage:', error);
+                                        return audioFilesArray.map((file) => (0, upload_config_1.getFileUrl)(file.filename, 'voice'));
+                                    }
+                                }
+                                else {
+                                    return audioFilesArray.map((file) => (0, upload_config_1.getFileUrl)(file.filename, 'voice'));
+                                }
                             }
-                        }
-                        else {
-                            finalImageUrls = imageFiles.map((file) => (0, upload_config_1.getFileUrl)(file.filename, 'image'));
-                        }
-                    }
-                    if (files.audioFiles) {
-                        const audioFilesArray = Array.isArray(files.audioFiles) ? files.audioFiles : [files.audioFiles];
-                        if (useCloudinary) {
-                            try {
-                                const audioUrlPromises = audioFilesArray.map((file) => this.uploadAudioToCloudinary(file));
-                                finalAudioUrls = await Promise.all(audioUrlPromises);
-                            }
-                            catch (error) {
-                                console.error('Cloudinary audio upload failed, falling back to local storage:', error);
-                                finalAudioUrls = audioFilesArray.map((file) => (0, upload_config_1.getFileUrl)(file.filename, 'voice'));
-                            }
-                        }
-                        else {
-                            finalAudioUrls = audioFilesArray.map((file) => (0, upload_config_1.getFileUrl)(file.filename, 'voice'));
-                        }
-                    }
+                            return [];
+                        })()
+                    ]);
+                    finalImageUrls = imageUrls;
+                    finalAudioUrls = audioUrls;
                 }
+                console.log(`⏱️ File processing completed in ${Date.now() - fileStartTime}ms`);
             }
             // Add URLs from direct input
             if (input.imageUrls && input.imageUrls.length > 0) {
@@ -183,26 +208,39 @@ class ComplaintService {
             if (input.voiceNoteUrl) {
                 finalAudioUrls.push(input.voiceNoteUrl);
             }
-            // Determine Location and Assigned Admin
-            let locationString = (typeof input.location === 'object' && input.location.address) ? input.location.address : String(input.location); // Fallback
+            // Determine Location and Assigned Admin (optimized)
+            let locationString = (typeof input.location === 'object' && input.location.address) ? input.location.address : String(input.location);
             let assignedAdminId = null;
-            // ✅ FIX: Use complaint's ward (input.wardId), NOT user's ward
-            // This ensures the correct ward inspector is assigned based on where the complaint was submitted
             const targetWardId = input.wardId;
+            // Parallel fetch of ward details and admin assignment
             if (targetWardId) {
-                // Fetch Ward details for accurate location
-                const ward = await prisma_1.default.ward.findUnique({
-                    where: { id: targetWardId },
-                    include: {
-                        zone: {
-                            include: {
-                                cityCorporation: true
+                const locationStartTime = Date.now();
+                const [ward, assignedAdmin] = await Promise.all([
+                    prisma_1.default.ward.findUnique({
+                        where: { id: targetWardId },
+                        select: {
+                            wardNumber: true,
+                            zone: {
+                                select: {
+                                    name: true,
+                                    zoneNumber: true,
+                                    cityCorporation: {
+                                        select: { name: true }
+                                    }
+                                }
                             }
                         }
-                    }
-                });
+                    }),
+                    prisma_1.default.user.findFirst({
+                        where: {
+                            wardId: targetWardId,
+                            role: 'ADMIN',
+                            status: 'ACTIVE'
+                        },
+                        select: { id: true }
+                    })
+                ]);
                 if (ward) {
-                    // Construct rich location string: "Ward X, Zone Y, City Corp" + User Address
                     const parts = [];
                     if (typeof input.location === 'object' && input.location.address)
                         parts.push(input.location.address);
@@ -212,21 +250,13 @@ class ComplaintService {
                     if (ward.zone && ward.zone.cityCorporation)
                         parts.push(ward.zone.cityCorporation.name);
                     locationString = parts.join(', ');
-                    // ✅ FIX: Find ADMIN assigned to COMPLAINT's ward (not user's ward)
-                    const assignedAdmin = await prisma_1.default.user.findFirst({
-                        where: {
-                            wardId: targetWardId, // Use complaint's ward
-                            role: 'ADMIN',
-                            status: 'ACTIVE'
-                        }
-                    });
-                    if (assignedAdmin) {
-                        assignedAdminId = assignedAdmin.id;
-                    }
                 }
+                if (assignedAdmin) {
+                    assignedAdminId = assignedAdmin.id;
+                }
+                console.log(`⏱️ Location processing completed in ${Date.now() - locationStartTime}ms`);
             }
             else if (typeof input.location === 'object') {
-                // Legacy/Fallback construction
                 locationString = `${input.location.address}, ${input.location.district}, ${input.location.thana}, Ward: ${input.location.ward}`;
             }
             console.log('📍 Complaint Location Data:');
@@ -236,25 +266,25 @@ class ComplaintService {
             console.log('- Complaint City Corp:', input.cityCorporationCode);
             console.log('- Location String:', locationString);
             // Create complaint
+            const dbStartTime = Date.now();
             const complaint = await prisma_1.default.complaint.create({
                 data: {
-                    title: input.title || this.generateTitleFromDescription(input.description), // Use generated title if missing
+                    title: input.title || this.generateTitleFromDescription(input.description),
                     description: input.description,
                     category: input.category,
                     subcategory: input.subcategory,
-                    priority: input.priority || 1, // Default priority is 1
+                    priority: input.priority || 1,
                     status: client_1.Complaint_status.PENDING,
                     imageUrl: finalImageUrls.length > 0 ? JSON.stringify(finalImageUrls) : null,
                     audioUrl: finalAudioUrls.length > 0 ? JSON.stringify(finalAudioUrls) : null,
                     userId: input.forSomeoneElse ? undefined : (input.userId ?? undefined),
                     location: typeof locationString === 'string' ? locationString : 'Unknown Location',
-                    assignedAdminId: assignedAdminId, // Auto-assign admin
-                    // User location fields (where user is from - for reference only)
+                    assignedAdminId: assignedAdminId,
+                    // User location fields
                     cityCorporationCode: user?.cityCorporationCode || null,
                     zoneId: user?.zoneId || null,
                     wardId: user?.wardId || null,
-                    // ✅ CRITICAL FIX: Complaint location fields (where complaint was submitted)
-                    // These fields are used for Admin filtering and ward inspector assignment
+                    // Complaint location fields
                     complaintCityCorporationCode: input.cityCorporationCode || null,
                     complaintZoneId: input.zoneId || null,
                     complaintWardId: input.wardId || null
@@ -268,29 +298,34 @@ class ComplaintService {
                         }
                     },
                     assignedAdmin: true,
-                    // ✅ Include user's geographical relations
                     cityCorporation: true,
                     zone: true,
                     wards: true,
-                    // ✅ Include complaint's geographical relations (for ward inspector info)
                     complaintCityCorporation: true,
                     complaintZone: true,
                     complaintWard: true
                 }
             });
-            // Increment ward image count if images were uploaded
-            if (finalImageUrls.length > 0 && user && user.wardId) {
-                await prisma_1.default.user.update({
-                    where: { id: user.id },
-                    data: {
-                        wardImageCount: {
-                            increment: finalImageUrls.length
-                        }
+            console.log(`⏱️ Database insert completed in ${Date.now() - dbStartTime}ms`);
+            // Parallel execution of post-creation tasks
+            await Promise.all([
+                // Increment ward image count if images were uploaded
+                (async () => {
+                    if (finalImageUrls.length > 0 && user && user.wardId) {
+                        await prisma_1.default.user.update({
+                            where: { id: user.id },
+                            data: {
+                                wardImageCount: {
+                                    increment: finalImageUrls.length
+                                }
+                            }
+                        });
                     }
-                });
-            }
-            // Notify admins
-            await notification_service_1.default.notifyAdmins('New Complaint Submitted', `A new complaint "${complaint.title}" has been submitted.`, 'INFO', complaint.id);
+                })(),
+                // Notify admins (don't wait for this)
+                notification_service_1.default.notifyAdmins('New Complaint Submitted', `A new complaint "${complaint.title}" has been submitted.`, 'INFO', complaint.id).catch(err => console.error('Failed to send admin notification:', err))
+            ]);
+            console.log(`✅ Total complaint creation time: ${Date.now() - startTime}ms`);
             return this.formatComplaintResponse(complaint);
         }
         catch (error) {

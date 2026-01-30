@@ -33,6 +33,7 @@ const zone_routes_1 = __importDefault(require("./routes/zone.routes"));
 const public_zone_routes_1 = __importDefault(require("./routes/public-zone.routes"));
 const ward_routes_1 = __importDefault(require("./routes/ward.routes"));
 const public_ward_routes_1 = __importDefault(require("./routes/public-ward.routes"));
+const waste_management_routes_1 = __importDefault(require("./routes/waste-management.routes"));
 const notification_routes_1 = __importDefault(require("./routes/notification.routes"));
 const review_routes_1 = __importDefault(require("./routes/review.routes"));
 const admin_review_routes_1 = __importDefault(require("./routes/admin.review.routes"));
@@ -189,6 +190,15 @@ app.use('/api/admin/wards', ward_routes_1.default); // Ward routes
 console.log('✅ Ward routes registered at /api/admin/wards');
 app.use('/api/wards', public_ward_routes_1.default); // Public Ward routes
 console.log('✅ Public Ward routes registered at /api/wards');
+app.use('/api/waste-management', waste_management_routes_1.default); // Waste Management routes
+console.log('✅ Waste Management routes registered at /api/waste-management');
+// Notice Board routes
+const notice_routes_1 = __importDefault(require("./routes/notice.routes"));
+const notice_category_routes_1 = __importDefault(require("./routes/notice-category.routes"));
+app.use('/api/notices', notice_routes_1.default); // Notice routes (public + admin)
+console.log('✅ Notice routes registered at /api/notices');
+app.use('/api/notice-categories', notice_category_routes_1.default); // Notice category routes
+console.log('✅ Notice category routes registered at /api/notice-categories');
 // Add test route to verify admin path works
 app.get('/api/admin/test', (req, res) => {
     res.json({

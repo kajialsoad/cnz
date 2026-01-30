@@ -4,6 +4,7 @@ import '../providers/language_provider.dart';
 
 class TranslatedText extends StatelessWidget {
   final String text;
+  final String? bn;
   final TextStyle? style;
   final TextAlign? textAlign;
   final int? maxLines;
@@ -12,6 +13,7 @@ class TranslatedText extends StatelessWidget {
   const TranslatedText(
     this.text, {
     super.key,
+    this.bn,
     this.style,
     this.textAlign,
     this.maxLines,
@@ -22,6 +24,18 @@ class TranslatedText extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<LanguageProvider>(
       builder: (context, languageProvider, child) {
+        // If language is Bangla and we have a static translation, use it
+        if (languageProvider.isBangla && bn != null) {
+          return Text(
+            bn!,
+            style: style,
+            textAlign: textAlign,
+            maxLines: maxLines,
+            overflow: overflow,
+          );
+        }
+
+        // Otherwise use dynamic translation
         return FutureBuilder<String>(
           future: languageProvider.translate(text),
           builder: (context, snapshot) {

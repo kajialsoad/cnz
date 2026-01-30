@@ -17,10 +17,11 @@ router.get('/', auth_middleware_1.authGuard, notification_controller_1.getUserNo
  */
 router.get('/unread', auth_middleware_1.authGuard, notification_controller_1.getUnreadNotifications);
 /**
- * GET /api/notifications/unread-count
+ * GET /api/notifications/count-unread
  * Get unread notification count
+ * Renamed from unread-count to avoid ad blockers
  */
-router.get('/unread-count', auth_middleware_1.authGuard, notification_controller_1.getUnreadCount);
+router.get('/count-unread', auth_middleware_1.authGuard, notification_controller_1.getUnreadCount);
 /**
  * PATCH /api/notifications/:id/read
  * Mark a specific notification as read

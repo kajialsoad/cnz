@@ -1,8 +1,7 @@
-import { PrismaClient, NoticeType, NoticePriority, InteractionType } from '@prisma/client';
-import notificationService from './notification.service';
-
-const prisma = new PrismaClient();
-
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const client_1 = require("@prisma/client");
+const prisma = new client_1.PrismaClient();
 const publicNoticeSelect = {
     id: true,
     title: true,
@@ -28,8 +27,7 @@ const publicNoticeSelect = {
     createdAt: true,
     updatedAt: true,
     category: true,
-} as const;
-
+};
 const adminNoticeSelect = {
     ...publicNoticeSelect,
     creator: {
@@ -40,45 +38,10 @@ const adminNoticeSelect = {
             email: true,
         },
     },
-} as const;
-
-export interface CreateNoticeDTO {
-    title: string;
-    titleBn?: string;
-    description: string;
-    descriptionBn?: string;
-    content: string;
-    contentBn?: string;
-    categoryId: number;
-    type?: NoticeType;
-    priority?: NoticePriority;
-    publishDate?: Date;
-    expiryDate?: Date;
-    imageUrl?: string;
-    attachments?: any;
-    targetZones?: number[];
-    targetWards?: number[];
-    targetCities?: number[];
-}
-
-export interface UpdateNoticeDTO extends Partial<CreateNoticeDTO> {
-    isActive?: boolean;
-}
-
-export interface NoticeFilters {
-    categoryId?: number;
-    type?: NoticeType;
-    priority?: NoticePriority;
-    isActive?: boolean;
-    search?: string;
-    zoneId?: number;
-    wardId?: number;
-    cityId?: number;
-}
-
+};
 class NoticeService {
     // Admin: Create notice
-    async createNotice(data: CreateNoticeDTO, createdBy: number) {
+    async createNotice(data, createdBy) {
         const notice = await prisma.notice.create({
             data: {
                 ...data,
@@ -96,41 +59,34 @@ class NoticeService {
                 },
             },
         });
-
         // Trigger notifications if notice is active and publish date is now or in the past
         if (notice.isActive && new Date(notice.publishDate) <= new Date()) {
-            this.notifyUsersAboutNotice(notice).catch(err =>
-                console.error('Failed to notify users about new notice:', err)
-            );
+            this.notifyUsersAboutNotice(notice).catch(err => console.error('Failed to notify users about new notice:', err));
         }
-
         return notice;
     }
-
     // Notify users about a new notice based on targeting
-    async notifyUsersAboutNotice(notice: any) {
+    async notifyUsersAboutNotice(notice) {
         const { targetCities, targetZones, targetWards } = notice;
-
-        const where: any = {
+        const where = {
             status: 'ACTIVE',
             role: 'CUSTOMER',
         };
-
-        if (targetWards && (targetWards as number[]).length > 0) {
+        if (targetWards && targetWards.length > 0) {
             where.wardId = { in: targetWards };
-        } else if (targetZones && (targetZones as number[]).length > 0) {
+        }
+        else if (targetZones && targetZones.length > 0) {
             where.zoneId = { in: targetZones };
-        } else if (targetCities && (targetCities as string[]).length > 0) {
+        }
+        else if (targetCities && targetCities.length > 0) {
             where.cityCorporationCode = { in: targetCities };
         }
-
         const users = await prisma.user.findMany({
             where,
             select: { id: true },
         });
-
-        if (users.length === 0) return;
-
+        if (users.length === 0)
+            return;
         // Create database notifications in batches
         const notificationData = users.map(user => ({
             userId: user.id,
@@ -139,27 +95,24 @@ class NoticeService {
             type: 'NOTICE',
             metadata: JSON.stringify({ noticeId: notice.id }),
         }));
-
         await prisma.notification.createMany({
             data: notificationData,
         });
-
         console.log(`✅ Created ${users.length} notifications for notice: ${notice.title}`);
-
         // TODO: Trigger real FCM push notifications here
     }
-
     // Admin: Get all notices with filters
-    async getAllNotices(filters: NoticeFilters, page = 1, limit = 20) {
+    async getAllNotices(filters, page = 1, limit = 20) {
         const skip = (page - 1) * limit;
-
-        const where: any = {};
-
-        if (filters.categoryId) where.categoryId = filters.categoryId;
-        if (filters.type) where.type = filters.type;
-        if (filters.priority) where.priority = filters.priority;
-        if (filters.isActive !== undefined) where.isActive = filters.isActive;
-
+        const where = {};
+        if (filters.categoryId)
+            where.categoryId = filters.categoryId;
+        if (filters.type)
+            where.type = filters.type;
+        if (filters.priority)
+            where.priority = filters.priority;
+        if (filters.isActive !== undefined)
+            where.isActive = filters.isActive;
         if (filters.search) {
             where.OR = [
                 { title: { contains: filters.search, mode: 'insensitive' } },
@@ -167,7 +120,6 @@ class NoticeService {
                 { description: { contains: filters.search, mode: 'insensitive' } },
             ];
         }
-
         const [notices, total] = await Promise.all([
             prisma.notice.findMany({
                 where,
@@ -181,7 +133,6 @@ class NoticeService {
             }),
             prisma.notice.count({ where }),
         ]);
-
         return {
             notices,
             pagination: {
@@ -192,13 +143,11 @@ class NoticeService {
             },
         };
     }
-
     // Public: Get active notices for users
-    async getActiveNotices(filters: NoticeFilters, page = 1, limit = 20, userId?: number) {
+    async getActiveNotices(filters, page = 1, limit = 20, userId) {
         const skip = (page - 1) * limit;
         const now = new Date();
-
-        const where: any = {
+        const where = {
             isActive: true,
             publishDate: { lte: now },
             OR: [
@@ -206,10 +155,10 @@ class NoticeService {
                 { expiryDate: { gte: now } },
             ],
         };
-
-        if (filters.categoryId) where.categoryId = filters.categoryId;
-        if (filters.type) where.type = filters.type;
-
+        if (filters.categoryId)
+            where.categoryId = filters.categoryId;
+        if (filters.type)
+            where.type = filters.type;
         // Location-based filtering
         if (filters.zoneId) {
             where.OR = [
@@ -217,21 +166,18 @@ class NoticeService {
                 { targetZones: { isEmpty: true } },
             ];
         }
-
         if (filters.wardId) {
             where.OR = [
                 { targetWards: { has: filters.wardId } },
                 { targetWards: { isEmpty: true } },
             ];
         }
-
         if (filters.cityId) {
             where.OR = [
                 { targetCities: { has: filters.cityId } },
                 { targetCities: { isEmpty: true } },
             ];
         }
-
         const [notices, total] = await Promise.all([
             prisma.notice.findMany({
                 where,
@@ -245,18 +191,13 @@ class NoticeService {
             }),
             prisma.notice.count({ where }),
         ]);
-
         // Fetch interactions for these notices
         const noticeIds = notices.map(n => n.id);
-        const interactions = await Promise.all(
-            notices.map(notice => this.getNoticeInteractions(notice.id, userId))
-        );
-
+        const interactions = await Promise.all(notices.map(notice => this.getNoticeInteractions(notice.id, userId)));
         const noticesWithInteractions = notices.map((notice, index) => ({
             ...notice,
             interactions: interactions[index],
         }));
-
         return {
             notices: noticesWithInteractions,
             pagination: {
@@ -267,78 +208,46 @@ class NoticeService {
             },
         };
     }
-
     // Get notice by ID
-    async getNoticeById(id: number, userId?: number) {
+    async getNoticeById(id, userId) {
         const notice = await prisma.notice.findUnique({
             where: { id },
             select: adminNoticeSelect,
         });
-
-        if (!notice) return null;
-
+        if (!notice)
+            return null;
         const interactions = await this.getNoticeInteractions(id, userId);
-
         return {
             ...notice,
             interactions,
         };
     }
-
     // Update notice
-    async updateNotice(id: number, data: UpdateNoticeDTO) {
-        try {
-            console.log('🔵 Notice service updateNotice:', {
-                id,
-                data,
-                imageUrl: data.imageUrl || 'NO IMAGE URL',
-                targetCities: data.targetCities,
-                targetZones: data.targetZones,
-                targetWards: data.targetWards
-            });
-
-            const notice = await prisma.notice.update({
-                where: { id },
-                data,
-                select: adminNoticeSelect,
-            });
-
-            console.log('✅ Notice updated in database:', {
-                id: notice.id,
-                imageUrl: notice.imageUrl || 'NO IMAGE URL'
-            });
-
-            return notice;
-        } catch (error: any) {
-            console.error('❌ Prisma update error:', {
-                message: error.message,
-                code: error.code,
-                meta: error.meta
-            });
-            throw error;
-        }
+    async updateNotice(id, data) {
+        return await prisma.notice.update({
+            where: { id },
+            data,
+            select: adminNoticeSelect,
+        });
     }
-
     // Toggle notice active status
-    async toggleNoticeStatus(id: number) {
+    async toggleNoticeStatus(id) {
         const notice = await prisma.notice.findUnique({ where: { id } });
-        if (!notice) throw new Error('Notice not found');
-
+        if (!notice)
+            throw new Error('Notice not found');
         return await prisma.notice.update({
             where: { id },
             data: { isActive: !notice.isActive },
         });
     }
-
     // Delete notice
-    async deleteNotice(id: number) {
+    async deleteNotice(id) {
         return await prisma.notice.delete({
             where: { id },
         });
     }
-
     // Increment view count
-    async incrementViewCount(id: number, userId?: number) {
+    async incrementViewCount(id, userId) {
         if (userId) {
             try {
                 await prisma.noticeInteraction.upsert({
@@ -356,11 +265,11 @@ class NoticeService {
                         type: 'VIEW',
                     },
                 });
-            } catch (error) {
+            }
+            catch (error) {
                 console.error('Failed to record view interaction:', error);
             }
         }
-
         return await prisma.notice.update({
             where: { id },
             data: {
@@ -368,9 +277,8 @@ class NoticeService {
             },
         });
     }
-
     // Increment read count
-    async incrementReadCount(id: number, userId?: number) {
+    async incrementReadCount(id, userId) {
         if (userId) {
             try {
                 await prisma.noticeInteraction.upsert({
@@ -388,11 +296,11 @@ class NoticeService {
                         type: 'READ',
                     },
                 });
-            } catch (error) {
+            }
+            catch (error) {
                 console.error('Failed to record read interaction:', error);
             }
         }
-
         return await prisma.notice.update({
             where: { id },
             data: {
@@ -400,9 +308,8 @@ class NoticeService {
             },
         });
     }
-
     // Admin: Get user notice interactions
-    async getUserInteractionsByUserId(userId: number) {
+    async getUserInteractionsByUserId(userId) {
         return await prisma.noticeInteraction.findMany({
             where: { userId },
             include: {
@@ -423,19 +330,9 @@ class NoticeService {
             orderBy: { createdAt: 'desc' },
         });
     }
-
     // Get analytics
     async getAnalytics() {
-        const [
-            totalNotices,
-            activeNotices,
-            expiredNotices,
-            urgentNotices,
-            totalViews,
-            totalReads,
-            categoryStats,
-            interactionStats,
-        ] = await Promise.all([
+        const [totalNotices, activeNotices, expiredNotices, urgentNotices, totalViews, totalReads, categoryStats, interactionStats,] = await Promise.all([
             prisma.notice.count(),
             prisma.notice.count({ where: { isActive: true } }),
             prisma.notice.count({
@@ -468,7 +365,6 @@ class NoticeService {
                 _count: true,
             }),
         ]);
-
         return {
             totalNotices,
             activeNotices,
@@ -480,18 +376,15 @@ class NoticeService {
             interactionStats,
         };
     }
-
     // Toggle Interaction (Like, Love, RSVP)
-    async toggleInteraction(noticeId: number, userId: number, type: InteractionType) {
+    async toggleInteraction(noticeId, userId, type) {
         const notice = await prisma.notice.findUnique({
             where: { id: noticeId },
             select: { id: true },
         });
-
         if (!notice) {
             throw new Error('Notice not found');
         }
-
         // Fetch all interactions for this user and notice to handle mutual exclusivity
         const userInteractions = await prisma.noticeInteraction.findMany({
             where: {
@@ -499,9 +392,7 @@ class NoticeService {
                 userId,
             },
         });
-
         const existingInteraction = userInteractions.find(i => i.type === type);
-
         if (existingInteraction) {
             // If strictly same type exists, toggle it off (remove)
             await prisma.noticeInteraction.delete({
@@ -509,24 +400,20 @@ class NoticeService {
             });
             return { action: 'removed', type };
         }
-
         // Handle mutual exclusivity for LIKE/LOVE
         if (type === 'LIKE' || type === 'LOVE') {
             const conflictingTypes = ['LIKE', 'LOVE'];
             const conflictingInteraction = userInteractions.find(i => conflictingTypes.includes(i.type));
-
             if (conflictingInteraction) {
                 await prisma.noticeInteraction.delete({
                     where: { id: conflictingInteraction.id },
                 });
             }
         }
-
         // Handle mutual exclusivity for RSVP
         if (['RSVP_YES', 'RSVP_NO', 'RSVP_MAYBE'].includes(type)) {
             const rsvpTypes = ['RSVP_YES', 'RSVP_NO', 'RSVP_MAYBE'];
             const conflictingRsvps = userInteractions.filter(i => rsvpTypes.includes(i.type));
-
             if (conflictingRsvps.length > 0) {
                 await prisma.noticeInteraction.deleteMany({
                     where: {
@@ -535,7 +422,6 @@ class NoticeService {
                 });
             }
         }
-
         // Create new interaction
         await prisma.noticeInteraction.create({
             data: {
@@ -544,12 +430,10 @@ class NoticeService {
                 type,
             },
         });
-
         return { action: 'added', type };
     }
-
     // Get interactions for a notice
-    async getNoticeInteractions(noticeId: number, userId?: number) {
+    async getNoticeInteractions(noticeId, userId) {
         const [counts, userInteractions] = await Promise.all([
             prisma.noticeInteraction.groupBy({
                 by: ['type'],
@@ -561,18 +445,15 @@ class NoticeService {
                 select: { type: true },
             }) : Promise.resolve([]),
         ]);
-
-        const interactionCounts = counts.reduce((acc: any, curr) => {
+        const interactionCounts = counts.reduce((acc, curr) => {
             acc[curr.type] = curr._count;
             return acc;
         }, {});
-
         return {
             counts: interactionCounts,
             userInteractions: userInteractions.map(i => i.type),
         };
     }
-
     // Auto-archive expired notices (Cron Job)
     async archiveExpiredNotices() {
         const now = new Date();
@@ -587,5 +468,4 @@ class NoticeService {
         });
     }
 }
-
-export default new NoticeService();
+exports.default = new NoticeService();

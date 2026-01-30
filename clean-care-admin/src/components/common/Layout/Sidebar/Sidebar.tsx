@@ -108,6 +108,13 @@ const baseMenuItems = [
     roles: ['MASTER_ADMIN'],
   },
   {
+    id: 'gallery-settings',
+    label: 'Gallery Settings',
+    icon: settingsIcon,
+    path: '/gallery-settings',
+    roles: ['MASTER_ADMIN'],
+  },
+  {
     id: 'system-control',
     label: 'Bot Message System Control',
     icon: settingsIcon,

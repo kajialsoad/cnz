@@ -7,6 +7,7 @@ class NoticeProvider with ChangeNotifier {
 
   List<Notice> _notices = [];
   List<NoticeCategory> _categories = [];
+  List<NoticeCategory> _categoryTree = [];
   bool _isLoading = false;
   String? _error;
   int? _selectedCategoryId;
@@ -14,6 +15,7 @@ class NoticeProvider with ChangeNotifier {
 
   List<Notice> get notices => _notices;
   List<NoticeCategory> get categories => _categories;
+  List<NoticeCategory> get categoryTree => _categoryTree;
   bool get isLoading => _isLoading;
   String? get error => _error;
   int? get selectedCategoryId => _selectedCategoryId;
@@ -26,7 +28,8 @@ class NoticeProvider with ChangeNotifier {
     }
 
     return _notices.where((notice) {
-      bool matchesCategory = _selectedCategoryId == null ||
+      bool matchesCategory =
+          _selectedCategoryId == null ||
           notice.categoryId == _selectedCategoryId;
       bool matchesType = _selectedType == null || notice.type == _selectedType;
       return matchesCategory && matchesType;
@@ -63,6 +66,16 @@ class NoticeProvider with ChangeNotifier {
       notifyListeners();
     } catch (e) {
       print('Error loading categories: $e');
+    }
+  }
+
+  // Load category tree (hierarchical)
+  Future<void> loadCategoryTree() async {
+    try {
+      _categoryTree = await _noticeService.getCategoryTree();
+      notifyListeners();
+    } catch (e) {
+      print('Error loading category tree: $e');
     }
   }
 
@@ -105,12 +118,61 @@ class NoticeProvider with ChangeNotifier {
 
   // Toggle interaction (Like, Love, RSVP)
   Future<void> toggleInteraction(int noticeId, String type) async {
+    // Optimistic UI Update
+    final noticeIndex = _notices.indexWhere((n) => n.id == noticeId);
+    Notice? previousNotice;
+    if (noticeIndex != -1) {
+      final notice = _notices[noticeIndex];
+      previousNotice = notice;
+      final currentInteractions = List<String>.from(
+        notice.userInteractions ?? [],
+      );
+      final currentCounts = Map<String, int>.from(
+        notice.interactionCounts ?? {},
+      );
+
+      bool isAdding = !currentInteractions.contains(type);
+
+      // Handle mutual exclusivity for LIKE/LOVE
+      if (type == 'LIKE' || type == 'LOVE') {
+        if (currentInteractions.contains('LIKE') && type == 'LOVE') {
+          currentInteractions.remove('LIKE');
+          currentCounts['LIKE'] = (currentCounts['LIKE'] ?? 1) - 1;
+          if ((currentCounts['LIKE'] ?? 0) < 0) currentCounts['LIKE'] = 0;
+        } else if (currentInteractions.contains('LOVE') && type == 'LIKE') {
+          currentInteractions.remove('LOVE');
+          currentCounts['LOVE'] = (currentCounts['LOVE'] ?? 1) - 1;
+          if ((currentCounts['LOVE'] ?? 0) < 0) currentCounts['LOVE'] = 0;
+        }
+      }
+
+      if (isAdding) {
+        currentInteractions.add(type);
+        currentCounts[type] = (currentCounts[type] ?? 0) + 1;
+      } else {
+        currentInteractions.remove(type);
+        currentCounts[type] = (currentCounts[type] ?? 1) - 1;
+        if ((currentCounts[type] ?? 0) < 0) currentCounts[type] = 0;
+      }
+
+      _notices[noticeIndex] = notice.copyWith(
+        interactionCounts: currentCounts,
+        userInteractions: currentInteractions,
+      );
+      notifyListeners();
+    }
+
     try {
       await _noticeService.toggleInteraction(noticeId, type);
-      // Reload notices to update counts and user interactions
-      await loadNotices(refresh: true);
+      // Reload notices to update counts and user interactions from server
+      // We do this in background to keep UI snappy
+      loadNotices(refresh: true);
     } catch (e) {
       print('Error toggling interaction: $e');
+      if (noticeIndex != -1 && previousNotice != null) {
+        _notices[noticeIndex] = previousNotice;
+        notifyListeners();
+      }
     }
   }
 }

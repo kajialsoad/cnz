@@ -27,8 +27,8 @@ router.delete('/:id', authGuard, deleteNotice);
 
 // Public routes - specific routes before :id parameter
 router.get('/active', optionalAuth, getActiveNotices);
-router.post('/:id/view', incrementViewCount);
-router.post('/:id/read', markAsRead);
+router.post('/:id/view', optionalAuth, incrementViewCount);
+router.post('/:id/read', optionalAuth, markAsRead);
 router.post('/:id/interact', optionalAuth, toggleInteraction); // Allow without auth
 router.get('/:id/interactions', optionalAuth, getNoticeInteractions);
 router.get('/:id', optionalAuth, getNoticeById);

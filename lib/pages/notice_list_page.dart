@@ -8,7 +8,14 @@ import '../widgets/translated_text.dart';
 import 'notice_detail_page.dart';
 
 class NoticeListPage extends StatefulWidget {
-  const NoticeListPage({super.key});
+  final int? categoryId;
+  final String? categoryName;
+  
+  const NoticeListPage({
+    super.key,
+    this.categoryId,
+    this.categoryName,
+  });
 
   @override
   State<NoticeListPage> createState() => _NoticeListPageState();
@@ -19,8 +26,18 @@ class _NoticeListPageState extends State<NoticeListPage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final noticeProvider = Provider.of<NoticeProvider>(context, listen: false);
-      noticeProvider.loadNotices();
+      final noticeProvider = Provider.of<NoticeProvider>(
+        context,
+        listen: false,
+      );
+      
+      // Set category filter if provided
+      if (widget.categoryId != null) {
+        noticeProvider.setCategoryFilter(widget.categoryId);
+      } else {
+        noticeProvider.loadNotices();
+      }
+      
       noticeProvider.loadCategories();
     });
   }
@@ -29,14 +46,13 @@ class _NoticeListPageState extends State<NoticeListPage> {
   Widget build(BuildContext context) {
     final noticeProvider = Provider.of<NoticeProvider>(context);
     final languageProvider = Provider.of<LanguageProvider>(context);
-    final currentLanguage = languageProvider.currentLanguage;
+    final currentLanguage = languageProvider.languageCode;
 
     return Scaffold(
       appBar: AppBar(
-        title: TranslatedText(
-          en: 'Notice Board',
-          bn: 'নোটিশ বোর্ড',
-        ),
+        title: widget.categoryName != null
+            ? Text(widget.categoryName!)
+            : TranslatedText('Notice Board', bn: 'নোটিশ বোর্ড'),
         backgroundColor: const Color(0xFF0f766e),
         foregroundColor: Colors.white,
         actions: [
@@ -49,56 +65,65 @@ class _NoticeListPageState extends State<NoticeListPage> {
       body: noticeProvider.isLoading
           ? const Center(child: CircularProgressIndicator())
           : noticeProvider.error != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                      const SizedBox(height: 16),
-                      Text(noticeProvider.error!, textAlign: TextAlign.center),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: () => noticeProvider.loadNotices(refresh: true),
-                        child: TranslatedText(en: 'Retry', bn: 'পুনরায় চেষ্টা করুন'),
-                      ),
-                    ],
-                  ),
-                )
-              : noticeProvider.filteredNotices.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.notifications_none, size: 64, color: Colors.grey),
-                          const SizedBox(height: 16),
-                          TranslatedText(
-                            en: 'No notices available',
-                            bn: 'কোন নোটিশ উপলব্ধ নেই',
-                          ),
-                        ],
-                      ),
-                    )
-                  : RefreshIndicator(
-                      onRefresh: () => noticeProvider.loadNotices(refresh: true),
-                      child: ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: noticeProvider.filteredNotices.length,
-                        itemBuilder: (context, index) {
-                          final notice = noticeProvider.filteredNotices[index];
-                          return _buildNoticeCard(context, notice, currentLanguage);
-                        },
-                      ),
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                  const SizedBox(height: 16),
+                  Text(noticeProvider.error!, textAlign: TextAlign.center),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () => noticeProvider.loadNotices(refresh: true),
+                    child: TranslatedText(
+                      'Retry',
+                      bn: 'পুনরায় চেষ্টা করুন',
                     ),
+                  ),
+                ],
+              ),
+            )
+          : noticeProvider.filteredNotices.isEmpty
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.notifications_none,
+                    size: 64,
+                    color: Colors.grey,
+                  ),
+                  const SizedBox(height: 16),
+                  TranslatedText(
+                    'No notices available',
+                    bn: 'কোন নোটিশ উপলব্ধ নেই',
+                  ),
+                ],
+              ),
+            )
+          : RefreshIndicator(
+              onRefresh: () => noticeProvider.loadNotices(refresh: true),
+              child: ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: noticeProvider.filteredNotices.length,
+                itemBuilder: (context, index) {
+                  final notice = noticeProvider.filteredNotices[index];
+                  return _buildNoticeCard(context, notice, currentLanguage);
+                },
+              ),
+            ),
     );
   }
 
-  Widget _buildNoticeCard(BuildContext context, Notice notice, String currentLanguage) {
+  Widget _buildNoticeCard(
+    BuildContext context,
+    Notice notice,
+    String currentLanguage,
+  ) {
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         onTap: () {
           Navigator.push(
@@ -117,7 +142,9 @@ class _NoticeListPageState extends State<NoticeListPage> {
               Hero(
                 tag: 'notice-image-${notice.id}',
                 child: ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(12),
+                  ),
                   child: CachedNetworkImage(
                     imageUrl: notice.imageUrl!,
                     width: double.infinity,
@@ -126,9 +153,7 @@ class _NoticeListPageState extends State<NoticeListPage> {
                     placeholder: (context, url) => Container(
                       height: 180,
                       color: Colors.grey[200],
-                      child: const Center(
-                        child: CircularProgressIndicator(),
-                      ),
+                      child: const Center(child: CircularProgressIndicator()),
                     ),
                     errorWidget: (context, url, error) => Container(
                       height: 180,
@@ -154,16 +179,22 @@ class _NoticeListPageState extends State<NoticeListPage> {
                       if (notice.category != null)
                         Chip(
                           label: Text(
-                            currentLanguage == 'bn' && notice.category!.nameBn != null
+                            currentLanguage == 'bn' &&
+                                    notice.category!.nameBn != null
                                 ? notice.category!.nameBn!
                                 : notice.category!.name,
-                            style: const TextStyle(color: Colors.white, fontSize: 10),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                            ),
                           ),
-                          backgroundColor: Color(
-                            int.parse(notice.category!.color.replaceFirst('#', '0xFF')),
+                          backgroundColor: _parseColor(notice.category!.color),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
                           ),
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
                         ),
                       if (notice.isUrgent)
                         const Chip(
@@ -172,8 +203,12 @@ class _NoticeListPageState extends State<NoticeListPage> {
                             style: TextStyle(color: Colors.white, fontSize: 10),
                           ),
                           backgroundColor: Colors.red,
-                          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
                         ),
                     ],
                   ),
@@ -196,10 +231,7 @@ class _NoticeListPageState extends State<NoticeListPage> {
                   // Description
                   Text(
                     notice.getLocalizedDescription(currentLanguage),
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[700],
-                    ),
+                    style: TextStyle(fontSize: 14, color: Colors.grey[700]),
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -212,7 +244,11 @@ class _NoticeListPageState extends State<NoticeListPage> {
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.calendar_today, size: 14, color: Colors.grey),
+                          const Icon(
+                            Icons.calendar_today,
+                            size: 14,
+                            color: Colors.grey,
+                          ),
                           const SizedBox(width: 4),
                           Text(
                             _formatDate(notice.publishDate),
@@ -225,7 +261,11 @@ class _NoticeListPageState extends State<NoticeListPage> {
                       ),
                       Row(
                         children: [
-                          const Icon(Icons.visibility, size: 14, color: Colors.grey),
+                          const Icon(
+                            Icons.visibility,
+                            size: 14,
+                            color: Colors.grey,
+                          ),
                           const SizedBox(width: 4),
                           Text(
                             notice.viewCount.toString(),
@@ -249,16 +289,16 @@ class _NoticeListPageState extends State<NoticeListPage> {
 
   void _showFilterDialog(BuildContext context) {
     final noticeProvider = Provider.of<NoticeProvider>(context, listen: false);
-    final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
-    final currentLanguage = languageProvider.currentLanguage;
+    final languageProvider = Provider.of<LanguageProvider>(
+      context,
+      listen: false,
+    );
+    final currentLanguage = languageProvider.languageCode;
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: TranslatedText(
-          en: 'Filter Notices',
-          bn: 'নোটিশ ফিল্টার করুন',
-        ),
+        title: TranslatedText('Filter Notices', bn: 'নোটিশ ফিল্টার করুন'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -272,7 +312,9 @@ class _NoticeListPageState extends State<NoticeListPage> {
               items: [
                 DropdownMenuItem<int?>(
                   value: null,
-                  child: Text(currentLanguage == 'bn' ? 'সব বিভাগ' : 'All Categories'),
+                  child: Text(
+                    currentLanguage == 'bn' ? 'সব বিভাগ' : 'All Categories',
+                  ),
                 ),
                 ...noticeProvider.categories.map((category) {
                   return DropdownMenuItem<int?>(
@@ -333,21 +375,23 @@ class _NoticeListPageState extends State<NoticeListPage> {
               noticeProvider.clearFilters();
               Navigator.pop(context);
             },
-            child: TranslatedText(
-              en: 'Clear Filters',
-              bn: 'ফিল্টার সাফ করুন',
-            ),
+            child: TranslatedText('Clear Filters', bn: 'ফিল্টার সাফ করুন'),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context),
-            child: TranslatedText(
-              en: 'Apply',
-              bn: 'প্রয়োগ করুন',
-            ),
+            child: TranslatedText('Apply', bn: 'প্রয়োগ করুন'),
           ),
         ],
       ),
     );
+  }
+
+  Color _parseColor(String colorString) {
+    try {
+      return Color(int.parse(colorString.replaceFirst('#', '0xFF')));
+    } catch (e) {
+      return Colors.grey;
+    }
   }
 
   String _formatDate(DateTime date) {

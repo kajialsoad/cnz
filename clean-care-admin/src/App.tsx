@@ -40,6 +40,7 @@ const Settings = lazy(() => import('./pages/Settings'));
 const SystemControl = lazy(() => import('./pages/SystemControl'));
 const WasteManagementPage = lazy(() => import('./pages/WasteManagement/WasteManagementPage'));
 const NoticeManagementPage = lazy(() => import('./pages/NoticeManagement/NoticeManagementPage'));
+const GallerySettingsPage = lazy(() => import('./pages/GallerySettings/GallerySettingsPage'));
 
 function App() {
   return (
@@ -267,6 +268,16 @@ function App() {
                             <ProtectedRoute>
                               <RoleBasedRoute allowedRoles={['MASTER_ADMIN']}>
                                 <NoticeManagementPage />
+                              </RoleBasedRoute>
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="/gallery-settings"
+                          element={
+                            <ProtectedRoute>
+                              <RoleBasedRoute allowedRoles={['MASTER_ADMIN']}>
+                                <GallerySettingsPage />
                               </RoleBasedRoute>
                             </ProtectedRoute>
                           }

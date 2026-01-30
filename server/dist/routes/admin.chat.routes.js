@@ -12,9 +12,9 @@ router.use((0, auth_middleware_1.rbacGuard)('ADMIN', 'SUPER_ADMIN', 'MASTER_ADMI
 // Get all chat conversations (must be before /:complaintId to avoid route conflict)
 router.get('/', admin_chat_controller_1.getChatConversations);
 console.log('🔧 Admin chat route registered: GET /');
-// Get chat statistics
-router.get('/statistics', admin_chat_controller_1.getChatStatistics);
-console.log('🔧 Admin chat route registered: GET /statistics');
+// Get chat statistics (renamed to summary to avoid ad blockers)
+router.get('/summary', admin_chat_controller_1.getChatStatistics);
+console.log('🔧 Admin chat route registered: GET /summary');
 // Get chat messages for a complaint
 router.get('/:complaintId', admin_chat_controller_1.getChatMessages);
 console.log('🔧 Admin chat route registered: GET /:complaintId');

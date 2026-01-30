@@ -8,6 +8,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getPublicBotMessages = exports.getBotAnalytics = exports.updateTriggerRules = exports.deleteBotMessage = exports.updateBotMessage = exports.createBotMessage = exports.getBotMessages = void 0;
 const bot_message_service_1 = require("../services/bot-message.service");
+const xss_sanitizer_1 = require("../utils/xss-sanitizer");
 /**
  * Get all bot messages for a chat type
  * GET /api/admin/bot-messages
@@ -91,12 +92,15 @@ exports.getBotMessages = getBotMessages;
 const createBotMessage = async (req, res) => {
     try {
         const { chatType, messageKey, content, contentBn, stepNumber, displayOrder } = req.body;
+        // Sanitize content to prevent XSS attacks
+        const sanitizedContent = (0, xss_sanitizer_1.sanitizeContent)(content);
+        const sanitizedContentBn = (0, xss_sanitizer_1.sanitizeContent)(contentBn);
         // Validation is handled by validator middleware
         const message = await bot_message_service_1.botMessageService.createBotMessage({
             chatType,
             messageKey,
-            content,
-            contentBn,
+            content: sanitizedContent,
+            contentBn: sanitizedContentBn,
             stepNumber,
             displayOrder
         });
@@ -154,13 +158,19 @@ const updateBotMessage = async (req, res) => {
             });
         }
         const { content, contentBn, stepNumber, isActive, displayOrder } = req.body;
-        const message = await bot_message_service_1.botMessageService.updateBotMessage(messageId, {
-            content,
-            contentBn,
+        // Sanitize content fields if present
+        const updates = {
             stepNumber,
             isActive,
             displayOrder
-        });
+        };
+        if (content !== undefined) {
+            updates.content = (0, xss_sanitizer_1.sanitizeContent)(content);
+        }
+        if (contentBn !== undefined) {
+            updates.contentBn = (0, xss_sanitizer_1.sanitizeContent)(contentBn);
+        }
+        const message = await bot_message_service_1.botMessageService.updateBotMessage(messageId, updates);
         return res.status(200).json({
             success: true,
             data: message,
@@ -266,7 +276,9 @@ const updateTriggerRules = async (req, res) => {
         });
         return res.status(200).json({
             success: true,
-            data: rules,
+            data: {
+                rules
+            },
             message: 'Trigger rules updated successfully'
         });
     }

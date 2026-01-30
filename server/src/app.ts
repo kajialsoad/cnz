@@ -29,6 +29,7 @@ import publicZoneRoutes from './routes/public-zone.routes';
 import wardRoutes from './routes/ward.routes';
 import publicWardRoutes from './routes/public-ward.routes';
 import wasteManagementRoutes from './routes/waste-management.routes';
+import galleryRoutes from './routes/gallery.routes';
 import notificationRoutes from './routes/notification.routes';
 import reviewRoutes from './routes/review.routes';
 import adminReviewRoutes from './routes/admin.review.routes';
@@ -240,7 +241,8 @@ console.log('✅ Ward routes registered at /api/admin/wards');
 app.use('/api/wards', publicWardRoutes); // Public Ward routes
 console.log('✅ Public Ward routes registered at /api/wards');
 
-app.use('/api/waste-management', wasteManagementRoutes); // Waste Management routes
+app.use('/api/waste-management', wasteManagementRoutes);
+app.use('/api/gallery', galleryRoutes); // Waste Management routes
 console.log('✅ Waste Management routes registered at /api/waste-management');
 
 // Notice Board routes

@@ -664,6 +664,30 @@ enum WastePostStatus {
   ARCHIVED
 }
 
+enum GalleryImageStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+model GalleryImage {
+  id           Int                @id @default(autoincrement())
+  title        String             @db.VarChar(255)
+  description  String?            @db.Text
+  imageUrl     String             @db.VarChar(500)
+  status       GalleryImageStatus @default(ACTIVE)
+  displayOrder Int                @default(0)
+  createdBy    Int
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  @@index([status])
+  @@index([displayOrder])
+  @@index([createdBy])
+  @@index([status, displayOrder])
+  @@map("gallery_images")
+}
+
 // Notice Board System
 enum NoticeType {
   GENERAL
@@ -756,6 +780,8 @@ model NoticeInteraction {
 enum InteractionType {
   LIKE
   LOVE
+  READ
+  VIEW
   RSVP_YES
   RSVP_NO
   RSVP_MAYBE
