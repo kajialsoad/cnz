@@ -79,105 +79,116 @@ class _DSCCNoticeBoardState extends State<DSCCNoticeBoard>
       return '$icon $title';
     }).toList();
 
-    return Container(
-          margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.95),
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                offset: const Offset(0, 3),
-                blurRadius: 10,
-                spreadRadius: 0,
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 24,
-                    height: 24,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          offset: const Offset(0, 1),
-                          blurRadius: 2,
-                          spreadRadius: 0,
+    return GestureDetector(
+      onTap: () {
+        Navigator.pushNamed(context, '/notice-board');
+      },
+      child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.95),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  offset: const Offset(0, 3),
+                  blurRadius: 10,
+                  spreadRadius: 0,
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            offset: const Offset(0, 1),
+                            blurRadius: 2,
+                            spreadRadius: 0,
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.asset(
+                          'assets/logo.png',
+                          width: 24,
+                          height: 24,
+                          fit: BoxFit.cover,
                         ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.asset(
-                        'assets/logo.png',
-                        width: 24,
-                        height: 24,
-                        fit: BoxFit.cover,
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  TranslatedText(
-                    "DSCC Notice Board",
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+                    const SizedBox(width: 8),
+                    TranslatedText(
+                      "DSCC Notice Board",
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF2E8B57),
+                      ),
+                    ),
+                    const Spacer(),
+                    Icon(
+                      Icons.arrow_forward_ios,
+                      size: 16,
                       color: Color(0xFF2E8B57),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                height: 30,
-                width: double.infinity,
-                child: ClipRect(
-                  child: AnimatedBuilder(
-                    animation: _scrollAnimation,
-                    builder: (context, child) {
-                      final String scrollingText =
-                          '${noticeTexts.join(' • ')} • ${noticeTexts.join(' • ')}';
+                  ],
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  height: 30,
+                  width: double.infinity,
+                  child: ClipRect(
+                    child: AnimatedBuilder(
+                      animation: _scrollAnimation,
+                      builder: (context, child) {
+                        final String scrollingText =
+                            '${noticeTexts.join(' • ')} • ${noticeTexts.join(' • ')}';
 
-                      return SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        physics: const NeverScrollableScrollPhysics(),
-                        child: Transform.translate(
-                          offset: Offset(
-                            _scrollAnimation.value.dx *
-                                MediaQuery.of(context).size.width,
-                            0,
-                          ),
-                          child: Container(
-                            height: 30,
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              scrollingText,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                color: Color(0xFF333333),
+                        return SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          physics: const NeverScrollableScrollPhysics(),
+                          child: Transform.translate(
+                            offset: Offset(
+                              _scrollAnimation.value.dx *
+                                  MediaQuery.of(context).size.width,
+                              0,
+                            ),
+                            child: Container(
+                              height: 30,
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                scrollingText,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: Color(0xFF333333),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.visible,
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.visible,
                             ),
                           ),
-                        ),
-                      );
-                    },
+                        );
+                      },
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
-        )
-        .animate()
-        .fadeIn(duration: 800.ms)
-        .slideY(begin: 0.3, duration: 600.ms, curve: Curves.easeOut);
+              ],
+            ),
+          )
+          .animate()
+          .fadeIn(duration: 800.ms)
+          .slideY(begin: 0.3, duration: 600.ms, curve: Curves.easeOut),
+    );
   }
 }
