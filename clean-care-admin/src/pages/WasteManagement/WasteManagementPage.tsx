@@ -42,9 +42,11 @@ import {
     Public as PublicIcon,
     Description as DraftIcon,
     AutoGraph as StatsIcon,
+    Visibility as ViewIcon,
 } from '@mui/icons-material';
 import MainLayout from '../../components/common/Layout/MainLayout';
 import { wasteManagementService, WastePost } from '../../services/wasteManagementService';
+import WastePostDetailModal from '../../components/WasteManagement/WastePostDetailModal';
 
 // Styled Components for 3D and Modern Look
 const StyledCard = styled(Card)(({ theme }) => ({
@@ -112,6 +114,8 @@ const WasteManagementPage: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
     const [tabValue, setTabValue] = useState(0);
+    const [viewDetailOpen, setViewDetailOpen] = useState(false);
+    const [selectedPost, setSelectedPost] = useState<WastePost | null>(null);
 
     // Form state
     const [formData, setFormData] = useState({
@@ -301,6 +305,20 @@ const WasteManagementPage: React.FC = () => {
         setFormData(prev => ({ ...prev, imageUrl: '' }));
     };
 
+    const handleViewDetail = (post: WastePost) => {
+        setSelectedPost(post);
+        setViewDetailOpen(true);
+    };
+
+    const handleCloseViewDetail = () => {
+        setViewDetailOpen(false);
+        setSelectedPost(null);
+    };
+
+    const handleEditFromDetail = (post: WastePost) => {
+        handleOpenDialog(post);
+    };
+
     if (loading) {
         return (
             <MainLayout>
@@ -339,7 +357,7 @@ const WasteManagementPage: React.FC = () => {
                                 fontWeight: '600',
                                 bgcolor: '#3FA564',
                                 boxShadow: '0 8px 20px -4px rgba(63, 165, 100, 0.4)',
-                                '&:hover': { 
+                                '&:hover': {
                                     bgcolor: '#2D7A4A',
                                     transform: 'translateY(-2px)',
                                     boxShadow: '0 12px 25px -5px rgba(63, 165, 100, 0.5)',
@@ -413,8 +431,8 @@ const WasteManagementPage: React.FC = () => {
 
                 {/* Tabs Section */}
                 <GlassPaper>
-                    <Tabs 
-                        value={tabValue} 
+                    <Tabs
+                        value={tabValue}
                         onChange={(_, v) => setTabValue(v)}
                         sx={{
                             mb: 4,
@@ -437,7 +455,7 @@ const WasteManagementPage: React.FC = () => {
                                                 height="220"
                                                 image={post.imageUrl || 'https://via.placeholder.com/400x220?text=No+Image'}
                                                 alt={post.title}
-                                                sx={{ 
+                                                sx={{
                                                     objectFit: 'cover',
                                                     filter: post.status === 'DRAFT' ? 'grayscale(0.4)' : 'none'
                                                 }}
@@ -446,7 +464,7 @@ const WasteManagementPage: React.FC = () => {
                                                 <Chip
                                                     label={post.status === 'PUBLISHED' ? 'প্রকাশিত' : 'খসড়া'}
                                                     size="small"
-                                                    sx={{ 
+                                                    sx={{
                                                         bgcolor: post.status === 'PUBLISHED' ? alpha('#4caf50', 0.9) : alpha('#000', 0.6),
                                                         color: '#fff',
                                                         fontWeight: '700',
@@ -455,14 +473,14 @@ const WasteManagementPage: React.FC = () => {
                                                     }}
                                                 />
                                             </Box>
-                                            
+
                                             {/* Action Overlays */}
-                                            <Box sx={{ 
-                                                position: 'absolute', 
-                                                bottom: 0, 
-                                                left: 0, 
-                                                right: 0, 
-                                                p: 1.5, 
+                                            <Box sx={{
+                                                position: 'absolute',
+                                                bottom: 0,
+                                                left: 0,
+                                                right: 0,
+                                                p: 1.5,
                                                 background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)',
                                                 display: 'flex',
                                                 justifyContent: 'flex-end',
@@ -471,12 +489,15 @@ const WasteManagementPage: React.FC = () => {
                                                 transition: 'opacity 0.3s ease',
                                                 '.MuiCard-root:hover &': { opacity: 1 }
                                             }}>
+                                                <ActionButton size="small" onClick={() => handleViewDetail(post)} sx={{ color: '#2196f3' }}>
+                                                    <ViewIcon fontSize="small" />
+                                                </ActionButton>
                                                 <ActionButton size="small" onClick={() => handleOpenDialog(post)} color="primary">
                                                     <EditIcon fontSize="small" />
                                                 </ActionButton>
-                                                <ActionButton 
-                                                    size="small" 
-                                                    onClick={() => handlePublishToggle(post)} 
+                                                <ActionButton
+                                                    size="small"
+                                                    onClick={() => handlePublishToggle(post)}
                                                     sx={{ color: post.status === 'PUBLISHED' ? '#ff9800' : '#4caf50' }}
                                                 >
                                                     {post.status === 'PUBLISHED' ? <UnpublishIcon fontSize="small" /> : <PublishIcon fontSize="small" />}
@@ -488,7 +509,7 @@ const WasteManagementPage: React.FC = () => {
                                         </Box>
 
                                         <CardContent sx={{ flexGrow: 1, pt: 2.5 }}>
-                                            <Typography variant="h6" gutterBottom fontWeight="800" sx={{ 
+                                            <Typography variant="h6" gutterBottom fontWeight="800" sx={{
                                                 lineHeight: 1.3,
                                                 height: '3.9em',
                                                 overflow: 'hidden',
@@ -541,10 +562,10 @@ const WasteManagementPage: React.FC = () => {
                 </GlassPaper>
 
                 {/* Dialogs remain functional but styled better */}
-                <Dialog 
-                    open={openDialog} 
-                    onClose={handleCloseDialog} 
-                    maxWidth="sm" 
+                <Dialog
+                    open={openDialog}
+                    onClose={handleCloseDialog}
+                    maxWidth="sm"
                     fullWidth
                     PaperProps={{ sx: { borderRadius: '24px', p: 1 } }}
                 >
@@ -644,8 +665,8 @@ const WasteManagementPage: React.FC = () => {
                     </DialogActions>
                 </Dialog>
 
-                <Dialog 
-                    open={deleteConfirmOpen} 
+                <Dialog
+                    open={deleteConfirmOpen}
                     onClose={() => setDeleteConfirmOpen(false)}
                     PaperProps={{ sx: { borderRadius: '20px' } }}
                 >
@@ -660,6 +681,14 @@ const WasteManagementPage: React.FC = () => {
                         </Button>
                     </DialogActions>
                 </Dialog>
+
+                {/* View Detail Modal */}
+                <WastePostDetailModal
+                    open={viewDetailOpen}
+                    onClose={handleCloseViewDetail}
+                    post={selectedPost}
+                    onEdit={handleEditFromDetail}
+                />
             </Box>
         </MainLayout>
     );
