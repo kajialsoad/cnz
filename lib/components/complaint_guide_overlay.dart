@@ -15,18 +15,18 @@ class ComplaintGuideOverlay extends StatelessWidget {
           CustomPaint(
             painter: BubblePainter(),
             child: Container(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 18),
               constraints: const BoxConstraints(
-                minWidth: 160,
-                maxWidth: 200,
+                minWidth: 120,
+                maxWidth: 160,
               ),
               child: const Text(
                 'এখানে ময়লা বা বর্জ্য সংক্রান্ত অভিযোগ করুন।',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 14,
+                  fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  height: 1.4,
+                  height: 1.3,
                 ),
                 textAlign: TextAlign.center,
               ),
