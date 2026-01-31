@@ -328,3 +328,6 @@ export function wardGuard(req: AuthRequest, res: Response, next: NextFunction) {
 
   next();
 }
+
+// Export alias for backward compatibility
+export const authenticateToken = authGuard;

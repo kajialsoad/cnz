@@ -3,6 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../widgets/translated_text.dart';
+import '../models/officer_review_model.dart';
+import '../services/officer_review_service.dart';
+import '../providers/language_provider.dart';
+import 'package:provider/provider.dart';
 
 class MayorStatementBanner extends StatefulWidget {
   const MayorStatementBanner({super.key});
@@ -15,69 +19,16 @@ class _MayorStatementBannerState extends State<MayorStatementBanner>
     with SingleTickerProviderStateMixin {
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
-  late Timer _messageAutoScrollTimer;
-  late Timer _personAutoScrollTimer;
+  Timer? _messageAutoScrollTimer;
+  Timer? _personAutoScrollTimer;
   int _currentPersonIndex = 0;
   int _currentMessageIndex = 0;
   late PageController _pageController;
-
-  // Data for 3 people with their messages
-  final List<Map<String, dynamic>> peopleData = [
-    {
-      'name': 'Mayor Md. Badrul Alam',
-      'image': 'assets/profile.png',
-      'messages': [
-        {
-          'bangla': 'আমাদের শহরকে পরিচ্ছন্ন ও সুন্দর রাখতে সবার সহযোগিতা দরকার। ক্লিন কেয়ার অ্যাপের মাধ্যমে আপনি সহজেই সেবা পেতে পারবেন।',
-          'english': 'We need everyone\'s cooperation to keep our city clean and beautiful. Through the Clean Care app, you can easily access services.',
-        },
-        {
-          'bangla': 'প্রতিদিন আমাদের পরিবেশের যত্ন নেওয়া সবার দায়িত্ব। চলুন একসঙ্গে একটি সবুজ ও সুস্থ ঢাকা গড়ি।',
-          'english': 'Taking care of our environment every day is everyone\'s responsibility. Let\'s build a green and sustainable Dhaka together.',
-        },
-        {
-          'bangla': 'আমরা ডিজিটাল বাংলাদেশের স্বপ্ন বাস্তবায়নে প্রতিশ্রুতিবদ্ধ। আধুনিঙ5 প্রযুক্তির মাধ্যমে আপনার দোরগোড়ায় সেবা পৌঁছে দিচ্ছি।',
-          'english': 'We are committed to realizing the dream of Digital Bangladesh. We are delivering services to your doorstep through modern technology.',
-        },
-      ],
-    },
-    {
-      'name': 'Mohammad Azaz',
-      'image': 'assets/profile2.jpeg',
-      'messages': [
-        {
-          'bangla': 'পরিচ্ছন্ন ঢাকা উত্তর আমাদের ভবিষ্যতের অঙ্গীকার। প্রতিটি নাগরিকের সচেতনতা ও সহযোগিতাই এই অঙ্গীকারকে সফল করবে।',
-          'english': 'A cleaner Dhaka North is our pledge for the future. Every citizen\'s awareness and cooperation will help fulfill that pledge.',
-        },
-        {
-          'bangla': 'আপনার ছোট্ট উদ্যোগ—সঠিক স্থানে বর্জ্য ফেলানো—আমাদের শহরকে আরও বাসযোগ্য করে তুলতে পারে। চলুন সবাই মিলে একটি সুস্থ, সবুজ ও পরিচ্ছন্ন উত্তরের পথে এগিয়ে যাই।',
-          'english': 'Your small action—disposing waste in the right place—can make our city more livable. Let us move forward together toward a healthy, green, and clean Dhaka North.',
-        },
-        {
-          'bangla': 'স্বচ্ছতা ও পরিচ্ছন্নতার যাত্রায় নাগরিকই আমাদের শক্তি। আপনার অংশগ্রহণই গড়ে তুলবে একটি আধুনিক, পরিচ্ছন্ন ঢাকা উত্তর।',
-          'english': 'In our journey toward cleanliness and transparency, citizens are our strength. Your participation will build a modern and clean Dhaka North.',
-        },
-      ],
-    },
-    {
-      'name': 'Md. Shahjahan Miah',
-      'image': 'assets/profile3.jpeg',
-      'messages': [
-        {
-          'bangla': 'একটি পরিচ্ছন্ন ঢাকা দক্ষিণ আমাদের সবার দায়িত্ব। শহরকে সুন্দর রাখতে নাগরিক সহযোগিতার কোনো বিকল্প নেই।',
-          'english': 'A clean Dhaka South is the responsibility of us all. There is no alternative to collective citizen cooperation to keep the city beautiful.',
-        },
-        {
-          'bangla': 'বর্জ্য ব্যবস্থাপনায় সক্রিয় অংশগ্রহণই একটি উন্নত ও নান্দনিক দক্ষিণ গড়ে তুলতে সাহায্য করবে। চলুন পরিবর্তনের অংশ হই।',
-          'english': 'Active participation in waste management will help build a better and more aesthetic Dhaka South. Let us be part of this positive change.',
-        },
-        {
-          'bangla': 'পরিচ্ছন্নতার সংস্কৃতি আমাদের পরিবার, সমাজ ও শহরের উন্নয়নকে ত্বরান্বিত করে। নাগরিক হিসেবে আপনার সচেতনতা দক্ষিণ নগরকে আরও উন্নত করবে।',
-          'english': 'A culture of cleanliness strengthens the development of our families, society, and city. Your awareness as a citizen will make Dhaka South even better.',
-        },
-      ],
-    },
-  ];
+  
+  // Dynamic data from API
+  List<OfficerReview> _officerReviews = [];
+  bool _isLoading = true;
+  bool _hasError = false;
 
   @override
   void initState() {
@@ -98,34 +49,73 @@ class _MayorStatementBannerState extends State<MayorStatementBanner>
     ));
 
     _fadeController.forward();
-    _startMessageAutoScroll();
-    _startPersonAutoScroll();
+    
+    // Load dynamic data
+    _loadOfficerReviews();
+  }
+
+  Future<void> _loadOfficerReviews() async {
+    try {
+      final reviews = await OfficerReviewService.getActiveReviews();
+      
+      if (mounted) {
+        setState(() {
+          _officerReviews = reviews;
+          _isLoading = false;
+          _hasError = false;
+        });
+        
+        // Start auto-scroll only after data is loaded
+        if (_officerReviews.isNotEmpty) {
+          _startMessageAutoScroll();
+          _startPersonAutoScroll();
+        }
+      }
+    } catch (e) {
+      print('Error loading officer reviews: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _hasError = true;
+        });
+      }
+    }
   }
 
   void _startMessageAutoScroll() {
     _messageAutoScrollTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
-      _nextMessage();
+      if (_officerReviews.isNotEmpty) {
+        _nextMessage();
+      }
     });
   }
 
   void _startPersonAutoScroll() {
     _personAutoScrollTimer = Timer.periodic(const Duration(seconds: 6), (timer) {
-      _nextPerson();
+      if (_officerReviews.isNotEmpty) {
+        _nextPerson();
+      }
     });
   }
 
   void _nextMessage() {
+    if (_officerReviews.isEmpty) return;
+    
     _fadeController.reverse().then((_) {
-      setState(() {
-        final maxMessages = (peopleData[_currentPersonIndex]['messages'] as List).length;
-        _currentMessageIndex = (_currentMessageIndex + 1) % maxMessages;
-      });
-      _fadeController.forward();
+      if (mounted) {
+        setState(() {
+          final maxMessages = _officerReviews[_currentPersonIndex].messages.length;
+          _currentMessageIndex = (_currentMessageIndex + 1) % maxMessages;
+        });
+        _fadeController.forward();
+      }
     });
   }
 
   void _nextPerson() {
-    final nextIndex = (_currentPersonIndex + 1) % peopleData.length;
+    if (_officerReviews.isEmpty) return;
+    
+    final nextIndex = (_currentPersonIndex + 1) % _officerReviews.length;
     _pageController.animateToPage(
       nextIndex,
       duration: const Duration(milliseconds: 400),
@@ -141,27 +131,101 @@ class _MayorStatementBannerState extends State<MayorStatementBanner>
     _fadeController.forward();
   }
 
+  Widget _buildImage(String imageUrl) {
+    // Check if it's a local asset path or network URL
+    final isAsset = imageUrl.startsWith('assets/');
+    
+    if (isAsset) {
+      return Image.asset(
+        imageUrl,
+        width: 48,
+        height: 48,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return _buildPlaceholder();
+        },
+      );
+    } else {
+      return Image.network(
+        imageUrl,
+        width: 48,
+        height: 48,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return _buildPlaceholder();
+        },
+      );
+    }
+  }
+
+  Widget _buildPlaceholder() {
+    return Container(
+      width: 48,
+      height: 48,
+      decoration: const BoxDecoration(
+        shape: BoxShape.circle,
+        color: Color(0xFF1E88E5),
+      ),
+      child: const Icon(
+        Icons.person,
+        color: Colors.white,
+        size: 24,
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _fadeController.dispose();
-    _messageAutoScrollTimer.cancel();
-    _personAutoScrollTimer.cancel();
+    _messageAutoScrollTimer?.cancel();
+    _personAutoScrollTimer?.cancel();
     _pageController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    // Show loading or error state
+    if (_isLoading) {
+      return Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        height: 120,
+        child: const Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF2E8B57)),
+          ),
+        ),
+      );
+    }
+
+    if (_hasError || _officerReviews.isEmpty) {
+      return const SizedBox.shrink(); // Hide banner if error or no data
+    }
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       height: 120,
       child: PageView.builder(
         controller: _pageController,
         onPageChanged: _onPageChanged,
-        itemCount: peopleData.length,
+        itemCount: _officerReviews.length,
         itemBuilder: (context, personIndex) {
-          final person = peopleData[personIndex];
-          final currentMessage = person['messages'][_currentMessageIndex];
+          final review = _officerReviews[personIndex];
+          
+          // Safety check for messages
+          if (review.messages.isEmpty) {
+            return const SizedBox.shrink();
+          }
+          
+          final currentMessage = review.messages[_currentMessageIndex % review.messages.length];
+          final languageProvider = Provider.of<LanguageProvider>(context);
+          final isEnglish = languageProvider.isEnglish;
+          
+          // Get localized content
+          final displayName = isEnglish ? review.name : (review.nameBn ?? review.name);
+          final messageContent = isEnglish 
+              ? currentMessage.content 
+              : (currentMessage.contentBn ?? currentMessage.content);
           
           return Container(
             margin: EdgeInsets.zero,
@@ -201,27 +265,21 @@ class _MayorStatementBannerState extends State<MayorStatementBanner>
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(24),
-                        child: Image.asset(
-                          person['image'],
-                          width: 48,
-                          height: 48,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              width: 48,
-                              height: 48,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: const Color(0xFF36724A),
+                        child: review.imageUrl != null
+                            ? _buildImage(review.imageUrl!)
+                            : Container(
+                                width: 48,
+                                height: 48,
+                                decoration: const BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Color(0xFF1E88E5),
+                                ),
+                                child: const Icon(
+                                  Icons.person,
+                                  color: Colors.white,
+                                  size: 24,
+                                ),
                               ),
-                              child: const Icon(
-                                Icons.person,
-                                color: Colors.white,
-                                size: 24,
-                              ),
-                            );
-                          },
-                        ),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -232,8 +290,8 @@ class _MayorStatementBannerState extends State<MayorStatementBanner>
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            TranslatedText(
-                              person['name'],
+                            Text(
+                              displayName,
                               style: const TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.normal,
@@ -241,8 +299,8 @@ class _MayorStatementBannerState extends State<MayorStatementBanner>
                               ),
                             ),
                             const SizedBox(height: 6),
-                            TranslatedText(
-                              currentMessage['bangla'],
+                            Text(
+                              messageContent,
                               style: const TextStyle(
                                 fontSize: 13,
                                 color: Color(0xFF333333),
@@ -267,7 +325,7 @@ class _MayorStatementBannerState extends State<MayorStatementBanner>
                   child: Center(
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
-                      children: List.generate(person['messages'].length, (index) {
+                      children: List.generate(review.messages.length, (index) {
                         final bool active = _currentMessageIndex == index;
                         return AnimatedContainer(
                           duration: const Duration(milliseconds: 300),
@@ -293,7 +351,7 @@ class _MayorStatementBannerState extends State<MayorStatementBanner>
                   right: 4,
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
-                    children: List.generate(peopleData.length, (index) {
+                    children: List.generate(_officerReviews.length, (index) {
                       final bool active = _currentPersonIndex == index;
                       return Container(
                         margin: const EdgeInsets.symmetric(horizontal: 3),

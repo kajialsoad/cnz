@@ -787,3 +787,37 @@ enum InteractionType {
   RSVP_MAYBE
 }
 
+// Officer Review System (Home Page Dynamic Reviews)
+model OfficerReview {
+  id            Int      @id @default(autoincrement())
+  name          String   @db.VarChar(255)
+  nameBn        String?  @map("name_bn") @db.VarChar(255)
+  designation   String   @db.VarChar(255)
+  designationBn String?  @map("designation_bn") @db.VarChar(255)
+  imageUrl      String   @map("image_url") @db.VarChar(500)
+  isActive      Boolean  @default(true) @map("is_active")
+  displayOrder  Int      @default(0) @map("display_order")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  
+  messages      OfficerReviewMessage[]
+
+  @@index([isActive, displayOrder])
+  @@map("officer_reviews")
+}
+
+model OfficerReviewMessage {
+  id              Int            @id @default(autoincrement())
+  officerReviewId Int            @map("officer_review_id")
+  content         String         @db.Text
+  contentBn       String?        @map("content_bn") @db.Text
+  displayOrder    Int            @default(0) @map("display_order")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+  
+  officerReview   OfficerReview  @relation(fields: [officerReviewId], references: [id], onDelete: Cascade)
+
+  @@index([officerReviewId, displayOrder])
+  @@map("officer_review_messages")
+}
+

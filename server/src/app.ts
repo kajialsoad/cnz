@@ -255,6 +255,12 @@ console.log('✅ Notice routes registered at /api/notices');
 app.use('/api/notice-categories', noticeCategoryRoutes); // Notice category routes
 console.log('✅ Notice category routes registered at /api/notice-categories');
 
+// Officer Review routes (Home Page Dynamic Reviews)
+import officerReviewRoutes from './routes/officer-review.routes';
+
+app.use('/api/officer-reviews', officerReviewRoutes); // Officer review routes (public + admin)
+console.log('✅ Officer review routes registered at /api/officer-reviews');
+
 // Add test route to verify admin path works
 app.get('/api/admin/test', (req, res) => {
   res.json({

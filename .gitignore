@@ -64,6 +64,13 @@ app.*.map.json
 *.jks
 *.keystore
 
+# Keystore and signing files (NEVER COMMIT THESE!)
+android/key.properties
+android/app/*.jks
+android/app/*.keystore
+android/*.jks
+android/*.keystore
+
 # Android/Gradle - Configuration Files (Ignored for local customization)
 android/build.gradle.kts
 android/settings.gradle.kts

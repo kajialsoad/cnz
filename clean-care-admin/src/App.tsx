@@ -41,6 +41,7 @@ const SystemControl = lazy(() => import('./pages/SystemControl'));
 const WasteManagementPage = lazy(() => import('./pages/WasteManagement/WasteManagementPage'));
 const NoticeManagementPage = lazy(() => import('./pages/NoticeManagement/NoticeManagementPage'));
 const GallerySettingsPage = lazy(() => import('./pages/GallerySettings/GallerySettingsPage'));
+const OfficerReviewManagementPage = lazy(() => import('./pages/OfficerReviewManagement'));
 
 function App() {
   return (
@@ -278,6 +279,16 @@ function App() {
                             <ProtectedRoute>
                               <RoleBasedRoute allowedRoles={['MASTER_ADMIN']}>
                                 <GallerySettingsPage />
+                              </RoleBasedRoute>
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="/officer-reviews"
+                          element={
+                            <ProtectedRoute>
+                              <RoleBasedRoute allowedRoles={['MASTER_ADMIN']}>
+                                <OfficerReviewManagementPage />
                               </RoleBasedRoute>
                             </ProtectedRoute>
                           }

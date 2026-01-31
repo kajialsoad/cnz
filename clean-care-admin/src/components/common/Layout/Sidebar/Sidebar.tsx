@@ -115,6 +115,13 @@ const baseMenuItems = [
     roles: ['MASTER_ADMIN'],
   },
   {
+    id: 'officer-reviews',
+    label: 'Officer Reviews',
+    icon: adminIcon,
+    path: '/officer-reviews',
+    roles: ['MASTER_ADMIN'],
+  },
+  {
     id: 'system-control',
     label: 'Bot Message System Control',
     icon: settingsIcon,
