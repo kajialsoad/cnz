@@ -34,6 +34,7 @@ export interface UpdateCalendarDto {
     cityCorporationId?: number;
     zoneId?: number;
     wardId?: number;
+    events?: CreateCalendarEventDto[]; // Add events support
 }
 
 export const calendarService = {
@@ -48,6 +49,21 @@ export const calendarService = {
             console.error('Error extracting public_id from URL:', error);
             return null;
         }
+    },
+
+    // Helper to normalize date - ensures date stays the same across timezones
+    normalizeEventDate(date: Date | string): Date {
+        const d = new Date(date);
+        // Get the UTC date components
+        const year = d.getUTCFullYear();
+        const month = d.getUTCMonth();
+        const day = d.getUTCDate();
+
+        // Create a new date in local timezone with these components
+        const localDate = new Date(year, month, day);
+
+        // Convert back to UTC with the local date components
+        return new Date(Date.UTC(localDate.getFullYear(), localDate.getMonth(), localDate.getDate(), 0, 0, 0, 0));
     },
 
     // Create calendar with image upload
@@ -75,7 +91,7 @@ export const calendarService = {
                     ? {
                         create: events.map((event) => ({
                             ...event,
-                            eventDate: new Date(event.eventDate),
+                            eventDate: this.normalizeEventDate(event.eventDate),
                         })),
                     }
                     : undefined,
@@ -251,6 +267,7 @@ export const calendarService = {
     ) {
         const existingCalendar = await prisma.calendar.findUnique({
             where: { id },
+            include: { events: true },
         });
 
         if (!existingCalendar) {
@@ -280,11 +297,30 @@ export const calendarService = {
             }
         }
 
+        const { events, ...updateData } = data;
+
+        // Update calendar and handle events
         const calendar = await prisma.calendar.update({
             where: { id },
             data: {
-                ...data,
+                ...updateData,
                 imageUrl,
+                // If events are provided, replace all events
+                ...(events !== undefined && {
+                    events: {
+                        // Delete all existing events
+                        deleteMany: {},
+                        // Create new events with normalized dates
+                        create: events.map((event: any) => {
+                            // Strip out auto-generated fields that Prisma doesn't accept in create
+                            const { id, calendarId, createdAt, updatedAt, ...eventData } = event;
+                            return {
+                                ...eventData,
+                                eventDate: this.normalizeEventDate(event.eventDate),
+                            };
+                        }),
+                    },
+                }),
             },
             include: {
                 events: {
@@ -343,7 +379,7 @@ export const calendarService = {
             data: {
                 ...eventData,
                 calendarId,
-                eventDate: new Date(eventData.eventDate),
+                eventDate: this.normalizeEventDate(eventData.eventDate),
             },
         });
 
@@ -355,7 +391,7 @@ export const calendarService = {
             where: { id: eventId },
             data: {
                 ...eventData,
-                eventDate: eventData.eventDate ? new Date(eventData.eventDate) : undefined,
+                eventDate: eventData.eventDate ? this.normalizeEventDate(eventData.eventDate) : undefined,
             },
         });
 

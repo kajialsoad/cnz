@@ -95,7 +95,24 @@ const CalendarModal: React.FC<CalendarModalProps> = ({ open, onClose, onSuccess,
                 setZoneId(calendar.zoneId || '');
                 setWardId(calendar.wardId || '');
                 setImagePreview(calendar.imageUrl);
-                setEvents(calendar.events || []);
+
+                // Convert event dates from ISO to YYYY-MM-DD format for date input
+                // Also convert category from UPPERCASE to camelCase
+                const formattedEvents = (calendar.events || []).map(event => {
+                    // Convert category from UPPERCASE to camelCase
+                    const categoryStr = event.category as string;
+                    let category: any = categoryStr;
+                    if (categoryStr === 'WASTE_COLLECTION') category = 'wasteCollection';
+                    else if (categoryStr === 'PUBLIC_HOLIDAY') category = 'publicHoliday';
+                    else if (categoryStr === 'COMMUNITY_EVENT') category = 'communityEvent';
+
+                    return {
+                        ...event,
+                        eventDate: new Date(event.eventDate).toISOString().split('T')[0],
+                        category: category
+                    };
+                });
+                setEvents(formattedEvents);
 
                 if (calendar.cityCorporationId) {
                     loadZones(calendar.cityCorporationId);
@@ -217,6 +234,12 @@ const CalendarModal: React.FC<CalendarModalProps> = ({ open, onClose, onSuccess,
             setLoading(true);
             setError(null);
 
+            console.log('🔍 [CalendarModal] handleSubmit started');
+            console.log('📝 [CalendarModal] Mode:', calendar ? 'UPDATE' : 'CREATE');
+            console.log('📝 [CalendarModal] Title:', title);
+            console.log('📝 [CalendarModal] Events count:', events.length);
+            console.log('📝 [CalendarModal] Events data:', events);
+
             // Validation
             if (!title.trim()) {
                 setError('Title is required');
@@ -228,6 +251,11 @@ const CalendarModal: React.FC<CalendarModalProps> = ({ open, onClose, onSuccess,
                 return;
             }
 
+            // Filter events with valid titles
+            const validEvents = events.filter(e => e.title.trim());
+            console.log('✅ [CalendarModal] Valid events after filter:', validEvents.length);
+            console.log('📋 [CalendarModal] Valid events:', validEvents);
+
             const calendarData: any = {
                 title: title.trim(),
                 titleBn: titleBn.trim() || undefined,
@@ -236,24 +264,35 @@ const CalendarModal: React.FC<CalendarModalProps> = ({ open, onClose, onSuccess,
                 cityCorporationId: cityCorporationId || undefined,
                 zoneId: zoneId || undefined,
                 wardId: wardId || undefined,
-                events: events.filter(e => e.title.trim()),
+                events: validEvents, // Include filtered events
             };
 
+            console.log('📦 [CalendarModal] Calendar data prepared:', calendarData);
+            console.log('🖼️ [CalendarModal] Image file:', imageFile ? 'Present' : 'None');
+
             if (calendar) {
-                // Update
-                await calendarService.updateCalendar(calendar.id, calendarData, imageFile || undefined);
+                // Update - include events
+                console.log('🔄 [CalendarModal] Calling updateCalendar with ID:', calendar.id);
+                const result = await calendarService.updateCalendar(calendar.id, calendarData, imageFile || undefined);
+                console.log('✅ [CalendarModal] Update successful:', result);
             } else {
                 // Create
                 if (!imageFile) {
                     setError('Image is required');
                     return;
                 }
-                await calendarService.createCalendar(calendarData, imageFile);
+                console.log('➕ [CalendarModal] Calling createCalendar');
+                const result = await calendarService.createCalendar(calendarData, imageFile);
+                console.log('✅ [CalendarModal] Create successful:', result);
             }
 
+            console.log('🎉 [CalendarModal] Operation completed successfully');
             onSuccess();
         } catch (err: any) {
-            setError(err.message || 'Failed to save calendar');
+            console.error('❌ [CalendarModal] Error in handleSubmit:', err);
+            console.error('❌ [CalendarModal] Error message:', err.message);
+            console.error('❌ [CalendarModal] Error response:', err.response);
+            setError(err.response?.data?.error || err.message || 'Failed to save calendar');
         } finally {
             setLoading(false);
         }

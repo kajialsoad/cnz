@@ -106,13 +106,20 @@ class CalendarEventModel {
       titleBn: json['titleBn'] as String?,
       description: json['description'] as String?,
       descriptionBn: json['descriptionBn'] as String?,
-      eventDate: DateTime.parse(json['eventDate'] as String),
+      eventDate: _parseEventDate(json['eventDate'] as String),
       eventType: json['eventType'] as String? ?? 'general',
       category: _parseCategory(json['category'] as String?),
       isActive: json['isActive'] as bool? ?? true,
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
     );
+  }
+
+  // Parse event date and convert to local date (ignoring time)
+  static DateTime _parseEventDate(String dateString) {
+    final utcDate = DateTime.parse(dateString);
+    // Return date only in local timezone
+    return DateTime(utcDate.year, utcDate.month, utcDate.day);
   }
 
   Map<String, dynamic> toJson() {

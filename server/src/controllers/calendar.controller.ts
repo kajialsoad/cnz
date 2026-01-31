@@ -1,6 +1,23 @@
 import { Request, Response } from 'express';
 import { calendarService } from '../services/calendar.service';
 
+// Helper function to convert camelCase category to UPPERCASE format
+function convertCategoryToUppercase(category: string): string {
+    if (category === 'wasteCollection') return 'WASTE_COLLECTION';
+    if (category === 'publicHoliday') return 'PUBLIC_HOLIDAY';
+    if (category === 'communityEvent') return 'COMMUNITY_EVENT';
+    return category; // Return as-is if already in correct format
+}
+
+// Helper function to convert events array categories and dates
+function convertEventCategories(events: any[]): any[] {
+    return events.map(event => ({
+        ...event,
+        category: event.category ? convertCategoryToUppercase(event.category) : event.category,
+        eventDate: event.eventDate ? new Date(event.eventDate) : event.eventDate
+    }));
+}
+
 export const calendarController = {
     // Create calendar
     async createCalendar(req: Request, res: Response) {
@@ -8,6 +25,12 @@ export const calendarController = {
             const userId = (req as any).user?.id;
             if (!userId) {
                 return res.status(401).json({ error: 'Unauthorized' });
+            }
+
+            // Parse events and convert categories
+            let events = req.body.events ? JSON.parse(req.body.events) : undefined;
+            if (events && events.length > 0) {
+                events = convertEventCategories(events);
             }
 
             const calendarData = {
@@ -20,7 +43,7 @@ export const calendarController = {
                     : undefined,
                 zoneId: req.body.zoneId ? parseInt(req.body.zoneId) : undefined,
                 wardId: req.body.wardId ? parseInt(req.body.wardId) : undefined,
-                events: req.body.events ? JSON.parse(req.body.events) : undefined,
+                events,
             };
 
             const imageFile = req.file;
@@ -101,7 +124,24 @@ export const calendarController = {
     // Update calendar
     async updateCalendar(req: Request, res: Response) {
         try {
+            console.log('🔍 [calendar.controller] updateCalendar called');
+            console.log('📝 [calendar.controller] Request params:', req.params);
+            console.log('📝 [calendar.controller] Request body:', req.body);
+            console.log('🖼️ [calendar.controller] Request file:', req.file ? 'Present' : 'None');
+
             const id = parseInt(req.params.id);
+            console.log('📝 [calendar.controller] Calendar ID:', id);
+
+            // Parse events and convert categories
+            let events = req.body.events ? JSON.parse(req.body.events) : undefined;
+            console.log('📋 [calendar.controller] Parsed events:', events);
+
+            if (events && events.length > 0) {
+                console.log('🔄 [calendar.controller] Converting event categories and dates');
+                events = convertEventCategories(events);
+                console.log('✅ [calendar.controller] Converted events:', events);
+            }
+
             const updateData = {
                 ...req.body,
                 month: req.body.month ? parseInt(req.body.month) : undefined,
@@ -111,19 +151,25 @@ export const calendarController = {
                     : undefined,
                 zoneId: req.body.zoneId ? parseInt(req.body.zoneId) : undefined,
                 wardId: req.body.wardId ? parseInt(req.body.wardId) : undefined,
+                events,
             };
+
+            console.log('📦 [calendar.controller] Update data prepared:', updateData);
 
             const imageFile = req.file;
 
+            console.log('🚀 [calendar.controller] Calling calendarService.updateCalendar');
             const calendar = await calendarService.updateCalendar(
                 id,
                 updateData,
                 imageFile
             );
 
+            console.log('✅ [calendar.controller] Update successful:', calendar);
             res.json(calendar);
         } catch (error: any) {
-            console.error('Error updating calendar:', error);
+            console.error('❌ [calendar.controller] Error updating calendar:', error);
+            console.error('❌ [calendar.controller] Error stack:', error.stack);
             res.status(500).json({ error: error.message || 'Failed to update calendar' });
         }
     },

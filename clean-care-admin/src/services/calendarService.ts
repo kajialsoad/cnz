@@ -66,6 +66,11 @@ export const calendarService = {
 
     // Update calendar
     async updateCalendar(id: number, data: UpdateCalendarDto, imageFile?: File): Promise<Calendar> {
+        console.log('🔍 [calendarService] updateCalendar called');
+        console.log('📝 [calendarService] Calendar ID:', id);
+        console.log('📝 [calendarService] Data received:', data);
+        console.log('🖼️ [calendarService] Image file:', imageFile ? 'Present' : 'None');
+
         const formData = new FormData();
         if (data.title) formData.append('title', data.title);
         if (data.titleBn) formData.append('titleBn', data.titleBn);
@@ -81,12 +86,40 @@ export const calendarService = {
         if (data.wardId !== undefined) {
             formData.append('wardId', data.wardId ? data.wardId.toString() : '');
         }
-        if (imageFile) formData.append('image', imageFile);
 
-        const response = await apiClient.put(`/api/calendars/${id}`, formData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-        });
-        return response.data.data || response.data;
+        // Add events if provided (even if empty array to clear events)
+        if (data.events !== undefined) {
+            const eventsJson = JSON.stringify(data.events);
+            console.log('📋 [calendarService] Events to send:', data.events);
+            console.log('📋 [calendarService] Events JSON:', eventsJson);
+            formData.append('events', eventsJson);
+        }
+
+        if (imageFile) {
+            console.log('🖼️ [calendarService] Adding image file to FormData');
+            formData.append('image', imageFile);
+        }
+
+        // Log FormData contents
+        console.log('📦 [calendarService] FormData contents:');
+        for (const [key, value] of formData.entries()) {
+            console.log(`  ${key}:`, value);
+        }
+
+        console.log('🚀 [calendarService] Sending PUT request to:', `/api/calendars/${id}`);
+
+        try {
+            const response = await apiClient.put(`/api/calendars/${id}`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
+            console.log('✅ [calendarService] Response received:', response.data);
+            return response.data.data || response.data;
+        } catch (error: any) {
+            console.error('❌ [calendarService] Request failed:', error);
+            console.error('❌ [calendarService] Error response:', error.response);
+            console.error('❌ [calendarService] Error message:', error.message);
+            throw error;
+        }
     },
 
     // Delete calendar

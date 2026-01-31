@@ -82,6 +82,7 @@ export interface UpdateCalendarDto {
     cityCorporationId?: number;
     zoneId?: number;
     wardId?: number;
+    events?: CreateCalendarEventDto[]; // Add events support for update
 }
 
 export interface CalendarFilters {
