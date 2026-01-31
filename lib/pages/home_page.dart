@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -13,6 +14,7 @@ import '../services/auth_service.dart';
 import '../widgets/translated_text.dart';
 import '../providers/notification_provider.dart';
 import '../widgets/notification_sheet.dart';
+import '../components/complaint_guide_overlay.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -25,6 +27,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   late AnimationController _backgroundController;
   late AnimationController _floatingController;
   int _currentIndex = 0;
+  bool _showComplaintGuide = true;
+  Timer? _overlayTimer;
 
   static const Color green = Color(0xFF2E8B57);
 
@@ -41,6 +45,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       vsync: this,
     )..repeat(reverse: true);
 
+    _startOverlayTimer();
+
     // Fetch initial notification count
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -53,6 +59,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   void dispose() {
     _backgroundController.dispose();
     _floatingController.dispose();
+    _overlayTimer?.cancel();
     super.dispose();
   }
 
@@ -790,6 +797,20 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             ),
           ),
         ),
+
+        // Tutorial Overlay
+        if (_showComplaintGuide)
+          Positioned(
+            bottom: 155,
+            left: (MediaQuery.of(context).size.width - 40) / 2 - 20,
+            child: ComplaintGuideOverlay(
+              onClose: () {
+                setState(() {
+                  _showComplaintGuide = false;
+                });
+              },
+            ),
+          ),
       ],
     );
   }
@@ -871,7 +892,26 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   void _navigateToPage(String route) {
-    Navigator.pushNamed(context, route);
+    Navigator.pushNamed(context, route).then((_) {
+      // Re-show overlay when returning to home page
+      if (mounted) {
+        setState(() {
+          _showComplaintGuide = true;
+        });
+        _startOverlayTimer();
+      }
+    });
+  }
+
+  void _startOverlayTimer() {
+    _overlayTimer?.cancel();
+    _overlayTimer = Timer(const Duration(seconds: 10), () {
+      if (mounted) {
+        setState(() {
+          _showComplaintGuide = false;
+        });
+      }
+    });
   }
 
   void _openCamera() {
