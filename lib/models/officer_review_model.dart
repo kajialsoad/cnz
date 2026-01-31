@@ -42,9 +42,12 @@ class OfficerReview {
     return {
       'id': id,
       'name': name,
+      'nameBn': nameBn,
       'name_bn': nameBn,
       'designation': designation,
+      'designationBn': designationBn,
       'designation_bn': designationBn,
+      'imageUrl': imageUrl,
       'image_url': imageUrl,
       'isActive': isActive,
       'displayOrder': displayOrder,
@@ -79,6 +82,7 @@ class OfficerReviewMessage {
     return {
       'id': id,
       'content': content,
+      'contentBn': contentBn,
       'content_bn': contentBn,
       'displayOrder': displayOrder,
     };

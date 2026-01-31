@@ -24,6 +24,8 @@ import 'pages/home_page.dart';
 import 'pages/live_chat_page.dart';
 import 'pages/login_page.dart';
 import 'pages/notice_board_page.dart';
+import 'pages/officer_review_list_page.dart';
+import 'pages/officer_review_detail_page.dart';
 import 'pages/onboarding_screen.dart';
 import 'pages/otp_verification_page.dart';
 import 'pages/others_page.dart';
@@ -356,6 +358,22 @@ class _MyAppState extends State<MyApp> {
           );
         }
 
+        // Handle /officer-review-detail route with officerReview parameter
+        if (settings.name == '/officer-review-detail') {
+          final officerReview = settings.arguments as Map<String, dynamic>?;
+          if (officerReview == null) {
+            return MaterialPageRoute(
+              builder: (_) => const AuthGuard(child: OfficerReviewListPage()),
+            );
+          }
+          return MaterialPageRoute(
+            builder: (_) => AuthGuard(
+              child: OfficerReviewDetailPage(officerReview: officerReview),
+            ),
+            settings: settings,
+          );
+        }
+
         return null;
       },
       routes: {
@@ -392,6 +410,8 @@ class _MyAppState extends State<MyApp> {
         '/waste-management': (_) =>
             const AuthGuard(child: WasteManagementPage()),
         '/gallery': (_) => const AuthGuard(child: GalleryPage()),
+        '/officer-review-list': (_) =>
+            const AuthGuard(child: OfficerReviewListPage()),
         '/profile-settings': (_) =>
             const AuthGuard(child: ProfileSettingsPage()),
         '/government-calendar': (_) =>

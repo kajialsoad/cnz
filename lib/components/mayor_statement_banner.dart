@@ -6,6 +6,7 @@ import '../widgets/translated_text.dart';
 import '../models/officer_review_model.dart';
 import '../services/officer_review_service.dart';
 import '../providers/language_provider.dart';
+import '../pages/officer_review_detail_page.dart';
 import 'package:provider/provider.dart';
 
 class MayorStatementBanner extends StatefulWidget {
@@ -227,22 +228,34 @@ class _MayorStatementBannerState extends State<MayorStatementBanner>
               ? currentMessage.content 
               : (currentMessage.contentBn ?? currentMessage.content);
           
-          return Container(
-            margin: EdgeInsets.zero,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.95),
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.06),
-                  offset: const Offset(0, 2),
-                  blurRadius: 8,
-                  spreadRadius: 0,
+          return GestureDetector(
+            onTap: () {
+              // Navigate to detail page
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => OfficerReviewDetailPage(
+                    officerReview: review.toJson(),
+                  ),
                 ),
-              ],
-            ),
-            child: Stack(
+              );
+            },
+            child: Container(
+              margin: EdgeInsets.zero,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.95),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.06),
+                    offset: const Offset(0, 2),
+                    blurRadius: 8,
+                    spreadRadius: 0,
+                  ),
+                ],
+              ),
+              child: Stack(
               clipBehavior: Clip.none,
               children: [
                 Row(
@@ -369,6 +382,7 @@ class _MayorStatementBannerState extends State<MayorStatementBanner>
                 ),
               ],
             ),
+          ),
           );
         },
       ),

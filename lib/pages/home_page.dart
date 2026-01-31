@@ -445,6 +445,36 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ],
                 ),
               ),
+              // Officer Review
+              PopupMenuItem<String>(
+                value: 'officer-review',
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: green.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(Icons.rate_review, color: green, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    TranslatedText(
+                      'Officer Reviews',
+                      bn: 'কর্মকর্তা পর্যালোচনা',
+                      style: TextStyle(
+                        color: Colors.black87,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               // Divider
               const PopupMenuDivider(height: 1),
               // MenuDrawer: Inline language selector (Figma)
@@ -1085,6 +1115,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         return;
       case 'gallery':
         Navigator.pushNamed(context, '/gallery');
+        return;
+      case 'officer-review':
+        Navigator.pushNamed(context, '/officer-review-list');
         return;
       case 'logout':
         _handleLogout();

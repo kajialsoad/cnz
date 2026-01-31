@@ -35,7 +35,18 @@ class TranslatedText extends StatelessWidget {
           );
         }
 
-        // Otherwise use dynamic translation
+        // If language is English, show original text directly (no translation needed)
+        if (languageProvider.isEnglish) {
+          return Text(
+            text,
+            style: style,
+            textAlign: textAlign,
+            maxLines: maxLines,
+            overflow: overflow,
+          );
+        }
+
+        // Otherwise use dynamic translation for Bangla
         return FutureBuilder<String>(
           future: languageProvider.translate(text),
           builder: (context, snapshot) {
