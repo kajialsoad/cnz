@@ -261,6 +261,12 @@ import officerReviewRoutes from './routes/officer-review.routes';
 app.use('/api/officer-reviews', officerReviewRoutes); // Officer review routes (public + admin)
 console.log('✅ Officer review routes registered at /api/officer-reviews');
 
+// Calendar routes
+import calendarRoutes from './routes/calendar.routes';
+
+app.use('/api/calendars', calendarRoutes); // Calendar routes (public + admin)
+console.log('✅ Calendar routes registered at /api/calendars');
+
 // Add test route to verify admin path works
 app.get('/api/admin/test', (req, res) => {
   res.json({

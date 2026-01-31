@@ -11,6 +11,9 @@ class LanguageProvider extends ChangeNotifier {
   }
 
   String get languageCode => _languageCode;
+  
+  // Alias for compatibility
+  String get currentLanguage => _languageCode;
 
   Future<void> _loadLanguage() async {
     _languageCode = await LanguageService.getCurrentLanguage();

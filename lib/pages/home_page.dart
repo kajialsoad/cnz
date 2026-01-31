@@ -750,7 +750,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           width: 110, // Increased from 120 to 140
           height: 110, // Increased from 120 to 140
           decoration: BoxDecoration(
-            color: Colors.black,
+            color: Colors.blue,
             shape: BoxShape.circle,
             border: Border.all(
               color: Colors.white, // Solid white border

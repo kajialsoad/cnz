@@ -53,6 +53,27 @@ class CloudinaryHelper {
     return transformUrl(url, transformation);
   }
 
+  /// Get optimized URL with custom width and quality
+  /// 
+  /// Perfect for calendar images and detail views
+  static String getOptimizedImageUrl(
+    String url, {
+    int? width,
+    int? height,
+    int quality = 90,
+  }) {
+    final parts = <String>[];
+    
+    if (width != null) parts.add('w_$width');
+    if (height != null) parts.add('h_$height');
+    parts.add('c_limit');
+    parts.add('q_$quality');
+    parts.add('f_auto');
+    
+    final transformation = parts.join(',');
+    return transformUrl(url, transformation);
+  }
+
   /// Get optimized URL with automatic format (WebP) and quality optimization
   /// 
   /// Maintains original dimensions but optimizes format and quality

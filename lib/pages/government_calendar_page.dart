@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import '../components/custom_bottom_nav.dart';
+import '../models/calendar_model.dart';
+import '../services/calendar_service.dart';
+import '../providers/language_provider.dart';
+import '../utils/cloudinary_helper.dart';
 
 class GovernmentCalendarPage extends StatefulWidget {
   const GovernmentCalendarPage({super.key});
@@ -10,39 +15,46 @@ class GovernmentCalendarPage extends StatefulWidget {
 }
 
 class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
-  DateTime selectedDate = DateTime(2025, 11, 2); // Set to November 2, 2025
-  DateTime currentMonth = DateTime(2025, 11, 1); // November 2025
+  final CalendarService _calendarService = CalendarService();
+  CalendarModel? _calendar;
+  List<CalendarEventModel> _upcomingEvents = [];
+  bool _isLoading = true;
+  String? _error;
 
-  // Sample events data matching the image
-  final List<CalendarEvent> upcomingEvents = [
-    CalendarEvent(
-      date: DateTime(2025, 10, 26),
-      title: 'Waste Collection - Ward 12',
-      type: 'Collection',
-      category: EventCategory.wasteCollection,
-    ),
-    CalendarEvent(
-      date: DateTime(2025, 10, 28),
-      title: 'Public Holiday',
-      type: 'Holiday',
-      category: EventCategory.publicHoliday,
-    ),
-    CalendarEvent(
-      date: DateTime(2025, 10, 30),
-      title: 'Community Cleaning Drive',
-      type: 'Event',
-      category: EventCategory.communityEvent,
-    ),
-    CalendarEvent(
-      date: DateTime(2025, 11, 1),
-      title: 'Recycling Workshop',
-      type: 'Event',
-      category: EventCategory.communityEvent,
-    ),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadCalendarData();
+  }
+
+  Future<void> _loadCalendarData() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final calendar = await _calendarService.getCurrentCalendar();
+      final events = await _calendarService.getUpcomingEvents(limit: 10);
+
+      setState(() {
+        _calendar = calendar;
+        _upcomingEvents = events;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final languageProvider = Provider.of<LanguageProvider>(context);
+    final currentLanguage = languageProvider.currentLanguage;
+
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
@@ -52,44 +64,31 @@ class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
-          'Government Calendar',
-          style: TextStyle(
+        title: Text(
+          currentLanguage == 'bn' ? 'সরকারি ক্যালেন্ডার' : 'Government Calendar',
+          style: const TextStyle(
             color: Colors.white,
             fontSize: 20,
             fontWeight: FontWeight.w600,
           ),
         ),
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.only(
-                bottom: 100, // Extra padding for bottom navigation
-              ),
-              child: Column(
-                children: [
-                  // Calendar Poster (Asset Image)
-                  _buildCalendarPoster(),
-
-                  // Upcoming Events Section
-                  _buildUpcomingEventsSection(),
-
-                  // Legend Section
-                  _buildLegendSection(),
-
-                  const SizedBox(height: 100), // Space for bottom nav
-                ],
-              ),
-            ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.white),
+            onPressed: _loadCalendarData,
           ),
         ],
       ),
+      body: _isLoading
+          ? _buildLoadingState()
+          : _error != null
+              ? _buildErrorState()
+              : _calendar == null
+                  ? _buildNoCalendarState(currentLanguage)
+                  : _buildCalendarContent(currentLanguage),
       bottomNavigationBar: CustomBottomNav(
         currentIndex: 3, // Borjo tab
         onTap: (index) {
-          // Handle navigation
           switch (index) {
             case 0:
               Navigator.pushReplacementNamed(context, '/home');
@@ -112,7 +111,131 @@ class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
     );
   }
 
-  Widget _buildCalendarPoster() {
+  Widget _buildLoadingState() {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4CAF50)),
+          ),
+          SizedBox(height: 16),
+          Text(
+            'Loading calendar...',
+            style: TextStyle(fontSize: 16, color: Colors.grey),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.error_outline,
+              size: 64,
+              color: Colors.red,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Error loading calendar',
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _error ?? 'Unknown error',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: _loadCalendarData,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Retry'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF4CAF50),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNoCalendarState(String currentLanguage) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.calendar_today_outlined,
+              size: 64,
+              color: Colors.grey[400],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              currentLanguage == 'bn'
+                  ? 'এই মাসের জন্য কোনো ক্যালেন্ডার নেই'
+                  : 'No calendar available for this month',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              currentLanguage == 'bn'
+                  ? 'পরে আবার চেক করুন'
+                  : 'Please check back later',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCalendarContent(String currentLanguage) {
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.only(bottom: 100),
+            child: Column(
+              children: [
+                // Calendar Image
+                _buildCalendarImage(currentLanguage),
+
+                // Upcoming Events Section
+                if (_upcomingEvents.isNotEmpty) _buildUpcomingEventsSection(currentLanguage),
+
+                // Legend Section
+                _buildLegendSection(currentLanguage),
+
+                const SizedBox(height: 100),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCalendarImage(String currentLanguage) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
       decoration: BoxDecoration(
@@ -126,102 +249,108 @@ class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
         ],
       ),
       clipBehavior: Clip.antiAlias,
-      child: AspectRatio(
-        aspectRatio: 365 / 479,
-        child: Image.asset(
-          'assets/calenderimage_2.png',
-          filterQuality: FilterQuality.high,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stack) {
-            return Container(
-              color: Colors.white,
-              alignment: Alignment.center,
-              child: const Text(
-                'Calendar image missing: assets/calenderimage_2.png',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Calendar Title
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF4CAF50),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(12),
+                topRight: Radius.circular(12),
               ),
-            );
-          },
-        ),
+            ),
+            child: Text(
+              currentLanguage == 'bn'
+                  ? (_calendar!.titleBn ?? _calendar!.title)
+                  : _calendar!.title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+
+          // Calendar Image
+          AspectRatio(
+            aspectRatio: 365 / 479,
+            child: Image.network(
+              CloudinaryHelper.getOptimizedImageUrl(
+                _calendar!.imageUrl,
+                width: 800,
+                quality: 90,
+              ),
+              fit: BoxFit.cover,
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return Container(
+                  color: Colors.grey[200],
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      value: loadingProgress.expectedTotalBytes != null
+                          ? loadingProgress.cumulativeBytesLoaded /
+                              loadingProgress.expectedTotalBytes!
+                          : null,
+                      valueColor: const AlwaysStoppedAnimation<Color>(
+                        Color(0xFF4CAF50),
+                      ),
+                    ),
+                  ),
+                );
+              },
+              errorBuilder: (context, error, stack) {
+                return Container(
+                  color: Colors.grey[200],
+                  alignment: Alignment.center,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.broken_image, size: 48, color: Colors.grey[400]),
+                      const SizedBox(height: 8),
+                      Text(
+                        currentLanguage == 'bn'
+                            ? 'ছবি লোড করা যায়নি'
+                            : 'Failed to load image',
+                        style: TextStyle(color: Colors.grey[600]),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildCalendarGrid() {
-    final firstDayOfMonth = DateTime(currentMonth.year, currentMonth.month, 1);
-    final lastDayOfMonth = DateTime(
-      currentMonth.year,
-      currentMonth.month + 1,
-      0,
-    );
-    final firstDayWeekday = firstDayOfMonth.weekday % 7;
-    final daysInMonth = lastDayOfMonth.day;
-
-    List<Widget> dayWidgets = [];
-
-    // Add empty cells for days before the first day of the month
-    for (int i = 0; i < firstDayWeekday; i++) {
-      dayWidgets.add(SizedBox(width: 40, height: 40));
-    }
-
-    // Add days of the month
-    for (int day = 1; day <= daysInMonth; day++) {
-      final date = DateTime(currentMonth.year, currentMonth.month, day);
-      final isSelected = _isSameDay(date, selectedDate);
-
-      dayWidgets.add(
-        GestureDetector(
-          onTap: () {
-            setState(() {
-              selectedDate = date;
-            });
-          },
-          child: Container(
-            width: 40,
-            height: 40,
-            margin: const EdgeInsets.all(2),
-            decoration: BoxDecoration(
-              color: isSelected ? Colors.black : Colors.transparent,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              day.toString(),
-              style: TextStyle(
-                color: isSelected ? Colors.white : Colors.black,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    return Wrap(children: dayWidgets);
-  }
-
-  Widget _buildUpcomingEventsSection() {
+  Widget _buildUpcomingEventsSection(String currentLanguage) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Upcoming Events',
-            style: TextStyle(
+          Text(
+            currentLanguage == 'bn' ? 'আসন্ন ইভেন্ট' : 'Upcoming Events',
+            style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
               color: Colors.black87,
             ),
           ),
           const SizedBox(height: 16),
-
-          ...upcomingEvents.map((event) => _buildEventCard(event)),
+          ..._upcomingEvents.map((event) => _buildEventCard(event, currentLanguage)),
         ],
       ),
     );
   }
 
-  Widget _buildEventCard(CalendarEvent event) {
+  Widget _buildEventCard(CalendarEventModel event, String currentLanguage) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -250,7 +379,7 @@ class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  DateFormat('MMM').format(event.date).toUpperCase(),
+                  DateFormat('MMM').format(event.eventDate).toUpperCase(),
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 12,
@@ -258,7 +387,7 @@ class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
                   ),
                 ),
                 Text(
-                  event.date.day.toString(),
+                  event.eventDate.day.toString(),
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
@@ -277,7 +406,9 @@ class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  event.title,
+                  currentLanguage == 'bn'
+                      ? (event.titleBn ?? event.title)
+                      : event.title,
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -286,9 +417,21 @@ class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  event.type,
+                  event.eventType,
                   style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                 ),
+                if (event.description != null && event.description!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      currentLanguage == 'bn'
+                          ? (event.descriptionBn ?? event.description!)
+                          : event.description!,
+                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
               ],
             ),
           ),
@@ -297,7 +440,7 @@ class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
     );
   }
 
-  Widget _buildLegendSection() {
+  Widget _buildLegendSection(String currentLanguage) {
     return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(20),
@@ -315,29 +458,28 @@ class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Legend',
-            style: TextStyle(
+          Text(
+            currentLanguage == 'bn' ? 'লেজেন্ড' : 'Legend',
+            style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
               color: Colors.black87,
             ),
           ),
           const SizedBox(height: 16),
-
           _buildLegendItem(
             color: const Color(0xFF4CAF50),
-            label: 'Waste Collection',
+            label: currentLanguage == 'bn' ? 'বর্জ্য সংগ্রহ' : 'Waste Collection',
           ),
           const SizedBox(height: 8),
           _buildLegendItem(
             color: const Color(0xFFF44336),
-            label: 'Public Holiday',
+            label: currentLanguage == 'bn' ? 'সরকারি ছুটি' : 'Public Holiday',
           ),
           const SizedBox(height: 8),
           _buildLegendItem(
             color: const Color(0xFFFFB74D),
-            label: 'Community Event',
+            label: currentLanguage == 'bn' ? 'কমিউনিটি ইভেন্ট' : 'Community Event',
           ),
         ],
       ),
@@ -361,12 +503,6 @@ class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
     );
   }
 
-  bool _isSameDay(DateTime date1, DateTime date2) {
-    return date1.year == date2.year &&
-        date1.month == date2.month &&
-        date1.day == date2.day;
-  }
-
   Color _getEventColor(EventCategory category) {
     switch (category) {
       case EventCategory.wasteCollection:
@@ -378,19 +514,3 @@ class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
     }
   }
 }
-
-class CalendarEvent {
-  final DateTime date;
-  final String title;
-  final String type;
-  final EventCategory category;
-
-  CalendarEvent({
-    required this.date,
-    required this.title,
-    required this.type,
-    required this.category,
-  });
-}
-
-enum EventCategory { wasteCollection, publicHoliday, communityEvent }

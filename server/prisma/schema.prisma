@@ -24,6 +24,7 @@ model CityCorporation {
   complaintLocations Complaint[]   @relation("ComplaintCityCorporation")
   users      User[]
   zones      Zone[]
+  calendars  Calendar[]
 
   @@index([status])
   @@index([code])
@@ -51,6 +52,7 @@ model Zone {
   users               User[]
   ward_inspectors     ward_inspectors[]
   wards               Ward[]
+  calendars           Calendar[]
   cityCorporation     CityCorporation   @relation(fields: [cityCorporationId], references: [id], onDelete: Cascade)
 
   @@unique([zoneNumber, cityCorporationId])
@@ -75,6 +77,7 @@ model Ward {
   complaintLocations    Complaint[]       @relation("ComplaintWard")
   users                 User[]
   ward_inspectors       ward_inspectors[]
+  calendars             Calendar[]
   zone                  Zone              @relation(fields: [zoneId], references: [id], onDelete: Cascade)
 
   @@unique([wardNumber, cityCorporationId])
@@ -133,6 +136,7 @@ model User {
   assignedZones           UserZone[]               @relation("UserZones")
   createdNotices          Notice[]                 @relation("NoticeCreator")
   noticeInteractions      NoticeInteraction[]
+  createdCalendars        Calendar[]
   cityCorporation         CityCorporation?         @relation(fields: [cityCorporationCode], references: [code])
   ward                    Ward?                    @relation(fields: [wardId], references: [id])
   zone                    Zone?                    @relation(fields: [zoneId], references: [id])
@@ -821,3 +825,54 @@ model OfficerReviewMessage {
   @@map("officer_review_messages")
 }
 
+
+model Calendar {
+  id                 Int              @id @default(autoincrement())
+  title              String
+  titleBn            String?
+  imageUrl           String
+  month              Int
+  year               Int
+  isActive           Boolean          @default(true)
+  cityCorporationId  Int?
+  zoneId             Int?
+  wardId             Int?
+  createdBy          Int
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  
+  cityCorporation    CityCorporation? @relation(fields: [cityCorporationId], references: [id])
+  zone               Zone?            @relation(fields: [zoneId], references: [id])
+  ward               Ward?            @relation(fields: [wardId], references: [id])
+  creator            User             @relation(fields: [createdBy], references: [id])
+  events             CalendarEvent[]
+
+  @@index([cityCorporationId])
+  @@index([zoneId])
+  @@index([wardId])
+  @@index([month, year])
+  @@index([isActive])
+  @@map("calendars")
+}
+
+model CalendarEvent {
+  id             Int      @id @default(autoincrement())
+  calendarId     Int
+  title          String
+  titleBn        String?
+  description    String?  @db.Text
+  descriptionBn  String?  @db.Text
+  eventDate      DateTime
+  eventType      String   @default("general")
+  category       String   @default("communityEvent")
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  calendar       Calendar @relation(fields: [calendarId], references: [id], onDelete: Cascade)
+
+  @@index([calendarId])
+  @@index([eventDate])
+  @@index([isActive])
+  @@map("calendar_events")
+}

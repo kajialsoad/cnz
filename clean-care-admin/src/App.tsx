@@ -42,6 +42,7 @@ const WasteManagementPage = lazy(() => import('./pages/WasteManagement/WasteMana
 const NoticeManagementPage = lazy(() => import('./pages/NoticeManagement/NoticeManagementPage'));
 const GallerySettingsPage = lazy(() => import('./pages/GallerySettings/GallerySettingsPage'));
 const OfficerReviewManagementPage = lazy(() => import('./pages/OfficerReviewManagement'));
+const CalendarManagementPage = lazy(() => import('./pages/CalendarManagement/CalendarManagementPage'));
 
 function App() {
   return (
@@ -289,6 +290,16 @@ function App() {
                             <ProtectedRoute>
                               <RoleBasedRoute allowedRoles={['MASTER_ADMIN']}>
                                 <OfficerReviewManagementPage />
+                              </RoleBasedRoute>
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="/calendar-management"
+                          element={
+                            <ProtectedRoute>
+                              <RoleBasedRoute allowedRoles={['MASTER_ADMIN']}>
+                                <CalendarManagementPage />
                               </RoleBasedRoute>
                             </ProtectedRoute>
                           }

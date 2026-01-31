@@ -122,6 +122,13 @@ const baseMenuItems = [
     roles: ['MASTER_ADMIN'],
   },
   {
+    id: 'calendar-management',
+    label: 'Calendar Management',
+    icon: notificationIcon,
+    path: '/calendar-management',
+    roles: ['MASTER_ADMIN'],
+  },
+  {
     id: 'system-control',
     label: 'Bot Message System Control',
     icon: settingsIcon,
