@@ -52,7 +52,7 @@ export const calendarController = {
                     : undefined,
                 zoneId: req.query.zoneId ? parseInt(req.query.zoneId as string) : undefined,
                 wardId: req.query.wardId ? parseInt(req.query.wardId as string) : undefined,
-                isActive: req.query.isActive === 'true',
+                isActive: req.query.isActive !== undefined ? req.query.isActive === 'true' : undefined,
             };
 
             const calendars = await calendarService.getCalendars(filters);
