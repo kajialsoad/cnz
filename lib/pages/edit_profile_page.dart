@@ -1,4 +1,8 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../config/api_config.dart';
 import '../models/user_model.dart';
@@ -37,8 +41,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
   bool _isLoadingCityCorporations = false;
   bool _isLoadingZones = false;
   bool _isLoadingWards = false;
+  bool _isUploadingImage = false;
 
   final ApiClient _apiClient = SmartApiClient.instance;
+  final ImagePicker _imagePicker = ImagePicker();
+  
+  File? _selectedImageFile;
+  XFile? _selectedXFile; // For web platform preview
+  String? _uploadedAvatarUrl;
 
   @override
   void initState() {
@@ -173,6 +183,140 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
   }
 
+  Future<void> _pickAndUploadImage() async {
+    try {
+      // Show image source selection dialog
+      final ImageSource? source = await showDialog<ImageSource>(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: TranslatedText('Select Image Source'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.camera_alt, color: Color(0xFF4CAF50)),
+                  title: TranslatedText('Camera'),
+                  onTap: () => Navigator.pop(context, ImageSource.camera),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.photo_library, color: Color(0xFF4CAF50)),
+                  title: TranslatedText('Gallery'),
+                  onTap: () => Navigator.pop(context, ImageSource.gallery),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
+      if (source == null) return;
+
+      // Pick image
+      final XFile? pickedFile = await _imagePicker.pickImage(
+        source: source,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 85,
+      );
+
+      if (pickedFile == null) return;
+
+      setState(() {
+        _isUploadingImage = true;
+      });
+
+      // Read image bytes (works on both mobile and web)
+      final imageBytes = await pickedFile.readAsBytes();
+      final fileName = pickedFile.name;
+
+      // Store for preview - handle platform differences
+      setState(() {
+        if (kIsWeb) {
+          _selectedXFile = pickedFile;
+          _selectedImageFile = null;
+        } else {
+          _selectedImageFile = File(pickedFile.path);
+          _selectedXFile = null;
+        }
+      });
+
+      // Upload image using bytes
+      final userRepo = UserRepository(_apiClient);
+      final avatarUrl = await userRepo.uploadAvatar(
+        imageBytes: imageBytes,
+        fileName: fileName,
+      );
+
+      setState(() {
+        _uploadedAvatarUrl = avatarUrl;
+        _isUploadingImage = false;
+      });
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: TranslatedText('Profile picture uploaded successfully! ✓'),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      setState(() {
+        _isUploadingImage = false;
+        _selectedImageFile = null;
+      });
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to upload image: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
+  /// Get avatar image decoration based on platform and state
+  DecorationImage? _getAvatarImage() {
+    // Priority: Selected image > Uploaded URL > User's existing avatar
+    if (kIsWeb && _selectedXFile != null) {
+      // Web platform: use NetworkImage with data URL
+      return DecorationImage(
+        image: NetworkImage(_selectedXFile!.path),
+        fit: BoxFit.cover,
+      );
+    } else if (!kIsWeb && _selectedImageFile != null) {
+      // Mobile platform: use FileImage
+      return DecorationImage(
+        image: FileImage(_selectedImageFile!),
+        fit: BoxFit.cover,
+      );
+    } else if (_uploadedAvatarUrl != null && _uploadedAvatarUrl!.isNotEmpty) {
+      return DecorationImage(
+        image: NetworkImage(_uploadedAvatarUrl!),
+        fit: BoxFit.cover,
+      );
+    } else if (widget.user.avatar != null && widget.user.avatar!.isNotEmpty) {
+      return DecorationImage(
+        image: NetworkImage(widget.user.avatar!),
+        fit: BoxFit.cover,
+      );
+    }
+    return null;
+  }
+
+  /// Check if initials should be shown
+  bool _shouldShowInitials() {
+    return _selectedImageFile == null &&
+        _selectedXFile == null &&
+        (_uploadedAvatarUrl == null || _uploadedAvatarUrl!.isEmpty) &&
+        (widget.user.avatar == null || widget.user.avatar!.isEmpty);
+  }
+
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -209,6 +353,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
         wardId: _selectedWardId,
         cityCorporationCode: cityCorporationCode,
         address: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
+        avatar: _uploadedAvatarUrl, // Include uploaded avatar URL
       );
 
       if (!mounted) return;
@@ -317,14 +462,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       decoration: BoxDecoration(
                         color: const Color(0xFF4CAF50),
                         shape: BoxShape.circle,
-                        image: widget.user.avatar != null && widget.user.avatar!.isNotEmpty
-                            ? DecorationImage(
-                                image: NetworkImage(widget.user.avatar!),
-                                fit: BoxFit.cover,
-                              )
-                            : null,
+                        image: _getAvatarImage(),
                       ),
-                      child: widget.user.avatar == null || widget.user.avatar!.isEmpty
+                      child: _shouldShowInitials()
                           ? Center(
                               child: Text(
                                 widget.user.initials,
@@ -337,20 +477,37 @@ class _EditProfilePageState extends State<EditProfilePage> {
                             )
                           : null,
                     ),
+                    if (_isUploadingImage)
+                      Positioned.fill(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.5),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Center(
+                            child: CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          ),
+                        ),
+                      ),
                     Positioned(
                       right: 0,
                       bottom: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: const Color(0xFF4CAF50), width: 2),
-                        ),
-                        child: const Icon(
-                          Icons.camera_alt,
-                          size: 20,
-                          color: Color(0xFF4CAF50),
+                      child: GestureDetector(
+                        onTap: _isUploadingImage ? null : _pickAndUploadImage,
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: const Color(0xFF4CAF50), width: 2),
+                          ),
+                          child: const Icon(
+                            Icons.camera_alt,
+                            size: 20,
+                            color: Color(0xFF4CAF50),
+                          ),
                         ),
                       ),
                     ),
@@ -360,14 +517,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
               const SizedBox(height: 8),
               Center(
                 child: TextButton(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: TranslatedText('Profile picture upload coming soon!'),
-                        backgroundColor: const Color(0xFF4CAF50),
-                      ),
-                    );
-                  },
+                  onPressed: _isUploadingImage ? null : _pickAndUploadImage,
                   child: TranslatedText(
                     'Change Profile Picture',
                     style: const TextStyle(

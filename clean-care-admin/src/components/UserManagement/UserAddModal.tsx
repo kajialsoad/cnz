@@ -13,6 +13,7 @@ import {
     CircularProgress,
     Alert,
     InputAdornment,
+    Avatar,
 } from '@mui/material';
 import {
     Close as CloseIcon,
@@ -47,6 +48,7 @@ interface FormData {
     zoneId: string;
     wardId: string;
     role: UserRole;
+    avatar: string;
 }
 
 interface FormErrors {
@@ -59,6 +61,7 @@ interface FormErrors {
     cityCorporationCode?: string;
     wardId?: string;
     zoneId?: string;
+    avatar?: string;
 }
 
 const UserAddModal: React.FC<UserAddModalProps> = ({
@@ -78,6 +81,7 @@ const UserAddModal: React.FC<UserAddModalProps> = ({
         zoneId: '',
         wardId: '',
         role: 'CUSTOMER' as UserRole,
+        avatar: '',
     });
 
     const [errors, setErrors] = useState<FormErrors>({});
@@ -93,6 +97,11 @@ const UserAddModal: React.FC<UserAddModalProps> = ({
     const [cityCorporationsLoading, setCityCorporationsLoading] = useState(false);
     const [zonesLoading, setZonesLoading] = useState(false);
     const [wardsLoading, setWardsLoading] = useState(false);
+
+    // Avatar upload state
+    const [avatarFile, setAvatarFile] = useState<File | null>(null);
+    const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+    const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
     // Fetch city corporations on mount
     useEffect(() => {
@@ -284,6 +293,41 @@ const UserAddModal: React.FC<UserAddModalProps> = ({
         }
     };
 
+    const handleAvatarChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+            setErrors(prev => ({ ...prev, avatar: 'Please select an image file' }));
+            return;
+        }
+
+        // Validate file size (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            setErrors(prev => ({ ...prev, avatar: 'Image size must be less than 5MB' }));
+            return;
+        }
+
+        setAvatarFile(file);
+
+        // Create preview
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setAvatarPreview(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+
+        // Clear error
+        setErrors(prev => ({ ...prev, avatar: undefined }));
+    };
+
+    const handleRemoveAvatar = () => {
+        setAvatarFile(null);
+        setAvatarPreview(null);
+        setFormData(prev => ({ ...prev, avatar: '' }));
+    };
+
     const handleSubmit = async () => {
         if (!validateForm()) {
             return;
@@ -293,6 +337,24 @@ const UserAddModal: React.FC<UserAddModalProps> = ({
         setSubmitError(null);
 
         try {
+            // Upload avatar if file is selected
+            let avatarUrl = '';
+            if (avatarFile) {
+                setUploadingAvatar(true);
+                try {
+                    const { userManagementService } = await import('../../services/userManagementService');
+                    avatarUrl = await userManagementService.uploadAvatar(avatarFile);
+                } catch (uploadError: any) {
+                    console.error('Error uploading avatar:', uploadError);
+                    setSubmitError('Failed to upload avatar. Please try again.');
+                    setLoading(false);
+                    setUploadingAvatar(false);
+                    return;
+                } finally {
+                    setUploadingAvatar(false);
+                }
+            }
+
             // Prepare create data
             const createData: CreateUserDto = {
                 firstName: formData.firstName,
@@ -308,6 +370,9 @@ const UserAddModal: React.FC<UserAddModalProps> = ({
             }
             if (formData.cityCorporationCode) {
                 createData.cityCorporationCode = formData.cityCorporationCode;
+            }
+            if (avatarUrl) {
+                createData.avatar = avatarUrl;
             }
             if (formData.zoneId) {
                 createData.zoneId = parseInt(formData.zoneId);
@@ -330,7 +395,10 @@ const UserAddModal: React.FC<UserAddModalProps> = ({
                 zoneId: '',
                 wardId: '',
                 role: 'CUSTOMER' as UserRole,
+                avatar: '',
             });
+            setAvatarFile(null);
+            setAvatarPreview(null);
 
             onClose();
         } catch (error: any) {
@@ -359,9 +427,12 @@ const UserAddModal: React.FC<UserAddModalProps> = ({
                 zoneId: '',
                 wardId: '',
                 role: 'CUSTOMER' as UserRole,
+                avatar: '',
             });
             setErrors({});
             setSubmitError(null);
+            setAvatarFile(null);
+            setAvatarPreview(null);
             onClose();
         }
     };
@@ -402,6 +473,87 @@ const UserAddModal: React.FC<UserAddModalProps> = ({
                 )}
 
                 <Box>
+                    {/* Profile Picture Section */}
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
+                        Profile Picture (Optional)
+                    </Typography>
+
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, mb: 3 }}>
+                        {/* Avatar Preview */}
+                        <Box sx={{ position: 'relative' }}>
+                            <Avatar
+                                src={avatarPreview || undefined}
+                                sx={{
+                                    width: 100,
+                                    height: 100,
+                                    bgcolor: '#4CAF50',
+                                    fontSize: 36,
+                                    fontWeight: 'bold',
+                                }}
+                            >
+                                {!avatarPreview && formData.firstName?.[0]}{!avatarPreview && formData.lastName?.[0]}
+                            </Avatar>
+                            {uploadingAvatar && (
+                                <Box
+                                    sx={{
+                                        position: 'absolute',
+                                        top: 0,
+                                        left: 0,
+                                        right: 0,
+                                        bottom: 0,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        bgcolor: 'rgba(0,0,0,0.5)',
+                                        borderRadius: '50%',
+                                    }}
+                                >
+                                    <CircularProgress size={40} sx={{ color: 'white' }} />
+                                </Box>
+                            )}
+                        </Box>
+
+                        {/* Upload Controls */}
+                        <Box sx={{ flex: 1 }}>
+                            <input
+                                accept="image/*"
+                                style={{ display: 'none' }}
+                                id="avatar-upload-add"
+                                type="file"
+                                onChange={handleAvatarChange}
+                                disabled={loading || uploadingAvatar}
+                            />
+                            <label htmlFor="avatar-upload-add">
+                                <Button
+                                    variant="outlined"
+                                    component="span"
+                                    disabled={loading || uploadingAvatar}
+                                    sx={{ mr: 1 }}
+                                >
+                                    Upload Photo
+                                </Button>
+                            </label>
+                            {avatarPreview && (
+                                <Button
+                                    variant="text"
+                                    color="error"
+                                    onClick={handleRemoveAvatar}
+                                    disabled={loading || uploadingAvatar}
+                                >
+                                    Remove
+                                </Button>
+                            )}
+                            <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 1 }}>
+                                Recommended: Square image, max 5MB
+                            </Typography>
+                            {errors.avatar && (
+                                <Typography variant="caption" color="error" display="block" sx={{ mt: 0.5 }}>
+                                    {errors.avatar}
+                                </Typography>
+                            )}
+                        </Box>
+                    </Box>
+
                     {/* Personal Information */}
                     <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
                         Personal Information
