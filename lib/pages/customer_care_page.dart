@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../components/custom_bottom_nav.dart';
 import '../widgets/translated_text.dart';
@@ -33,6 +34,8 @@ class _CustomerCarePageState extends State<CustomerCarePage> {
                   _buildFAQSection(),
                   const SizedBox(height: 16),
                   _buildContactInfo(),
+                  const SizedBox(height: 16),
+                  _buildDsccInfoBox(),
                   const SizedBox(height: 80), // Space for bottom nav
                 ],
               ),
@@ -290,10 +293,46 @@ class _CustomerCarePageState extends State<CustomerCarePage> {
 
   Widget _buildFAQSection() {
     final faqs = [
-      'How do I report a waste collection issue?',
-      'When is the waste collection in my area?',
-      'How can I track my complaint?',
-      'What payment methods are accepted?',
+      {
+        'question': 'How can I report a waste-related problem or file a complaint?',
+        'questionBn': 'আমি কিভাবে বর্জ্য সংক্রান্ত কোনো সমস্যার রিপোর্ট বা অভিযোগ জানাতে পারি?',
+        'answer':
+            'Reporting an issue on the Clean Care app is very simple. You can register your complaint in three different ways:\n\nApp\'s Complaint Option: Directly submit your issue through the \'Report\' or \'Complaint\' section within the app.\n\nCustomer Care Call: Call our hotline to speak directly with a representative and register your complaint.\n\nLive Chat: Connect with our support team instantly through the app\'s Live Chat feature for immediate assistance.',
+        'answerBn':
+            'Clean Care অ্যাপে অভিযোগ জানানো অত্যন্ত সহজ। আপনি তিনটি ভিন্ন উপায়ে আপনার অভিযোগটি নথিভুক্ত করতে পারেন:\n\nঅ্যাপের অভিযোগ অপশন: সরাসরি অ্যাপের ভেতরে \'Report\' বা \'অভিযোগ\' সেকশনে গিয়ে আপনার সমস্যাটি জমা দিতে পারেন।\n\nকাস্টমার কেয়ার কল: আমাদের হটলাইন নম্বরে কল করে সরাসরি প্রতিনিধির সাথে কথা বলে অভিযোগ করতে পারেন।\n\nলাইভ চ্যাট: তাৎক্ষণিক সাহায্যের জন্য অ্যাপের লাইভ চ্যাট ফিচারের মাধ্যমে আমাদের সাপোর্ট টিমের সাথে যোগাযোগ করতে পারেন।'
+      },
+      {
+        'question': 'How do I check the current status of my submitted complaint?',
+        'questionBn': 'জমা দেওয়া অভিযোগের বর্তমান অবস্থা বা \'স্ট্যাটাস\' কিভাবে চেক করব?',
+        'answer':
+            'To track the progress of your complaint, go to the \'All Complaints\' section of the app. There, you can view the detailed status of each complaint (e.g., Pending, In Progress, or Resolved).',
+        'answerBn':
+            'আপনার অভিযোগটি এখন কোন পর্যায়ে আছে তা জানতে অ্যাপের \'সকল অভিযোগ\' (All Complaints) সেকশনে যান। সেখানে আপনার প্রতিটি অভিযোগের বর্তমান অবস্থা (যেমন: পেন্ডিং, প্রসেসিং বা সমাধানকৃত) বিস্তারিতভাবে দেখতে পাবেন।'
+      },
+      {
+        'question': 'Will I receive updates after filing a complaint?',
+        'questionBn': 'অভিযোগ করার পর আমি কি কোনো আপডেট পাব?',
+        'answer':
+            'Yes, absolutely. We follow an automated update system. You will be notified of every stage—from the acceptance of your complaint to its final resolution—via push notifications. We recommend keeping your app\'s notification settings enabled.',
+        'answerBn':
+            'হ্যাঁ, অবশ্যই। আমরা একটি অটোমেটেড আপডেট সিস্টেম অনুসরণ করি। আপনার অভিযোগটি গ্রহণ করা থেকে শুরু করে সমাধান হওয়া পর্যন্ত প্রতিটি ধাপে আপনাকে পুশ নোটিফিকেশনের মাধ্যমে স্বয়ংক্রিয়ভাবে আপডেট জানানো হবে। তাই অ্যাপের নোটিফিকেশন সেটিংস সচল রাখার পরামর্শ দেওয়া হচ্ছে।'
+      },
+      {
+        'question': 'What is the purpose of a \'Complaint ID\'?',
+        'questionBn': '\'অভিযোগ আইডি\' বা কমপ্লেইন্ট আইডি-র কাজ কী?',
+        'answer':
+            'After submitting a complaint, the system provides you with a unique Complaint Number or ID. This ID serves as your reference. If you contact Customer Care or Live Chat later, providing this ID will help our representatives quickly track and update you on your specific issue.',
+        'answerBn':
+            'প্রতিটি অভিযোগ জমা দেওয়ার পর সিস্টেম থেকে আপনাকে একটি ইউনিক অভিযোগ নাম্বার বা আইডি প্রদান করা হয়। এই আইডিটি আপনার রেফারেন্স হিসেবে কাজ করে। পরবর্তীতে কাস্টমার কেয়ারে কল করলে বা লাইভ চ্যাটে কথা বললে এই আইডিটি প্রদান করলে আমাদের প্রতিনিধিরা দ্রুত আপনার সমস্যার আপডেট দিতে পারবেন।'
+      },
+      {
+        'question': 'How quickly will my complaint be resolved?',
+        'questionBn': 'অভিযোগ জানানোর পর কত দ্রুত সমাধান পাওয়া যাবে?',
+        'answer':
+            'The Clean Care team is committed to providing service in the shortest possible time. Once a complaint is received, it is immediately forwarded to the team responsible for that specific area. As soon as the team starts working, your complaint status will be updated in real-time within the app.\n\nThank you for staying with Clean Care to keep your city clean!',
+        'answerBn':
+            'Clean Care টিম দ্রুততম সময়ে সেবা প্রদানে বদ্ধপরিকর। অভিযোগ পাওয়ার সাথে সাথেই সংশ্লিষ্ট এলাকার দায়িত্বপ্রাপ্ত টিমকে জানানো হয়। টিম কাজ শুরু করার সাথে সাথে আপনার অ্যাপের স্ট্যাটাস পরিবর্তিত হবে, যা আপনি সরাসরি দেখতে পাবেন।\n\nআপনার শহরকে পরিচ্ছন্ন রাখতে Clean Care-এর সাথে থাকার জন্য ধন্যবাদ!'
+      },
     ];
 
     return Column(
@@ -324,12 +363,19 @@ class _CustomerCarePageState extends State<CustomerCarePage> {
             ),
           ],
         ),
+        const SizedBox(height: 12),
+        const TranslatedText(
+          'Review the following Q&A to ensure a smooth experience and quick resolution to any issues:',
+          bn: 'আপনার যেকোনো সমস্যার দ্রুত সমাধান এবং অ্যাপের সঠিক ব্যবহার নিশ্চিত করতে নিচের প্রশ্নোত্তরগুলো দেখুন:',
+          style: TextStyle(
+            fontSize: 14,
+            color: Colors.black54,
+          ),
+        ),
         const SizedBox(height: 16),
         ...faqs.map((faq) {
           return Container(
-            width: double.infinity,
-            margin: const EdgeInsets.only(bottom: 4),
-            padding: const EdgeInsets.all(16),
+            margin: const EdgeInsets.only(bottom: 8),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(8),
@@ -341,20 +387,33 @@ class _CustomerCarePageState extends State<CustomerCarePage> {
                 ),
               ],
             ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TranslatedText(
-                    faq,
-                    style: const TextStyle(fontSize: 14, color: Colors.black87),
+            child: Theme(
+              data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+              child: ExpansionTile(
+                title: TranslatedText(
+                  faq['question']!,
+                  bn: faq['questionBn'],
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.black87,
                   ),
                 ),
-                const Icon(
-                  Icons.keyboard_arrow_down,
-                  color: Colors.grey,
-                  size: 20,
-                ),
-              ],
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    child: TranslatedText(
+                      faq['answer']!,
+                      bn: faq['answerBn'],
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.black54,
+                        height: 1.5,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           );
         }),
@@ -382,7 +441,7 @@ class _CustomerCarePageState extends State<CustomerCarePage> {
             ),
           ),
           const SizedBox(height: 16),
-          _buildContactItem('📧', 'Email: info@dscc.gov.bd'),
+          _buildContactItem('📧', 'Email:clncrspprt@gmail.com'),
           const SizedBox(height: 12),
           _buildContactItem('📍', 'Address: Nagar Bhaban, Fulbaria, Dhaka'),
           const SizedBox(height: 12),
@@ -404,6 +463,152 @@ class _CustomerCarePageState extends State<CustomerCarePage> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildDsccInfoBox() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0xFFE6FFFA),
+            const Color(0xFFE6FFFA).withOpacity(0.8),
+          ],
+        ),
+        boxShadow: [
+          // Main shadow
+          BoxShadow(
+            color: const Color(0xFF38A169).withOpacity(0.15),
+            offset: const Offset(0, 8),
+            blurRadius: 25,
+            spreadRadius: 0,
+          ),
+          // Inner highlight
+          BoxShadow(
+            color: Colors.white.withOpacity(0.8),
+            offset: const Offset(0, -2),
+            blurRadius: 10,
+            spreadRadius: -2,
+          ),
+        ],
+        border: Border.all(
+          color: const Color(0xFF38A169).withOpacity(0.3),
+          width: 1.5,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      const Color(0xFF38A169).withOpacity(0.15),
+                      const Color(0xFF38A169).withOpacity(0.05),
+                    ],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF38A169).withOpacity(0.2),
+                      offset: const Offset(2, 2),
+                      blurRadius: 8,
+                      spreadRadius: -2,
+                    ),
+                    BoxShadow(
+                      color: Colors.white.withOpacity(0.8),
+                      offset: const Offset(-1, -1),
+                      blurRadius: 6,
+                      spreadRadius: -2,
+                    ),
+                  ],
+                  border: Border.all(
+                    color: const Color(0xFF38A169).withOpacity(0.3),
+                    width: 1,
+                  ),
+                ),
+                child: const Icon(
+                  Icons.info_outline,
+                  color: Color(0xFF38A169),
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TranslatedText(
+                  'When to Call Clean Care Customer Care',
+                  bn: 'কখন Clean Care এর কাস্টমার কেয়ারে কল করবেন',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF38A169),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _buildInfoItem('Illegal waste dumping in progress'),
+          _buildInfoItem('Hazardous waste spillage'),
+          _buildInfoItem('Blocked drainage causing flooding'),
+          _buildInfoItem('Dead animal removal'),
+          _buildInfoItem('Environmental hazards'),
+        ],
+      ),
+    ).animate(delay: 1000.ms)
+        .fadeIn(duration: 1000.ms)
+        .slideY(
+          begin: 0.4,
+          duration: 700.ms,
+          curve: Curves.easeOutBack,
+        )
+        .scale(
+          begin: const Offset(0.9, 0.9),
+          duration: 600.ms,
+          curve: Curves.easeOutBack,
+        )
+        .shimmer(
+          duration: 2000.ms,
+          color: const Color(0xFF38A169).withOpacity(0.1),
+        );
+  }
+
+  Widget _buildInfoItem(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '• ',
+            style: const TextStyle(
+              fontSize: 14,
+              color: Color(0xFF2D3748),
+              height: 1.4,
+            ),
+          ),
+          Expanded(
+            child: TranslatedText(
+              text,
+              style: const TextStyle(
+                fontSize: 14,
+                color: Color(0xFF2D3748),
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

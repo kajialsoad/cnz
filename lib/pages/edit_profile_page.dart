@@ -89,10 +89,57 @@ class _EditProfilePageState extends State<EditProfilePage> {
       if (!mounted) return;
 
       if (response['success'] == true && response['cityCorporations'] != null) {
-        setState(() {
-          _cityCorporations = List<Map<String, dynamic>>.from(
-            response['cityCorporations'] as List
+        final loadedCityCorps = List<Map<String, dynamic>>.from(
+          response['cityCorporations'] as List
+        );
+
+        // Ensure selected ID actually exists in the list
+        if (_selectedCityCorporationId != null) {
+          final exists = loadedCityCorps.any((cc) => cc['id'] == _selectedCityCorporationId);
+          if (!exists) {
+            _selectedCityCorporationId = null;
+          }
+        }
+
+        // Try to match city corporation if not already selected
+        if (_selectedCityCorporationId == null && widget.user.cityCorporation != null) {
+          final userCC = widget.user.cityCorporation!;
+          
+          // Try matching by ID first (if it wasn't caught in initState)
+          var match = loadedCityCorps.firstWhere(
+            (cc) => cc['id'] == userCC['id'],
+            orElse: () => <String, dynamic>{},
           );
+          
+          // If no ID match, try matching by code
+          if (match.isEmpty && userCC['code'] != null) {
+            match = loadedCityCorps.firstWhere(
+              (cc) => cc['code'] == userCC['code'],
+              orElse: () => <String, dynamic>{},
+            );
+          }
+          
+          // If still no match, try matching by name (English or Bangla)
+          if (match.isEmpty) {
+            final name = userCC['name'] as String?;
+            final nameBangla = userCC['nameBangla'] as String?;
+            
+            if (name != null || nameBangla != null) {
+              match = loadedCityCorps.firstWhere(
+                (cc) => (name != null && cc['name'] == name) || 
+                       (nameBangla != null && cc['nameBangla'] == nameBangla),
+                orElse: () => <String, dynamic>{},
+              );
+            }
+          }
+
+          if (match.isNotEmpty) {
+            _selectedCityCorporationId = match['id'] as int?;
+          }
+        }
+
+        setState(() {
+          _cityCorporations = loadedCityCorps;
           _isLoadingCityCorporations = false;
         });
         
@@ -130,8 +177,46 @@ class _EditProfilePageState extends State<EditProfilePage> {
       if (!mounted) return;
 
       if (response['success'] == true && response['data'] != null) {
+        final loadedZones = List<Map<String, dynamic>>.from(response['data'] as List);
+        
+        // Ensure selected ID actually exists in the list
+        if (_selectedZoneId != null) {
+          final exists = loadedZones.any((z) => z['id'] == _selectedZoneId);
+          if (!exists) {
+            _selectedZoneId = null;
+          }
+        }
+
+        // Try to match zone if not already selected
+        if (_selectedZoneId == null && (widget.user.zoneData != null || widget.user.zoneId != null)) {
+          // Try matching by ID first
+          var match = loadedZones.firstWhere(
+            (z) => z['id'] == (widget.user.zoneId ?? widget.user.zoneData?['id']),
+            orElse: () => <String, dynamic>{},
+          );
+          
+          // If no ID match, try matching by name or zone number
+          if (match.isEmpty && widget.user.zoneData != null) {
+            final userZone = widget.user.zoneData!;
+            final name = userZone['name'] as String?;
+            final zoneNumber = userZone['zoneNumber'];
+            
+            if (name != null || zoneNumber != null) {
+              match = loadedZones.firstWhere(
+                (z) => (name != null && z['name'] == name) || 
+                       (zoneNumber != null && z['zoneNumber'] == zoneNumber),
+                orElse: () => <String, dynamic>{},
+              );
+            }
+          }
+          
+          if (match.isNotEmpty) {
+            _selectedZoneId = match['id'] as int?;
+          }
+        }
+
         setState(() {
-          _zones = List<Map<String, dynamic>>.from(response['data'] as List);
+          _zones = loadedZones;
           _isLoadingZones = false;
         });
         
@@ -165,8 +250,46 @@ class _EditProfilePageState extends State<EditProfilePage> {
       if (!mounted) return;
 
       if (response['success'] == true && response['data'] != null) {
+        final loadedWards = List<Map<String, dynamic>>.from(response['data'] as List);
+        
+        // Try to match ward if not already selected
+        if (_selectedWardId == null && (widget.user.wardData != null || widget.user.wardId != null)) {
+          // Try matching by ID first
+          var match = loadedWards.firstWhere(
+            (w) => w['id'] == (widget.user.wardId ?? widget.user.wardData?['id']),
+            orElse: () => <String, dynamic>{},
+          );
+          
+          // If no ID match, try matching by ward number or name
+          if (match.isEmpty && widget.user.wardData != null) {
+            final userWard = widget.user.wardData!;
+            final name = userWard['name'] as String?;
+            final wardNumber = userWard['wardNumber'];
+            
+            if (name != null || wardNumber != null) {
+              match = loadedWards.firstWhere(
+                (w) => (name != null && w['name'] == name) || 
+                       (wardNumber != null && w['wardNumber'] == wardNumber),
+                orElse: () => <String, dynamic>{},
+              );
+            }
+          }
+          
+          if (match.isNotEmpty) {
+            _selectedWardId = match['id'] as int?;
+          }
+        }
+        
+        // Ensure selected ID actually exists in the list
+        if (_selectedWardId != null) {
+          final exists = loadedWards.any((w) => w['id'] == _selectedWardId);
+          if (!exists) {
+            _selectedWardId = null;
+          }
+        }
+
         setState(() {
-          _wards = List<Map<String, dynamic>>.from(response['data'] as List);
+          _wards = loadedWards;
           _isLoadingWards = false;
         });
       }

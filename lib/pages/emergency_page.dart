@@ -100,15 +100,13 @@ class _EmergencyPageState extends State<EmergencyPage>
                     const SizedBox(height: 16),
                     _buildEmergencyCard(
                       title: 'DSCC Emergency',
-                      subtitle: 'Waste emergency & city services',
+                      subtitle: '',
                       phoneNumber: '16106',
                       color: const Color(0xFFE53E3E),
                       icon: Icons.warning,
                       delay: 600,
                     ),
                     const SizedBox(height: 24),
-                    _buildDsccInfoBox(),
-                    const SizedBox(height: 20),
                   ],
                 ),
               ),
@@ -430,148 +428,4 @@ class _EmergencyPageState extends State<EmergencyPage>
         );
   }
 
-  Widget _buildDsccInfoBox() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            const Color(0xFFE6FFFA),
-            const Color(0xFFE6FFFA).withOpacity(0.8),
-          ],
-        ),
-        boxShadow: [
-          // Main shadow
-          BoxShadow(
-            color: const Color(0xFF38A169).withOpacity(0.15),
-            offset: const Offset(0, 8),
-            blurRadius: 25,
-            spreadRadius: 0,
-          ),
-          // Inner highlight
-          BoxShadow(
-            color: Colors.white.withOpacity(0.8),
-            offset: const Offset(0, -2),
-            blurRadius: 10,
-            spreadRadius: -2,
-          ),
-        ],
-        border: Border.all(
-          color: const Color(0xFF38A169).withOpacity(0.3),
-          width: 1.5,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      const Color(0xFF38A169).withOpacity(0.15),
-                      const Color(0xFF38A169).withOpacity(0.05),
-                    ],
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF38A169).withOpacity(0.2),
-                      offset: const Offset(2, 2),
-                      blurRadius: 8,
-                      spreadRadius: -2,
-                    ),
-                    BoxShadow(
-                      color: Colors.white.withOpacity(0.8),
-                      offset: const Offset(-1, -1),
-                      blurRadius: 6,
-                      spreadRadius: -2,
-                    ),
-                  ],
-                  border: Border.all(
-                    color: const Color(0xFF38A169).withOpacity(0.3),
-                    width: 1,
-                  ),
-                ),
-                child: const Icon(
-                  Icons.info_outline,
-                  color: Color(0xFF38A169),
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: TranslatedText(
-                  'When to Call DSCC Emergency',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF38A169),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _buildInfoItem('Illegal waste dumping in progress'),
-          _buildInfoItem('Hazardous waste spillage'),
-          _buildInfoItem('Blocked drainage causing flooding'),
-          _buildInfoItem('Dead animal removal'),
-          _buildInfoItem('Environmental hazards'),
-        ],
-      ),
-    ).animate(delay: 1000.ms)
-        .fadeIn(duration: 1000.ms)
-        .slideY(
-          begin: 0.4,
-          duration: 700.ms,
-          curve: Curves.easeOutBack,
-        )
-        .scale(
-          begin: const Offset(0.9, 0.9),
-          duration: 600.ms,
-          curve: Curves.easeOutBack,
-        )
-        .shimmer(
-          duration: 2000.ms,
-          color: const Color(0xFF38A169).withOpacity(0.1),
-        );
-  }
-
-  Widget _buildInfoItem(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '• ',
-            style: const TextStyle(
-              fontSize: 14,
-              color: Color(0xFF2D3748),
-              height: 1.4,
-            ),
-          ),
-          Expanded(
-            child: TranslatedText(
-              text,
-              style: const TextStyle(
-                fontSize: 14,
-                color: Color(0xFF2D3748),
-                height: 1.4,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
