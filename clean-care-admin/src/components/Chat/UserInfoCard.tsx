@@ -334,3 +334,5 @@ const UserInfoCard: React.FC<UserInfoCardProps> = ({ user, compact = false }) =>
 };
 
 export default UserInfoCard;
+
+

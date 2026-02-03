@@ -1558,3 +1558,4 @@ const AllComplaints: React.FC = () => {
 };
 
 export default AllComplaints;
+

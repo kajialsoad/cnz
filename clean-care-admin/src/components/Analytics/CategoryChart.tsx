@@ -236,3 +236,5 @@ const CategoryChart: React.FC<CategoryChartProps> = ({ startDate, endDate, zoneI
 };
 
 export default CategoryChart;
+
+

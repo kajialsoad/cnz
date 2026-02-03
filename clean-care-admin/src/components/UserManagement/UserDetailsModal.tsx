@@ -161,7 +161,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                 },
             }}
         >
-            <DialogTitle sx={{ pb: { xs: 1.5, sm: 2 } }}>
+            <DialogTitle component="div" sx={{ pb: { xs: 1.5, sm: 2 } }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Typography
                         variant="h5"
@@ -756,3 +756,5 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
 };
 
 export default UserDetailsModal;
+
+

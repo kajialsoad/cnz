@@ -115,6 +115,12 @@ const AdminManagement: React.FC = () => {
   // Get auth context
   const { user, isAuthenticated } = useAuth();
 
+  // Debug: Log user role
+  console.log('🔐 Admin Management Access Check:', {
+    role: user?.role,
+    canAddAdmin: user?.role === 'MASTER_ADMIN'
+  });
+
   // State
   const [admins, setAdmins] = useState<UserWithStats[]>([]);
   const [loading, setLoading] = useState(true);
@@ -479,7 +485,7 @@ const AdminManagement: React.FC = () => {
                   loading={statsLoading}
                 />
               </Grid>
-              <Grid item xs={12} md={2}>
+              <Grid size={{ xs: 12, md: 2 }}>
                 <StatCard
                   title="অফলাইন"
                   value={stats.offline}
@@ -488,7 +494,7 @@ const AdminManagement: React.FC = () => {
                   loading={statsLoading}
                 />
               </Grid>
-              <Grid item xs={12} md={2}>
+              <Grid size={{ xs: 12, md: 2 }}>
                 <StatCard
                   title="আজ নতুন"
                   value={`+${stats.newToday}`}
@@ -563,14 +569,17 @@ const AdminManagement: React.FC = () => {
               sx={{ maxWidth: 500 }}
             />
 
-            <Button
-              variant="contained"
-              sx={{ bgcolor: '#3fa564' }}
-              startIcon={<AddIcon />}
-              onClick={() => setOpenAdd(true)}
-            >
-              নতুন এডমিন যোগ করুন
-            </Button>
+            {/* Only MASTER_ADMIN can add new admins */}
+            {user?.role === 'MASTER_ADMIN' && (
+              <Button
+                variant="contained"
+                sx={{ bgcolor: '#3fa564' }}
+                startIcon={<AddIcon />}
+                onClick={() => setOpenAdd(true)}
+              >
+                নতুন এডমিন যোগ করুন
+              </Button>
+            )}
           </CardContent>
         </Card>
 
@@ -590,29 +599,29 @@ const AdminManagement: React.FC = () => {
           </Box>
           <Box sx={{ bgcolor: '#f9fafb', borderBottom: '1px solid #e5e7eb', px: 3, py: 1.5 }}>
             <Grid container alignItems="center">
-              <Grid item xs={1} sx={{ maxWidth: '50px', flexBasis: '50px' }}>
+              <Grid size={{ xs: 1 }} sx={{ maxWidth: '50px', flexBasis: '50px' }}>
                 <Checkbox
                   indeterminate={selectedIds.length > 0 && selectedIds.length < admins.length}
                   checked={admins.length > 0 && selectedIds.length === admins.length}
                   onChange={handleSelectAll}
                 />
               </Grid>
-              <Grid item xs={2.5}>
+              <Grid size={{ xs: 2.5 }}>
                 <Typography sx={{ color: '#364153', fontWeight: 700, fontSize: 14 }}>
                   এডমিন
                 </Typography>
               </Grid>
-              <Grid item xs={3}>
+              <Grid size={{ xs: 3 }}>
                 <Typography sx={{ color: '#364153', fontWeight: 700, fontSize: 14 }}>
                   এলাকা
                 </Typography>
               </Grid>
-              <Grid item xs={2}>
+              <Grid size={{ xs: 2 }}>
                 <Typography sx={{ color: '#364153', fontWeight: 700, fontSize: 14 }}>
                   স্ট্যাটাস
                 </Typography>
               </Grid>
-              <Grid item xs={3.5}>
+              <Grid size={{ xs: 3.5 }}>
                 <Typography sx={{ color: '#364153', fontWeight: 700, fontSize: 14 }}>
                   অভিযোগ পরিসংখ্যান
                 </Typography>
@@ -848,7 +857,7 @@ const AdminManagement: React.FC = () => {
 
         {/* Delete Confirmation Dialog */}
         <Dialog open={openDelete} onClose={() => setOpenDelete(false)} maxWidth="sm" fullWidth>
-          <DialogTitle>
+          <DialogTitle component="div">
             <Typography sx={{ fontWeight: 700 }}>এডমিন মুছে ফেলুন</Typography>
           </DialogTitle>
           <DialogContent>
@@ -871,3 +880,5 @@ const AdminManagement: React.FC = () => {
 };
 
 export default AdminManagement;
+
+

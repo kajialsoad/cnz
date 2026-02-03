@@ -61,7 +61,7 @@ const ActivityLogDetailsModal: React.FC<ActivityLogDetailsModalProps> = ({ log, 
             <DialogContent dividers>
                 <Grid container spacing={3}>
                     {/* Basic Information */}
-                    <Grid item xs={12}>
+                    <Grid size={{ xs: 12 }}>
                         <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                             Basic Information
                         </Typography>
@@ -106,14 +106,14 @@ const ActivityLogDetailsModal: React.FC<ActivityLogDetailsModalProps> = ({ log, 
                         </Box>
                     </Grid>
 
-                    <Grid item xs={12}>
+                    <Grid size={{ xs: 12 }}>
                         <Divider />
                     </Grid>
 
                     {/* User Information */}
                     {log.user && (
                         <>
-                            <Grid item xs={12}>
+                            <Grid size={{ xs: 12 }}>
                                 <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                                     Performed By
                                 </Typography>
@@ -147,14 +147,14 @@ const ActivityLogDetailsModal: React.FC<ActivityLogDetailsModalProps> = ({ log, 
                                 </Box>
                             </Grid>
 
-                            <Grid item xs={12}>
+                            <Grid size={{ xs: 12 }}>
                                 <Divider />
                             </Grid>
                         </>
                     )}
 
                     {/* Technical Information */}
-                    <Grid item xs={12}>
+                    <Grid size={{ xs: 12 }}>
                         <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                             Technical Information
                         </Typography>
@@ -186,10 +186,10 @@ const ActivityLogDetailsModal: React.FC<ActivityLogDetailsModalProps> = ({ log, 
                     {/* Old Value */}
                     {log.oldValue && (
                         <>
-                            <Grid item xs={12}>
+                            <Grid size={{ xs: 12 }}>
                                 <Divider />
                             </Grid>
-                            <Grid item xs={12}>
+                            <Grid size={{ xs: 12 }}>
                                 <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                                     Old Value
                                 </Typography>
@@ -203,10 +203,10 @@ const ActivityLogDetailsModal: React.FC<ActivityLogDetailsModalProps> = ({ log, 
                     {/* New Value */}
                     {log.newValue && (
                         <>
-                            <Grid item xs={12}>
+                            <Grid size={{ xs: 12 }}>
                                 <Divider />
                             </Grid>
-                            <Grid item xs={12}>
+                            <Grid size={{ xs: 12 }}>
                                 <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                                     New Value
                                 </Typography>
@@ -227,3 +227,5 @@ const ActivityLogDetailsModal: React.FC<ActivityLogDetailsModalProps> = ({ log, 
 };
 
 export default ActivityLogDetailsModal;
+
+

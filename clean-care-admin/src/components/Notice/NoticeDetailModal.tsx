@@ -214,7 +214,7 @@ const NoticeDetailModal: React.FC<NoticeDetailModalProps> = ({
 
                     {/* Dates */}
                     <Grid container spacing={2}>
-                        <Grid item xs={12} md={6}>
+                        <Grid size={{ xs: 12, md: 6 }}>
                             <Box
                                 sx={{
                                     p: 2,
@@ -233,7 +233,7 @@ const NoticeDetailModal: React.FC<NoticeDetailModalProps> = ({
                             </Box>
                         </Grid>
                         {notice.expiryDate && (
-                            <Grid item xs={12} md={6}>
+                            <Grid size={{ xs: 12, md: 6 }}>
                                 <Box
                                     sx={{
                                         p: 2,
@@ -262,7 +262,7 @@ const NoticeDetailModal: React.FC<NoticeDetailModalProps> = ({
                             Engagement Statistics
                         </Typography>
                         <Grid container spacing={2} sx={{ mt: 1 }}>
-                            <Grid item xs={6} md={3}>
+                            <Grid size={{ xs: 6, md: 3 }}>
                                 <Box
                                     sx={{
                                         p: 2,
@@ -280,7 +280,7 @@ const NoticeDetailModal: React.FC<NoticeDetailModalProps> = ({
                                     </Typography>
                                 </Box>
                             </Grid>
-                            <Grid item xs={6} md={3}>
+                            <Grid size={{ xs: 6, md: 3 }}>
                                 <Box
                                     sx={{
                                         p: 2,
@@ -298,7 +298,7 @@ const NoticeDetailModal: React.FC<NoticeDetailModalProps> = ({
                                     </Typography>
                                 </Box>
                             </Grid>
-                            <Grid item xs={6} md={3}>
+                            <Grid size={{ xs: 6, md: 3 }}>
                                 <Box
                                     sx={{
                                         p: 2,
@@ -316,7 +316,7 @@ const NoticeDetailModal: React.FC<NoticeDetailModalProps> = ({
                                     </Typography>
                                 </Box>
                             </Grid>
-                            <Grid item xs={6} md={3}>
+                            <Grid size={{ xs: 6, md: 3 }}>
                                 <Box
                                     sx={{
                                         p: 2,
@@ -410,3 +410,5 @@ const NoticeDetailModal: React.FC<NoticeDetailModalProps> = ({
 };
 
 export default NoticeDetailModal;
+
+

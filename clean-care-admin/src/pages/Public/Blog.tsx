@@ -73,7 +73,7 @@ const Blog = () => {
             </Typography>
             <Grid container spacing={2} sx={{ mb: 3 }}>
               {['দূষণের কারণ ও প্রভাব', 'সচেতনতার গুরুত্ব', 'নাগরিক করণীয়', 'বাস্তব উদাহরণ ও সমাধান'].map((item, idx) => (
-                <Grid item xs={12} sm={6} md={3} key={idx}>
+                <Grid size={{  xs: 12, sm: 6 , md: 3 }} key={idx}>
                   <Box sx={{ p: 2, bgcolor: '#f1f8e9', borderRadius: 2, textAlign: 'center', color: '#33691e', fontWeight: 'bold' }}>
                     {item}
                   </Box>
@@ -112,7 +112,7 @@ const Blog = () => {
                 img: `${import.meta.env.BASE_URL}community-volunteers.png`
               }
             ].map((post, index) => (
-              <Grid item xs={12} md={4} key={index}>
+              <Grid size={{ xs: 12, md: 4 }} key={index}>
                 <motion.div
                   variants={fadeInUp}
                   whileHover={{ y: -6 }}
@@ -174,3 +174,5 @@ const Blog = () => {
 };
 
 export default Blog;
+
+

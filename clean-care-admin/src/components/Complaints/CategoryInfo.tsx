@@ -211,3 +211,5 @@ const CategoryInfo: React.FC<CategoryInfoProps> = ({
 };
 
 export default CategoryInfo;
+
+

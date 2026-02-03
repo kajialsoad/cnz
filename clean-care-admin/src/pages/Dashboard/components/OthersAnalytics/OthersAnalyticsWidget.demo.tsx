@@ -49,7 +49,7 @@ const OthersAnalyticsWidgetDemo: React.FC = () => {
                     Filter Controls
                 </Typography>
                 <Grid container spacing={2}>
-                    <Grid item xs={12} sm={6} md={3}>
+                    <Grid size={{  xs: 12, sm: 6 , md: 3 }}>
                         <FormControl fullWidth>
                             <InputLabel>City Corporation</InputLabel>
                             <Select
@@ -64,7 +64,7 @@ const OthersAnalyticsWidgetDemo: React.FC = () => {
                         </FormControl>
                     </Grid>
 
-                    <Grid item xs={12} sm={6} md={3}>
+                    <Grid size={{  xs: 12, sm: 6 , md: 3 }}>
                         <FormControl fullWidth>
                             <InputLabel>Zone</InputLabel>
                             <Select
@@ -82,7 +82,7 @@ const OthersAnalyticsWidgetDemo: React.FC = () => {
                         </FormControl>
                     </Grid>
 
-                    <Grid item xs={12} sm={6} md={3}>
+                    <Grid size={{  xs: 12, sm: 6 , md: 3 }}>
                         <TextField
                             fullWidth
                             label="Start Date"
@@ -93,7 +93,7 @@ const OthersAnalyticsWidgetDemo: React.FC = () => {
                         />
                     </Grid>
 
-                    <Grid item xs={12} sm={6} md={3}>
+                    <Grid size={{  xs: 12, sm: 6 , md: 3 }}>
                         <TextField
                             fullWidth
                             label="End Date"
@@ -104,7 +104,7 @@ const OthersAnalyticsWidgetDemo: React.FC = () => {
                         />
                     </Grid>
 
-                    <Grid item xs={12}>
+                    <Grid size={{ xs: 12 }}>
                         <Button variant="outlined" onClick={handleReset}>
                             Reset Filters
                         </Button>
@@ -115,7 +115,7 @@ const OthersAnalyticsWidgetDemo: React.FC = () => {
             {/* Demo Sections */}
             <Grid container spacing={3}>
                 {/* Example 1: Basic Usage */}
-                <Grid item xs={12}>
+                <Grid size={{ xs: 12 }}>
                     <Typography variant="h6" sx={{ mb: 2 }}>
                         1. Basic Usage (No Filters)
                     </Typography>
@@ -125,7 +125,7 @@ const OthersAnalyticsWidgetDemo: React.FC = () => {
                 </Grid>
 
                 {/* Example 2: With City Corporation Filter */}
-                <Grid item xs={12} md={6}>
+                <Grid size={{ xs: 12, md: 6 }}>
                     <Typography variant="h6" sx={{ mb: 2 }}>
                         2. With City Corporation Filter (DSCC)
                     </Typography>
@@ -135,7 +135,7 @@ const OthersAnalyticsWidgetDemo: React.FC = () => {
                 </Grid>
 
                 {/* Example 3: With Zone Filter */}
-                <Grid item xs={12} md={6}>
+                <Grid size={{ xs: 12, md: 6 }}>
                     <Typography variant="h6" sx={{ mb: 2 }}>
                         3. With Zone Filter (Zone 1)
                     </Typography>
@@ -145,7 +145,7 @@ const OthersAnalyticsWidgetDemo: React.FC = () => {
                 </Grid>
 
                 {/* Example 4: With Date Range */}
-                <Grid item xs={12} md={6}>
+                <Grid size={{ xs: 12, md: 6 }}>
                     <Typography variant="h6" sx={{ mb: 2 }}>
                         4. With Date Range (Last 30 Days)
                     </Typography>
@@ -158,7 +158,7 @@ const OthersAnalyticsWidgetDemo: React.FC = () => {
                 </Grid>
 
                 {/* Example 5: With All Filters */}
-                <Grid item xs={12} md={6}>
+                <Grid size={{ xs: 12, md: 6 }}>
                     <Typography variant="h6" sx={{ mb: 2 }}>
                         5. With All Filters (Custom)
                     </Typography>
@@ -173,18 +173,18 @@ const OthersAnalyticsWidgetDemo: React.FC = () => {
                 </Grid>
 
                 {/* Example 6: In Grid Layout */}
-                <Grid item xs={12}>
+                <Grid size={{ xs: 12 }}>
                     <Typography variant="h6" sx={{ mb: 2 }}>
                         6. In Dashboard Grid Layout
                     </Typography>
                     <Grid container spacing={3}>
-                        <Grid item xs={12} md={6} lg={4}>
+                        <Grid size={{  xs: 12, md: 6 , lg: 4 }}>
                             <OthersAnalyticsWidget />
                         </Grid>
-                        <Grid item xs={12} md={6} lg={4}>
+                        <Grid size={{  xs: 12, md: 6 , lg: 4 }}>
                             <OthersAnalyticsWidget cityCorporationCode="DSCC" />
                         </Grid>
-                        <Grid item xs={12} md={6} lg={4}>
+                        <Grid size={{  xs: 12, md: 6 , lg: 4 }}>
                             <OthersAnalyticsWidget cityCorporationCode="DNCC" />
                         </Grid>
                     </Grid>
@@ -246,7 +246,7 @@ import { OthersAnalyticsWidget } from './components/OthersAnalytics';
 function Dashboard() {
   return (
     <Grid container spacing={3}>
-      <Grid item xs={12} md={6} lg={4}>
+      <Grid size={{  xs: 12, md: 6 , lg: 4 }}>
         <OthersAnalyticsWidget />
       </Grid>
     </Grid>
@@ -280,3 +280,5 @@ function Dashboard() {
 };
 
 export default OthersAnalyticsWidgetDemo;
+
+

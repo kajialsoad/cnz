@@ -272,7 +272,7 @@ const GallerySettingsPage: React.FC = () => {
 
                 <Grid container spacing={4}>
                     {images.map((image, index) => (
-                        <Grid item xs={12} sm={6} md={4} lg={3} key={image.id}>
+                        <Grid size={{ xs: 12, sm: 6 }} size={{ md: 4, lg: 3 }} key={image.id}>
                             <Fade in={true} style={{ transitionDelay: `${index * 50}ms` }}>
                                 <StyledCard>
                                     <Box sx={{ position: 'relative' }}>
@@ -346,7 +346,7 @@ const GallerySettingsPage: React.FC = () => {
                         </Grid>
                     ))}
                     {images.length === 0 && (
-                        <Grid item xs={12}>
+                        <Grid size={{ xs: 12 }}>
                             <Box textAlign="center" py={8}>
                                 <ImageIcon sx={{ fontSize: 80, color: alpha('#000', 0.1), mb: 2 }} />
                                 <Typography variant="h6" color="text.secondary">কোনো ছবি নেই</Typography>
@@ -468,3 +468,5 @@ const GallerySettingsPage: React.FC = () => {
 };
 
 export default GallerySettingsPage;
+
+

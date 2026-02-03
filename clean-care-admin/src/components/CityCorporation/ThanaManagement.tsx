@@ -322,3 +322,5 @@ const ThanaManagement: React.FC<ThanaManagementProps> = ({
 };
 
 export default ThanaManagement;
+
+

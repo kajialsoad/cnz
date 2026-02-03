@@ -1634,3 +1634,5 @@ const ComplaintDetailsModal: React.FC<ComplaintDetailsModalProps> = ({
 };
 
 export default ComplaintDetailsModal;
+
+

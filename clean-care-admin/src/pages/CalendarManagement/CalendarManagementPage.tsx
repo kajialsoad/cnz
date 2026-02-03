@@ -319,7 +319,7 @@ const CalendarManagementPage: React.FC = () => {
                             Filters
                         </Typography>
                         <Grid container spacing={2}>
-                            <Grid xs={12} sm={6} md={2}>
+                            <Grid size={{  xs: 12, sm: 6 , md: 2 }}>
                                 <FormControl fullWidth size="small">
                                     <InputLabel>Month</InputLabel>
                                     <Select
@@ -340,7 +340,7 @@ const CalendarManagementPage: React.FC = () => {
                                 </FormControl>
                             </Grid>
 
-                            <Grid xs={12} sm={6} md={2}>
+                            <Grid size={{  xs: 12, sm: 6 , md: 2 }}>
                                 <TextField
                                     fullWidth
                                     size="small"
@@ -351,7 +351,7 @@ const CalendarManagementPage: React.FC = () => {
                                 />
                             </Grid>
 
-                            <Grid xs={12} sm={6} md={2}>
+                            <Grid size={{  xs: 12, sm: 6 , md: 2 }}>
                                 <FormControl fullWidth size="small">
                                     <InputLabel>City Corporation</InputLabel>
                                     <Select
@@ -369,7 +369,7 @@ const CalendarManagementPage: React.FC = () => {
                                 </FormControl>
                             </Grid>
 
-                            <Grid xs={12} sm={6} md={2}>
+                            <Grid size={{  xs: 12, sm: 6 , md: 2 }}>
                                 <FormControl fullWidth size="small" disabled={!filterCityCorporation}>
                                     <InputLabel>Zone</InputLabel>
                                     <Select
@@ -387,7 +387,7 @@ const CalendarManagementPage: React.FC = () => {
                                 </FormControl>
                             </Grid>
 
-                            <Grid xs={12} sm={6} md={2}>
+                            <Grid size={{  xs: 12, sm: 6 , md: 2 }}>
                                 <FormControl fullWidth size="small" disabled={!filterZone}>
                                     <InputLabel>Ward</InputLabel>
                                     <Select
@@ -405,7 +405,7 @@ const CalendarManagementPage: React.FC = () => {
                                 </FormControl>
                             </Grid>
 
-                            <Grid xs={12} sm={6} md={2}>
+                            <Grid size={{  xs: 12, sm: 6 , md: 2 }}>
                                 <FormControl fullWidth size="small">
                                     <InputLabel>Status</InputLabel>
                                     <Select
@@ -459,7 +459,7 @@ const CalendarManagementPage: React.FC = () => {
                 ) : (
                     <Grid container spacing={3}>
                         {calendars.map((calendar, index) => (
-                            <Grid key={calendar.id} xs={12} sm={6} md={4} lg={3}>
+                            <Grid key={calendar.id} size={{ xs: 12, sm: 6 }} size={{ md: 4, lg: 3 }}>
                                 <Card
                                     sx={{
                                         height: '100%',
@@ -602,3 +602,5 @@ const CalendarManagementPage: React.FC = () => {
 };
 
 export default CalendarManagementPage;
+
+

@@ -196,3 +196,5 @@ const ResolveComplaintModal: React.FC<ResolveComplaintModalProps> = ({
 };
 
 export default ResolveComplaintModal;
+
+

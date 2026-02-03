@@ -405,3 +405,5 @@ const UserSatisfactionWidget: React.FC<UserSatisfactionWidgetProps> = ({
 };
 
 export default UserSatisfactionWidget;
+
+

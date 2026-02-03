@@ -444,7 +444,7 @@ const OfficerReviewModal: React.FC<OfficerReviewModalProps> = ({
 
                     {/* Officer Details */}
                     <Grid container spacing={2}>
-                        <Grid item xs={12} md={6}>
+                        <Grid size={{ xs: 12, md: 6 }}>
                             <TextField
                                 fullWidth
                                 label="Name (English)"
@@ -453,7 +453,7 @@ const OfficerReviewModal: React.FC<OfficerReviewModalProps> = ({
                                 required
                             />
                         </Grid>
-                        <Grid item xs={12} md={6}>
+                        <Grid size={{ xs: 12, md: 6 }}>
                             <TextField
                                 fullWidth
                                 label="Name (Bangla)"
@@ -461,7 +461,7 @@ const OfficerReviewModal: React.FC<OfficerReviewModalProps> = ({
                                 onChange={(e) => setFormData({ ...formData, nameBn: e.target.value })}
                             />
                         </Grid>
-                        <Grid item xs={12} md={6}>
+                        <Grid size={{ xs: 12, md: 6 }}>
                             <TextField
                                 fullWidth
                                 label="Designation (English)"
@@ -472,7 +472,7 @@ const OfficerReviewModal: React.FC<OfficerReviewModalProps> = ({
                                 required
                             />
                         </Grid>
-                        <Grid item xs={12} md={6}>
+                        <Grid size={{ xs: 12, md: 6 }}>
                             <TextField
                                 fullWidth
                                 label="Designation (Bangla)"
@@ -548,3 +548,5 @@ const OfficerReviewModal: React.FC<OfficerReviewModalProps> = ({
 };
 
 export default OfficerReviewModal;
+
+

@@ -248,3 +248,5 @@ const WardList: React.FC<WardListProps> = ({
 };
 
 export default WardList;
+
+

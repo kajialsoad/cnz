@@ -701,8 +701,8 @@ const UserManagement: React.FC = () => {
               </Typography>
             </Box>
 
-            {/* Right Side - Add New User Button */}
-            {(currentUser?.role === 'MASTER_ADMIN' || (currentUser?.role === 'SUPER_ADMIN' && !(currentUser?.permissions as any)?.features?.viewOnlyMode)) && (
+            {/* Right Side - Add New User Button - Only for MASTER_ADMIN */}
+            {currentUser?.role === 'MASTER_ADMIN' && (
               <Button
                 variant="contained"
                 startIcon={<PersonAddIcon />}
@@ -1448,3 +1448,4 @@ const UserManagement: React.FC = () => {
 };
 
 export default UserManagement;
+

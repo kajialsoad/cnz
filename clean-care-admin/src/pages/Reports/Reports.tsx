@@ -254,7 +254,7 @@ const Reports: React.FC = () => {
               </Box>
 
               <Grid container spacing={2} sx={{ mb: 4 }}>
-                <Grid xs={12} md={6}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <FormControl fullWidth size="small">
                     <InputLabel>সকল ক্যাটাগরি</InputLabel>
                     <Select
@@ -270,7 +270,7 @@ const Reports: React.FC = () => {
                     </Select>
                   </FormControl>
                 </Grid>
-                <Grid xs={12} md={6}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <FormControl fullWidth size="small">
                     <InputLabel>সকল স্ট্যাটাস</InputLabel>
                     <Select
@@ -286,7 +286,7 @@ const Reports: React.FC = () => {
                     </Select>
                   </FormControl>
                 </Grid>
-                <Grid xs={12} md={4}>
+                <Grid size={{ xs: 12, md: 4 }}>
                   <FormControl fullWidth size="small">
                     <InputLabel>সকল জোন</InputLabel>
                     <Select
@@ -301,7 +301,7 @@ const Reports: React.FC = () => {
                     </Select>
                   </FormControl>
                 </Grid>
-                <Grid xs={12} md={4}>
+                <Grid size={{ xs: 12, md: 4 }}>
                   <FormControl fullWidth size="small">
                     <InputLabel>সকল ওয়ার্ড</InputLabel>
                     <Select
@@ -316,7 +316,7 @@ const Reports: React.FC = () => {
                     </Select>
                   </FormControl>
                 </Grid>
-                <Grid xs={12} md={4}>
+                <Grid size={{ xs: 12, md: 4 }}>
                   <FormControl fullWidth size="small">
                     <InputLabel>Excel ফরম্যাট</InputLabel>
                     <Select
@@ -376,3 +376,5 @@ const Reports: React.FC = () => {
 };
 
 export default Reports;
+
+

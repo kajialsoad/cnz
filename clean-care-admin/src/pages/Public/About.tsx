@@ -43,7 +43,7 @@ const About = () => {
         />
         <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
           <Grid container>
-            <Grid item xs={12} md={8}>
+            <Grid size={{ xs: 12, md: 8 }}>
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -64,7 +64,7 @@ const About = () => {
       {/* Mission & Vision Section */}
       <Container maxWidth="lg" sx={{ py: 12 }}>
         <Grid container spacing={6}>
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <motion.div
               initial="hidden"
               whileInView="visible"
@@ -80,7 +80,7 @@ const About = () => {
               </Paper>
             </motion.div>
           </Grid>
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <motion.div
               initial="hidden"
               whileInView="visible"
@@ -125,7 +125,7 @@ const About = () => {
                 { icon: <Spa sx={{ fontSize: 50 }} />, title: "টেকসই উন্নয়ন", desc: "দীর্ঘমেয়াদী ও পরিবেশবান্ধব উন্নয়ন পরিকল্পনা।" },
                 { icon: <Groups sx={{ fontSize: 50 }} />, title: "জনগণের অংশগ্রহণ", desc: "নাগরিকদের সম্পৃক্ত করে সম্মিলিতভাবে কাজ করা।" }
               ].map((item, index) => (
-                <Grid item xs={12} sm={6} md={3} key={index}>
+                <Grid size={{  xs: 12, sm: 6 , md: 3 }} key={index}>
                   <motion.div variants={fadeInUp} style={{ height: '100%' }}>
                     <Card elevation={0} sx={{ textAlign: 'center', height: '100%', border: '1px solid #eee', borderRadius: 4, transition: '0.3s', '&:hover': { boxShadow: '0 10px 30px rgba(0,0,0,0.1)', transform: 'translateY(-5px)' } }}>
                       <CardContent sx={{ py: 5 }}>
@@ -163,3 +163,5 @@ const About = () => {
 };
 
 export default About;
+
+

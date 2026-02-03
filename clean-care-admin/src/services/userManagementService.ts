@@ -160,16 +160,31 @@ class UserManagementService {
     // Create new user
     async createUser(data: CreateUserDto): Promise<CreateUserResponse> {
         try {
+            console.log('🔵 UserManagementService.createUser - Sending data:', { ...data, password: '***' });
             const response = await this.apiClient.post<CreateUserResponse>(
                 '/api/admin/users',
                 data
             );
 
+            console.log('✅ UserManagementService.createUser - Success:', response.data);
             return response.data;
         } catch (error) {
+            console.error('❌ UserManagementService.createUser - Error:', error);
             if (axios.isAxiosError(error)) {
+                console.error('❌ Axios error response:', error.response);
+                console.error('❌ Axios error data:', error.response?.data);
+
+                // Extract validation errors if present
+                const errorData = error.response?.data;
+                if (errorData?.errors && Array.isArray(errorData.errors)) {
+                    const validationMessages = errorData.errors
+                        .map((err: any) => `${err.field || 'Field'}: ${err.message}`)
+                        .join(', ');
+                    throw new Error(validationMessages || errorData.message || 'Validation failed');
+                }
+
                 throw new Error(
-                    error.response?.data?.message || 'Failed to create user'
+                    errorData?.message || 'Failed to create user'
                 );
             }
             throw error;

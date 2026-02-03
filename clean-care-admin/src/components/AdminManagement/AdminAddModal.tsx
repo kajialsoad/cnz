@@ -310,6 +310,11 @@ const AdminAddModal: React.FC<AdminAddModalProps> = ({ open, onClose, onSuccess 
         if (!formData.cityCorporationCode) newErrors.cityCorporationCode = 'City Corporation is required';
         if (!formData.zoneId) newErrors.zoneId = 'Zone is required';
 
+        // Email validation if provided
+        if (formData.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+            newErrors.email = 'Invalid email format';
+        }
+
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
@@ -322,28 +327,70 @@ const AdminAddModal: React.FC<AdminAddModalProps> = ({ open, onClose, onSuccess 
 
         try {
             const createData: CreateUserDto = {
-                firstName: formData.firstName,
-                lastName: formData.lastName,
-                designation: formData.designation,
-                email: formData.email,
-                phone: formData.phone,
-                whatsapp: formData.whatsapp,
-                joiningDate: formData.joiningDate,
-                address: formData.address,
+                firstName: formData.firstName.trim(),
+                lastName: formData.lastName.trim() || 'Admin',
+                email: formData.email.trim() || undefined,
+                phone: formData.phone.trim(),
+                whatsapp: formData.whatsapp.trim() || undefined,
+                joiningDate: formData.joiningDate || undefined, // Send as string, backend will convert
+                address: formData.address.trim() || undefined,
                 password: formData.password,
                 role: formData.role,
-                cityCorporationCode: formData.cityCorporationCode,
-                zoneId: parseInt(formData.zoneId),
+                cityCorporationCode: formData.cityCorporationCode || undefined,
+                zoneId: formData.zoneId ? parseInt(formData.zoneId) : undefined,
                 wardId: formData.wardId ? parseInt(formData.wardId) : undefined,
                 permissions: formData.permissions,
             };
+
+            console.log('📤 Sending create admin data:', { ...createData, password: '***' });
+            console.log('📤 Data types:', {
+                firstName: typeof createData.firstName,
+                lastName: typeof createData.lastName,
+                email: typeof createData.email,
+                phone: typeof createData.phone,
+                whatsapp: typeof createData.whatsapp,
+                joiningDate: typeof createData.joiningDate,
+                address: typeof createData.address,
+                password: typeof createData.password,
+                role: typeof createData.role,
+                cityCorporationCode: typeof createData.cityCorporationCode,
+                zoneId: typeof createData.zoneId,
+                wardId: typeof createData.wardId,
+                permissions: typeof createData.permissions,
+            });
+            console.log('📤 Permissions structure:', JSON.stringify(createData.permissions, null, 2));
 
             await userManagementService.createUser(createData);
             onSuccess();
             onClose();
         } catch (error: any) {
-            console.error('Error creating admin:', error);
-            setSubmitError(error.response?.data?.error?.message || 'Failed to create admin');
+            console.error('❌ Error creating admin:', error);
+            console.error('❌ Error response:', error.response);
+            console.error('❌ Error response data:', error.response?.data);
+            console.error('❌ Error status:', error.response?.status);
+            console.error('❌ Error config:', error.config);
+            console.error('❌ Error request:', error.request);
+
+            // Check if it's a network error
+            if (!error.response) {
+                console.error('❌ NETWORK ERROR: No response received from server');
+                console.error('❌ This could be: CORS, timeout, or server crash');
+                setSubmitError('Network error: Could not connect to server. Please check if the server is running.');
+                setLoading(false);
+                return;
+            }
+
+            const errorMessage = error.response?.data?.message ||
+                error.response?.data?.error?.message ||
+                error.message ||
+                'Failed to create admin';
+
+            // Log validation errors if present
+            if (error.response?.data?.errors) {
+                console.error('❌ Validation errors:', JSON.stringify(error.response.data.errors, null, 2));
+            }
+
+            setSubmitError(errorMessage);
         } finally {
             setLoading(false);
         }
@@ -359,7 +406,7 @@ const AdminAddModal: React.FC<AdminAddModalProps> = ({ open, onClose, onSuccess 
                 sx: { borderRadius: 2 }
             }}
         >
-            <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1 }}>
+            <DialogTitle component="div" sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1 }}>
                 <Typography variant="h6" fontWeight="bold">
                     নতুন এডমিন যোগ করুন
                 </Typography>
@@ -454,6 +501,8 @@ const AdminAddModal: React.FC<AdminAddModalProps> = ({ open, onClose, onSuccess 
                                     placeholder="example@email.com"
                                     value={formData.email}
                                     onChange={handleChange('email')}
+                                    error={!!errors.email}
+                                    helperText={errors.email}
                                     size="small"
                                 />
                             </Grid>
@@ -532,9 +581,10 @@ const AdminAddModal: React.FC<AdminAddModalProps> = ({ open, onClose, onSuccess 
                                     disabled={!formData.cityCorporationCode}
                                     size="small"
                                     renderTags={(value, getTagProps) =>
-                                        value.map((option, index) => (
-                                            <Chip label={`Ward ${option.wardNumber}`} size="small" {...getTagProps({ index })} />
-                                        ))
+                                        value.map((option, index) => {
+                                            const { key, ...chipProps } = getTagProps({ index });
+                                            return <Chip key={key} label={`Ward ${option.wardNumber}`} size="small" {...chipProps} />;
+                                        })
                                     }
                                     renderInput={(params) => (
                                         <TextField
@@ -645,3 +695,5 @@ const AdminAddModal: React.FC<AdminAddModalProps> = ({ open, onClose, onSuccess 
 };
 
 export default AdminAddModal;
+
+

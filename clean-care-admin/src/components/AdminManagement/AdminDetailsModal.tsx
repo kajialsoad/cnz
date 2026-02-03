@@ -82,7 +82,7 @@ const AdminDetailsModal: React.FC<AdminDetailsModalProps> = ({ open, onClose, ad
 
     return (
         <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-            <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <DialogTitle component="div" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Typography sx={{ fontWeight: 700 }}>এডমিন বিস্তারিত</Typography>
                 <IconButton onClick={onClose}>
                     <Close />
@@ -389,3 +389,5 @@ const AdminDetailsModal: React.FC<AdminDetailsModalProps> = ({ open, onClose, ad
 };
 
 export default AdminDetailsModal;
+
+

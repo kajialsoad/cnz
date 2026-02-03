@@ -21,7 +21,7 @@ const UserSatisfactionWidgetDemo: React.FC = () => {
 
             <Grid container spacing={3}>
                 {/* Demo 1: Basic Usage */}
-                <Grid item xs={12}>
+                <Grid size={{ xs: 12 }}>
                     <Paper sx={{ p: 2, mb: 2 }}>
                         <Typography variant="h6" sx={{ mb: 2 }}>
                             1. Basic Usage (No Filters)
@@ -36,7 +36,7 @@ const UserSatisfactionWidgetDemo: React.FC = () => {
                 </Grid>
 
                 {/* Demo 2: With City Corporation Filter */}
-                <Grid item xs={12} md={6}>
+                <Grid size={{ xs: 12, md: 6 }}>
                     <Paper sx={{ p: 2, mb: 2 }}>
                         <Typography variant="h6" sx={{ mb: 2 }}>
                             2. With City Corporation Filter
@@ -51,7 +51,7 @@ const UserSatisfactionWidgetDemo: React.FC = () => {
                 </Grid>
 
                 {/* Demo 3: With Zone Filter */}
-                <Grid item xs={12} md={6}>
+                <Grid size={{ xs: 12, md: 6 }}>
                     <Paper sx={{ p: 2, mb: 2 }}>
                         <Typography variant="h6" sx={{ mb: 2 }}>
                             3. With Zone Filter
@@ -66,7 +66,7 @@ const UserSatisfactionWidgetDemo: React.FC = () => {
                 </Grid>
 
                 {/* Demo 4: With Date Range */}
-                <Grid item xs={12} md={6}>
+                <Grid size={{ xs: 12, md: 6 }}>
                     <Paper sx={{ p: 2, mb: 2 }}>
                         <Typography variant="h6" sx={{ mb: 2 }}>
                             4. With Date Range Filter
@@ -84,7 +84,7 @@ const UserSatisfactionWidgetDemo: React.FC = () => {
                 </Grid>
 
                 {/* Demo 5: Multiple Filters */}
-                <Grid item xs={12} md={6}>
+                <Grid size={{ xs: 12, md: 6 }}>
                     <Paper sx={{ p: 2, mb: 2 }}>
                         <Typography variant="h6" sx={{ mb: 2 }}>
                             5. Multiple Filters Combined
@@ -105,7 +105,7 @@ const UserSatisfactionWidgetDemo: React.FC = () => {
                 </Grid>
 
                 {/* Demo 6: Side by Side Comparison */}
-                <Grid item xs={12}>
+                <Grid size={{ xs: 12 }}>
                     <Paper sx={{ p: 2, mb: 2 }}>
                         <Typography variant="h6" sx={{ mb: 2 }}>
                             6. Side by Side Comparison
@@ -114,7 +114,7 @@ const UserSatisfactionWidgetDemo: React.FC = () => {
                             Compare satisfaction between DSCC and DNCC
                         </Typography>
                         <Grid container spacing={2}>
-                            <Grid item xs={12} md={6}>
+                            <Grid size={{ xs: 12, md: 6 }}>
                                 <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
                                     DSCC (Dhaka South)
                                 </Typography>
@@ -122,7 +122,7 @@ const UserSatisfactionWidgetDemo: React.FC = () => {
                                     <UserSatisfactionWidget cityCorporationCode="DSCC" />
                                 </Box>
                             </Grid>
-                            <Grid item xs={12} md={6}>
+                            <Grid size={{ xs: 12, md: 6 }}>
                                 <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
                                     DNCC (Dhaka North)
                                 </Typography>
@@ -240,3 +240,5 @@ function Dashboard() {
 };
 
 export default UserSatisfactionWidgetDemo;
+
+

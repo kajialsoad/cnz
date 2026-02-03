@@ -372,7 +372,7 @@ const WasteManagementPage: React.FC = () => {
 
                 {/* Stats Grid */}
                 <Grid container spacing={3} mb={5}>
-                    <Grid item xs={12} sm={6} md={3}>
+                    <Grid size={{  xs: 12, sm: 6 , md: 3 }}>
                         <Fade in={true} style={{ transitionDelay: '100ms' }}>
                             <StatCard>
                                 <Box sx={{ p: 1.5, borderRadius: '14px', bgcolor: alpha('#3FA564', 0.1), color: '#3FA564' }}>
@@ -385,7 +385,7 @@ const WasteManagementPage: React.FC = () => {
                             </StatCard>
                         </Fade>
                     </Grid>
-                    <Grid item xs={12} sm={6} md={3}>
+                    <Grid size={{  xs: 12, sm: 6 , md: 3 }}>
                         <Fade in={true} style={{ transitionDelay: '200ms' }}>
                             <StatCard>
                                 <Box sx={{ p: 1.5, borderRadius: '14px', bgcolor: alpha('#4caf50', 0.1), color: '#4caf50' }}>
@@ -398,7 +398,7 @@ const WasteManagementPage: React.FC = () => {
                             </StatCard>
                         </Fade>
                     </Grid>
-                    <Grid item xs={12} sm={6} md={3}>
+                    <Grid size={{  xs: 12, sm: 6 , md: 3 }}>
                         <Fade in={true} style={{ transitionDelay: '300ms' }}>
                             <StatCard>
                                 <Box sx={{ p: 1.5, borderRadius: '14px', bgcolor: alpha('#ff9800', 0.1), color: '#ff9800' }}>
@@ -411,7 +411,7 @@ const WasteManagementPage: React.FC = () => {
                             </StatCard>
                         </Fade>
                     </Grid>
-                    <Grid item xs={12} sm={6} md={3}>
+                    <Grid size={{  xs: 12, sm: 6 , md: 3 }}>
                         <Fade in={true} style={{ transitionDelay: '400ms' }}>
                             <StatCard>
                                 <Box sx={{ p: 1.5, borderRadius: '14px', bgcolor: alpha('#e91e63', 0.1), color: '#e91e63' }}>
@@ -446,7 +446,7 @@ const WasteManagementPage: React.FC = () => {
 
                     <Grid container spacing={4}>
                         {filteredPosts.map((post, index) => (
-                            <Grid item xs={12} sm={6} md={4} lg={3} key={post.id}>
+                            <Grid size={{ xs: 12, sm: 6 }} size={{ md: 4, lg: 3 }} key={post.id}>
                                 <Fade in={true} style={{ transitionDelay: `${index * 50}ms` }}>
                                     <StyledCard>
                                         <Box sx={{ position: 'relative' }}>
@@ -551,7 +551,7 @@ const WasteManagementPage: React.FC = () => {
                             </Grid>
                         ))}
                         {filteredPosts.length === 0 && (
-                            <Grid item xs={12}>
+                            <Grid size={{ xs: 12 }}>
                                 <Box textAlign="center" py={8}>
                                     <ArticleIcon sx={{ fontSize: 80, color: alpha('#000', 0.1), mb: 2 }} />
                                     <Typography variant="h6" color="text.secondary">এই বিভাগে কোনো পোস্ট নেই</Typography>
@@ -695,4 +695,6 @@ const WasteManagementPage: React.FC = () => {
 };
 
 export default WasteManagementPage;
+
+
 

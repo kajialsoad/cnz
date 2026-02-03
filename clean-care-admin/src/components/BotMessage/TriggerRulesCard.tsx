@@ -235,3 +235,5 @@ const TriggerRulesCard: React.FC<TriggerRulesCardProps> = ({
 };
 
 export default TriggerRulesCard;
+
+

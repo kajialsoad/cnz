@@ -297,3 +297,5 @@ export const EditResolutionModal: React.FC<EditResolutionModalProps> = ({
         </Dialog>
     );
 };
+
+

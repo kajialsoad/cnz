@@ -267,3 +267,5 @@ export const AvatarUploadDemos: React.FC = () => {
 };
 
 export default AvatarUploadDemos;
+
+

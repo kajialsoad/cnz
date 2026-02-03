@@ -320,7 +320,7 @@ const CalendarModal: React.FC<CalendarModalProps> = ({ open, onClose, onSuccess,
 
                 <Grid container spacing={2}>
                     {/* Title */}
-                    <Grid item xs={12}>
+                    <Grid size={{ xs: 12 }}>
                         <TextField
                             fullWidth
                             label="Title (English)"
@@ -330,7 +330,7 @@ const CalendarModal: React.FC<CalendarModalProps> = ({ open, onClose, onSuccess,
                         />
                     </Grid>
 
-                    <Grid item xs={12}>
+                    <Grid size={{ xs: 12 }}>
                         <TextField
                             fullWidth
                             label="Title (Bangla)"
@@ -340,7 +340,7 @@ const CalendarModal: React.FC<CalendarModalProps> = ({ open, onClose, onSuccess,
                     </Grid>
 
                     {/* Month & Year */}
-                    <Grid item xs={12} sm={6}>
+                    <Grid size={{ xs: 12, sm: 6 }}>
                         <FormControl fullWidth required>
                             <InputLabel>Month</InputLabel>
                             <Select value={month} label="Month" onChange={(e) => setMonth(e.target.value as number)}>
@@ -353,7 +353,7 @@ const CalendarModal: React.FC<CalendarModalProps> = ({ open, onClose, onSuccess,
                         </FormControl>
                     </Grid>
 
-                    <Grid item xs={12} sm={6}>
+                    <Grid size={{ xs: 12, sm: 6 }}>
                         <TextField
                             fullWidth
                             label="Year"
@@ -365,13 +365,13 @@ const CalendarModal: React.FC<CalendarModalProps> = ({ open, onClose, onSuccess,
                     </Grid>
 
                     {/* Geographical Targeting */}
-                    <Grid item xs={12}>
+                    <Grid size={{ xs: 12 }}>
                         <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary' }}>
                             Geographical Targeting (Optional)
                         </Typography>
                     </Grid>
 
-                    <Grid item xs={12} sm={4}>
+                    <Grid size={{ xs: 12, sm: 4 }}>
                         <FormControl fullWidth>
                             <InputLabel>City Corporation</InputLabel>
                             <Select
@@ -389,7 +389,7 @@ const CalendarModal: React.FC<CalendarModalProps> = ({ open, onClose, onSuccess,
                         </FormControl>
                     </Grid>
 
-                    <Grid item xs={12} sm={4}>
+                    <Grid size={{ xs: 12, sm: 4 }}>
                         <FormControl fullWidth disabled={!cityCorporationId}>
                             <InputLabel>Zone</InputLabel>
                             <Select
@@ -407,7 +407,7 @@ const CalendarModal: React.FC<CalendarModalProps> = ({ open, onClose, onSuccess,
                         </FormControl>
                     </Grid>
 
-                    <Grid item xs={12} sm={4}>
+                    <Grid size={{ xs: 12, sm: 4 }}>
                         <FormControl fullWidth disabled={!zoneId}>
                             <InputLabel>Ward</InputLabel>
                             <Select value={wardId} label="Ward" onChange={(e) => setWardId(e.target.value as number | '')}>
@@ -422,7 +422,7 @@ const CalendarModal: React.FC<CalendarModalProps> = ({ open, onClose, onSuccess,
                     </Grid>
 
                     {/* Image Upload */}
-                    <Grid item xs={12}>
+                    <Grid size={{ xs: 12 }}>
                         <Box>
                             <Typography variant="subtitle2" sx={{ mb: 1 }}>
                                 Calendar Image {!calendar && <span style={{ color: 'red' }}>*</span>}
@@ -455,7 +455,7 @@ const CalendarModal: React.FC<CalendarModalProps> = ({ open, onClose, onSuccess,
                     </Grid>
 
                     {/* Events Section */}
-                    <Grid item xs={12}>
+                    <Grid size={{ xs: 12 }}>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                             <Typography variant="subtitle2">Events (Optional)</Typography>
                             <Button startIcon={<AddIcon />} onClick={handleAddEvent} size="small">
@@ -474,7 +474,7 @@ const CalendarModal: React.FC<CalendarModalProps> = ({ open, onClose, onSuccess,
                                     </Box>
 
                                     <Grid container spacing={2}>
-                                        <Grid item xs={12} sm={6}>
+                                        <Grid size={{ xs: 12, sm: 6 }}>
                                             <TextField
                                                 fullWidth
                                                 size="small"
@@ -483,7 +483,7 @@ const CalendarModal: React.FC<CalendarModalProps> = ({ open, onClose, onSuccess,
                                                 onChange={(e) => handleEventChange(index, 'title', e.target.value)}
                                             />
                                         </Grid>
-                                        <Grid item xs={12} sm={6}>
+                                        <Grid size={{ xs: 12, sm: 6 }}>
                                             <TextField
                                                 fullWidth
                                                 size="small"
@@ -492,7 +492,7 @@ const CalendarModal: React.FC<CalendarModalProps> = ({ open, onClose, onSuccess,
                                                 onChange={(e) => handleEventChange(index, 'titleBn', e.target.value)}
                                             />
                                         </Grid>
-                                        <Grid item xs={12} sm={6}>
+                                        <Grid size={{ xs: 12, sm: 6 }}>
                                             <TextField
                                                 fullWidth
                                                 size="small"
@@ -503,7 +503,7 @@ const CalendarModal: React.FC<CalendarModalProps> = ({ open, onClose, onSuccess,
                                                 InputLabelProps={{ shrink: true }}
                                             />
                                         </Grid>
-                                        <Grid item xs={12} sm={6}>
+                                        <Grid size={{ xs: 12, sm: 6 }}>
                                             <FormControl fullWidth size="small">
                                                 <InputLabel>Category</InputLabel>
                                                 <Select
@@ -519,7 +519,7 @@ const CalendarModal: React.FC<CalendarModalProps> = ({ open, onClose, onSuccess,
                                                 </Select>
                                             </FormControl>
                                         </Grid>
-                                        <Grid item xs={12}>
+                                        <Grid size={{ xs: 12 }}>
                                             <TextField
                                                 fullWidth
                                                 size="small"
@@ -556,3 +556,5 @@ const CalendarModal: React.FC<CalendarModalProps> = ({ open, onClose, onSuccess,
 };
 
 export default CalendarModal;
+
+

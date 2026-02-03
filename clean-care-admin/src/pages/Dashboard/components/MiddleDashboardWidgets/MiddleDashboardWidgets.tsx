@@ -33,3 +33,4 @@ const MiddleDashboardWidgets: React.FC<MiddleDashboardWidgetsProps> = ({ cityCor
 };
 
 export default MiddleDashboardWidgets;
+

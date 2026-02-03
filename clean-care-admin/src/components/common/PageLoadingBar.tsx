@@ -40,3 +40,5 @@ const PageLoadingBar: React.FC<PageLoadingBarProps> = ({ loading }) => {
 };
 
 export default PageLoadingBar;
+
+

@@ -213,7 +213,7 @@ const Home = () => {
       {/* 🟢 SECTION 2: বর্তমান বাস্তবতা (The Reality We Face) */}
       <Container maxWidth="lg" sx={{ py: 12 }}>
         <Grid container spacing={8} alignItems="center">
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <motion.div
               initial="hidden"
               whileInView="visible"
@@ -249,7 +249,7 @@ const Home = () => {
               />
             </motion.div>
           </Grid>
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <motion.div
               initial="hidden"
               whileInView="visible"
@@ -307,7 +307,7 @@ const Home = () => {
                 { icon: <Groups color="primary" sx={{ fontSize: 50, mb: 2 }} />, title: "স্বচ্ছ ও কার্যকর সিদ্ধান্ত", desc: "ডিজিটাল রিপোর্টিং, ডাটা বিশ্লেষণ এবং রিপোর্টিং সিস্টেমের মাধ্যমে স্বচ্ছ ও কার্যকর সিদ্ধান্ত গ্রহণ নিশ্চিত করা হয়।" },
                 { icon: <HealthAndSafety color="warning" sx={{ fontSize: 50, mb: 2 }} />, title: "টেকসই সমাধান", desc: "শুধু সাময়িক পদক্ষেপ নয়, দীর্ঘমেয়াদী টেকসই নগর ব্যবস্থাপনার ভিত্তি গড়ে তোলাই আমাদের মূল লক্ষ্য।" }
               ].map((item, index) => (
-                <Grid item xs={12} md={4} key={index}>
+                <Grid size={{ xs: 12, md: 4 }} key={index}>
                   <motion.div variants={fadeInUp} style={{ height: '100%' }}>
                     <Paper
                       sx={{
@@ -335,7 +335,7 @@ const Home = () => {
       {/* 🟢 SECTION 4: মানুষ ও কমিউনিটি */}
       <Container maxWidth="lg" sx={{ py: 12 }}>
         <Grid container spacing={8} alignItems="center">
-          <Grid item xs={12} md={6} order={{ xs: 2, md: 1 }}>
+          <Grid size={{ xs: 12, md: 6 }} order={{ xs: 2, md: 1 }}>
             <motion.div
               initial="hidden"
               whileInView="visible"
@@ -355,7 +355,7 @@ const Home = () => {
               </Box>
             </motion.div>
           </Grid>
-          <Grid item xs={12} md={6} order={{ xs: 1, md: 2 }}>
+          <Grid size={{ xs: 12, md: 6 }} order={{ xs: 1, md: 2 }}>
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               whileInView={{ opacity: 1, scale: 1 }}
@@ -378,7 +378,7 @@ const Home = () => {
       <Box sx={{ bgcolor: '#263238', color: 'white', py: 12 }}>
         <Container maxWidth="lg">
           <Grid container spacing={6} alignItems="center">
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <motion.div
                 initial="hidden"
                 whileInView="visible"
@@ -394,7 +394,7 @@ const Home = () => {
                 </Button>
               </motion.div>
             </Grid>
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <motion.div
                 variants={staggerContainer}
                 initial="hidden"
@@ -408,7 +408,7 @@ const Home = () => {
                     "নাগরিক সচেতনতা বাড়ানো",
                     "টেকসই নগর ব্যবস্থাপনার ভিত্তি গড়ে তোলা"
                   ].map((text, i) => (
-                    <Grid item xs={12} sm={6} key={i}>
+                    <Grid size={{ xs: 12, sm: 6 }} key={i}>
                       <motion.div variants={fadeInUp} style={{ height: '100%' }}>
                         <motion.div variants={rotateIcon}>
                           <Box sx={{ p: 4, bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 4, height: '100%', border: '1px solid rgba(255,255,255,0.1)', transition: 'background-color 0.3s', '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' } }}>
@@ -441,21 +441,21 @@ const Home = () => {
             </Box>
             <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)', mb: 4 }} />
             <Grid container spacing={4}>
-              <Grid item xs={12} md={4}>
+              <Grid size={{ xs: 12, md: 4 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                   <img src={`${import.meta.env.BASE_URL}logo_clean_c.png`} alt="Clean Care" style={{ height: 40, width: 'auto', marginRight: 10 }} />
                   <Typography variant="h6" color="white">Clean Care</Typography>
                 </Box>
                 <Typography variant="body2">Smart Complaint Management System for Dhaka South City Corporation.</Typography>
               </Grid>
-              <Grid item xs={12} md={4} sx={{ textAlign: { md: 'center' } }}>
+              <Grid size={{ xs: 12, md: 4 }} sx={{ textAlign: { md: 'center' } }}>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, alignItems: { md: 'center' } }}>
                   <Typography component="a" href="/" sx={{ color: 'inherit', textDecoration: 'none' }}>Home</Typography>
                   <Typography component="a" href="/about" sx={{ color: 'inherit', textDecoration: 'none' }}>About Us</Typography>
                   <Typography component="a" href="/blog" sx={{ color: 'inherit', textDecoration: 'none' }}>Blog</Typography>
                 </Box>
               </Grid>
-              <Grid item xs={12} md={4} sx={{ textAlign: { md: 'right' } }}>
+              <Grid size={{ xs: 12, md: 4 }} sx={{ textAlign: { md: 'right' } }}>
                 <Typography variant="body2" color="white">Dhaka South City Corporation</Typography>
                 <Typography variant="body2">Nagar Bhaban, Dhaka - 1000</Typography>
                 <Typography variant="caption" display="block" sx={{ mt: 2 }}>© 2026 Clean Care. All rights reserved.</Typography>
@@ -469,3 +469,5 @@ const Home = () => {
 };
 
 export default Home;
+
+

@@ -185,7 +185,7 @@ const WastePostDetailModal: React.FC<WastePostDetailModalProps> = ({
 
                     {/* Dates */}
                     <Grid container spacing={2}>
-                        <Grid item xs={12} md={6}>
+                        <Grid size={{ xs: 12, md: 6 }}>
                             <Box
                                 sx={{
                                     p: 2,
@@ -204,7 +204,7 @@ const WastePostDetailModal: React.FC<WastePostDetailModalProps> = ({
                             </Box>
                         </Grid>
                         {post.publishedAt && (
-                            <Grid item xs={12} md={6}>
+                            <Grid size={{ xs: 12, md: 6 }}>
                                 <Box
                                     sx={{
                                         p: 2,
@@ -233,7 +233,7 @@ const WastePostDetailModal: React.FC<WastePostDetailModalProps> = ({
                             ব্যবহারকারীর প্রতিক্রিয়া
                         </Typography>
                         <Grid container spacing={2} sx={{ mt: 1 }}>
-                            <Grid item xs={6}>
+                            <Grid size={{ xs: 6 }}>
                                 <Box
                                     sx={{
                                         p: 2,
@@ -251,7 +251,7 @@ const WastePostDetailModal: React.FC<WastePostDetailModalProps> = ({
                                     </Typography>
                                 </Box>
                             </Grid>
-                            <Grid item xs={6}>
+                            <Grid size={{ xs: 6 }}>
                                 <Box
                                     sx={{
                                         p: 2,
@@ -304,3 +304,5 @@ const WastePostDetailModal: React.FC<WastePostDetailModalProps> = ({
 };
 
 export default WastePostDetailModal;
+
+

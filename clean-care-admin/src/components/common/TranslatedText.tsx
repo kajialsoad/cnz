@@ -36,3 +36,5 @@ export const TranslatedText: React.FC<TranslatedTextProps> = ({
 
     return <Component {...props}>{translatedText}</Component>;
 };
+
+

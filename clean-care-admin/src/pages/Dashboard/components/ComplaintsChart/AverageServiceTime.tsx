@@ -138,3 +138,4 @@ const AverageServiceTime: React.FC<AverageServiceTimeProps> = ({ cityCorporation
 };
 
 export default AverageServiceTime;
+

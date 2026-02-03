@@ -89,7 +89,7 @@ const SortableItem: React.FC<SortableItemProps> = ({ review, onEdit, onDelete, o
         >
             <CardContent>
                 <Grid container spacing={2} alignItems="center">
-                    <Grid item>
+                    <Grid>
                         <Box
                             {...attributes}
                             {...listeners}
@@ -104,7 +104,7 @@ const SortableItem: React.FC<SortableItemProps> = ({ review, onEdit, onDelete, o
                             <DragIcon />
                         </Box>
                     </Grid>
-                    <Grid item>
+                    <Grid>
                         <Avatar
                             src={review.imageUrl || undefined}
                             sx={{ width: 64, height: 64 }}
@@ -112,7 +112,7 @@ const SortableItem: React.FC<SortableItemProps> = ({ review, onEdit, onDelete, o
                             <OfficerIcon />
                         </Avatar>
                     </Grid>
-                    <Grid item xs>
+                    <Grid xs>
                         <Typography variant="h6" gutterBottom>
                             {review.name}
                             {review.nameBn && (
@@ -143,7 +143,7 @@ const SortableItem: React.FC<SortableItemProps> = ({ review, onEdit, onDelete, o
                             />
                         </Box>
                     </Grid>
-                    <Grid item>
+                    <Grid>
                         <Box sx={{ display: 'flex', gap: 1 }}>
                             <IconButton
                                 onClick={() => onToggleActive(review)}
@@ -414,3 +414,5 @@ const OfficerReviewManagementPage: React.FC = () => {
 };
 
 export default OfficerReviewManagementPage;
+
+

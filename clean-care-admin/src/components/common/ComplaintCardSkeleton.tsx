@@ -57,3 +57,5 @@ const ComplaintCardSkeleton: React.FC = () => {
 };
 
 export default ComplaintCardSkeleton;
+
+

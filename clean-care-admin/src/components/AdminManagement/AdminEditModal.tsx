@@ -377,6 +377,12 @@ const AdminEditModal: React.FC<AdminEditModalProps> = ({
         if (!formData.phone.trim()) newErrors.phone = 'Phone is required';
         if (!formData.cityCorporationCode) newErrors.cityCorporationCode = 'City Corporation is required';
         if (!formData.zoneId) newErrors.zoneId = 'Zone is required';
+        
+        // Email validation if provided
+        if (formData.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+            newErrors.email = 'Invalid email format';
+        }
+
         if (formData.newPassword && formData.newPassword.length < 8) {
             newErrors.newPassword = 'Password must be at least 8 characters';
         }
@@ -812,3 +818,5 @@ const AdminEditModal: React.FC<AdminEditModalProps> = ({
 };
 
 export default AdminEditModal;
+
+

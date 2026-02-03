@@ -175,7 +175,7 @@ const ActivityLogs: React.FC = () => {
                         Filters
                     </Typography>
                     <Grid container spacing={2}>
-                        <Grid item xs={12} sm={6} md={3}>
+                        <Grid size={{  xs: 12, sm: 6 , md: 3 }}>
                             <FormControl fullWidth>
                                 <InputLabel>Action</InputLabel>
                                 <Select
@@ -192,7 +192,7 @@ const ActivityLogs: React.FC = () => {
                                 </Select>
                             </FormControl>
                         </Grid>
-                        <Grid item xs={12} sm={6} md={3}>
+                        <Grid size={{  xs: 12, sm: 6 , md: 3 }}>
                             <FormControl fullWidth>
                                 <InputLabel>Entity Type</InputLabel>
                                 <Select
@@ -209,7 +209,7 @@ const ActivityLogs: React.FC = () => {
                                 </Select>
                             </FormControl>
                         </Grid>
-                        <Grid item xs={12} sm={6} md={3}>
+                        <Grid size={{  xs: 12, sm: 6 , md: 3 }}>
                             <TextField
                                 fullWidth
                                 label="Start Date"
@@ -219,7 +219,7 @@ const ActivityLogs: React.FC = () => {
                                 InputLabelProps={{ shrink: true }}
                             />
                         </Grid>
-                        <Grid item xs={12} sm={6} md={3}>
+                        <Grid size={{  xs: 12, sm: 6 , md: 3 }}>
                             <TextField
                                 fullWidth
                                 label="End Date"
@@ -229,7 +229,7 @@ const ActivityLogs: React.FC = () => {
                                 InputLabelProps={{ shrink: true }}
                             />
                         </Grid>
-                        <Grid item xs={12}>
+                        <Grid size={{ xs: 12 }}>
                             <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
                                 <Button onClick={handleClearFilters}>
                                     Clear Filters
@@ -303,3 +303,5 @@ const ActivityLogs: React.FC = () => {
 };
 
 export default ActivityLogs;
+
+

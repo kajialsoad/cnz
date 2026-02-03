@@ -105,3 +105,4 @@ const WeeklyTrendAnalysis: React.FC<WeeklyTrendAnalysisProps> = ({ cityCorporati
 };
 
 export default WeeklyTrendAnalysis;
+

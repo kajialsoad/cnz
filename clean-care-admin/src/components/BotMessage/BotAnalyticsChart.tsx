@@ -492,3 +492,5 @@ const BotAnalyticsChart: React.FC<BotAnalyticsChartProps> = ({ chatType }) => {
 };
 
 export default BotAnalyticsChart;
+
+

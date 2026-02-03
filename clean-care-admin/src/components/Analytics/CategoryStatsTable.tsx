@@ -359,3 +359,5 @@ const CategoryStatsTable: React.FC<CategoryStatsTableProps> = ({ startDate, endD
 };
 
 export default CategoryStatsTable;
+
+

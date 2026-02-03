@@ -354,3 +354,5 @@ const SuperAdminDetailsModal: React.FC<SuperAdminDetailsModalProps> = ({ open, o
 };
 
 export default SuperAdminDetailsModal;
+
+
