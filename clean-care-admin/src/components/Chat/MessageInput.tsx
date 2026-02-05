@@ -365,9 +365,9 @@ const MessageInput: React.FC<MessageInputProps> = ({
             )}
 
             {/* Input Area */}
-            <Box sx={{ 
-                display: 'flex', 
-                gap: 1.5, 
+            <Box sx={{
+                display: 'flex',
+                gap: 1.5,
                 alignItems: 'flex-end',
                 bgcolor: '#f9fafb',
                 p: 1.5,
@@ -390,17 +390,19 @@ const MessageInput: React.FC<MessageInputProps> = ({
 
                 {/* Image upload button */}
                 <Tooltip title="ছবি সংযুক্ত করুন">
-                    <IconButton
-                        onClick={handleImageButtonClick}
-                        disabled={disabled || sending || uploading || !!imageFile}
-                        sx={{
-                            color: '#6b7280',
-                            '&:hover': { color: '#3fa564', bgcolor: '#f0fdf4' },
-                            p: 1
-                        }}
-                    >
-                        <ImageIcon />
-                    </IconButton>
+                    <span>
+                        <IconButton
+                            onClick={handleImageButtonClick}
+                            disabled={disabled || sending || uploading || !!imageFile}
+                            sx={{
+                                color: '#6b7280',
+                                '&:hover': { color: '#3fa564', bgcolor: '#f0fdf4' },
+                                p: 1
+                            }}
+                        >
+                            <ImageIcon />
+                        </IconButton>
+                    </span>
                 </Tooltip>
 
                 {/* Text input */}
@@ -430,28 +432,30 @@ const MessageInput: React.FC<MessageInputProps> = ({
 
                 {/* Send button */}
                 <Tooltip title={sending ? 'পাঠানো হচ্ছে...' : 'পাঠান (Enter)'}>
-                    <IconButton
-                        onClick={handleSend}
-                        disabled={isSendDisabled}
-                        sx={{
-                            backgroundColor: isSendDisabled ? '#e5e7eb' : '#3fa564',
-                            color: 'white',
-                            width: 40,
-                            height: 40,
-                            '&:hover': {
-                                backgroundColor: isSendDisabled ? '#e5e7eb' : '#15803d',
-                            },
-                            transition: 'all 0.2s',
-                            transform: sending ? 'scale(0.9)' : 'scale(1)',
-                            boxShadow: isSendDisabled ? 'none' : '0 2px 4px rgba(63, 165, 100, 0.3)'
-                        }}
-                    >
-                        {sending ? (
-                            <CircularProgress size={20} color="inherit" />
-                        ) : (
-                            <SendIcon fontSize="small" sx={{ ml: 0.5 }} />
-                        )}
-                    </IconButton>
+                    <span>
+                        <IconButton
+                            onClick={handleSend}
+                            disabled={isSendDisabled}
+                            sx={{
+                                backgroundColor: isSendDisabled ? '#e5e7eb' : '#3fa564',
+                                color: 'white',
+                                width: 40,
+                                height: 40,
+                                '&:hover': {
+                                    backgroundColor: isSendDisabled ? '#e5e7eb' : '#15803d',
+                                },
+                                transition: 'all 0.2s',
+                                transform: sending ? 'scale(0.9)' : 'scale(1)',
+                                boxShadow: isSendDisabled ? 'none' : '0 2px 4px rgba(63, 165, 100, 0.3)'
+                            }}
+                        >
+                            {sending ? (
+                                <CircularProgress size={20} color="inherit" />
+                            ) : (
+                                <SendIcon fontSize="small" sx={{ ml: 0.5 }} />
+                            )}
+                        </IconButton>
+                    </span>
                 </Tooltip>
             </Box>
 

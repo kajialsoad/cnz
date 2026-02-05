@@ -279,8 +279,8 @@ const UserSatisfactionWidget: React.FC<UserSatisfactionWidgetProps> = ({
                     </Box>
 
                     {/* Bar Chart */}
-                    <Box sx={{ height: 200, mt: 2, minHeight: 200, position: 'relative', width: '100%', minWidth: 0 }}>
-                        <ResponsiveContainer width="99%" height="100%">
+                    <Box sx={{ height: 200, mt: 2, minHeight: 200, position: 'relative', width: '100%', minWidth: 200 }}>
+                        <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={distributionChartData} layout="vertical">
                                 <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
                                 <XAxis type="number" tick={{ fontSize: 11, fill: '#6B7280' }} />
