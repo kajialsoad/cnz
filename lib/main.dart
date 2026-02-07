@@ -125,12 +125,17 @@ class _SplashScreenState extends State<SplashScreen> {
     super.didChangeDependencies();
     // Precache logo for smoother transitions
     precacheImage(const AssetImage('assets/logo_clean_c.png'), context);
+    // Precache Home Page background to prevent lag on transition
+    precacheImage(const AssetImage('assets/home_background.jpg'), context);
   }
 
   Future<void> _checkLoginStatus() async {
-    // Wait for a minimum time for the splash effect (optional)
-    // Reduced from 2s to 800ms for better responsiveness
-    await Future.delayed(const Duration(milliseconds: 800));
+    // Start initializing home data in parallel but DON'T await it
+    // This allows the splash screen to finish quickly while data loads in background
+    _initializeHomeData();
+
+    // Wait for a minimal time for the splash effect (reduced to 1.5s)
+    await Future.delayed(const Duration(milliseconds: 1500));
 
     if (!mounted) return;
 
@@ -146,18 +151,63 @@ class _SplashScreenState extends State<SplashScreen> {
       }
       _isReady = true;
     });
+
+    // Wait for manual tap instead of auto-navigating
+    // The _isReady flag will show the loading indicator as complete
+    // and enable the tap handler
   }
 
-  void _handleTap() {
+  // Pre-fetch essential data for Home Page to prevent jank
+  Future<void> _initializeHomeData() async {
+    try {
+      if (!mounted) return;
+
+      // Use addPostFrameCallback to ensure providers are accessed safely
+      // This prevents "setState() or markNeedsBuild() called during build" errors
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+
+        // Initialize providers that are needed immediately on Home Page
+        final noticeProvider = Provider.of<NoticeProvider>(
+          context,
+          listen: false,
+        );
+        final notificationProvider = Provider.of<NotificationProvider>(
+          context,
+          listen: false,
+        );
+
+        // Load data in background without blocking UI
+        noticeProvider.loadNotices();
+        notificationProvider.fetchNotifications();
+      });
+    } catch (e) {
+      print('Error pre-fetching home data: $e');
+    }
+  }
+
+  void _navigateToTarget() {
     if (_isReady && _targetRoute != null) {
-      Navigator.pushReplacementNamed(context, _targetRoute!);
+      Navigator.of(context).pushReplacement(
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) {
+            if (_targetRoute == '/home') return const HomePage();
+            return const OnboardingScreen();
+          },
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+          settings: RouteSettings(name: _targetRoute),
+          transitionDuration: const Duration(milliseconds: 500),
+        ),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: _handleTap,
+      onTap: _navigateToTarget,
       child: Scaffold(
         backgroundColor: const Color(0xFFFFFFFF),
         body: Center(
@@ -180,7 +230,7 @@ class _SplashScreenState extends State<SplashScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              // Show loading indicator only if not ready
+              // Show loading indicator
               if (!_isReady)
                 const CircularProgressIndicator(
                   valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF2E8B57)),

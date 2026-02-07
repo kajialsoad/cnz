@@ -566,12 +566,16 @@ class _SignUpPageState extends State<SignUpPage> {
                         _isLoadingCityCorps
                             ? const Center(child: CircularProgressIndicator())
                             : DropdownButtonFormField<CityCorporation>(
+                                isExpanded: true,
                                 value: _selectedCityCorporation,
                                 decoration: _dec('Select City Corporation'),
                                 items: _CityCorporations.map((cc) {
                                   return DropdownMenuItem<CityCorporation>(
                                     value: cc,
-                                    child: Text(cc.name),
+                                    child: Text(
+                                      cc.name,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   );
                                 }).toList(),
                                 onChanged: _onCityCorporationChanged,
@@ -591,12 +595,16 @@ class _SignUpPageState extends State<SignUpPage> {
                            _isLoadingWards
                               ? const Center(child: CircularProgressIndicator())
                               : DropdownButtonFormField<Ward>(
+                                  isExpanded: true,
                                   value: _selectedWard,
                                   decoration: _dec('Select Ward'),
                                   items: _wards.map((ward) {
                                     return DropdownMenuItem<Ward>(
                                       value: ward,
-                                      child: Text(ward.displayName),
+                                      child: Text(
+                                        ward.displayName,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     );
                                   }).toList(),
                                   onChanged: _onWardChanged,
@@ -615,6 +623,7 @@ class _SignUpPageState extends State<SignUpPage> {
                             ),
                           ),
                           DropdownButtonFormField<Zone>(
+                            isExpanded: true,
                             value: _selectedZone,
                             decoration: _dec('Zone', hint: 'Zone will appear here').copyWith(
                                 fillColor: Colors.grey[200],
@@ -622,7 +631,10 @@ class _SignUpPageState extends State<SignUpPage> {
                             items: _selectedZone != null 
                               ? [DropdownMenuItem<Zone>(
                                   value: _selectedZone,
-                                  child: Text(_selectedZone!.displayName),
+                                  child: Text(
+                                    _selectedZone!.displayName,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 )] 
                               : [],
                             onChanged: null, // Read-only

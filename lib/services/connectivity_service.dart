@@ -60,13 +60,24 @@ class ConnectivityService {
 
   /// Perform a lightweight request to ensure actual internet availability
   /// First tries to reach the API server, then falls back to public endpoints
+  static DateTime? _lastCheckTime;
+  static bool _lastCheckResult = false;
+
   static Future<bool> hasInternetAccess({Duration timeout = const Duration(seconds: 3)}) async {
+    // Debounce checks to prevent spamming
+    if (_lastCheckTime != null && 
+        DateTime.now().difference(_lastCheckTime!) < const Duration(seconds: 5)) {
+      return _lastCheckResult;
+    }
+
     // First, try to reach our API server (most important for the app)
     try {
       final apiUri = Uri.parse('${ApiConfig.baseUrl}/api/health');
       final apiRes = await http.get(apiUri).timeout(timeout);
       if (apiRes.statusCode == 200) {
         print('✅ API server reachable');
+        _lastCheckTime = DateTime.now();
+        _lastCheckResult = true;
         return true;
       }
     } catch (e) {
@@ -83,9 +94,13 @@ class ConnectivityService {
       if (isOnline) {
         print('✅ Internet available but API server not reachable');
       }
+      _lastCheckTime = DateTime.now();
+      _lastCheckResult = isOnline;
       return isOnline;
     } catch (e) {
       print('❌ No internet connection: $e');
+      _lastCheckTime = DateTime.now();
+      _lastCheckResult = false;
       return false;
     }
   }

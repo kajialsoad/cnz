@@ -33,19 +33,18 @@ class _EditProfilePageState extends State<EditProfilePage> {
   late TextEditingController _phoneController;
   late TextEditingController _emailController;
   late TextEditingController _addressController;
-  
+
   // Dynamic geographical data
   List<Map<String, dynamic>> _cityCorporations = [];
   List<Map<String, dynamic>> _zones = [];
   List<Map<String, dynamic>> _wards = [];
-  
+
   int? _selectedCityCorporationId;
   int? _selectedZoneId;
   int? _selectedWardId;
-  
+
   bool _isLoading = false;
   bool _isLoadingCityCorporations = false;
-  bool _isLoadingZones = false;
   bool _isLoadingWards = false;
   bool _isUploadingImage = false;
 
@@ -57,7 +56,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   final ApiClient _apiClient = SmartApiClient.instance;
   final ImagePicker _imagePicker = ImagePicker();
-  
+
   File? _selectedImageFile;
   XFile? _selectedXFile; // For web platform preview
   String? _uploadedAvatarUrl;
@@ -70,17 +69,18 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _phoneController = TextEditingController(text: widget.user.phone);
     _emailController = TextEditingController(text: widget.user.email ?? '');
     _addressController = TextEditingController(text: widget.user.address ?? '');
-    
+
     // Initialize with user's current geographical data
-    if (widget.user.cityCorporation != null && widget.user.cityCorporation!['id'] != null) {
+    if (widget.user.cityCorporation != null &&
+        widget.user.cityCorporation!['id'] != null) {
       _selectedCityCorporationId = widget.user.cityCorporation!['id'] as int?;
     }
     _selectedZoneId = widget.user.zoneId;
     _selectedWardId = widget.user.wardId;
-    
+
     // Initialize connectivity monitoring and cache
     _initializeOfflineSupport();
-    
+
     // Load city corporations
     _loadCityCorporations();
   }
@@ -90,10 +90,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
     try {
       // Initialize cache service
       await _cacheService.init();
-      
+
       // Initialize connectivity monitoring
       _initConnectivityMonitoring();
-      
+
       // Cache current profile data for offline access
       await _profileCache.cacheProfile(widget.user);
     } catch (e) {
@@ -127,7 +127,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   Future<void> _loadCityCorporations() async {
     // Check connectivity first
     final isOnline = await _connectivityService.checkConnectivity();
-    
+
     if (!isOnline) {
       // Offline mode: Try to load from cache
       await _loadCityCorporationsFromCache();
@@ -135,38 +135,45 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
 
     setState(() => _isLoadingCityCorporations = true);
-    
+
     try {
       final response = await _apiClient.get('/api/city-corporations');
-      
+
       if (!mounted) return;
 
       if (response['success'] == true && response['cityCorporations'] != null) {
         final loadedCityCorps = List<Map<String, dynamic>>.from(
-          response['cityCorporations'] as List
+          response['cityCorporations'] as List,
         );
 
         // Cache city corporations for offline use
-        await _cacheService.saveCache('city_corporation', 'list', loadedCityCorps);
+        await _cacheService.saveCache(
+          'city_corporation',
+          'list',
+          loadedCityCorps,
+        );
 
         // Ensure selected ID actually exists in the list
         if (_selectedCityCorporationId != null) {
-          final exists = loadedCityCorps.any((cc) => cc['id'] == _selectedCityCorporationId);
+          final exists = loadedCityCorps.any(
+            (cc) => cc['id'] == _selectedCityCorporationId,
+          );
           if (!exists) {
             _selectedCityCorporationId = null;
           }
         }
 
         // Try to match city corporation if not already selected
-        if (_selectedCityCorporationId == null && widget.user.cityCorporation != null) {
+        if (_selectedCityCorporationId == null &&
+            widget.user.cityCorporation != null) {
           final userCC = widget.user.cityCorporation!;
-          
+
           // Try matching by ID first (if it wasn't caught in initState)
           var match = loadedCityCorps.firstWhere(
             (cc) => cc['id'] == userCC['id'],
             orElse: () => <String, dynamic>{},
           );
-          
+
           // If no ID match, try matching by code
           if (match.isEmpty && userCC['code'] != null) {
             match = loadedCityCorps.firstWhere(
@@ -174,16 +181,17 @@ class _EditProfilePageState extends State<EditProfilePage> {
               orElse: () => <String, dynamic>{},
             );
           }
-          
+
           // If still no match, try matching by name (English or Bangla)
           if (match.isEmpty) {
             final name = userCC['name'] as String?;
             final nameBangla = userCC['nameBangla'] as String?;
-            
+
             if (name != null || nameBangla != null) {
               match = loadedCityCorps.firstWhere(
-                (cc) => (name != null && cc['name'] == name) || 
-                       (nameBangla != null && cc['nameBangla'] == nameBangla),
+                (cc) =>
+                    (name != null && cc['name'] == name) ||
+                    (nameBangla != null && cc['nameBangla'] == nameBangla),
                 orElse: () => <String, dynamic>{},
               );
             }
@@ -198,16 +206,23 @@ class _EditProfilePageState extends State<EditProfilePage> {
           _cityCorporations = loadedCityCorps;
           _isLoadingCityCorporations = false;
         });
-        
-        // If user has a city corporation, load zones
+
+        // If user has a city corporation, load wards
         if (_selectedCityCorporationId != null) {
-          await _loadZones(_selectedCityCorporationId!);
+          final selectedCity = _cityCorporations.firstWhere(
+            (c) => c['id'] == _selectedCityCorporationId,
+            orElse: () => <String, dynamic>{},
+          );
+
+          if (selectedCity.isNotEmpty && selectedCity['code'] != null) {
+            await _loadWardsByCity(selectedCity['code']);
+          }
         }
       }
     } catch (e) {
       // On error, try loading from cache
       await _loadCityCorporationsFromCache();
-      
+
       if (mounted) setState(() => _isLoadingCityCorporations = false);
       if (mounted && _cityCorporations.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -223,19 +238,29 @@ class _EditProfilePageState extends State<EditProfilePage> {
   /// Load city corporations from cache (offline mode)
   Future<void> _loadCityCorporationsFromCache() async {
     try {
-      final cachedData = await _cacheService.getCache('city_corporation', 'list');
+      final cachedData = await _cacheService.getCache(
+        'city_corporation',
+        'list',
+      );
       if (cachedData != null && cachedData is List) {
         final loadedCityCorps = List<Map<String, dynamic>>.from(cachedData);
-        
+
         if (mounted) {
           setState(() {
             _cityCorporations = loadedCityCorps;
             _isLoadingCityCorporations = false;
           });
-          
-          // If user has a city corporation, load zones from cache
+
+          // If user has a city corporation, load wards from cache
           if (_selectedCityCorporationId != null) {
-            await _loadZones(_selectedCityCorporationId!);
+            final selectedCity = loadedCityCorps.firstWhere(
+              (c) => c['id'] == _selectedCityCorporationId,
+              orElse: () => <String, dynamic>{},
+            );
+
+            if (selectedCity.isNotEmpty && selectedCity['code'] != null) {
+              await _loadWardsFromCache(selectedCity['code']);
+            }
           }
         }
       } else {
@@ -247,132 +272,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
   }
 
-  Future<void> _loadZones(int cityCorporationId) async {
+  Future<void> _loadWardsByCity(String cityCode) async {
     // Check connectivity first
     final isOnline = await _connectivityService.checkConnectivity();
-    
+
     if (!isOnline) {
       // Offline mode: Try to load from cache
-      await _loadZonesFromCache(cityCorporationId);
-      return;
-    }
-
-    setState(() {
-      _isLoadingZones = true;
-      _zones = [];
-      _wards = [];
-    });
-    
-    try {
-      // Use cityCorporationId directly (API expects ID, not code)
-      final response = await _apiClient.get(
-        '/api/zones?cityCorporationId=$cityCorporationId'
-      );
-      
-      if (!mounted) return;
-
-      if (response['success'] == true && response['data'] != null) {
-        final loadedZones = List<Map<String, dynamic>>.from(response['data'] as List);
-        
-        // Cache zones for offline use
-        await _cacheService.saveCache('zone', 'city_$cityCorporationId', loadedZones);
-        
-        // Ensure selected ID actually exists in the list
-        if (_selectedZoneId != null) {
-          final exists = loadedZones.any((z) => z['id'] == _selectedZoneId);
-          if (!exists) {
-            _selectedZoneId = null;
-          }
-        }
-
-        // Try to match zone if not already selected
-        if (_selectedZoneId == null && (widget.user.zoneData != null || widget.user.zoneId != null)) {
-          // Try matching by ID first
-          var match = loadedZones.firstWhere(
-            (z) => z['id'] == (widget.user.zoneId ?? widget.user.zoneData?['id']),
-            orElse: () => <String, dynamic>{},
-          );
-          
-          // If no ID match, try matching by name or zone number
-          if (match.isEmpty && widget.user.zoneData != null) {
-            final userZone = widget.user.zoneData!;
-            final name = userZone['name'] as String?;
-            final zoneNumber = userZone['zoneNumber'];
-            
-            if (name != null || zoneNumber != null) {
-              match = loadedZones.firstWhere(
-                (z) => (name != null && z['name'] == name) || 
-                       (zoneNumber != null && z['zoneNumber'] == zoneNumber),
-                orElse: () => <String, dynamic>{},
-              );
-            }
-          }
-          
-          if (match.isNotEmpty) {
-            _selectedZoneId = match['id'] as int?;
-          }
-        }
-
-        setState(() {
-          _zones = loadedZones;
-          _isLoadingZones = false;
-        });
-        
-        // If user has a zone, load wards
-        if (_selectedZoneId != null) {
-          await _loadWards(_selectedZoneId!);
-        }
-      }
-    } catch (e) {
-      // On error, try loading from cache
-      await _loadZonesFromCache(cityCorporationId);
-      
-      if (mounted) setState(() => _isLoadingZones = false);
-      if (mounted && _zones.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to load zones: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  /// Load zones from cache (offline mode)
-  Future<void> _loadZonesFromCache(int cityCorporationId) async {
-    try {
-      final cachedData = await _cacheService.getCache('zone', 'city_$cityCorporationId');
-      if (cachedData != null && cachedData is List) {
-        final loadedZones = List<Map<String, dynamic>>.from(cachedData);
-        
-        if (mounted) {
-          setState(() {
-            _zones = loadedZones;
-            _isLoadingZones = false;
-          });
-          
-          // If user has a zone, load wards from cache
-          if (_selectedZoneId != null) {
-            await _loadWards(_selectedZoneId!);
-          }
-        }
-      } else {
-        if (mounted) setState(() => _isLoadingZones = false);
-      }
-    } catch (e) {
-      print('Error loading zones from cache: $e');
-      if (mounted) setState(() => _isLoadingZones = false);
-    }
-  }
-
-  Future<void> _loadWards(int zoneId) async {
-    // Check connectivity first
-    final isOnline = await _connectivityService.checkConnectivity();
-    
-    if (!isOnline) {
-      // Offline mode: Try to load from cache
-      await _loadWardsFromCache(zoneId);
+      await _loadWardsFromCache(cityCode);
       return;
     }
 
@@ -380,51 +286,68 @@ class _EditProfilePageState extends State<EditProfilePage> {
       _isLoadingWards = true;
       _wards = [];
     });
-    
+
     try {
-      final response = await _apiClient.get('/api/wards?zoneId=$zoneId');
-      
+      final response = await _apiClient.get(
+        '/api/city-corporations/$cityCode/wards',
+      );
+
       if (!mounted) return;
 
       if (response['success'] == true && response['data'] != null) {
-        final loadedWards = List<Map<String, dynamic>>.from(response['data'] as List);
-        
+        final loadedWards = List<Map<String, dynamic>>.from(
+          response['data'] as List,
+        );
+
         // Cache wards for offline use
-        await _cacheService.saveCache('ward', 'zone_$zoneId', loadedWards);
-        
+        await _cacheService.saveCache('ward', 'city_$cityCode', loadedWards);
+
         // Try to match ward if not already selected
-        if (_selectedWardId == null && (widget.user.wardData != null || widget.user.wardId != null)) {
+        if (_selectedWardId == null &&
+            (widget.user.wardData != null || widget.user.wardId != null)) {
           // Try matching by ID first
           var match = loadedWards.firstWhere(
-            (w) => w['id'] == (widget.user.wardId ?? widget.user.wardData?['id']),
+            (w) =>
+                w['id'] == (widget.user.wardId ?? widget.user.wardData?['id']),
             orElse: () => <String, dynamic>{},
           );
-          
+
           // If no ID match, try matching by ward number or name
           if (match.isEmpty && widget.user.wardData != null) {
             final userWard = widget.user.wardData!;
             final name = userWard['name'] as String?;
             final wardNumber = userWard['wardNumber'];
-            
+
             if (name != null || wardNumber != null) {
               match = loadedWards.firstWhere(
-                (w) => (name != null && w['name'] == name) || 
-                       (wardNumber != null && w['wardNumber'] == wardNumber),
+                (w) =>
+                    (name != null && w['name'] == name) ||
+                    (wardNumber != null && w['wardNumber'] == wardNumber),
                 orElse: () => <String, dynamic>{},
               );
             }
           }
-          
+
           if (match.isNotEmpty) {
             _selectedWardId = match['id'] as int?;
           }
         }
-        
+
         // Ensure selected ID actually exists in the list
         if (_selectedWardId != null) {
           final exists = loadedWards.any((w) => w['id'] == _selectedWardId);
           if (!exists) {
             _selectedWardId = null;
+          } else {
+            // If ward exists, update zone info
+            final selectedWard = loadedWards.firstWhere(
+              (w) => w['id'] == _selectedWardId,
+            );
+            if (selectedWard['zone'] != null) {
+              final zoneData = selectedWard['zone'] as Map<String, dynamic>;
+              _selectedZoneId = zoneData['id'] as int?;
+              _zones = [zoneData];
+            }
           }
         }
 
@@ -435,8 +358,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
       }
     } catch (e) {
       // On error, try loading from cache
-      await _loadWardsFromCache(zoneId);
-      
+      await _loadWardsFromCache(cityCode);
+
       if (mounted) setState(() => _isLoadingWards = false);
       if (mounted && _wards.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -450,17 +373,32 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   /// Load wards from cache (offline mode)
-  Future<void> _loadWardsFromCache(int zoneId) async {
+  Future<void> _loadWardsFromCache(String cityCode) async {
     try {
-      final cachedData = await _cacheService.getCache('ward', 'zone_$zoneId');
+      final cachedData = await _cacheService.getCache('ward', 'city_$cityCode');
       if (cachedData != null && cachedData is List) {
         final loadedWards = List<Map<String, dynamic>>.from(cachedData);
-        
+
         if (mounted) {
           setState(() {
             _wards = loadedWards;
             _isLoadingWards = false;
           });
+
+          // If ward is selected, update zone info
+          if (_selectedWardId != null) {
+            final match = loadedWards.firstWhere(
+              (w) => w['id'] == _selectedWardId,
+              orElse: () => <String, dynamic>{},
+            );
+            if (match.isNotEmpty && match['zone'] != null) {
+              final zoneData = match['zone'] as Map<String, dynamic>;
+              setState(() {
+                _selectedZoneId = zoneData['id'] as int?;
+                _zones = [zoneData];
+              });
+            }
+          }
         }
       } else {
         if (mounted) setState(() => _isLoadingWards = false);
@@ -483,12 +421,18 @@ class _EditProfilePageState extends State<EditProfilePage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 ListTile(
-                  leading: const Icon(Icons.camera_alt, color: Color(0xFF4CAF50)),
+                  leading: const Icon(
+                    Icons.camera_alt,
+                    color: Color(0xFF4CAF50),
+                  ),
                   title: TranslatedText('Camera'),
                   onTap: () => Navigator.pop(context, ImageSource.camera),
                 ),
                 ListTile(
-                  leading: const Icon(Icons.photo_library, color: Color(0xFF4CAF50)),
+                  leading: const Icon(
+                    Icons.photo_library,
+                    color: Color(0xFF4CAF50),
+                  ),
                   title: TranslatedText('Gallery'),
                   onTap: () => Navigator.pop(context, ImageSource.gallery),
                 ),
@@ -610,7 +554,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
     if (_isOffline) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('অফলাইন মোডে প্রোফাইল আপডেট করা যাবে না। ইন্টারনেট সংযোগ চেক করুন।'),
+          content: Text(
+            'অফলাইন মোডে প্রোফাইল আপডেট করা যাবে না। ইন্টারনেট সংযোগ চেক করুন।',
+          ),
           backgroundColor: Colors.orange,
           duration: Duration(seconds: 3),
         ),
@@ -626,7 +572,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
     try {
       final userRepo = UserRepository(_apiClient);
-      
+
       // Get cityCorporationCode from selected city corporation
       String? cityCorporationCode;
       if (_selectedCityCorporationId != null && _cityCorporations.isNotEmpty) {
@@ -635,7 +581,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
             (cc) => cc['id'] == _selectedCityCorporationId,
             orElse: () => <String, dynamic>{},
           );
-          
+
           if (cityCorp.isNotEmpty && cityCorp.containsKey('code')) {
             cityCorporationCode = cityCorp['code'] as String?;
           }
@@ -643,16 +589,20 @@ class _EditProfilePageState extends State<EditProfilePage> {
           print('Error getting city corporation code: $e');
         }
       }
-      
+
       await userRepo.updateProfile(
         firstName: _firstNameController.text.trim(),
         lastName: _lastNameController.text.trim(),
         phone: _phoneController.text.trim(),
-        email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
+        email: _emailController.text.trim().isEmpty
+            ? null
+            : _emailController.text.trim(),
         zoneId: _selectedZoneId,
         wardId: _selectedWardId,
         cityCorporationCode: cityCorporationCode,
-        address: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
+        address: _addressController.text.trim().isEmpty
+            ? null
+            : _addressController.text.trim(),
         avatar: _uploadedAvatarUrl, // Include uploaded avatar URL
       );
 
@@ -708,10 +658,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
       return InputDecoration(
         labelText: label,
         hintText: hint,
-        prefixIcon: icon != null ? Icon(icon, color: const Color(0xFF4CAF50)) : null,
+        prefixIcon: icon != null
+            ? Icon(icon, color: const Color(0xFF4CAF50))
+            : null,
         filled: true,
         fillColor: fillColor,
-        contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          vertical: 16,
+          horizontal: 16,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
@@ -752,8 +707,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       body: Column(
         children: [
           // Offline banner
-          if (_isOffline)
-            const OfflineBanner(showLastSync: false),
+          if (_isOffline) const OfflineBanner(showLastSync: false),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(16.0),
@@ -762,229 +716,331 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-              // Profile Picture Section
-              Center(
-                child: Stack(
-                  children: [
-                    Container(
-                      width: 100,
-                      height: 100,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF4CAF50),
-                        shape: BoxShape.circle,
-                        image: _getAvatarImage(),
-                      ),
-                      child: _shouldShowInitials()
-                          ? Center(
-                              child: Text(
-                                widget.user.initials,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 36,
-                                  fontWeight: FontWeight.bold,
+                    // Profile Picture Section
+                    Center(
+                      child: Stack(
+                        children: [
+                          Container(
+                            width: 100,
+                            height: 100,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF4CAF50),
+                              shape: BoxShape.circle,
+                              image: _getAvatarImage(),
+                            ),
+                            child: _shouldShowInitials()
+                                ? Center(
+                                    child: Text(
+                                      widget.user.initials,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 36,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  )
+                                : null,
+                          ),
+                          if (_isUploadingImage)
+                            Positioned.fill(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withOpacity(0.5),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Center(
+                                  child: CircularProgressIndicator(
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white,
+                                    ),
+                                  ),
                                 ),
                               ),
-                            )
-                          : null,
-                    ),
-                    if (_isUploadingImage)
-                      Positioned.fill(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.5),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Center(
-                            child: CircularProgressIndicator(
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                             ),
+                          Positioned(
+                            right: 0,
+                            bottom: 0,
+                            child: GestureDetector(
+                              onTap: (_isUploadingImage || _isOffline)
+                                  ? null
+                                  : _pickAndUploadImage,
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: _isOffline
+                                        ? Colors.grey
+                                        : const Color(0xFF4CAF50),
+                                    width: 2,
+                                  ),
+                                ),
+                                child: Icon(
+                                  Icons.camera_alt,
+                                  size: 20,
+                                  color: _isOffline
+                                      ? Colors.grey
+                                      : const Color(0xFF4CAF50),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Center(
+                      child: TextButton(
+                        onPressed: (_isUploadingImage || _isOffline)
+                            ? null
+                            : _pickAndUploadImage,
+                        child: TranslatedText(
+                          _isOffline
+                              ? 'Change Profile Picture (Offline)'
+                              : 'Change Profile Picture',
+                          style: TextStyle(
+                            color: _isOffline
+                                ? Colors.grey
+                                : const Color(0xFF4CAF50),
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ),
-                    Positioned(
-                      right: 0,
-                      bottom: 0,
-                      child: GestureDetector(
-                        onTap: (_isUploadingImage || _isOffline) ? null : _pickAndUploadImage,
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: _isOffline ? Colors.grey : const Color(0xFF4CAF50),
-                              width: 2,
-                            ),
-                          ),
-                          child: Icon(
-                            Icons.camera_alt,
-                            size: 20,
-                            color: _isOffline ? Colors.grey : const Color(0xFF4CAF50),
-                          ),
-                        ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // First Name
+                    TranslatedText(
+                      'First Name',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF2E2E2E),
                       ),
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 8),
-              Center(
-                child: TextButton(
-                  onPressed: (_isUploadingImage || _isOffline) ? null : _pickAndUploadImage,
-                  child: TranslatedText(
-                    _isOffline ? 'Change Profile Picture (Offline)' : 'Change Profile Picture',
-                    style: TextStyle(
-                      color: _isOffline ? Colors.grey : const Color(0xFF4CAF50),
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // First Name
-              TranslatedText(
-                'First Name',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF2E2E2E),
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _firstNameController,
-                decoration: _dec('First Name', hint: 'Enter your first name', icon: Icons.person),
-                validator: (v) {
-                  if (v == null || v.isEmpty) return 'First name is required';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-
-              // Last Name
-              TranslatedText(
-                'Last Name',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF2E2E2E),
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _lastNameController,
-                decoration: _dec('Last Name', hint: 'Enter your last name', icon: Icons.person_outline),
-                validator: (v) {
-                  if (v == null || v.isEmpty) return 'Last name is required';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-
-              // Phone Number
-              TranslatedText(
-                'Phone Number',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF2E2E2E),
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _phoneController,
-                decoration: _dec('Phone Number', hint: '+880 1XXX-XXXXX', icon: Icons.phone),
-                keyboardType: TextInputType.phone,
-                validator: (v) {
-                  if (v == null || v.isEmpty) return 'Phone number is required';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-
-              // Email Address
-              TranslatedText(
-                'Email Address (Optional)',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF2E2E2E),
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _emailController,
-                decoration: _dec('Email Address', hint: 'your.email@example.com', icon: Icons.email),
-                keyboardType: TextInputType.emailAddress,
-                validator: (v) {
-                  if (v != null && v.isNotEmpty && !RegExp(r'^.+@.+\..+').hasMatch(v)) {
-                    return 'Enter a valid email';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-
-              // City Corporation Selection
-              TranslatedText(
-                'City Corporation',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF2E2E2E),
-                ),
-              ),
-              const SizedBox(height: 8),
-              _isLoadingCityCorporations
-                  ? const Center(child: CircularProgressIndicator())
-                  : DropdownButtonFormField<int>(
-                      value: _selectedCityCorporationId,
-                      decoration: _dec('Select City Corporation', icon: Icons.location_city),
-                      isExpanded: true,
-                      items: _cityCorporations.map((cc) {
-                        return DropdownMenuItem<int>(
-                          value: cc['id'] as int,
-                          child: Text(
-                            cc['name'] as String,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedCityCorporationId = value;
-                          _selectedZoneId = null;
-                          _selectedWardId = null;
-                          _zones = [];
-                          _wards = [];
-                        });
-                        if (value != null) {
-                          _loadZones(value);
-                        }
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _firstNameController,
+                      decoration: _dec(
+                        'First Name',
+                        hint: 'Enter your first name',
+                        icon: Icons.person,
+                      ),
+                      validator: (v) {
+                        if (v == null || v.isEmpty)
+                          return 'First name is required';
+                        return null;
                       },
-                      validator: (v) => v == null ? 'Please select a city corporation' : null,
                     ),
-              const SizedBox(height: 16),
+                    const SizedBox(height: 16),
 
-              // Zone Selection
-              TranslatedText(
-                'Zone',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF2E2E2E),
-                ),
-              ),
-              const SizedBox(height: 8),
-              _isLoadingZones
-                  ? const Center(child: CircularProgressIndicator())
-                  : DropdownButtonFormField<int>(
+                    // Last Name
+                    TranslatedText(
+                      'Last Name',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF2E2E2E),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _lastNameController,
+                      decoration: _dec(
+                        'Last Name',
+                        hint: 'Enter your last name',
+                        icon: Icons.person_outline,
+                      ),
+                      validator: (v) {
+                        if (v == null || v.isEmpty)
+                          return 'Last name is required';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Phone Number
+                    TranslatedText(
+                      'Phone Number',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF2E2E2E),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _phoneController,
+                      decoration: _dec(
+                        'Phone Number',
+                        hint: '+880 1XXX-XXXXX',
+                        icon: Icons.phone,
+                      ),
+                      keyboardType: TextInputType.phone,
+                      validator: (v) {
+                        if (v == null || v.isEmpty)
+                          return 'Phone number is required';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Email Address
+                    TranslatedText(
+                      'Email Address (Optional)',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF2E2E2E),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _emailController,
+                      decoration: _dec(
+                        'Email Address',
+                        hint: 'your.email@example.com',
+                        icon: Icons.email,
+                      ),
+                      keyboardType: TextInputType.emailAddress,
+                      validator: (v) {
+                        if (v != null &&
+                            v.isNotEmpty &&
+                            !RegExp(r'^.+@.+\..+').hasMatch(v)) {
+                          return 'Enter a valid email';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    // City Corporation Selection
+                    TranslatedText(
+                      'City Corporation',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF2E2E2E),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _isLoadingCityCorporations
+                        ? const Center(child: CircularProgressIndicator())
+                        : DropdownButtonFormField<int>(
+                            value: _selectedCityCorporationId,
+                            decoration: _dec(
+                              'Select City Corporation',
+                              icon: Icons.location_city,
+                            ),
+                            isExpanded: true,
+                            items: _cityCorporations.map((cc) {
+                              return DropdownMenuItem<int>(
+                                value: cc['id'] as int,
+                                child: Text(
+                                  cc['name'] as String,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (value) {
+                              setState(() {
+                                _selectedCityCorporationId = value;
+                                _selectedZoneId = null;
+                                _selectedWardId = null;
+                                _zones = [];
+                                _wards = [];
+                              });
+                              if (value != null) {
+                                final selectedCity = _cityCorporations
+                                    .firstWhere(
+                                      (c) => c['id'] == value,
+                                      orElse: () => <String, dynamic>{},
+                                    );
+                                if (selectedCity.isNotEmpty &&
+                                    selectedCity['code'] != null) {
+                                  _loadWardsByCity(selectedCity['code']);
+                                }
+                              }
+                            },
+                            validator: (v) => v == null
+                                ? 'Please select a city corporation'
+                                : null,
+                          ),
+                    const SizedBox(height: 16),
+
+                    // Ward Selection
+                    TranslatedText(
+                      'Ward',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF2E2E2E),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _isLoadingWards
+                        ? const Center(child: CircularProgressIndicator())
+                        : DropdownButtonFormField<int>(
+                            value: _selectedWardId,
+                            decoration: _dec('Select Ward', icon: Icons.place),
+                            isExpanded: true,
+                            items: _wards.map((ward) {
+                              final wardNumber = ward['wardNumber'] as int?;
+                              return DropdownMenuItem<int>(
+                                value: ward['id'] as int,
+                                child: Text(
+                                  'Ward ${wardNumber ?? 'N/A'}',
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: _selectedCityCorporationId == null
+                                ? null
+                                : (value) {
+                                    setState(() {
+                                      _selectedWardId = value;
+                                      // Auto-select Zone
+                                      if (value != null) {
+                                        final selectedWard = _wards.firstWhere(
+                                          (w) => w['id'] == value,
+                                          orElse: () => <String, dynamic>{},
+                                        );
+                                        if (selectedWard.isNotEmpty &&
+                                            selectedWard['zone'] != null) {
+                                          final zoneData =
+                                              selectedWard['zone']
+                                                  as Map<String, dynamic>;
+                                          _selectedZoneId =
+                                              zoneData['id'] as int?;
+                                          _zones = [zoneData];
+                                        }
+                                      }
+                                    });
+                                  },
+                            validator: (v) =>
+                                v == null ? 'Please select a ward' : null,
+                          ),
+                    const SizedBox(height: 16),
+
+                    // Zone Selection (Auto-selected)
+                    TranslatedText(
+                      'Zone',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF2E2E2E),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<int>(
                       value: _selectedZoneId,
-                      decoration: _dec('Select Zone', icon: Icons.map),
+                      decoration: _dec('Zone (Auto-selected)', icon: Icons.map),
                       isExpanded: true,
                       items: _zones.map((zone) {
-                        final zoneName = zone['name'] as String? ?? 'Zone ${zone['zoneNumber']}';
+                        final zoneName =
+                            zone['name'] as String? ??
+                            'Zone ${zone['zoneNumber']}';
                         return DropdownMenuItem<int>(
                           value: zone['id'] as int,
                           child: Text(
@@ -993,132 +1049,97 @@ class _EditProfilePageState extends State<EditProfilePage> {
                           ),
                         );
                       }).toList(),
-                      onChanged: _selectedCityCorporationId == null
-                          ? null
-                          : (value) {
-                              setState(() {
-                                _selectedZoneId = value;
-                                _selectedWardId = null;
-                                _wards = [];
-                              });
-                              if (value != null) {
-                                _loadWards(value);
-                              }
-                            },
-                      validator: (v) => v == null ? 'Please select a zone' : null,
+                      onChanged: null, // Disabled
+                      validator: (v) =>
+                          v == null ? 'Zone will be auto-selected' : null,
                     ),
-              const SizedBox(height: 16),
+                    const SizedBox(height: 16),
 
-              // Ward Selection
-              TranslatedText(
-                'Ward',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF2E2E2E),
-                ),
-              ),
-              const SizedBox(height: 8),
-              _isLoadingWards
-                  ? const Center(child: CircularProgressIndicator())
-                  : DropdownButtonFormField<int>(
-                      value: _selectedWardId,
-                      decoration: _dec('Select Ward', icon: Icons.place),
-                      isExpanded: true,
-                      items: _wards.map((ward) {
-                        final wardNumber = ward['wardNumber'] as int?;
-                        return DropdownMenuItem<int>(
-                          value: ward['id'] as int,
-                          child: Text(
-                            'Ward ${wardNumber ?? 'N/A'}',
-                            overflow: TextOverflow.ellipsis,
+                    // Address
+                    TranslatedText(
+                      'Road Address (Optional)',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF2E2E2E),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _addressController,
+                      decoration: _dec(
+                        'Road Address',
+                        hint: 'Road 7, Block B',
+                        icon: Icons.home,
+                      ),
+                      maxLines: 2,
+                    ),
+                    const SizedBox(height: 32),
+
+                    // Save Button
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: (_isLoading || _isOffline)
+                            ? null
+                            : _saveProfile,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF4CAF50),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                        );
-                      }).toList(),
-                      onChanged: _selectedZoneId == null
-                          ? null
-                          : (value) {
-                              setState(() {
-                                _selectedWardId = value;
-                              });
-                            },
-                      validator: (v) => v == null ? 'Please select a ward' : null,
+                          elevation: 2,
+                        ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
+                                  ),
+                                ),
+                              )
+                            : TranslatedText(
+                                _isOffline
+                                    ? 'Save Changes (Offline)'
+                                    : 'Save Changes',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                      ),
                     ),
-              const SizedBox(height: 16),
+                    const SizedBox(height: 16),
 
-              // Address
-              TranslatedText(
-                'Road Address (Optional)',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF2E2E2E),
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _addressController,
-                decoration: _dec('Road Address', hint: 'Road 7, Block B', icon: Icons.home),
-                maxLines: 2,
-              ),
-              const SizedBox(height: 32),
-
-              // Save Button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: (_isLoading || _isOffline) ? null : _saveProfile,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF4CAF50),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 2,
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    // Cancel Button
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton(
+                        onPressed: _isLoading
+                            ? null
+                            : () => Navigator.pop(context),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF4CAF50),
+                          side: const BorderSide(color: Color(0xFF4CAF50)),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                        )
-                      : TranslatedText(
-                          _isOffline ? 'Save Changes (Offline)' : 'Save Changes',
+                        ),
+                        child: TranslatedText(
+                          'Cancel',
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Cancel Button
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: _isLoading ? null : () => Navigator.pop(context),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF4CAF50),
-                    side: const BorderSide(color: Color(0xFF4CAF50)),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
-                  ),
-                  child: TranslatedText(
-                    'Cancel',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
                   ],
                 ),
               ),

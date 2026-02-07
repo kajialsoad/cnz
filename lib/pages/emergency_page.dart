@@ -33,10 +33,7 @@ class _EmergencyPageState extends State<EmergencyPage>
   }
 
   Future<void> _makePhoneCall(String phoneNumber) async {
-    final Uri launchUri = Uri(
-      scheme: 'tel',
-      path: phoneNumber,
-    );
+    final Uri launchUri = Uri(scheme: 'tel', path: phoneNumber);
     if (await canLaunchUrl(launchUri)) {
       await launchUrl(launchUri);
     } else {
@@ -177,64 +174,71 @@ class _EmergencyPageState extends State<EmergencyPage>
           ],
         ),
       ),
-    ).animate().slideY(begin: -1, duration: 600.ms, curve: Curves.easeOut);
+    ).animate().slideY(
+      begin: -0.5,
+      duration: 500.ms,
+      curve: Curves.easeOutQuad,
+    );
   }
 
   Widget _buildEmergencyAlert() {
     return RepaintBoundary(
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFED7D7),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: const Color(0xFFE53E3E).withOpacity(0.3),
-            width: 1,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFED7D7),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: const Color(0xFFE53E3E).withOpacity(0.3),
+                width: 1,
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE53E3E).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.warning,
+                    color: Color(0xFFE53E3E),
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TranslatedText(
+                        'Emergency Contacts',
+                        style: TextStyle(
+                          color: Color(0xFFE53E3E),
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      TranslatedText(
+                        'Call these numbers only in case of genuine emergencies',
+                        style: TextStyle(
+                          color: Color(0xFFE53E3E),
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: const Color(0xFFE53E3E).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(
-                Icons.warning,
-                color: Color(0xFFE53E3E),
-                size: 24,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  TranslatedText(
-                    'Emergency Contacts',
-                    style: TextStyle(
-                      color: Color(0xFFE53E3E),
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  SizedBox(height: 4),
-                  TranslatedText(
-                    'Call these numbers only in case of genuine emergencies',
-                    style: TextStyle(
-                      color: Color(0xFFE53E3E),
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    ).animate().fadeIn(duration: 800.ms).slideY(begin: 0.3, duration: 600.ms);
+        )
+        .animate()
+        .fadeIn(duration: 600.ms)
+        .slideY(begin: 0.2, duration: 500.ms, curve: Curves.easeOutQuad);
   }
 
   Widget _buildEmergencyCard({
@@ -246,190 +250,167 @@ class _EmergencyPageState extends State<EmergencyPage>
     required int delay,
   }) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          // Main shadow for depth
-          BoxShadow(
-            color: Colors.black.withOpacity(0.15),
-            offset: const Offset(0, 8),
-            blurRadius: 25,
-            spreadRadius: 0,
+          width: double.infinity,
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              // Main shadow for depth
+              BoxShadow(
+                color: Colors.black.withOpacity(0.15),
+                offset: const Offset(0, 8),
+                blurRadius: 25,
+                spreadRadius: 0,
+              ),
+              // Secondary shadow for more depth
+              BoxShadow(
+                color: color.withOpacity(0.1),
+                offset: const Offset(0, 4),
+                blurRadius: 15,
+                spreadRadius: 0,
+              ),
+              // Highlight shadow for 3D effect
+              BoxShadow(
+                color: Colors.white.withOpacity(0.8),
+                offset: const Offset(0, -2),
+                blurRadius: 8,
+                spreadRadius: 0,
+              ),
+            ],
+            // Add gradient for more 3D effect
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Colors.white, Colors.grey.shade50],
+            ),
           ),
-          // Secondary shadow for more depth
-          BoxShadow(
-            color: color.withOpacity(0.1),
-            offset: const Offset(0, 4),
-            blurRadius: 15,
-            spreadRadius: 0,
-          ),
-          // Highlight shadow for 3D effect
-          BoxShadow(
-            color: Colors.white.withOpacity(0.8),
-            offset: const Offset(0, -2),
-            blurRadius: 8,
-            spreadRadius: 0,
-          ),
-        ],
-        // Add gradient for more 3D effect
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Colors.white,
-            Colors.grey.shade50,
-          ],
-        ),
-      ),
-      child: Column(
-        children: [
-          Row(
+          child: Column(
             children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      color.withOpacity(0.15),
-                      color.withOpacity(0.05),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          color.withOpacity(0.15),
+                          color.withOpacity(0.05),
+                        ],
+                      ),
+                      boxShadow: [
+                        // Inner shadow effect
+                        BoxShadow(
+                          color: color.withOpacity(0.2),
+                          offset: const Offset(2, 2),
+                          blurRadius: 8,
+                          spreadRadius: -2,
+                        ),
+                        // Outer glow
+                        BoxShadow(
+                          color: color.withOpacity(0.1),
+                          offset: const Offset(-2, -2),
+                          blurRadius: 8,
+                          spreadRadius: -2,
+                        ),
+                      ],
+                      border: Border.all(
+                        color: color.withOpacity(0.2),
+                        width: 1,
+                      ),
+                    ),
+                    child: Icon(icon, color: color, size: 28),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        TranslatedText(
+                          title,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF2D3748),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        TranslatedText(
+                          subtitle,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Color(0xFF718096),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [color, color.withOpacity(0.8)],
+                    ),
+                    boxShadow: [
+                      // Main button shadow
+                      BoxShadow(
+                        color: color.withOpacity(0.4),
+                        offset: const Offset(0, 6),
+                        blurRadius: 20,
+                        spreadRadius: 0,
+                      ),
+                      // Inner highlight
+                      BoxShadow(
+                        color: Colors.white.withOpacity(0.2),
+                        offset: const Offset(0, -2),
+                        blurRadius: 8,
+                        spreadRadius: -2,
+                      ),
                     ],
                   ),
-                  boxShadow: [
-                    // Inner shadow effect
-                    BoxShadow(
-                      color: color.withOpacity(0.2),
-                      offset: const Offset(2, 2),
-                      blurRadius: 8,
-                      spreadRadius: -2,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _makePhoneCall(phoneNumber),
+                    icon: const Icon(
+                      Icons.phone,
+                      color: Colors.white,
+                      size: 20,
                     ),
-                    // Outer glow
-                    BoxShadow(
-                      color: color.withOpacity(0.1),
-                      offset: const Offset(-2, -2),
-                      blurRadius: 8,
-                      spreadRadius: -2,
+                    label: TranslatedText(
+                      'Call $phoneNumber',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ],
-                  border: Border.all(
-                    color: color.withOpacity(0.2),
-                    width: 1,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      elevation: 0,
+                      shadowColor: Colors.transparent,
+                    ),
                   ),
-                ),
-                child: Icon(
-                  icon,
-                  color: color,
-                  size: 28,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    TranslatedText(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF2D3748),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    TranslatedText(
-                      subtitle,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Color(0xFF718096),
-                      ),
-                    ),
-                  ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    color,
-                    color.withOpacity(0.8),
-                  ],
-                ),
-                boxShadow: [
-                  // Main button shadow
-                  BoxShadow(
-                    color: color.withOpacity(0.4),
-                    offset: const Offset(0, 6),
-                    blurRadius: 20,
-                    spreadRadius: 0,
-                  ),
-                  // Inner highlight
-                  BoxShadow(
-                    color: Colors.white.withOpacity(0.2),
-                    offset: const Offset(0, -2),
-                    blurRadius: 8,
-                    spreadRadius: -2,
-                  ),
-                ],
-              ),
-              child: ElevatedButton.icon(
-                onPressed: () => _makePhoneCall(phoneNumber),
-                icon: const Icon(
-                  Icons.phone,
-                  color: Colors.white,
-                  size: 20,
-                ),
-                label: TranslatedText(
-                  'Call $phoneNumber',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.transparent,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  elevation: 0,
-                  shadowColor: Colors.transparent,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    ).animate(delay: delay.ms)
-        .fadeIn(duration: 800.ms)
-        .slideY(
-          begin: 0.5,
-          duration: 600.ms,
-          curve: Curves.easeOutBack,
         )
-        .scale(
-          begin: const Offset(0.8, 0.8),
-          duration: 500.ms,
-          curve: Curves.easeOutBack,
-        )
-        .shimmer(
-          duration: 1500.ms,
-          color: Colors.white.withOpacity(0.3),
-        );
+        .animate(delay: delay.ms)
+        .fadeIn(duration: 600.ms)
+        .slideY(begin: 0.3, duration: 500.ms, curve: Curves.easeOutQuad);
   }
-
 }

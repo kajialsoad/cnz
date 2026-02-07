@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../components/custom_bottom_nav.dart';
 import '../models/calendar_model.dart';
 import '../services/connectivity_service.dart';
@@ -32,21 +33,24 @@ class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
 
   Future<void> _initServices() async {
     await _connectivityService.init();
-    
+
     // Listen to connectivity changes
     _connectivityService.connectivityStream.listen((isOnline) {
       if (mounted) {
         setState(() {
           _isOffline = !isOnline;
         });
-        
+
         // Auto-refresh when coming back online
         if (isOnline) {
-          Provider.of<CalendarProvider>(context, listen: false).loadCalendarData();
+          Provider.of<CalendarProvider>(
+            context,
+            listen: false,
+          ).loadCalendarData();
         }
       }
     });
-    
+
     // Check initial connectivity
     final isOnline = await _connectivityService.checkConnectivity();
     if (mounted) {
@@ -63,7 +67,10 @@ class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
   }
 
   Future<void> _loadCalendarData() async {
-    await Provider.of<CalendarProvider>(context, listen: false).loadCalendarData(forceRefresh: true);
+    await Provider.of<CalendarProvider>(
+      context,
+      listen: false,
+    ).loadCalendarData(forceRefresh: true);
   }
 
   @override
@@ -81,7 +88,9 @@ class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          currentLanguage == 'bn' ? 'সরকারি ক্যালেন্ডার' : 'Government Calendar',
+          currentLanguage == 'bn'
+              ? 'সরকারি ক্যালেন্ডার'
+              : 'Government Calendar',
           style: const TextStyle(
             color: Colors.white,
             fontSize: 20,
@@ -100,7 +109,7 @@ class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
           if (provider.isLoading && provider.calendar == null) {
             return _buildLoadingState();
           }
-          
+
           if (provider.error != null && provider.calendar == null) {
             return _buildErrorState(provider.error, provider);
           }
@@ -162,18 +171,11 @@ class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
-              Icons.error_outline,
-              size: 64,
-              color: Colors.red,
-            ),
+            const Icon(Icons.error_outline, size: 64, color: Colors.red),
             const SizedBox(height: 16),
             const Text(
               'Error loading calendar',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
             Text(
@@ -189,7 +191,10 @@ class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF4CAF50),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
               ),
             ),
           ],
@@ -216,10 +221,7 @@ class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
                   ? 'এই মাসের জন্য কোনো ক্যালেন্ডার নেই'
                   : 'No calendar available for this month',
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
             Text(
@@ -235,13 +237,15 @@ class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
     );
   }
 
-  Widget _buildCalendarContent(String currentLanguage, CalendarProvider provider) {
+  Widget _buildCalendarContent(
+    String currentLanguage,
+    CalendarProvider provider,
+  ) {
     return Column(
       children: [
         // Offline banner
-        if (_isOffline)
-          OfflineBanner(lastSyncTime: provider.lastSyncTime),
-        
+        if (_isOffline) OfflineBanner(lastSyncTime: provider.lastSyncTime),
+
         Expanded(
           child: SingleChildScrollView(
             padding: const EdgeInsets.only(bottom: 100),
@@ -251,8 +255,11 @@ class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
                 _buildCalendarImage(currentLanguage, provider.calendar!),
 
                 // Upcoming Events Section
-                if (provider.upcomingEvents.isNotEmpty) 
-                  _buildUpcomingEventsSection(currentLanguage, provider.upcomingEvents),
+                if (provider.upcomingEvents.isNotEmpty)
+                  _buildUpcomingEventsSection(
+                    currentLanguage,
+                    provider.upcomingEvents,
+                  ),
 
                 // Legend Section
                 _buildLegendSection(currentLanguage),
@@ -267,81 +274,100 @@ class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
   }
 
   Widget _buildCalendarImage(String currentLanguage, CalendarModel calendar) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x66000000),
-            blurRadius: 4,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Calendar Title
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFF4CAF50),
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(12),
-                topRight: Radius.circular(12),
-              ),
-            ),
-            child: Text(
-              currentLanguage == 'bn'
-                  ? (calendar.titleBn ?? calendar.title)
-                  : calendar.title,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ),
-
-          // Calendar Image
-          AspectRatio(
-            aspectRatio: 365 / 479,
-            child: Image.network(
-              CloudinaryHelper.getOptimizedImageUrl(
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => _FullScreenCalendarView(
+              imageUrl: CloudinaryHelper.getOptimizedImageUrl(
                 calendar.imageUrl,
-                width: 800,
-                quality: 90,
+                width: 3840, // 4K resolution for max zoom detail
+                quality: 100, // Maximum quality
               ),
-              fit: BoxFit.cover,
-              loadingBuilder: (context, child, loadingProgress) {
-                if (loadingProgress == null) return child;
-                return Container(
+            ),
+          ),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x66000000),
+              blurRadius: 4,
+              offset: Offset(0, 4),
+            ),
+          ],
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Calendar Title
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF4CAF50),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(12),
+                  topRight: Radius.circular(12),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: Text(
+                      currentLanguage == 'bn'
+                          ? (calendar.titleBn ?? calendar.title)
+                          : calendar.title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  const Icon(Icons.zoom_in, color: Colors.white70, size: 20),
+                ],
+              ),
+            ),
+
+            // Calendar Image
+            AspectRatio(
+              aspectRatio: 365 / 479,
+              child: CachedNetworkImage(
+                imageUrl: CloudinaryHelper.getOptimizedImageUrl(
+                  calendar.imageUrl,
+                  width: 1920, // Full HD for preview
+                  quality: 100, // High quality
+                ),
+                fit: BoxFit.cover,
+                placeholder: (context, url) => Container(
                   color: Colors.grey[200],
-                  child: Center(
+                  child: const Center(
                     child: CircularProgressIndicator(
-                      value: loadingProgress.expectedTotalBytes != null
-                          ? loadingProgress.cumulativeBytesLoaded /
-                              loadingProgress.expectedTotalBytes!
-                          : null,
-                      valueColor: const AlwaysStoppedAnimation<Color>(
+                      valueColor: AlwaysStoppedAnimation<Color>(
                         Color(0xFF4CAF50),
                       ),
                     ),
                   ),
-                );
-              },
-              errorBuilder: (context, error, stack) {
-                return Container(
+                ),
+                errorWidget: (context, url, error) => Container(
                   color: Colors.grey[200],
                   alignment: Alignment.center,
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.broken_image, size: 48, color: Colors.grey[400]),
+                      Icon(
+                        Icons.broken_image,
+                        size: 48,
+                        color: Colors.grey[400],
+                      ),
                       const SizedBox(height: 8),
                       Text(
                         currentLanguage == 'bn'
@@ -351,16 +377,19 @@ class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
                       ),
                     ],
                   ),
-                );
-              },
+                ),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildUpcomingEventsSection(String currentLanguage, List<CalendarEventModel> events) {
+  Widget _buildUpcomingEventsSection(
+    String currentLanguage,
+    List<CalendarEventModel> events,
+  ) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
@@ -400,37 +429,36 @@ class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
         children: [
           // Date Box
           Container(
-            width: 60,
-            height: 60,
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: _getEventColor(event.category),
-              borderRadius: BorderRadius.circular(12),
+              color: const Color(0xFFE8F5E9),
+              borderRadius: BorderRadius.circular(8),
             ),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  DateFormat('MMM').format(event.eventDate).toUpperCase(),
+                  DateFormat('d', 'en_US').format(event.eventDate),
                   style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF2E7D32),
                   ),
                 ),
                 Text(
-                  event.eventDate.day.toString(),
+                  DateFormat(
+                    'MMM',
+                    'en_US',
+                  ).format(event.eventDate).toUpperCase(),
                   style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF2E7D32),
                   ),
                 ),
               ],
             ),
           ),
-
           const SizedBox(width: 16),
-
           // Event Details
           Expanded(
             child: Column(
@@ -446,23 +474,18 @@ class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
                     color: Colors.black87,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  event.eventType,
-                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                ),
-                if (event.description != null && event.description!.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(
-                      currentLanguage == 'bn'
-                          ? (event.descriptionBn ?? event.description!)
-                          : event.description!,
-                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                if (event.description != null ||
+                    event.descriptionBn != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    currentLanguage == 'bn'
+                        ? (event.descriptionBn ?? event.description!)
+                        : event.description!,
+                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
+                ],
               ],
             ),
           ),
@@ -500,7 +523,9 @@ class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
           const SizedBox(height: 16),
           _buildLegendItem(
             color: const Color(0xFF4CAF50),
-            label: currentLanguage == 'bn' ? 'বর্জ্য সংগ্রহ' : 'Waste Collection',
+            label: currentLanguage == 'bn'
+                ? 'বর্জ্য সংগ্রহ'
+                : 'Waste Collection',
           ),
           const SizedBox(height: 8),
           _buildLegendItem(
@@ -510,7 +535,9 @@ class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
           const SizedBox(height: 8),
           _buildLegendItem(
             color: const Color(0xFFFFB74D),
-            label: currentLanguage == 'bn' ? 'কমিউনিটি ইভেন্ট' : 'Community Event',
+            label: currentLanguage == 'bn'
+                ? 'কমিউনিটি ইভেন্ট'
+                : 'Community Event',
           ),
         ],
       ),
@@ -543,5 +570,133 @@ class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
       case EventCategory.communityEvent:
         return const Color(0xFFFFB74D);
     }
+  }
+}
+
+class _FullScreenCalendarView extends StatefulWidget {
+  final String imageUrl;
+
+  const _FullScreenCalendarView({required this.imageUrl});
+
+  @override
+  State<_FullScreenCalendarView> createState() =>
+      _FullScreenCalendarViewState();
+}
+
+class _FullScreenCalendarViewState extends State<_FullScreenCalendarView> {
+  final TransformationController _transformationController =
+      TransformationController();
+
+  // Initial scale is 1.0
+  double _currentScale = 1.0;
+
+  @override
+  void dispose() {
+    _transformationController.dispose();
+    super.dispose();
+  }
+
+  void _zoomIn() {
+    setState(() {
+      _currentScale = (_currentScale + 0.5).clamp(1.0, 4.0);
+      _transformationController.value = Matrix4.identity()
+        ..scale(_currentScale);
+    });
+  }
+
+  void _zoomOut() {
+    setState(() {
+      _currentScale = (_currentScale - 0.5).clamp(1.0, 4.0);
+      _transformationController.value = Matrix4.identity()
+        ..scale(_currentScale);
+    });
+  }
+
+  void _resetZoom() {
+    setState(() {
+      _currentScale = 1.0;
+      _transformationController.value = Matrix4.identity();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        iconTheme: const IconThemeData(color: Colors.white),
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _resetZoom,
+            tooltip: 'Reset Zoom',
+          ),
+        ],
+      ),
+      body: Stack(
+        alignment: Alignment.center,
+        children: [
+          InteractiveViewer(
+            transformationController: _transformationController,
+            minScale: 1.0,
+            maxScale: 4.0,
+            onInteractionEnd: (details) {
+              // Update local scale variable when user pinches manually
+              _currentScale = _transformationController.value
+                  .getMaxScaleOnAxis();
+            },
+            child: Center(
+              child: CachedNetworkImage(
+                imageUrl: widget.imageUrl,
+                fit: BoxFit.contain,
+                placeholder: (context, url) => const Center(
+                  child: CircularProgressIndicator(color: Colors.white),
+                ),
+                errorWidget: (context, url, error) => const Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.broken_image, color: Colors.white54, size: 64),
+                      SizedBox(height: 16),
+                      Text(
+                        'Failed to load image',
+                        style: TextStyle(color: Colors.white54),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // Zoom Controls
+          Positioned(
+            right: 16,
+            bottom: 32,
+            child: Column(
+              children: [
+                FloatingActionButton(
+                  heroTag: 'zoom_in',
+                  mini: true,
+                  backgroundColor: Colors.white.withOpacity(0.8),
+                  onPressed: _zoomIn,
+                  child: const Icon(Icons.add, color: Colors.black),
+                ),
+                const SizedBox(height: 16),
+                FloatingActionButton(
+                  heroTag: 'zoom_out',
+                  mini: true,
+                  backgroundColor: Colors.white.withOpacity(0.8),
+                  onPressed: _zoomOut,
+                  child: const Icon(Icons.remove, color: Colors.black),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
