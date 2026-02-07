@@ -12,11 +12,16 @@ async function runSeed() {
         const sqlFile = path.join(__dirname, 'seed-waste-management-posts.sql');
         const sql = fs.readFileSync(sqlFile, 'utf8');
 
-        // Split by semicolon and filter out comments and empty lines
-        const statements = sql
+        // Remove comments and split by semicolon
+        const cleanSql = sql
+            .replace(/--.*$/gm, '') // Remove single line comments
+            .replace(/\r\n/g, '\n') // Normalize line endings
+            .trim();
+
+        const statements = cleanSql
             .split(';')
             .map(s => s.trim())
-            .filter(s => s && !s.startsWith('--') && s.length > 10);
+            .filter(s => s && s.length > 10);
 
         console.log(`📝 Found ${statements.length} SQL statements to execute\n`);
 

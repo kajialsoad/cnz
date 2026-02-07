@@ -23,13 +23,13 @@ class WasteManagementService {
   }
 
   /// Get posts by category with offline-first support
-  /// 
+  ///
   /// This method implements cache-first loading:
   /// 1. Checks network connectivity
   /// 2. If offline, loads from cache
   /// 3. If online, fetches from API and updates cache
   /// 4. Falls back to cache on API failure
-  /// 
+  ///
   /// Cache key format: waste_posts_{category}
   /// TTL: 6 hours (handled by app logic - always tries fresh data when online)
   Future<List<WastePost>> getPostsByCategory(
@@ -38,46 +38,51 @@ class WasteManagementService {
     bool useCache = true,
   }) async {
     final cacheKey = 'waste_posts_$category';
-    
+
     // Check connectivity
     final isOnline = await _connectivityService.checkConnectivity();
-    
+
     // If offline and cache is enabled, load from cache
     if (!isOnline && useCache) {
       return await _loadFromCache(cacheKey);
     }
-    
+
     // Try to fetch from API
     try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/posts/category/$category'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      ).timeout(
-        const Duration(seconds: 60),
-        onTimeout: () {
-          throw Exception('Request timeout');
-        },
-      );
+      final response = await http
+          .get(
+            Uri.parse('$baseUrl/posts/category/$category'),
+            headers: {
+              'Authorization': 'Bearer $token',
+              'Content-Type': 'application/json',
+            },
+          )
+          .timeout(
+            const Duration(seconds: 60),
+            onTimeout: () {
+              throw Exception('Request timeout');
+            },
+          );
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
-        final posts = data.map((json) => WastePost.fromJson(json)).toList();
-        
+        var posts = data.map((json) => WastePost.fromJson(json)).toList();
+
+        // Fix image URLs for HD quality
+        posts = _fixImageUrls(posts);
+
         // Cache the fresh data
         if (useCache) {
           await _saveToCache(cacheKey, posts);
         }
-        
+
         return posts;
       } else {
         throw Exception('Failed to load posts: ${response.statusCode}');
       }
     } catch (e) {
       print('API Error: $e');
-      
+
       // Fallback to cache on API failure
       if (useCache) {
         try {
@@ -86,59 +91,64 @@ class WasteManagementService {
           print('Cache Error: $cacheError');
         }
       }
-      
+
       throw Exception('Error fetching posts: $e');
     }
   }
 
   /// Get all published posts with offline-first support
-  /// 
+  ///
   /// Cache key: waste_posts_all
   Future<List<WastePost>> getPublishedPosts(
     String token, {
     bool useCache = true,
   }) async {
     const cacheKey = 'waste_posts_all';
-    
+
     // Check connectivity
     final isOnline = await _connectivityService.checkConnectivity();
-    
+
     // If offline and cache is enabled, load from cache
     if (!isOnline && useCache) {
       return await _loadFromCache(cacheKey);
     }
-    
+
     // Try to fetch from API
     try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/posts'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      ).timeout(
-        const Duration(seconds: 60),
-        onTimeout: () {
-          throw Exception('Request timeout');
-        },
-      );
+      final response = await http
+          .get(
+            Uri.parse('$baseUrl/posts'),
+            headers: {
+              'Authorization': 'Bearer $token',
+              'Content-Type': 'application/json',
+            },
+          )
+          .timeout(
+            const Duration(seconds: 60),
+            onTimeout: () {
+              throw Exception('Request timeout');
+            },
+          );
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
-        final posts = data.map((json) => WastePost.fromJson(json)).toList();
-        
+        var posts = data.map((json) => WastePost.fromJson(json)).toList();
+
+        // Fix image URLs for HD quality
+        posts = _fixImageUrls(posts);
+
         // Cache the fresh data
         if (useCache) {
           await _saveToCache(cacheKey, posts);
         }
-        
+
         return posts;
       } else {
         throw Exception('Failed to load posts: ${response.statusCode}');
       }
     } catch (e) {
       print('API Error: $e');
-      
+
       // Fallback to cache on API failure
       if (useCache) {
         try {
@@ -147,13 +157,13 @@ class WasteManagementService {
           print('Cache Error: $cacheError');
         }
       }
-      
+
       throw Exception('Error fetching posts: $e');
     }
   }
 
   /// Get post by ID with offline-first support
-  /// 
+  ///
   /// Cache key format: waste_post_detail_{postId}
   Future<WastePost> getPostById(
     String token,
@@ -161,10 +171,10 @@ class WasteManagementService {
     bool useCache = true,
   }) async {
     final cacheKey = 'waste_post_detail_$postId';
-    
+
     // Check connectivity
     final isOnline = await _connectivityService.checkConnectivity();
-    
+
     // If offline and cache is enabled, load from cache
     if (!isOnline && useCache) {
       final cachedData = await _cacheService.getCache('waste_post', cacheKey);
@@ -173,41 +183,53 @@ class WasteManagementService {
       }
       throw Exception('No cached data available for post $postId');
     }
-    
+
     // Try to fetch from API
     try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/posts/$postId'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      ).timeout(
-        const Duration(seconds: 60),
-        onTimeout: () {
-          throw Exception('Request timeout');
-        },
-      );
+      final response = await http
+          .get(
+            Uri.parse('$baseUrl/posts/$postId'),
+            headers: {
+              'Authorization': 'Bearer $token',
+              'Content-Type': 'application/json',
+            },
+          )
+          .timeout(
+            const Duration(seconds: 60),
+            onTimeout: () {
+              throw Exception('Request timeout');
+            },
+          );
 
       if (response.statusCode == 200) {
-        final post = WastePost.fromJson(json.decode(response.body));
-        
+        var post = WastePost.fromJson(json.decode(response.body));
+
+        // Fix image URL for HD quality
+        if (post.imageUrl != null && post.imageUrl!.contains('w=800&q=80')) {
+          post = post.copyWith(
+            imageUrl: post.imageUrl!.replaceAll('w=800&q=80', 'w=1920&q=100'),
+          );
+        }
+
         // Cache the fresh data
         if (useCache) {
           await _cacheService.saveCache('waste_post', cacheKey, post.toJson());
         }
-        
+
         return post;
       } else {
         throw Exception('Failed to load post: ${response.statusCode}');
       }
     } catch (e) {
       print('API Error: $e');
-      
+
       // Fallback to cache on API failure
       if (useCache) {
         try {
-          final cachedData = await _cacheService.getCache('waste_post', cacheKey);
+          final cachedData = await _cacheService.getCache(
+            'waste_post',
+            cacheKey,
+          );
           if (cachedData != null) {
             return WastePost.fromJson(cachedData);
           }
@@ -215,13 +237,13 @@ class WasteManagementService {
           print('Cache Error: $cacheError');
         }
       }
-      
+
       throw Exception('Error fetching post: $e');
     }
   }
 
   /// Toggle reaction (like/love)
-  /// 
+  ///
   /// This is a write operation and requires internet connection.
   /// Returns updated reaction counts.
   Future<Map<String, dynamic>> toggleReaction(
@@ -234,21 +256,23 @@ class WasteManagementService {
     if (!isOnline) {
       throw Exception('Internet connection required for this action');
     }
-    
+
     try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/posts/$postId/reaction'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: json.encode({'reactionType': reactionType}),
-      ).timeout(
-        const Duration(seconds: 60),
-        onTimeout: () {
-          throw Exception('Request timeout');
-        },
-      );
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/posts/$postId/reaction'),
+            headers: {
+              'Authorization': 'Bearer $token',
+              'Content-Type': 'application/json',
+            },
+            body: json.encode({'reactionType': reactionType}),
+          )
+          .timeout(
+            const Duration(seconds: 60),
+            onTimeout: () {
+              throw Exception('Request timeout');
+            },
+          );
 
       if (response.statusCode == 200) {
         return json.decode(response.body);
@@ -260,12 +284,27 @@ class WasteManagementService {
     }
   }
 
+  /// Private helper: Fix image URLs to be HD
+  List<WastePost> _fixImageUrls(List<WastePost> posts) {
+    return posts.map((post) {
+      if (post.imageUrl != null && post.imageUrl!.contains('w=800&q=80')) {
+        return post.copyWith(
+          imageUrl: post.imageUrl!.replaceAll('w=800&q=80', 'w=1920&q=100'),
+        );
+      }
+      return post;
+    }).toList();
+  }
+
   /// Private helper: Load posts from cache
   Future<List<WastePost>> _loadFromCache(String cacheKey) async {
     try {
       final cachedData = await _cacheService.getCache('waste_post', cacheKey);
       if (cachedData != null && cachedData is List) {
-        return cachedData.map((json) => WastePost.fromJson(json)).toList();
+        final posts = cachedData
+            .map((json) => WastePost.fromJson(json))
+            .toList();
+        return _fixImageUrls(posts);
       }
       throw Exception('No cached data available');
     } catch (e) {
@@ -294,13 +333,20 @@ class WasteManagementService {
   bool get isOffline => !_connectivityService.isOnline;
 
   /// Get connectivity stream
-  Stream<bool> get connectivityStream => _connectivityService.connectivityStream;
+  Stream<bool> get connectivityStream =>
+      _connectivityService.connectivityStream;
 
   /// Clear all waste post caches
   Future<void> clearCache() async {
     try {
-      await _cacheService.clearCacheForEntity('waste_post', 'waste_posts_CURRENT_WASTE');
-      await _cacheService.clearCacheForEntity('waste_post', 'waste_posts_FUTURE_WASTE');
+      await _cacheService.clearCacheForEntity(
+        'waste_post',
+        'waste_posts_CURRENT_WASTE',
+      );
+      await _cacheService.clearCacheForEntity(
+        'waste_post',
+        'waste_posts_FUTURE_WASTE',
+      );
       await _cacheService.clearCacheForEntity('waste_post', 'waste_posts_all');
       print('✅ Cleared waste post cache');
     } catch (e) {
