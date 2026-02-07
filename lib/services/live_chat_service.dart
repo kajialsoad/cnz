@@ -13,17 +13,14 @@ class LiveChatService {
 
   /// Get user's live chat messages
   /// Uses endpoint: GET /api/live-chat
-  Future<List<ChatMessage>> getMessages({
-    int page = 1,
-    int limit = 50,
-  }) async {
+  Future<List<ChatMessage>> getMessages({int page = 1, int limit = 120}) async {
     try {
-      final response = await _apiClient.get(
+    int limit = 1000,
         '/api/live-chat?page=$page&limit=$limit',
       );
 
       final messagesData = response['data']['messages'] as List;
-      
+
       // Transform backend ChatMessage format to Flutter ChatMessage format
       final messages = messagesData.map((msg) {
         return ChatMessage.fromJson({
@@ -31,17 +28,19 @@ class LiveChatService {
           // No complaintId for Live Chat - it's optional now
           'senderId': msg['senderId'],
           'senderType': msg['senderType'],
-          'senderName': msg['sender'] != null 
+          'senderName': msg['sender'] != null
               ? '${msg['sender']['firstName']} ${msg['sender']['lastName']}'
               : 'Unknown',
-          'message': msg['content'], // Backend uses 'content', Flutter uses 'message'
-          'imageUrl': msg['fileUrl'], // Backend uses 'fileUrl', Flutter uses 'imageUrl'
+          'message':
+              msg['content'], // Backend uses 'content', Flutter uses 'message'
+          'imageUrl':
+              msg['fileUrl'], // Backend uses 'fileUrl', Flutter uses 'imageUrl'
           'voiceUrl': msg['voiceUrl'],
           'read': msg['isRead'], // Backend uses 'isRead', Flutter uses 'read'
           'createdAt': msg['createdAt'],
         });
       }).toList();
-      
+
       return messages;
     } catch (e) {
       print('❌ Error in getMessages: $e');
@@ -59,24 +58,22 @@ class LiveChatService {
     try {
       print('📤 Sending live chat message...');
 
-      final response = await _apiClient.post(
-        '/api/live-chat',
-        {
-          'message': message, // Backend expects 'message' field
-          if (imageUrl != null) 'imageUrl': imageUrl, // Backend expects 'imageUrl' field
-          if (voiceUrl != null) 'voiceUrl': voiceUrl,
-        },
-      );
+      final response = await _apiClient.post('/api/live-chat', {
+        'message': message, // Backend expects 'message' field
+        if (imageUrl != null)
+          'imageUrl': imageUrl, // Backend expects 'imageUrl' field
+        if (voiceUrl != null) 'voiceUrl': voiceUrl,
+      });
 
       final msg = response['data']['message'];
-      
+
       // Transform backend response to Flutter format
       return ChatMessage.fromJson({
         'id': msg['id'],
         // No complaintId for Live Chat - it's optional now
         'senderId': msg['senderId'],
         'senderType': msg['senderType'],
-        'senderName': msg['sender'] != null 
+        'senderName': msg['sender'] != null
             ? '${msg['sender']['firstName']} ${msg['sender']['lastName']}'
             : 'Unknown',
         'message': msg['content'], // Backend uses 'content'
@@ -113,9 +110,9 @@ class LiveChatService {
         '/api/live-chat/upload',
         files: [MapEntry('file', xfile)], // ✅ 'file' is correct for live-chat
       );
-      
+
       final payload = response['data'];
-      
+
       if (payload == null) {
         throw Exception('No image returned');
       }
@@ -142,9 +139,9 @@ class LiveChatService {
         '/api/live-chat/upload',
         files: [MapEntry('file', xfile)], // ✅ 'file' is correct for live-chat
       );
-      
+
       final payload = response['data'];
-      
+
       if (payload == null) {
         throw Exception('No voice file returned');
       }
@@ -170,7 +167,7 @@ class LiveChatService {
       final response = await _apiClient.get('/api/live-chat');
 
       final admin = response['data']['admin'];
-      
+
       if (admin == null) {
         throw Exception('No admin found for your location');
       }
@@ -194,7 +191,9 @@ class LiveChatService {
     try {
       final messages = await getMessages(limit: 100);
       // Count unread messages from admin (not from current user)
-      return messages.where((msg) => !msg.read && msg.senderType == 'ADMIN').length;
+      return messages
+          .where((msg) => !msg.read && msg.senderType == 'ADMIN')
+          .length;
     } catch (e) {
       print('❌ Error in getUnreadMessageCount: $e');
       return 0;

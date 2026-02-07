@@ -37,7 +37,7 @@ export class LiveChatController {
 
             const userId = req.user.sub;
             const page = parseInt(req.query.page as string) || 1;
-            const limit = parseInt(req.query.limit as string) || 50;
+            const limit = parseInt(req.query.limit as string) || 1000;
 
             // Get admin info
             const admin = await liveChatService.getUserAdmin(userId);

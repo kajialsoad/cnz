@@ -102,7 +102,7 @@ export class LiveChatService {
   }
   async getUserMessages(userId: number, options: { page?: number; limit?: number; adminId?: number } = {}) {
     const page = options.page || 1;
-    const limit = options.limit || 50;
+    const limit = options.limit || 1000;
     const skip = (page - 1) * limit;
 
     // We no longer filter by specific adminId. 
@@ -138,7 +138,7 @@ export class LiveChatService {
             }
           }
         },
-        orderBy: { createdAt: 'asc' },
+        orderBy: { createdAt: 'desc' },
         skip,
         take: limit
       }),
@@ -148,7 +148,7 @@ export class LiveChatService {
     ]);
 
     return {
-      messages,
+      messages: messages.reverse(),
       total,
       page,
       limit,
@@ -380,6 +380,11 @@ export class LiveChatService {
         } catch (error) {
           console.error('Error parsing admin permissions:', error);
         }
+      }
+
+      // Add the admin's own wardId to the list if it exists (Legacy support)
+      if (admin.wardId && !adminWardIds.includes(admin.wardId)) {
+        adminWardIds.push(admin.wardId);
       }
 
       console.log(`🔒 ADMIN assigned wards: [${adminWardIds.join(', ')}]`);

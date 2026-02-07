@@ -116,7 +116,7 @@ export class AdminLiveChatController {
             const adminId = req.user.sub;
             const userId = parseInt(req.params.userId);
             const page = parseInt(req.query.page as string) || 1;
-            const limit = parseInt(req.query.limit as string) || 50;
+            const limit = parseInt(req.query.limit as string) || 1000;
 
             if (isNaN(userId)) {
                 return res.status(400).json({

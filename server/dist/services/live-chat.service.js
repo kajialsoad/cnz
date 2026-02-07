@@ -100,7 +100,7 @@ class LiveChatService {
     }
     async getUserMessages(userId, options = {}) {
         const page = options.page || 1;
-        const limit = options.limit || 50;
+        const limit = options.limit || 1000;
         const skip = (page - 1) * limit;
         // We no longer filter by specific adminId. 
         // Users should see the full conversation history with ALL admins.
@@ -133,7 +133,7 @@ class LiveChatService {
                         }
                     }
                 },
-                orderBy: { createdAt: 'asc' },
+                orderBy: { createdAt: 'desc' },
                 skip,
                 take: limit
             }),
@@ -142,7 +142,7 @@ class LiveChatService {
             })
         ]);
         return {
-            messages,
+            messages: messages.reverse(),
             total,
             page,
             limit,
@@ -356,6 +356,10 @@ class LiveChatService {
                 catch (error) {
                     console.error('Error parsing admin permissions:', error);
                 }
+            }
+            // Add the admin's own wardId to the list if it exists (Legacy support)
+            if (admin.wardId && !adminWardIds.includes(admin.wardId)) {
+                adminWardIds.push(admin.wardId);
             }
             console.log(`🔒 ADMIN assigned wards: [${adminWardIds.join(', ')}]`);
             if (adminWardIds.length > 0) {
