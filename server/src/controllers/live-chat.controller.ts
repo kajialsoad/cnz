@@ -14,6 +14,8 @@ interface AuthenticatedRequest extends Request {
     file?: any;
 }
 
+import { systemConfigService } from '../services/system-config.service';
+
 /**
  * LiveChatController
  * 
@@ -37,7 +39,13 @@ export class LiveChatController {
 
             const userId = req.user.sub;
             const page = parseInt(req.query.page as string) || 1;
-            const limit = parseInt(req.query.limit as string) || 1000;
+            
+            // Get limit from system config or use default
+            let limit = parseInt(req.query.limit as string);
+            if (!limit || limit <= 0) {
+                const configLimit = await systemConfigService.get('LIVE_CHAT_MESSAGE_LIMIT', '120');
+                limit = parseInt(configLimit);
+            }
 
             // Get admin info
             const admin = await liveChatService.getUserAdmin(userId);

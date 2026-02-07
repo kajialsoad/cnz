@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.liveChatController = exports.LiveChatController = void 0;
 const live_chat_service_1 = __importDefault(require("../services/live-chat.service"));
 const client_1 = require("@prisma/client");
+const system_config_service_1 = require("../services/system-config.service");
 /**
  * LiveChatController
  *
@@ -28,7 +29,12 @@ class LiveChatController {
             }
             const userId = req.user.sub;
             const page = parseInt(req.query.page) || 1;
-            const limit = parseInt(req.query.limit) || 1000;
+            // Get limit from system config or use default
+            let limit = parseInt(req.query.limit);
+            if (!limit || limit <= 0) {
+                const configLimit = await system_config_service_1.systemConfigService.get('LIVE_CHAT_MESSAGE_LIMIT', '120');
+                limit = parseInt(configLimit);
+            }
             // Get admin info
             const admin = await live_chat_service_1.default.getUserAdmin(userId);
             // Get messages
