@@ -13,10 +13,13 @@ class LiveChatService {
 
   /// Get user's live chat messages
   /// Uses endpoint: GET /api/live-chat
-  Future<List<ChatMessage>> getMessages({int page = 1, int limit = 120}) async {
+  Future<List<ChatMessage>> getMessages({
+    int page = 1,
+    int? limit, // Remove default limit, let server decide based on config
+  }) async {
     try {
-    int limit = 1000,
-        '/api/live-chat?page=$page&limit=$limit',
+      final response = await _apiClient.get(
+        '/api/live-chat?page=$page${limit != null ? '&limit=$limit' : ''}',
       );
 
       final messagesData = response['data']['messages'] as List;

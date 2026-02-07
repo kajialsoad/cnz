@@ -52,6 +52,7 @@ const SystemControlPage: React.FC = () => {
     // Complaint Limits State
     const [dailyLimit, setDailyLimit] = useState('20');
     const [wardImageLimit, setWardImageLimit] = useState('10');
+    const [liveChatLimit, setLiveChatLimit] = useState('120');
     const [limitsLoading, setLimitsLoading] = useState(true);
     const [limitsSaving, setLimitsSaving] = useState(false);
 
@@ -92,6 +93,12 @@ const SystemControlPage: React.FC = () => {
             const wardResponse = await systemConfigService.getConfig('ward_image_limit');
             if (wardResponse.success && wardResponse.data) {
                 setWardImageLimit(wardResponse.data.value);
+            }
+
+            // Fetch live chat message limit
+            const liveChatResponse = await systemConfigService.getConfig('LIVE_CHAT_MESSAGE_LIMIT');
+            if (liveChatResponse.success && liveChatResponse.data) {
+                setLiveChatLimit(liveChatResponse.data.value);
             }
         } catch (err) {
             console.error('Error loading complaint limits:', err);
@@ -184,6 +191,7 @@ const SystemControlPage: React.FC = () => {
             // Validate inputs
             const dailyLimitNum = parseInt(dailyLimit, 10);
             const wardLimitNum = parseInt(wardImageLimit, 10);
+            const liveChatLimitNum = parseInt(liveChatLimit, 10);
 
             if (isNaN(dailyLimitNum) || dailyLimitNum < 1) {
                 toast.error('Daily complaint limit must be a positive number');
@@ -195,7 +203,12 @@ const SystemControlPage: React.FC = () => {
                 return;
             }
 
-            // Save both limits
+            if (isNaN(liveChatLimitNum) || liveChatLimitNum < 1) {
+                toast.error('Live chat message limit must be a positive number');
+                return;
+            }
+
+            // Save all limits
             await systemConfigService.updateConfig(
                 'daily_complaint_limit',
                 dailyLimit,
@@ -208,7 +221,13 @@ const SystemControlPage: React.FC = () => {
                 'Maximum images allowed per ward'
             );
 
-            toast.success('Complaint limits updated successfully');
+            await systemConfigService.updateConfig(
+                'LIVE_CHAT_MESSAGE_LIMIT',
+                liveChatLimit,
+                'Maximum number of messages to load in live chat'
+            );
+
+            toast.success('System limits updated successfully');
         } catch (err) {
             console.error('Error saving complaint limits:', err);
             toast.error('Failed to save complaint limits');
@@ -515,6 +534,28 @@ const SystemControlPage: React.FC = () => {
                                                 value={wardImageLimit}
                                                 onChange={(e) => setWardImageLimit(e.target.value)}
                                                 helperText="প্রতি অভিযোগের জন্য ওয়ার্ডে সর্বোচ্চ কতগুলো ছবি আপলোড করা যাবে"
+                                                InputProps={{
+                                                    inputProps: { min: 1 },
+                                                }}
+                                                disabled={limitsSaving}
+                                                sx={{
+                                                    '& .MuiOutlinedInput-root': {
+                                                        borderRadius: 2,
+                                                    }
+                                                }}
+                                            />
+                                        </Box>
+
+                                        <Box>
+                                            <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary', fontWeight: 600 }}>
+                                                লাইভ চ্যাট মেসেজ সীমা (Live Chat Message Limit)
+                                            </Typography>
+                                            <TextField
+                                                fullWidth
+                                                type="number"
+                                                value={liveChatLimit}
+                                                onChange={(e) => setLiveChatLimit(e.target.value)}
+                                                helperText="একসাথে কতগুলো পুরনো মেসেজ লোড হবে (Default: 120)"
                                                 InputProps={{
                                                     inputProps: { min: 1 },
                                                 }}
