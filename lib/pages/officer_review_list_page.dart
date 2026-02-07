@@ -3,6 +3,8 @@ import '../models/officer_review_model.dart';
 import '../services/officer_review_service.dart';
 import '../providers/language_provider.dart';
 import '../pages/officer_review_detail_page.dart';
+import '../widgets/offline_banner.dart';
+import '../widgets/optimized/fast_image.dart';
 import 'package:provider/provider.dart';
 
 /// Officer Review List Page
@@ -15,42 +17,83 @@ class OfficerReviewListPage extends StatefulWidget {
 }
 
 class _OfficerReviewListPageState extends State<OfficerReviewListPage> {
-  List<OfficerReview> _officerReviews = [];
-  bool _isLoading = true;
-  bool _hasError = false;
-  String _errorMessage = '';
+  // ✅ Use ValueNotifiers for better performance
+  final ValueNotifier<List<OfficerReview>> _officerReviewsNotifier =
+      ValueNotifier([]);
+  final ValueNotifier<bool> _isLoadingNotifier = ValueNotifier(true);
+  final ValueNotifier<bool> _hasErrorNotifier = ValueNotifier(false);
+  final ValueNotifier<String> _errorMessageNotifier = ValueNotifier('');
+  final ValueNotifier<bool> _isOfflineNotifier = ValueNotifier(false);
+  final ValueNotifier<DateTime?> _lastSyncTimeNotifier = ValueNotifier(null);
+
+  final OfficerReviewService _service = OfficerReviewService();
 
   @override
   void initState() {
     super.initState();
+    _initService();
+  }
+
+  Future<void> _initService() async {
+    await _service.init();
+    _initConnectivityMonitoring();
     _loadOfficerReviews();
+  }
+
+  /// Initialize connectivity monitoring
+  void _initConnectivityMonitoring() {
+    // ✅ Listen to connectivity changes and update notifier
+    _service.connectivityStream.listen((isOnline) {
+      if (mounted) {
+        _isOfflineNotifier.value = !isOnline;
+
+        // Auto-refresh when coming back online
+        if (isOnline && _officerReviewsNotifier.value.isNotEmpty) {
+          _loadOfficerReviews();
+        }
+      }
+    });
+
+    // Set initial offline status
+    _isOfflineNotifier.value = _service.isOffline;
   }
 
   Future<void> _loadOfficerReviews() async {
     try {
-      setState(() {
-        _isLoading = true;
-        _hasError = false;
-      });
+      _isLoadingNotifier.value = true;
+      _hasErrorNotifier.value = false;
 
-      final reviews = await OfficerReviewService.getActiveReviews();
+      final reviews = await _service.getActiveReviews();
 
       if (mounted) {
-        setState(() {
-          _officerReviews = reviews;
-          _isLoading = false;
-        });
+        // Get last sync time
+        final lastSync = await _service.getLastSyncTime();
+
+        _officerReviewsNotifier.value = reviews;
+        _isLoadingNotifier.value = false;
+        _lastSyncTimeNotifier.value = lastSync ?? DateTime.now();
       }
     } catch (e) {
       print('Error loading officer reviews: $e');
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _hasError = true;
-          _errorMessage = e.toString();
-        });
+        _isLoadingNotifier.value = false;
+        _hasErrorNotifier.value = true;
+        _errorMessageNotifier.value = e.toString();
       }
     }
+  }
+
+  @override
+  void dispose() {
+    // ✅ Dispose all notifiers
+    _officerReviewsNotifier.dispose();
+    _isLoadingNotifier.dispose();
+    _hasErrorNotifier.dispose();
+    _errorMessageNotifier.dispose();
+    _isOfflineNotifier.dispose();
+    _lastSyncTimeNotifier.dispose();
+    _service.dispose();
+    super.dispose();
   }
 
   @override
@@ -82,18 +125,12 @@ class _OfficerReviewListPageState extends State<OfficerReviewListPage> {
             transitionBuilder: (Widget child, Animation<double> animation) {
               return ScaleTransition(
                 scale: animation,
-                child: RotationTransition(
-                  turns: animation,
-                  child: child,
-                ),
+                child: RotationTransition(turns: animation, child: child),
               );
             },
             child: IconButton(
               key: ValueKey<String>(isBangla ? 'bn' : 'en'),
-              icon: const Icon(
-                Icons.language,
-                color: Colors.white,
-              ),
+              icon: const Icon(Icons.language, color: Colors.white),
               tooltip: isBangla ? 'Switch to English' : 'বাংলায় পরিবর্তন করুন',
               splashRadius: 24,
               onPressed: () {
@@ -115,96 +152,144 @@ class _OfficerReviewListPageState extends State<OfficerReviewListPage> {
   }
 
   Widget _buildBody(bool isBangla) {
-    if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4CAF50)),
-        ),
-      );
-    }
+    return ValueListenableBuilder<bool>(
+      valueListenable: _isLoadingNotifier,
+      builder: (context, isLoading, _) {
+        if (isLoading) {
+          return const Center(
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4CAF50)),
+            ),
+          );
+        }
 
-    if (_hasError) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.error_outline,
-              size: 64,
-              color: Colors.red[300],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              isBangla ? 'ত্রুটি ঘটেছে' : 'Error occurred',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey[800],
-              ),
-            ),
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: Text(
-                _errorMessage,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[600],
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: _loadOfficerReviews,
-              icon: const Icon(Icons.refresh),
-              label: Text(isBangla ? 'পুনরায় চেষ্টা করুন' : 'Try Again'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF4CAF50),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
+        return ValueListenableBuilder<bool>(
+          valueListenable: _hasErrorNotifier,
+          builder: (context, hasError, _) {
+            if (hasError) {
+              return ValueListenableBuilder<String>(
+                valueListenable: _errorMessageNotifier,
+                builder: (context, errorMessage, _) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.error_outline,
+                          size: 64,
+                          color: Colors.red[300],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          isBangla ? 'ত্রুটি ঘটেছে' : 'Error occurred',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey[800],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 32),
+                          child: Text(
+                            errorMessage,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        ElevatedButton.icon(
+                          onPressed: _loadOfficerReviews,
+                          icon: const Icon(Icons.refresh),
+                          label: Text(
+                            isBangla ? 'পুনরায় চেষ্টা করুন' : 'Try Again',
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF4CAF50),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 12,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              );
+            }
 
-    if (_officerReviews.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.people_outline,
-              size: 64,
-              color: Colors.grey[400],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              isBangla ? 'কোনো পর্যালোচনা পাওয়া যায়নি' : 'No reviews found',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey[600],
-              ),
-            ),
-          ],
-        ),
-      );
-    }
+            return ValueListenableBuilder<List<OfficerReview>>(
+              valueListenable: _officerReviewsNotifier,
+              builder: (context, officerReviews, _) {
+                if (officerReviews.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.people_outline,
+                          size: 64,
+                          color: Colors.grey[400],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          isBangla
+                              ? 'কোনো পর্যালোচনা পাওয়া যায়নি'
+                              : 'No reviews found',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
 
-    return RefreshIndicator(
-      onRefresh: _loadOfficerReviews,
-      color: const Color(0xFF4CAF50),
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: _officerReviews.length,
-        itemBuilder: (context, index) {
-          final review = _officerReviews[index];
-          return _buildOfficerCard(review, isBangla);
-        },
-      ),
+                return ValueListenableBuilder<bool>(
+                  valueListenable: _isOfflineNotifier,
+                  builder: (context, isOffline, _) {
+                    return Column(
+                      children: [
+                        // Offline banner
+                        if (isOffline)
+                          ValueListenableBuilder<DateTime?>(
+                            valueListenable: _lastSyncTimeNotifier,
+                            builder: (context, lastSyncTime, _) {
+                              return OfflineBanner(lastSyncTime: lastSyncTime);
+                            },
+                          ),
+
+                        // Officer reviews list
+                        Expanded(
+                          child: RefreshIndicator(
+                            onRefresh: _loadOfficerReviews,
+                            color: const Color(0xFF4CAF50),
+                            child: ListView.builder(
+                              padding: const EdgeInsets.all(16),
+                              itemCount: officerReviews.length,
+                              itemBuilder: (context, index) {
+                                final review = officerReviews[index];
+                                return _buildOfficerCard(review, isBangla);
+                              },
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                );
+              },
+            );
+          },
+        );
+      },
     );
   }
 
@@ -221,10 +306,7 @@ class _OfficerReviewListPageState extends State<OfficerReviewListPage> {
       builder: (context, value, child) {
         return Transform.scale(
           scale: 0.95 + (0.05 * value),
-          child: Opacity(
-            opacity: value,
-            child: child,
-          ),
+          child: Opacity(opacity: value, child: child),
         );
       },
       child: GestureDetector(
@@ -233,9 +315,8 @@ class _OfficerReviewListPageState extends State<OfficerReviewListPage> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => OfficerReviewDetailPage(
-                officerReview: review.toJson(),
-              ),
+              builder: (context) =>
+                  OfficerReviewDetailPage(officerReview: review.toJson()),
             ),
           );
         },
@@ -261,9 +342,8 @@ class _OfficerReviewListPageState extends State<OfficerReviewListPage> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => OfficerReviewDetailPage(
-                      officerReview: review.toJson(),
-                    ),
+                    builder: (context) =>
+                        OfficerReviewDetailPage(officerReview: review.toJson()),
                   ),
                 );
               },
@@ -294,10 +374,12 @@ class _OfficerReviewListPageState extends State<OfficerReviewListPage> {
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(35),
                           child: review.imageUrl != null
-                              ? Image.network(
-                                  review.imageUrl!,
+                              ? FastImage(
+                                  imageUrl: review.imageUrl!,
+                                  width: 70,
+                                  height: 70,
                                   fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) {
+                                  errorWidget: (context, url, error) {
                                     return _buildPlaceholderImage();
                                   },
                                 )
@@ -385,11 +467,7 @@ class _OfficerReviewListPageState extends State<OfficerReviewListPage> {
         shape: BoxShape.circle,
         color: Color(0xFF4CAF50),
       ),
-      child: const Icon(
-        Icons.person,
-        size: 40,
-        color: Colors.white,
-      ),
+      child: const Icon(Icons.person, size: 40, color: Colors.white),
     );
   }
 }

@@ -197,10 +197,6 @@ class _Elevated3DButtonState extends State<Elevated3DButton>
           );
         },
       ),
-    ).animate().fadeIn(duration: 600.ms).scale(
-          begin: const Offset(0.8, 0.8),
-          duration: 400.ms,
-          curve: Curves.elasticOut,
-        );
+    );
   }
 }

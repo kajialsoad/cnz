@@ -6,12 +6,20 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../models/notice_model.dart';
 import '../providers/notice_provider.dart';
 import '../providers/language_provider.dart';
+import '../services/connectivity_service.dart';
+import '../services/notice_cache_service.dart';
 import '../widgets/translated_text.dart';
+import '../widgets/offline_banner.dart';
 
 class NoticeDetailPage extends StatefulWidget {
   final int noticeId;
+  final Notice? initialNotice;
 
-  const NoticeDetailPage({super.key, required this.noticeId});
+  const NoticeDetailPage({
+    super.key,
+    required this.noticeId,
+    this.initialNotice,
+  });
 
   @override
   State<NoticeDetailPage> createState() => _NoticeDetailPageState();
@@ -19,11 +27,17 @@ class NoticeDetailPage extends StatefulWidget {
 
 class _NoticeDetailPageState extends State<NoticeDetailPage>
     with SingleTickerProviderStateMixin {
-  Notice? _notice;
-  bool _isLoading = true;
-  String? _error;
+  // ValueNotifiers for optimized state management
+  late final ValueNotifier<Notice?> _noticeNotifier;
+  late final ValueNotifier<bool> _isLoadingNotifier;
+  final ValueNotifier<String?> _errorNotifier = ValueNotifier<String?>(null);
+  final ValueNotifier<bool> _isMarkedAsReadNotifier = ValueNotifier<bool>(
+    false,
+  );
+  final ValueNotifier<bool> _isOfflineNotifier = ValueNotifier<bool>(false);
+
+  final NoticeCacheService _cacheService = NoticeCacheService();
   late AnimationController _animationController;
-  bool _isMarkedAsRead = false;
 
   // Color scheme
   static const Color green = Color(0xFF2E8B57);
@@ -36,21 +50,90 @@ class _NoticeDetailPageState extends State<NoticeDetailPage>
   @override
   void initState() {
     super.initState();
+    // Initialize notifiers with passed data if available
+    _noticeNotifier = ValueNotifier<Notice?>(widget.initialNotice);
+    _isLoadingNotifier = ValueNotifier<bool>(widget.initialNotice == null);
+
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 1200),
       vsync: this,
     );
     _animationController.forward();
     _loadNotice();
+    _initConnectivityMonitoring();
+  }
+
+  void _initConnectivityMonitoring() {
+    // Initialize connectivity service
+    ConnectivityService().init();
+
+    // Listen to connectivity changes
+    ConnectivityService().connectivityStream.listen((isConnected) {
+      if (mounted) {
+        _isOfflineNotifier.value = !isConnected;
+      }
+    });
+
+    // Set initial state
+    _isOfflineNotifier.value = !ConnectivityService().isOnline;
   }
 
   @override
   void dispose() {
     _animationController.dispose();
+    ConnectivityService().dispose();
+    _noticeNotifier.dispose();
+    _isLoadingNotifier.dispose();
+    _errorNotifier.dispose();
+    _isMarkedAsReadNotifier.dispose();
+    _isOfflineNotifier.dispose();
     super.dispose();
   }
 
   Future<void> _loadNotice() async {
+    try {
+      // ✅ CACHE-FIRST STRATEGY: Load from cache immediately
+      final cachedNotice = await _cacheService.getCachedNotice(widget.noticeId);
+      if (cachedNotice != null) {
+        if (mounted) {
+          _noticeNotifier.value = cachedNotice;
+          _isLoadingNotifier.value = false;
+        }
+
+        // ✅ Refresh in background if online
+        if (!_isOfflineNotifier.value) {
+          _refreshNoticeInBackground();
+        }
+        return;
+      }
+
+      // If no cache, fetch from network
+      final noticeProvider = Provider.of<NoticeProvider>(
+        context,
+        listen: false,
+      );
+      final notice = await noticeProvider.getNoticeById(widget.noticeId);
+
+      // ✅ Cache the fresh data
+      await _cacheService.cacheNotice(notice);
+
+      // Increment view count
+      await noticeProvider.incrementViewCount(widget.noticeId);
+
+      if (mounted) {
+        _noticeNotifier.value = notice;
+        _isLoadingNotifier.value = false;
+      }
+    } catch (e) {
+      if (mounted) {
+        _errorNotifier.value = e.toString();
+        _isLoadingNotifier.value = false;
+      }
+    }
+  }
+
+  /// Refresh notice data in background without showing loading
+  Future<void> _refreshNoticeInBackground() async {
     try {
       final noticeProvider = Provider.of<NoticeProvider>(
         context,
@@ -58,32 +141,29 @@ class _NoticeDetailPageState extends State<NoticeDetailPage>
       );
       final notice = await noticeProvider.getNoticeById(widget.noticeId);
 
+      // Update cache
+      await _cacheService.cacheNotice(notice);
+
       // Increment view count
       await noticeProvider.incrementViewCount(widget.noticeId);
 
+      // Update UI if still mounted
       if (mounted) {
-        setState(() {
-          _notice = notice;
-          _isLoading = false;
-        });
+        _noticeNotifier.value = notice;
       }
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _error = e.toString();
-          _isLoading = false;
-        });
-      }
+      // Silent fail - user already has cached data
+      print('Background refresh failed: $e');
     }
   }
 
   Future<void> _handleInteraction(String type) async {
-    if (!mounted || _notice == null) return;
+    if (!mounted || _noticeNotifier.value == null) return;
     final currentInteractions = List<String>.from(
-      _notice!.userInteractions ?? [],
+      _noticeNotifier.value!.userInteractions ?? [],
     );
     final currentCounts = Map<String, int>.from(
-      _notice!.interactionCounts ?? {},
+      _noticeNotifier.value!.interactionCounts ?? {},
     );
     final bool isAdding = !currentInteractions.contains(type);
 
@@ -109,17 +189,15 @@ class _NoticeDetailPageState extends State<NoticeDetailPage>
       }
     }
 
-    setState(() {
-      _notice = _notice!.copyWith(
-        interactionCounts: currentCounts,
-        userInteractions: currentInteractions,
-      );
-    });
+    _noticeNotifier.value = _noticeNotifier.value!.copyWith(
+      interactionCounts: currentCounts,
+      userInteractions: currentInteractions,
+    );
 
     await Provider.of<NoticeProvider>(
       context,
       listen: false,
-    ).toggleInteraction(_notice!.id, type);
+    ).toggleInteraction(_noticeNotifier.value!.id, type);
   }
 
   @override
@@ -128,57 +206,12 @@ class _NoticeDetailPageState extends State<NoticeDetailPage>
     final currentLanguage = languageProvider.languageCode;
 
     return Scaffold(
-      extendBodyBehindAppBar: true,
       backgroundColor: const Color(0xFFF3FAF5),
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-        leading: Container(
-          margin: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.9),
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Color(0xFF2E8B57)),
-            onPressed: () => Navigator.pop(context),
-          ),
-        ),
-        actions: [
-          Container(
-            margin: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.9),
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: IconButton(
-              icon: const Icon(Icons.share, color: Color(0xFF2E8B57)),
-              onPressed: () {
-                // Share functionality
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Share feature coming soon!')),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-      body: _isLoading
-          ? Center(
+      body: ValueListenableBuilder<bool>(
+        valueListenable: _isLoadingNotifier,
+        builder: (context, isLoading, _) {
+          if (isLoading) {
+            return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -190,16 +223,33 @@ class _NoticeDetailPageState extends State<NoticeDetailPage>
                   ),
                 ],
               ),
-            )
-          : _error != null
-          ? _buildErrorState(currentLanguage)
-          : _notice == null
-          ? _buildNotFoundState(currentLanguage)
-          : _buildNoticeContent(currentLanguage),
+            );
+          }
+
+          return ValueListenableBuilder<String?>(
+            valueListenable: _errorNotifier,
+            builder: (context, error, _) {
+              if (error != null) {
+                return _buildErrorState(currentLanguage, error);
+              }
+
+              return ValueListenableBuilder<Notice?>(
+                valueListenable: _noticeNotifier,
+                builder: (context, notice, _) {
+                  if (notice == null) {
+                    return _buildNotFoundState(currentLanguage);
+                  }
+                  return _buildNoticeContent(currentLanguage, notice);
+                },
+              );
+            },
+          );
+        },
+      ),
     );
   }
 
-  Widget _buildErrorState(String currentLanguage) {
+  Widget _buildErrorState(String currentLanguage, String error) {
     return Center(
       child: Container(
         margin: const EdgeInsets.all(24),
@@ -233,7 +283,7 @@ class _NoticeDetailPageState extends State<NoticeDetailPage>
             ),
             const SizedBox(height: 12),
             Text(
-              _error!,
+              error,
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey[600]),
             ),
@@ -327,365 +377,529 @@ class _NoticeDetailPageState extends State<NoticeDetailPage>
     );
   }
 
-  Widget _buildNoticeContent(String currentLanguage) {
-    return CustomScrollView(
-      slivers: [
-        // Hero Image Section
-        if (_notice!.imageUrl != null && _notice!.imageUrl!.isNotEmpty)
-          SliverToBoxAdapter(child: _buildHeroImage()),
+  Widget _buildNoticeContent(String currentLanguage, Notice notice) {
+    final bool hasImage =
+        notice.imageUrl != null && notice.imageUrl!.isNotEmpty;
 
-        // Content Section
-        SliverToBoxAdapter(
-          child: Transform.translate(
-            offset: _notice!.imageUrl != null && _notice!.imageUrl!.isNotEmpty
-                ? const Offset(0, -30)
-                : Offset.zero,
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Color(0xFFE9F6EE),
-                    Color(0xFFF7FCF9),
-                    Color(0xFFF3FAF5),
-                  ],
+    return ValueListenableBuilder<bool>(
+      valueListenable: _isOfflineNotifier,
+      builder: (context, isOffline, _) {
+        return RefreshIndicator(
+          onRefresh: () async {
+            try {
+              final noticeProvider = Provider.of<NoticeProvider>(
+                context,
+                listen: false,
+              );
+              final updatedNotice = await noticeProvider.getNoticeById(
+                widget.noticeId,
+              );
+              await _cacheService.cacheNotice(updatedNotice);
+              if (mounted) {
+                _noticeNotifier.value = updatedNotice;
+              }
+            } catch (e) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      currentLanguage == 'bn'
+                          ? 'রিফ্রেশ করতে ব্যর্থ হয়েছে'
+                          : 'Failed to refresh',
+                    ),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            }
+          },
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              // 1. SliverAppBar with Hero Image
+              SliverAppBar(
+                expandedHeight: hasImage ? 350.0 : kToolbarHeight + 40,
+                pinned: true,
+                stretch: true,
+                backgroundColor: Colors.transparent,
+                leading: Container(
+                  margin: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.9),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: IconButton(
+                    icon: const Icon(
+                      Icons.arrow_back,
+                      color: Color(0xFF2E8B57),
+                    ),
+                    onPressed: () => Navigator.pop(context),
+                  ),
                 ),
-                borderRadius:
-                    _notice!.imageUrl != null && _notice!.imageUrl!.isNotEmpty
-                    ? const BorderRadius.only(
-                        topLeft: Radius.circular(30),
-                        topRight: Radius.circular(30),
-                      )
-                    : null,
-              ),
-              child: Column(
-                children: [
-                  _buildHeaderSection(currentLanguage),
-                  _buildContentSection(currentLanguage),
-                  _buildStatsSection(currentLanguage),
-                  _buildInteractionSection(currentLanguage),
-                  _buildActionButtons(currentLanguage),
-                  const SizedBox(height: 40),
+                actions: [
+                  Container(
+                    margin: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.9),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: IconButton(
+                      icon: const Icon(Icons.share, color: Color(0xFF2E8B57)),
+                      onPressed: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Share feature coming soon!'),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
                 ],
+                flexibleSpace: FlexibleSpaceBar(
+                  stretchModes: const [
+                    StretchMode.zoomBackground,
+                    StretchMode.blurBackground,
+                  ],
+                  background: hasImage ? _buildHeroImage(notice) : null,
+                ),
               ),
-            ),
+
+              // 2. Offline Banner
+              if (isOffline)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: OfflineBanner(),
+                  ),
+                ),
+
+              // 3. Content Section with Overlap
+              SliverToBoxAdapter(
+                child: Transform.translate(
+                  offset: hasImage ? const Offset(0, -20) : const Offset(0, 0),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF3FAF5),
+                      borderRadius: hasImage
+                          ? const BorderRadius.only(
+                              topLeft: Radius.circular(30),
+                              topRight: Radius.circular(30),
+                            )
+                          : null,
+                      boxShadow: hasImage
+                          ? [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 10,
+                                offset: const Offset(0, -5),
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: Column(
+                      children: [
+                        SizedBox(
+                          height: hasImage ? 40 : 20,
+                        ), // Increased spacing to prevent text overlap
+                        _buildHeaderSection(currentLanguage, notice),
+                        _buildContentSection(currentLanguage, notice),
+                        _buildStatsSection(currentLanguage, notice),
+                        _buildInteractionSection(currentLanguage, notice),
+                        _buildActionButtons(currentLanguage),
+                        const SizedBox(height: 40),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ),
-      ],
+        );
+      },
     );
   }
 
-  Widget _buildHeroImage() {
+  Widget _buildHeroImage(Notice notice) {
     return Hero(
-      tag: 'notice-image-${_notice!.id}',
+      tag: 'notice-image-${notice.id}',
       child: Stack(
+        fit: StackFit.expand,
         children: [
-          CachedNetworkImage(
-            imageUrl: _notice!.imageUrl!,
-            width: double.infinity,
-            height: 350,
-            fit: BoxFit.cover,
-            placeholder: (context, url) => Container(
-              height: 350,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [green.withOpacity(0.3), greenLight.withOpacity(0.2)],
+          if (notice.imageUrl != null && notice.imageUrl!.isNotEmpty)
+            CachedNetworkImage(
+              imageUrl: notice.imageUrl!,
+              fit: BoxFit.cover,
+              placeholder: (context, url) => Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      green.withOpacity(0.3),
+                      greenLight.withOpacity(0.2),
+                    ],
+                  ),
+                ),
+                child: const Center(
+                  child: CircularProgressIndicator(color: Colors.white),
                 ),
               ),
-              child: const Center(
-                child: CircularProgressIndicator(color: Colors.white),
+              errorWidget: (context, url, error) => Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      green.withOpacity(0.3),
+                      greenLight.withOpacity(0.2),
+                    ],
+                  ),
+                ),
+                child: const Center(
+                  child: Icon(
+                    Icons.image_not_supported,
+                    size: 64,
+                    color: Colors.white,
+                  ),
+                ),
               ),
-            ),
-            errorWidget: (context, url, error) => Container(
-              height: 350,
+            )
+          else
+            Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [green.withOpacity(0.3), greenLight.withOpacity(0.2)],
+                  colors: [green.withOpacity(0.8), greenLight.withOpacity(0.6)],
                 ),
               ),
               child: const Center(
                 child: Icon(
-                  Icons.image_not_supported,
-                  size: 64,
+                  Icons.notifications_active,
+                  size: 80,
                   color: Colors.white,
                 ),
               ),
             ),
-          ),
-          // Gradient overlay
+          // Gradient overlay for better text contrast if we had title on image
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [Colors.transparent, Colors.black.withOpacity(0.3)],
+                  colors: [
+                    Colors.black.withOpacity(0.2),
+                    Colors.transparent,
+                    Colors.black.withOpacity(0.1),
+                  ],
                 ),
               ),
             ),
           ),
         ],
       ),
-    ).animate().fadeIn(duration: 600.ms);
+    ).animate().fadeIn(duration: 800.ms, curve: Curves.easeOut);
   }
 
-  Widget _buildHeaderSection(String currentLanguage) {
+  Widget _buildHeaderSection(String currentLanguage, Notice notice) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(24, 10, 24, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Badges
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              if (_notice!.isUrgent)
-                _buildGlassBadge(
-                  currentLanguage == 'bn' ? '🚨 জরুরি' : '🚨 URGENT',
-                  red,
-                ),
-              if (_notice!.category != null)
-                _buildGlassBadge(
-                  '${_notice!.category!.icon ?? '📢'} ${currentLanguage == 'bn' && _notice!.category!.nameBn != null ? _notice!.category!.nameBn! : _notice!.category!.name}',
-                  Color(
-                    int.parse(
-                      _notice!.category!.color.replaceFirst('#', '0xFF'),
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  if (notice.isUrgent)
+                    _buildGlassBadge(
+                      currentLanguage == 'bn' ? '🚨 জরুরি' : '🚨 URGENT',
+                      red,
                     ),
+                  if (notice.category != null)
+                    _buildGlassBadge(
+                      '${notice.category!.icon ?? '📢'} ${currentLanguage == 'bn' && notice.category!.nameBn != null ? notice.category!.nameBn! : notice.category!.name}',
+                      Color(
+                        int.parse(
+                          notice.category!.color.replaceFirst('#', '0xFF'),
+                        ),
+                      ),
+                    ),
+                  _buildGlassBadge(
+                    _getTypeLabel(notice.type, currentLanguage),
+                    _getTypeColor(notice.type),
                   ),
-                ),
-              _buildGlassBadge(
-                _getTypeLabel(_notice!.type, currentLanguage),
-                _getTypeColor(_notice!.type),
-              ),
-            ],
-          ).animate().slideX(begin: -0.2, duration: 500.ms).fadeIn(),
+                ],
+              )
+              .animate()
+              .slideY(begin: 0.2, duration: 500.ms, curve: Curves.easeOut)
+              .fadeIn(),
 
           const SizedBox(height: 20),
 
           // Title
           Text(
-            _notice!.getLocalizedTitle(currentLanguage),
-            style: const TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF2C3E50),
-              height: 1.3,
-            ),
-          ).animate().slideY(begin: 0.3, duration: 600.ms).fadeIn(),
+                notice.getLocalizedTitle(currentLanguage),
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF2C3E50),
+                  height: 1.3,
+                  letterSpacing: -0.5,
+                ),
+              )
+              .animate(delay: 100.ms)
+              .slideY(begin: 0.2, duration: 600.ms, curve: Curves.easeOut)
+              .fadeIn(),
 
           const SizedBox(height: 12),
 
           // Description
           Text(
-                _notice!.getLocalizedDescription(currentLanguage),
+                notice.getLocalizedDescription(currentLanguage),
                 style: TextStyle(
                   fontSize: 16,
                   color: Colors.grey[700],
-                  height: 1.5,
+                  height: 1.6,
                 ),
               )
-              .animate(delay: 100.ms)
-              .slideY(begin: 0.3, duration: 600.ms)
+              .animate(delay: 200.ms)
+              .slideY(begin: 0.2, duration: 600.ms, curve: Curves.easeOut)
               .fadeIn(),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
 
           // Date Info
           _buildGlassInfoCard([
-            _buildInfoRow(
-              Icons.calendar_today,
-              currentLanguage == 'bn' ? 'প্রকাশিত' : 'Published',
-              _formatDate(_notice!.publishDate, currentLanguage),
-              green,
-            ),
-            if (_notice!.expiryDate != null) ...[
-              const SizedBox(height: 12),
-              _buildInfoRow(
-                Icons.event_busy,
-                currentLanguage == 'bn' ? 'মেয়াদ শেষ' : 'Expires',
-                _formatDate(_notice!.expiryDate!, currentLanguage),
-                orange,
-              ),
-            ],
-          ]).animate(delay: 200.ms).scale(duration: 500.ms).fadeIn(),
+                _buildInfoRow(
+                  Icons.calendar_today,
+                  currentLanguage == 'bn' ? 'প্রকাশিত' : 'Published',
+                  _formatDate(notice.publishDate, currentLanguage),
+                  green,
+                ),
+                if (notice.expiryDate != null) ...[
+                  const SizedBox(height: 12),
+                  _buildInfoRow(
+                    Icons.event_busy,
+                    currentLanguage == 'bn' ? 'মেয়াদ শেষ' : 'Expires',
+                    _formatDate(notice.expiryDate!, currentLanguage),
+                    orange,
+                  ),
+                ],
+              ])
+              .animate(delay: 300.ms)
+              .slideY(begin: 0.2, duration: 600.ms, curve: Curves.easeOut)
+              .fadeIn(),
         ],
       ),
     );
   }
 
-  Widget _buildContentSection(String currentLanguage) {
+  Widget _buildContentSection(String currentLanguage, Notice notice) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.7),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
+          margin: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.7),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.3),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: green.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(Icons.article, color: green, size: 24),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: green.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.article,
+                          color: green,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        currentLanguage == 'bn'
+                            ? 'বিস্তারিত তথ্য'
+                            : 'Detailed Information',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF2C3E50),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(height: 20),
                   Text(
-                    currentLanguage == 'bn'
-                        ? 'বিস্তারিত তথ্য'
-                        : 'Detailed Information',
+                    notice.getLocalizedContent(currentLanguage),
                     style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      height: 1.8,
                       color: Color(0xFF2C3E50),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
-              Text(
-                _notice!.getLocalizedContent(currentLanguage),
-                style: const TextStyle(
-                  fontSize: 16,
-                  height: 1.8,
-                  color: Color(0xFF2C3E50),
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
-      ),
-    ).animate(delay: 300.ms).slideY(begin: 0.3, duration: 600.ms).fadeIn();
+        )
+        .animate(delay: 400.ms)
+        .slideY(begin: 0.2, duration: 600.ms, curve: Curves.easeOut)
+        .fadeIn();
   }
 
-  Widget _buildStatsSection(String currentLanguage) {
+  Widget _buildStatsSection(String currentLanguage, Notice notice) {
     return Container(
-      margin: const EdgeInsets.all(20),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.7),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildStatItem(
-                Icons.visibility,
-                _notice!.viewCount.toString(),
-                currentLanguage == 'bn' ? 'দেখা হয়েছে' : 'Views',
-                blue,
-              ),
-              Container(
-                width: 1,
-                height: 50,
-                color: Colors.grey.withOpacity(0.3),
-              ),
-              _buildStatItem(
-                Icons.check_circle,
-                _notice!.readCount.toString(),
-                currentLanguage == 'bn' ? 'পড়া হয়েছে' : 'Reads',
-                green,
-              ),
-              Container(
-                width: 1,
-                height: 50,
-                color: Colors.grey.withOpacity(0.3),
-              ),
-              _buildStatItem(
-                Icons.favorite,
-                (_notice!.interactionCounts?['LOVE'] ?? 0).toString(),
-                currentLanguage == 'bn' ? 'পছন্দ' : 'Loves',
-                red,
+          margin: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.7),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.3),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
               ),
             ],
           ),
-        ),
-      ),
-    ).animate(delay: 400.ms).scale(duration: 500.ms).fadeIn();
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildStatItem(
+                    Icons.visibility,
+                    notice.viewCount.toString(),
+                    currentLanguage == 'bn' ? 'দেখা হয়েছে' : 'Views',
+                    blue,
+                  ),
+                  Container(
+                    width: 1,
+                    height: 50,
+                    color: Colors.grey.withOpacity(0.3),
+                  ),
+                  _buildStatItem(
+                    Icons.check_circle,
+                    notice.readCount.toString(),
+                    currentLanguage == 'bn' ? 'পড়া হয়েছে' : 'Reads',
+                    green,
+                  ),
+                  Container(
+                    width: 1,
+                    height: 50,
+                    color: Colors.grey.withOpacity(0.3),
+                  ),
+                  _buildStatItem(
+                    Icons.favorite,
+                    (notice.interactionCounts?['LOVE'] ?? 0).toString(),
+                    currentLanguage == 'bn' ? 'পছন্দ' : 'Loves',
+                    red,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        )
+        .animate(delay: 500.ms)
+        .slideY(begin: 0.2, duration: 600.ms, curve: Curves.easeOut)
+        .fadeIn();
   }
 
-  Widget _buildInteractionSection(String currentLanguage) {
-    final bool isLiked = _notice!.userInteractions?.contains('LIKE') ?? false;
-    final bool isLoved = _notice!.userInteractions?.contains('LOVE') ?? false;
+  Widget _buildInteractionSection(String currentLanguage, Notice notice) {
+    final bool isLiked = notice.userInteractions?.contains('LIKE') ?? false;
+    final bool isLoved = notice.userInteractions?.contains('LOVE') ?? false;
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.7),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _buildInteractionButton(
-                isLiked ? Icons.thumb_up : Icons.thumb_up_outlined,
-                (_notice!.interactionCounts?['LIKE'] ?? 0).toString(),
-                currentLanguage == 'bn' ? 'লাইক' : 'Like',
-                blue,
-                isLiked,
-                () => _handleInteraction('LIKE'),
-              ),
-              _buildInteractionButton(
-                isLoved ? Icons.favorite : Icons.favorite_border,
-                (_notice!.interactionCounts?['LOVE'] ?? 0).toString(),
-                currentLanguage == 'bn' ? 'ভালোবাসা' : 'Love',
-                red,
-                isLoved,
-                () => _handleInteraction('LOVE'),
+          margin: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.7),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.3),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
               ),
             ],
           ),
-        ),
-      ),
-    ).animate(delay: 500.ms).slideY(begin: 0.3, duration: 600.ms).fadeIn();
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildInteractionButton(
+                    isLiked ? Icons.thumb_up : Icons.thumb_up_outlined,
+                    (notice.interactionCounts?['LIKE'] ?? 0).toString(),
+                    currentLanguage == 'bn' ? 'লাইক' : 'Like',
+                    blue,
+                    isLiked,
+                    () => _handleInteraction('LIKE'),
+                  ),
+                  _buildInteractionButton(
+                    isLoved ? Icons.favorite : Icons.favorite_border,
+                    (notice.interactionCounts?['LOVE'] ?? 0).toString(),
+                    currentLanguage == 'bn' ? 'ভালোবাসা' : 'Love',
+                    red,
+                    isLoved,
+                    () => _handleInteraction('LOVE'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        )
+        .animate(delay: 600.ms)
+        .slideY(begin: 0.2, duration: 600.ms, curve: Curves.easeOut)
+        .fadeIn();
   }
 
   Widget _buildActionButtons(String currentLanguage) {
@@ -694,89 +908,97 @@ class _NoticeDetailPageState extends State<NoticeDetailPage>
       child: Column(
         children: [
           // Mark as Read Button
-          Container(
-                width: double.infinity,
-                height: 60,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [green, greenLight],
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: green.withOpacity(0.4),
-                      blurRadius: 20,
-                      offset: const Offset(0, 10),
+          ValueListenableBuilder<bool>(
+            valueListenable: _isMarkedAsReadNotifier,
+            builder: (context, isMarkedAsRead, _) {
+              return Container(
+                    width: double.infinity,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [green, greenLight],
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: green.withOpacity(0.4),
+                          blurRadius: 20,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: _isMarkedAsRead
-                        ? null
-                        : () async {
-                            final noticeProvider = Provider.of<NoticeProvider>(
-                              context,
-                              listen: false,
-                            );
-                            await noticeProvider.markAsRead(widget.noticeId);
-                            if (mounted) {
-                              setState(() {
-                                _isMarkedAsRead = true;
-                              });
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    currentLanguage == 'bn'
-                                        ? '✓ পড়া হয়েছে হিসেবে চিহ্নিত'
-                                        : '✓ Marked as read',
-                                  ),
-                                  backgroundColor: green,
-                                  behavior: SnackBarBehavior.floating,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: isMarkedAsRead
+                            ? null
+                            : () async {
+                                final noticeProvider =
+                                    Provider.of<NoticeProvider>(
+                                      context,
+                                      listen: false,
+                                    );
+                                await noticeProvider.markAsRead(
+                                  widget.noticeId,
+                                );
+                                if (mounted) {
+                                  _isMarkedAsReadNotifier.value = true;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        currentLanguage == 'bn'
+                                            ? '✓ পড়া হয়েছে হিসেবে চিহ্নিত'
+                                            : '✓ Marked as read',
+                                      ),
+                                      backgroundColor: green,
+                                      behavior: SnackBarBehavior.floating,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                  );
+                                }
+                              },
+                        borderRadius: BorderRadius.circular(20),
+                        child: Center(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                isMarkedAsRead
+                                    ? Icons.check_circle
+                                    : Icons.check,
+                                color: Colors.white,
+                                size: 24,
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                isMarkedAsRead
+                                    ? (currentLanguage == 'bn'
+                                          ? 'পড়া হয়েছে ✓'
+                                          : 'Marked as Read ✓')
+                                    : (currentLanguage == 'bn'
+                                          ? 'পড়া হয়েছে হিসেবে চিহ্নিত করুন'
+                                          : 'Mark as Read'),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
                                 ),
-                              );
-                            }
-                          },
-                    borderRadius: BorderRadius.circular(20),
-                    child: Center(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            _isMarkedAsRead ? Icons.check_circle : Icons.check,
-                            color: Colors.white,
-                            size: 24,
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 12),
-                          Text(
-                            _isMarkedAsRead
-                                ? (currentLanguage == 'bn'
-                                      ? 'পড়া হয়েছে ✓'
-                                      : 'Marked as Read ✓')
-                                : (currentLanguage == 'bn'
-                                      ? 'পড়া হয়েছে হিসেবে চিহ্নিত করুন'
-                                      : 'Mark as Read'),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
                     ),
-                  ),
-                ),
-              )
-              .animate(delay: 600.ms)
-              .slideY(begin: 0.5, duration: 600.ms)
-              .fadeIn(),
+                  )
+                  .animate(delay: 600.ms)
+                  .slideY(begin: 0.5, duration: 600.ms)
+                  .fadeIn();
+            },
+          ),
         ],
       ),
     );

@@ -68,7 +68,8 @@ class ChatService {
 
       // Cache the messages
       await _cacheService.cacheMessages(complaintId, messages);
-      print('💾 Cached ${messages.length} messages');
+      // Removed debug log for production
+      // print('💾 Cached ${messages.length} messages');
 
       return messages;
     } catch (e) {

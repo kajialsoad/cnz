@@ -43,6 +43,21 @@ class NoticeCategory {
   String getLocalizedName(String language) {
     return language == 'bn' && nameBn != null ? nameBn! : name;
   }
+
+  // Convert NoticeCategory to JSON for caching
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'nameBn': nameBn,
+      'color': color,
+      'icon': icon,
+      'parentId': parentId,
+      'isActive': isActive,
+      'children': children?.map((c) => c.toJson()).toList(),
+      '_count': noticeCount != null ? {'notices': noticeCount} : null,
+    };
+  }
 }
 
 class Notice {
@@ -194,5 +209,33 @@ class Notice {
   // Check if notice is urgent
   bool get isUrgent {
     return type == 'URGENT' || priority == 'URGENT';
+  }
+
+  // Convert Notice to JSON for caching
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'titleBn': titleBn,
+      'description': description,
+      'descriptionBn': descriptionBn,
+      'content': content,
+      'contentBn': contentBn,
+      'categoryId': categoryId,
+      'category': category?.toJson(),
+      'type': type,
+      'priority': priority,
+      'isActive': isActive,
+      'publishDate': publishDate.toIso8601String(),
+      'expiryDate': expiryDate?.toIso8601String(),
+      'imageUrl': imageUrl,
+      'viewCount': viewCount,
+      'readCount': readCount,
+      'createdAt': createdAt.toIso8601String(),
+      'interactions': {
+        'counts': interactionCounts,
+        'userInteractions': userInteractions,
+      },
+    };
   }
 }

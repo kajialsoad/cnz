@@ -39,7 +39,7 @@ class ComplaintProvider extends ChangeNotifier {
       _isOffline = !_connectivityService.isOnline;
       
       // Load last sync time
-      _lastSyncTime = await _cacheService.getLastSyncTime();
+      _lastSyncTime = await _cacheService.getComplaintLastSyncTime();
       
       notifyListeners();
     } catch (e) {
@@ -314,7 +314,7 @@ class ComplaintProvider extends ChangeNotifier {
       
       // Cache the fresh data
       await _cacheService.cacheComplaints(_complaints);
-      _lastSyncTime = await _cacheService.getLastSyncTime();
+      _lastSyncTime = await _cacheService.getComplaintLastSyncTime();
       
       _error = null;
     } catch (e) {
@@ -336,7 +336,7 @@ class ComplaintProvider extends ChangeNotifier {
       final cachedComplaints = await _cacheService.getCachedComplaints();
       if (cachedComplaints != null && cachedComplaints.isNotEmpty) {
         _complaints = cachedComplaints;
-        _lastSyncTime = await _cacheService.getLastSyncTime();
+        _lastSyncTime = await _cacheService.getComplaintLastSyncTime();
         notifyListeners();
       }
     } catch (e) {
@@ -443,6 +443,12 @@ class ComplaintProvider extends ChangeNotifier {
     _selectedImages.clear();
     _selectedAudioFiles.clear();
     _error = null;
+    notifyListeners();
+  }
+
+  /// Set the current complaint for viewing details
+  void setCurrentComplaint(Complaint complaint) {
+    _currentComplaint = complaint;
     notifyListeners();
   }
 

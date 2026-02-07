@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../widgets/translated_text.dart';
+import '../widgets/offline_banner.dart';
+import '../widgets/optimized/fast_image.dart';
 import '../providers/language_provider.dart';
+import '../services/connectivity_service.dart';
 import 'package:provider/provider.dart';
 
 /// Officer Review Detail Page
@@ -8,29 +11,59 @@ import 'package:provider/provider.dart';
 class OfficerReviewDetailPage extends StatefulWidget {
   final Map<String, dynamic> officerReview;
 
-  const OfficerReviewDetailPage({
-    super.key,
-    required this.officerReview,
-  });
+  const OfficerReviewDetailPage({super.key, required this.officerReview});
 
   @override
-  State<OfficerReviewDetailPage> createState() => _OfficerReviewDetailPageState();
+  State<OfficerReviewDetailPage> createState() =>
+      _OfficerReviewDetailPageState();
 }
 
 class _OfficerReviewDetailPageState extends State<OfficerReviewDetailPage> {
+  // ValueNotifier for optimized state management
+  final ValueNotifier<bool> _isOfflineNotifier = ValueNotifier<bool>(false);
+
+  @override
+  void initState() {
+    super.initState();
+    _initConnectivityMonitoring();
+  }
+
+  void _initConnectivityMonitoring() {
+    // Initialize connectivity service
+    ConnectivityService().init();
+
+    // Listen to connectivity changes
+    ConnectivityService().connectivityStream.listen((isConnected) {
+      if (mounted) {
+        _isOfflineNotifier.value = !isConnected;
+      }
+    });
+
+    // Set initial state
+    _isOfflineNotifier.value = !ConnectivityService().isOnline;
+  }
+
+  @override
+  void dispose() {
+    ConnectivityService().dispose();
+    _isOfflineNotifier.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final languageProvider = Provider.of<LanguageProvider>(context);
     final isBangla = languageProvider.languageCode == 'bn';
-    
-    final name = isBangla 
+
+    final name = isBangla
         ? (widget.officerReview['nameBn'] ?? widget.officerReview['name'])
         : widget.officerReview['name'];
-    
+
     final designation = isBangla
-        ? (widget.officerReview['designationBn'] ?? widget.officerReview['designation'])
+        ? (widget.officerReview['designationBn'] ??
+              widget.officerReview['designation'])
         : widget.officerReview['designation'];
-    
+
     final messages = (widget.officerReview['messages'] as List?) ?? [];
 
     return Scaffold(
@@ -59,18 +92,12 @@ class _OfficerReviewDetailPageState extends State<OfficerReviewDetailPage> {
             transitionBuilder: (Widget child, Animation<double> animation) {
               return ScaleTransition(
                 scale: animation,
-                child: RotationTransition(
-                  turns: animation,
-                  child: child,
-                ),
+                child: RotationTransition(turns: animation, child: child),
               );
             },
             child: IconButton(
               key: ValueKey<String>(isBangla ? 'bn' : 'en'),
-              icon: const Icon(
-                Icons.language,
-                color: Colors.white,
-              ),
+              icon: const Icon(Icons.language, color: Colors.white),
               tooltip: isBangla ? 'Switch to English' : 'বাংলায় পরিবর্তন করুন',
               splashRadius: 24,
               onPressed: () {
@@ -85,6 +112,15 @@ class _OfficerReviewDetailPageState extends State<OfficerReviewDetailPage> {
       body: SingleChildScrollView(
         child: Column(
           children: [
+            // Offline Banner
+            ValueListenableBuilder<bool>(
+              valueListenable: _isOfflineNotifier,
+              builder: (context, isOffline, _) {
+                if (!isOffline) return const SizedBox.shrink();
+                return OfflineBanner();
+              },
+            ),
+
             // Officer Info Card with fade-in animation
             TweenAnimationBuilder<double>(
               duration: const Duration(milliseconds: 400),
@@ -100,12 +136,12 @@ class _OfficerReviewDetailPageState extends State<OfficerReviewDetailPage> {
               },
               child: _buildOfficerInfoCard(name, designation),
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // Messages/Comments Section
             _buildMessagesSection(messages, isBangla),
-            
+
             const SizedBox(height: 24),
           ],
         ),
@@ -120,16 +156,13 @@ class _OfficerReviewDetailPageState extends State<OfficerReviewDetailPage> {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            const Color(0xFF4CAF50),
-            const Color(0xFF45A049),
-          ],
+          colors: [const Color(0xFF4CAF50), const Color(0xFF45A049)],
         ),
       ),
       child: Column(
         children: [
           const SizedBox(height: 24),
-          
+
           // Officer Image with Hero animation
           Hero(
             tag: 'officer_${widget.officerReview['id']}',
@@ -139,19 +172,15 @@ class _OfficerReviewDetailPageState extends State<OfficerReviewDetailPage> {
               builder: (context, value, child) {
                 return Transform.scale(
                   scale: 0.8 + (0.2 * value),
-                  child: Opacity(
-                    opacity: value,
-                    child: child,
-                  ),
+                  child: Opacity(opacity: value, child: child),
                 );
               },
               child: Container(
+                width: 120,
+                height: 120,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(
-                    color: Colors.white,
-                    width: 4,
-                  ),
+                  border: Border.all(color: Colors.white, width: 4),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.2),
@@ -159,27 +188,29 @@ class _OfficerReviewDetailPageState extends State<OfficerReviewDetailPage> {
                       offset: const Offset(0, 4),
                     ),
                   ],
+                  color: Colors.white,
                 ),
-                child: CircleAvatar(
-                  radius: 60,
-                  backgroundColor: Colors.white,
-                  backgroundImage: widget.officerReview['imageUrl'] != null
-                      ? NetworkImage(widget.officerReview['imageUrl'])
-                      : null,
-                  child: widget.officerReview['imageUrl'] == null
-                      ? Icon(
-                          Icons.person,
-                          size: 60,
-                          color: Colors.grey[400],
+                child: ClipOval(
+                  child: widget.officerReview['imageUrl'] != null
+                      ? FastImage(
+                          imageUrl: widget.officerReview['imageUrl'],
+                          width: 120,
+                          height: 120,
+                          fit: BoxFit.cover,
+                          errorWidget: (context, url, error) => Icon(
+                            Icons.person,
+                            size: 60,
+                            color: Colors.grey[400],
+                          ),
                         )
-                      : null,
+                      : Icon(Icons.person, size: 60, color: Colors.grey[400]),
                 ),
               ),
             ),
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // Officer Name with fade-in animation
           TweenAnimationBuilder<double>(
             duration: const Duration(milliseconds: 600),
@@ -203,9 +234,9 @@ class _OfficerReviewDetailPageState extends State<OfficerReviewDetailPage> {
               textAlign: TextAlign.center,
             ),
           ),
-          
+
           const SizedBox(height: 8),
-          
+
           // Designation with fade-in animation
           TweenAnimationBuilder<double>(
             duration: const Duration(milliseconds: 700),
@@ -236,7 +267,7 @@ class _OfficerReviewDetailPageState extends State<OfficerReviewDetailPage> {
               ),
             ),
           ),
-          
+
           const SizedBox(height: 24),
         ],
       ),
@@ -251,10 +282,7 @@ class _OfficerReviewDetailPageState extends State<OfficerReviewDetailPage> {
         builder: (context, value, child) {
           return Opacity(
             opacity: value,
-            child: Transform.scale(
-              scale: 0.95 + (0.05 * value),
-              child: child,
-            ),
+            child: Transform.scale(scale: 0.95 + (0.05 * value), child: child),
           );
         },
         child: Container(
@@ -273,19 +301,12 @@ class _OfficerReviewDetailPageState extends State<OfficerReviewDetailPage> {
           ),
           child: Column(
             children: [
-              Icon(
-                Icons.message_outlined,
-                size: 48,
-                color: Colors.grey[400],
-              ),
+              Icon(Icons.message_outlined, size: 48, color: Colors.grey[400]),
               const SizedBox(height: 12),
               TranslatedText(
                 'No comments available',
                 bn: 'কোন মন্তব্য নেই',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey[600],
-                ),
+                style: TextStyle(fontSize: 16, color: Colors.grey[600]),
               ),
             ],
           ),
@@ -313,11 +334,7 @@ class _OfficerReviewDetailPageState extends State<OfficerReviewDetailPage> {
             },
             child: Row(
               children: [
-                const Icon(
-                  Icons.comment,
-                  size: 20,
-                  color: Color(0xFF4CAF50),
-                ),
+                const Icon(Icons.comment, size: 20, color: Color(0xFF4CAF50)),
                 const SizedBox(width: 8),
                 TranslatedText(
                   'Officer Comments',
@@ -330,7 +347,10 @@ class _OfficerReviewDetailPageState extends State<OfficerReviewDetailPage> {
                 ),
                 const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFF4CAF50).withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
@@ -347,9 +367,9 @@ class _OfficerReviewDetailPageState extends State<OfficerReviewDetailPage> {
               ],
             ),
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // Messages List with staggered animation
           ...messages.asMap().entries.map((entry) {
             final index = entry.key;
@@ -361,7 +381,12 @@ class _OfficerReviewDetailPageState extends State<OfficerReviewDetailPage> {
     );
   }
 
-  Widget _buildMessageCard(Map<String, dynamic> message, int index, bool isBangla, int cardIndex) {
+  Widget _buildMessageCard(
+    Map<String, dynamic> message,
+    int index,
+    bool isBangla,
+    int cardIndex,
+  ) {
     final content = isBangla
         ? (message['contentBn'] ?? message['content'])
         : message['content'];
@@ -374,8 +399,11 @@ class _OfficerReviewDetailPageState extends State<OfficerReviewDetailPage> {
       tween: Tween(begin: 0.0, end: 1.0),
       builder: (context, value, child) {
         // Apply animation only after delay
-        final animationValue = (value * (cardIndex + 1) - cardIndex).clamp(0.0, 1.0);
-        
+        final animationValue = (value * (cardIndex + 1) - cardIndex).clamp(
+          0.0,
+          1.0,
+        );
+
         return Opacity(
           opacity: animationValue,
           child: Transform.translate(
@@ -449,9 +477,9 @@ class _OfficerReviewDetailPageState extends State<OfficerReviewDetailPage> {
                       ),
                     ),
                   ),
-                  
+
                   const SizedBox(width: 12),
-                  
+
                   // Message Content
                   Expanded(
                     child: Column(

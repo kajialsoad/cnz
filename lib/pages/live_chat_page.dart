@@ -15,7 +15,9 @@ import '../widgets/translated_text.dart';
 import '../widgets/admin_info_card.dart';
 import '../widgets/voice_message_player.dart';
 import '../widgets/bot_message_bubble.dart';
+import '../widgets/offline_banner.dart';
 import '../services/live_chat_service.dart';
+import '../services/connectivity_service.dart';
 import '../models/chat_message.dart' as model;
 import '../config/url_helper.dart';
 
@@ -75,6 +77,11 @@ class _LiveChatPageState extends State<LiveChatPage>
   Timer? _pollingTimer;
   int _currentIndex = 0;
 
+  // Offline mode support
+  final ConnectivityService _connectivityService = ConnectivityService();
+  bool _isOffline = false;
+  DateTime? _lastSyncTime;
+
   @override
   void initState() {
     super.initState();
@@ -100,6 +107,9 @@ class _LiveChatPageState extends State<LiveChatPage>
       });
     });
 
+    // Initialize connectivity monitoring
+    _initConnectivityMonitoring();
+
     // Load admin info and initial messages
     _loadAdminAndMessages();
 
@@ -116,7 +126,25 @@ class _LiveChatPageState extends State<LiveChatPage>
     _messageController.dispose();
     _scrollController.dispose();
     _audioPlayer.dispose();
+    _connectivityService.dispose();
     super.dispose();
+  }
+
+  /// Initialize connectivity monitoring
+  void _initConnectivityMonitoring() {
+    _connectivityService.init();
+    _connectivityService.connectivityStream.listen((isOnline) {
+      if (mounted) {
+        setState(() {
+          _isOffline = !isOnline;
+        });
+
+        if (isOnline) {
+          // Back online - reload messages
+          _loadAdminAndMessages();
+        }
+      }
+    });
   }
 
   /// Load admin info and messages from server
@@ -141,6 +169,7 @@ class _LiveChatPageState extends State<LiveChatPage>
         adminInfo = admin;
         messages = fetchedMessages;
         isLoading = false;
+        _lastSyncTime = DateTime.now(); // Track sync time
         // Initialize displayed message IDs and render times
         _displayedMessageIds = fetchedMessages.map((m) => m.id).toSet();
         // Mark all initial messages as already rendered (no animation on first load)
@@ -199,6 +228,11 @@ class _LiveChatPageState extends State<LiveChatPage>
       return;
     }
 
+    // Don't poll when offline
+    if (_isOffline) {
+      return;
+    }
+
     try {
       final fetchedMessages = await _liveChatService.getMessages();
 
@@ -214,6 +248,7 @@ class _LiveChatPageState extends State<LiveChatPage>
       if (hasNewMessages) {
         setState(() {
           messages = fetchedMessages;
+          _lastSyncTime = DateTime.now(); // Update sync time
           // Track displayed message IDs
           _displayedMessageIds = newMessageIds;
           // Mark NEW messages for animation
@@ -244,6 +279,18 @@ class _LiveChatPageState extends State<LiveChatPage>
 
   /// Send message to server with optimized performance
   Future<void> _sendMessage() async {
+    // Check if offline
+    if (_isOffline) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('অফলাইন মোডে মেসেজ পাঠানো যাবে না। ইন্টারনেট সংযোগ চেক করুন।'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
     final text = _messageController.text.trim();
     if ((text.isEmpty &&
             _attachedImageXFile == null &&
@@ -862,6 +909,9 @@ class _LiveChatPageState extends State<LiveChatPage>
           top: false,
           child: Column(
             children: [
+              // Offline banner
+              if (_isOffline)
+                OfflineBanner(lastSyncTime: _lastSyncTime),
               if (adminInfo != null) AdminInfoCard(adminInfo: adminInfo!),
               Expanded(child: _buildChatArea()),
               _buildMessageInput(),

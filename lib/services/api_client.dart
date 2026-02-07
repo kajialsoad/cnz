@@ -8,6 +8,7 @@ import 'package:mime/mime.dart';
 import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
+import 'fast_storage.dart';
 
 class ApiException implements Exception {
   final String message;
@@ -28,12 +29,36 @@ class ApiClient {
   
   // Persistent HTTP client for connection reuse
   static final http.Client _httpClient = http.Client();
+  
+  // ✅ Cache token to avoid repeated SharedPreferences calls
+  String? _cachedToken;
+  DateTime? _tokenCacheTime;
+  static const _tokenCacheDuration = Duration(minutes: 5);
+  
+  // ✅ Request deduplication
+  final Map<String, Future<Map<String, dynamic>>> _pendingRequests = {};
 
-  ApiClient(this.baseUrl, {this.timeout = const Duration(seconds: 60)}); // Increased timeout to 60 seconds
+  ApiClient(this.baseUrl, {this.timeout = const Duration(seconds: 30)});
 
   Future<String?> _getAccessToken() async {
-    final sp = await SharedPreferences.getInstance();
-    return sp.getString('accessToken');
+    // ✅ Return cached token if still valid
+    if (_cachedToken != null && _tokenCacheTime != null) {
+      if (DateTime.now().difference(_tokenCacheTime!) < _tokenCacheDuration) {
+        return _cachedToken;
+      }
+    }
+    
+    // ✅ Use FastStorage
+    final storage = await FastStorage.getInstance();
+    _cachedToken = storage.getString('accessToken');
+    _tokenCacheTime = DateTime.now();
+    return _cachedToken;
+  }
+  
+  /// Clear token cache on logout
+  void clearTokenCache() {
+    _cachedToken = null;
+    _tokenCacheTime = null;
   }
 
   /// Public method to get the current access token

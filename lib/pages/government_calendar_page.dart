@@ -3,9 +3,11 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../components/custom_bottom_nav.dart';
 import '../models/calendar_model.dart';
-import '../services/calendar_service.dart';
+import '../services/connectivity_service.dart';
 import '../providers/language_provider.dart';
+import '../providers/calendar_provider.dart';
 import '../utils/cloudinary_helper.dart';
+import '../widgets/offline_banner.dart';
 
 class GovernmentCalendarPage extends StatefulWidget {
   const GovernmentCalendarPage({super.key});
@@ -15,39 +17,53 @@ class GovernmentCalendarPage extends StatefulWidget {
 }
 
 class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
-  final CalendarService _calendarService = CalendarService();
-  CalendarModel? _calendar;
-  List<CalendarEventModel> _upcomingEvents = [];
-  bool _isLoading = true;
-  String? _error;
+  final ConnectivityService _connectivityService = ConnectivityService();
+  bool _isOffline = false;
 
   @override
   void initState() {
     super.initState();
-    _loadCalendarData();
+    _initServices();
+    // Load calendar data via provider
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<CalendarProvider>(context, listen: false).loadCalendarData();
+    });
+  }
+
+  Future<void> _initServices() async {
+    await _connectivityService.init();
+    
+    // Listen to connectivity changes
+    _connectivityService.connectivityStream.listen((isOnline) {
+      if (mounted) {
+        setState(() {
+          _isOffline = !isOnline;
+        });
+        
+        // Auto-refresh when coming back online
+        if (isOnline) {
+          Provider.of<CalendarProvider>(context, listen: false).loadCalendarData();
+        }
+      }
+    });
+    
+    // Check initial connectivity
+    final isOnline = await _connectivityService.checkConnectivity();
+    if (mounted) {
+      setState(() {
+        _isOffline = !isOnline;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _connectivityService.dispose();
+    super.dispose();
   }
 
   Future<void> _loadCalendarData() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
-
-    try {
-      final calendar = await _calendarService.getCurrentCalendar();
-      final events = await _calendarService.getUpcomingEvents(limit: 10);
-
-      setState(() {
-        _calendar = calendar;
-        _upcomingEvents = events;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _error = e.toString();
-        _isLoading = false;
-      });
-    }
+    await Provider.of<CalendarProvider>(context, listen: false).loadCalendarData(forceRefresh: true);
   }
 
   @override
@@ -79,13 +95,23 @@ class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
           ),
         ],
       ),
-      body: _isLoading
-          ? _buildLoadingState()
-          : _error != null
-              ? _buildErrorState()
-              : _calendar == null
-                  ? _buildNoCalendarState(currentLanguage)
-                  : _buildCalendarContent(currentLanguage),
+      body: Consumer<CalendarProvider>(
+        builder: (context, provider, child) {
+          if (provider.isLoading && provider.calendar == null) {
+            return _buildLoadingState();
+          }
+          
+          if (provider.error != null && provider.calendar == null) {
+            return _buildErrorState(provider.error, provider);
+          }
+
+          if (provider.calendar == null) {
+            return _buildNoCalendarState(currentLanguage);
+          }
+
+          return _buildCalendarContent(currentLanguage, provider);
+        },
+      ),
       bottomNavigationBar: CustomBottomNav(
         currentIndex: 3, // Borjo tab
         onTap: (index) {
@@ -129,7 +155,7 @@ class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
     );
   }
 
-  Widget _buildErrorState() {
+  Widget _buildErrorState(String? error, CalendarProvider provider) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24.0),
@@ -142,22 +168,22 @@ class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
               color: Colors.red,
             ),
             const SizedBox(height: 16),
-            Text(
+            const Text(
               'Error loading calendar',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
               ),
             ),
             const SizedBox(height: 8),
             Text(
-              _error ?? 'Unknown error',
+              error ?? 'Unknown error',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 14, color: Colors.grey[600]),
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
-              onPressed: _loadCalendarData,
+              onPressed: () => provider.loadCalendarData(forceRefresh: true),
               icon: const Icon(Icons.refresh),
               label: const Text('Retry'),
               style: ElevatedButton.styleFrom(
@@ -209,19 +235,24 @@ class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
     );
   }
 
-  Widget _buildCalendarContent(String currentLanguage) {
+  Widget _buildCalendarContent(String currentLanguage, CalendarProvider provider) {
     return Column(
       children: [
+        // Offline banner
+        if (_isOffline)
+          OfflineBanner(lastSyncTime: provider.lastSyncTime),
+        
         Expanded(
           child: SingleChildScrollView(
             padding: const EdgeInsets.only(bottom: 100),
             child: Column(
               children: [
                 // Calendar Image
-                _buildCalendarImage(currentLanguage),
+                _buildCalendarImage(currentLanguage, provider.calendar!),
 
                 // Upcoming Events Section
-                if (_upcomingEvents.isNotEmpty) _buildUpcomingEventsSection(currentLanguage),
+                if (provider.upcomingEvents.isNotEmpty) 
+                  _buildUpcomingEventsSection(currentLanguage, provider.upcomingEvents),
 
                 // Legend Section
                 _buildLegendSection(currentLanguage),
@@ -235,7 +266,7 @@ class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
     );
   }
 
-  Widget _buildCalendarImage(String currentLanguage) {
+  Widget _buildCalendarImage(String currentLanguage, CalendarModel calendar) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
       decoration: BoxDecoration(
@@ -265,8 +296,8 @@ class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
             ),
             child: Text(
               currentLanguage == 'bn'
-                  ? (_calendar!.titleBn ?? _calendar!.title)
-                  : _calendar!.title,
+                  ? (calendar.titleBn ?? calendar.title)
+                  : calendar.title,
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 18,
@@ -281,7 +312,7 @@ class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
             aspectRatio: 365 / 479,
             child: Image.network(
               CloudinaryHelper.getOptimizedImageUrl(
-                _calendar!.imageUrl,
+                calendar.imageUrl,
                 width: 800,
                 quality: 90,
               ),
@@ -329,7 +360,7 @@ class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
     );
   }
 
-  Widget _buildUpcomingEventsSection(String currentLanguage) {
+  Widget _buildUpcomingEventsSection(String currentLanguage, List<CalendarEventModel> events) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
@@ -344,7 +375,7 @@ class _GovernmentCalendarPageState extends State<GovernmentCalendarPage> {
             ),
           ),
           const SizedBox(height: 16),
-          ..._upcomingEvents.map((event) => _buildEventCard(event, currentLanguage)),
+          ...events.map((event) => _buildEventCard(event, currentLanguage)),
         ],
       ),
     );

@@ -89,10 +89,12 @@ class _WelcomeScreenState extends State<WelcomeScreen>
           scale: scaleAnim.value,
           child: Transform.rotate(
             angle: rotate ? _spin.value * rotationSpeed : 0,
-            child: Icon(
-              icon,
-              size: size,
-              color: color.withOpacity(opacityAnim.value),
+            child: RepaintBoundary(
+              child: Icon(
+                icon,
+                size: size,
+                color: color.withOpacity(opacityAnim.value),
+              ),
             ),
           ),
         ),
@@ -140,22 +142,24 @@ class _WelcomeScreenState extends State<WelcomeScreen>
           scale: scaleAnim.value,
           child: Transform.rotate(
             angle: rotate ? _spin.value * rotationSpeed : 0,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                // Soft glow layer
-                Icon(
-                  icon,
-                  size: size * 1.25,
-                  color: color.withOpacity(opacityAnim.value * 0.20),
-                ),
-                // Main icon
-                Icon(
-                  icon,
-                  size: size,
-                  color: color.withOpacity(opacityAnim.value),
-                ),
-              ],
+            child: RepaintBoundary(
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // Soft glow layer
+                  Icon(
+                    icon,
+                    size: size * 1.25,
+                    color: color.withOpacity(opacityAnim.value * 0.20),
+                  ),
+                  // Main icon
+                  Icon(
+                    icon,
+                    size: size,
+                    color: color.withOpacity(opacityAnim.value),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

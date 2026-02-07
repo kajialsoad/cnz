@@ -7,6 +7,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 
 import 'config/api_config.dart';
 import 'guards/auth_guard.dart';
+import 'services/fast_storage.dart';
 import 'pages/camera_page.dart';
 import 'pages/category_selection_page.dart';
 import 'pages/complaint_address_page.dart';
@@ -39,6 +40,8 @@ import 'providers/complaint_provider.dart';
 import 'providers/language_provider.dart';
 import 'providers/notice_provider.dart';
 import 'providers/notification_provider.dart';
+import 'providers/gallery_provider.dart';
+import 'providers/calendar_provider.dart';
 import 'providers/review_provider.dart';
 import 'repositories/complaint_repository.dart';
 import 'services/api_client.dart';
@@ -52,6 +55,10 @@ import 'models/cached_complaint_info.dart';
 void main() async {
   // Ensure Flutter is initialized
   WidgetsFlutterBinding.ensureInitialized();
+
+  // ✅ Initialize FastStorage first (performance optimization)
+  await FastStorage.getInstance();
+  print('✅ FastStorage initialized');
 
   // Load environment variables
   await dotenv.load(fileName: ".env");
@@ -72,6 +79,8 @@ void main() async {
         ChangeNotifierProvider(create: (_) => LanguageProvider()),
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
         ChangeNotifierProvider(create: (_) => NoticeProvider()),
+        ChangeNotifierProvider(create: (_) => GalleryProvider()),
+        ChangeNotifierProvider(create: (_) => CalendarProvider()),
         Provider<ApiClient>(
           create: (_) => SmartApiClient.instance,
           dispose: (_, apiClient) => apiClient,
@@ -111,9 +120,17 @@ class _SplashScreenState extends State<SplashScreen> {
     _checkLoginStatus();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Precache logo for smoother transitions
+    precacheImage(const AssetImage('assets/logo_clean_c.png'), context);
+  }
+
   Future<void> _checkLoginStatus() async {
     // Wait for a minimum time for the splash effect (optional)
-    await Future.delayed(const Duration(seconds: 2));
+    // Reduced from 2s to 800ms for better responsiveness
+    await Future.delayed(const Duration(milliseconds: 800));
 
     if (!mounted) return;
 
@@ -172,10 +189,7 @@ class _SplashScreenState extends State<SplashScreen> {
                 // Optional: Hint to user
                 const Text(
                   'Tap screen to continue',
-                  style: TextStyle(
-                    color: Color(0xFF2E8B57),
-                    fontSize: 16,
-                  ),
+                  style: TextStyle(color: Color(0xFF2E8B57), fontSize: 16),
                 ),
             ],
           ),
@@ -207,16 +221,16 @@ class _MyAppState extends State<MyApp> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       // Give it a tiny bit more time for storage to be ready on web
       await Future.delayed(const Duration(milliseconds: 500));
-      
+
       // Check if user is logged in before starting notifications
       bool isLoggedIn = await AuthService.isLoggedIn();
-      
+
       // Retry once if not logged in (to handle potential race conditions on web)
       if (!isLoggedIn) {
         await Future.delayed(const Duration(seconds: 1));
         isLoggedIn = await AuthService.isLoggedIn();
       }
-      
+
       if (!isLoggedIn) {
         print('⚠️ User not logged in, skipping notification setup');
         return;
@@ -227,7 +241,7 @@ class _MyAppState extends State<MyApp> {
 
       // Listen for new notifications
       NotificationPollingService.addListener(_handleNewNotification);
-      
+
       print('✅ Notification system initialized after first frame');
     });
   }
@@ -239,14 +253,15 @@ class _MyAppState extends State<MyApp> {
     }
 
     final title = notification['title'] ?? 'নতুন বার্তা';
-    final message = notification['message'] ?? 'আপনার অভিযোগ সম্পর্কে নতুন বার্তা';
+    final message =
+        notification['message'] ?? 'আপনার অভিযোগ সম্পর্কে নতুন বার্তা';
     final notificationId = notification['id'];
 
     print('📬 Notification received: $title - $message');
 
     // Get current context safely
     final currentContext = navigatorKey.currentContext;
-    
+
     // If no context available, skip UI updates but log the notification
     if (currentContext == null) {
       print('⚠️ No context available for notification UI, skipping display');
@@ -316,11 +331,7 @@ class _MyAppState extends State<MyApp> {
         textTheme: GoogleFonts.notoSansBengaliTextTheme(),
         fontFamily: GoogleFonts.notoSansBengali().fontFamily,
         // Add font fallback chain for better character coverage
-        fontFamilyFallback: const [
-          'Noto Sans Bengali',
-          'Noto Sans',
-          'Roboto',
-        ],
+        fontFamilyFallback: const ['Noto Sans Bengali', 'Noto Sans', 'Roboto'],
       ),
       // Wrap with Builder to get context with Overlay access
       builder: (context, child) {

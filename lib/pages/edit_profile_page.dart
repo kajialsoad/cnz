@@ -4,12 +4,18 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import 'package:cached_network_image/cached_network_image.dart';
+
 import '../config/api_config.dart';
 import '../models/user_model.dart';
 import '../repositories/user_repository.dart';
 import '../services/api_client.dart';
 import '../services/smart_api_client.dart';
+import '../services/connectivity_service.dart';
+import '../services/offline_cache_service.dart';
+import '../services/profile_cache_service.dart';
 import '../widgets/translated_text.dart';
+import '../widgets/offline_banner.dart';
 
 class EditProfilePage extends StatefulWidget {
   final UserModel user;
@@ -43,6 +49,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
   bool _isLoadingWards = false;
   bool _isUploadingImage = false;
 
+  // Offline mode support
+  final ConnectivityService _connectivityService = ConnectivityService();
+  final OfflineCacheService _cacheService = OfflineCacheService();
+  final ProfileCacheService _profileCache = ProfileCacheService();
+  bool _isOffline = false;
+
   final ApiClient _apiClient = SmartApiClient.instance;
   final ImagePicker _imagePicker = ImagePicker();
   
@@ -66,8 +78,27 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _selectedZoneId = widget.user.zoneId;
     _selectedWardId = widget.user.wardId;
     
+    // Initialize connectivity monitoring and cache
+    _initializeOfflineSupport();
+    
     // Load city corporations
     _loadCityCorporations();
+  }
+
+  /// Initialize offline support: connectivity monitoring and cache
+  Future<void> _initializeOfflineSupport() async {
+    try {
+      // Initialize cache service
+      await _cacheService.init();
+      
+      // Initialize connectivity monitoring
+      _initConnectivityMonitoring();
+      
+      // Cache current profile data for offline access
+      await _profileCache.cacheProfile(widget.user);
+    } catch (e) {
+      print('Error initializing offline support: $e');
+    }
   }
 
   @override
@@ -77,10 +108,32 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _phoneController.dispose();
     _emailController.dispose();
     _addressController.dispose();
+    _connectivityService.dispose();
     super.dispose();
   }
 
+  /// Initialize connectivity monitoring
+  void _initConnectivityMonitoring() {
+    _connectivityService.init();
+    _connectivityService.connectivityStream.listen((isOnline) {
+      if (mounted) {
+        setState(() {
+          _isOffline = !isOnline;
+        });
+      }
+    });
+  }
+
   Future<void> _loadCityCorporations() async {
+    // Check connectivity first
+    final isOnline = await _connectivityService.checkConnectivity();
+    
+    if (!isOnline) {
+      // Offline mode: Try to load from cache
+      await _loadCityCorporationsFromCache();
+      return;
+    }
+
     setState(() => _isLoadingCityCorporations = true);
     
     try {
@@ -92,6 +145,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
         final loadedCityCorps = List<Map<String, dynamic>>.from(
           response['cityCorporations'] as List
         );
+
+        // Cache city corporations for offline use
+        await _cacheService.saveCache('city_corporation', 'list', loadedCityCorps);
 
         // Ensure selected ID actually exists in the list
         if (_selectedCityCorporationId != null) {
@@ -149,8 +205,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
         }
       }
     } catch (e) {
+      // On error, try loading from cache
+      await _loadCityCorporationsFromCache();
+      
       if (mounted) setState(() => _isLoadingCityCorporations = false);
-      if (mounted) {
+      if (mounted && _cityCorporations.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to load city corporations: ${e.toString()}'),
@@ -161,7 +220,43 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
   }
 
+  /// Load city corporations from cache (offline mode)
+  Future<void> _loadCityCorporationsFromCache() async {
+    try {
+      final cachedData = await _cacheService.getCache('city_corporation', 'list');
+      if (cachedData != null && cachedData is List) {
+        final loadedCityCorps = List<Map<String, dynamic>>.from(cachedData);
+        
+        if (mounted) {
+          setState(() {
+            _cityCorporations = loadedCityCorps;
+            _isLoadingCityCorporations = false;
+          });
+          
+          // If user has a city corporation, load zones from cache
+          if (_selectedCityCorporationId != null) {
+            await _loadZones(_selectedCityCorporationId!);
+          }
+        }
+      } else {
+        if (mounted) setState(() => _isLoadingCityCorporations = false);
+      }
+    } catch (e) {
+      print('Error loading city corporations from cache: $e');
+      if (mounted) setState(() => _isLoadingCityCorporations = false);
+    }
+  }
+
   Future<void> _loadZones(int cityCorporationId) async {
+    // Check connectivity first
+    final isOnline = await _connectivityService.checkConnectivity();
+    
+    if (!isOnline) {
+      // Offline mode: Try to load from cache
+      await _loadZonesFromCache(cityCorporationId);
+      return;
+    }
+
     setState(() {
       _isLoadingZones = true;
       _zones = [];
@@ -178,6 +273,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
       if (response['success'] == true && response['data'] != null) {
         final loadedZones = List<Map<String, dynamic>>.from(response['data'] as List);
+        
+        // Cache zones for offline use
+        await _cacheService.saveCache('zone', 'city_$cityCorporationId', loadedZones);
         
         // Ensure selected ID actually exists in the list
         if (_selectedZoneId != null) {
@@ -226,8 +324,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
         }
       }
     } catch (e) {
+      // On error, try loading from cache
+      await _loadZonesFromCache(cityCorporationId);
+      
       if (mounted) setState(() => _isLoadingZones = false);
-      if (mounted) {
+      if (mounted && _zones.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to load zones: ${e.toString()}'),
@@ -238,7 +339,43 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
   }
 
+  /// Load zones from cache (offline mode)
+  Future<void> _loadZonesFromCache(int cityCorporationId) async {
+    try {
+      final cachedData = await _cacheService.getCache('zone', 'city_$cityCorporationId');
+      if (cachedData != null && cachedData is List) {
+        final loadedZones = List<Map<String, dynamic>>.from(cachedData);
+        
+        if (mounted) {
+          setState(() {
+            _zones = loadedZones;
+            _isLoadingZones = false;
+          });
+          
+          // If user has a zone, load wards from cache
+          if (_selectedZoneId != null) {
+            await _loadWards(_selectedZoneId!);
+          }
+        }
+      } else {
+        if (mounted) setState(() => _isLoadingZones = false);
+      }
+    } catch (e) {
+      print('Error loading zones from cache: $e');
+      if (mounted) setState(() => _isLoadingZones = false);
+    }
+  }
+
   Future<void> _loadWards(int zoneId) async {
+    // Check connectivity first
+    final isOnline = await _connectivityService.checkConnectivity();
+    
+    if (!isOnline) {
+      // Offline mode: Try to load from cache
+      await _loadWardsFromCache(zoneId);
+      return;
+    }
+
     setState(() {
       _isLoadingWards = true;
       _wards = [];
@@ -251,6 +388,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
       if (response['success'] == true && response['data'] != null) {
         final loadedWards = List<Map<String, dynamic>>.from(response['data'] as List);
+        
+        // Cache wards for offline use
+        await _cacheService.saveCache('ward', 'zone_$zoneId', loadedWards);
         
         // Try to match ward if not already selected
         if (_selectedWardId == null && (widget.user.wardData != null || widget.user.wardId != null)) {
@@ -294,8 +434,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
         });
       }
     } catch (e) {
+      // On error, try loading from cache
+      await _loadWardsFromCache(zoneId);
+      
       if (mounted) setState(() => _isLoadingWards = false);
-      if (mounted) {
+      if (mounted && _wards.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to load wards: ${e.toString()}'),
@@ -303,6 +446,28 @@ class _EditProfilePageState extends State<EditProfilePage> {
           ),
         );
       }
+    }
+  }
+
+  /// Load wards from cache (offline mode)
+  Future<void> _loadWardsFromCache(int zoneId) async {
+    try {
+      final cachedData = await _cacheService.getCache('ward', 'zone_$zoneId');
+      if (cachedData != null && cachedData is List) {
+        final loadedWards = List<Map<String, dynamic>>.from(cachedData);
+        
+        if (mounted) {
+          setState(() {
+            _wards = loadedWards;
+            _isLoadingWards = false;
+          });
+        }
+      } else {
+        if (mounted) setState(() => _isLoadingWards = false);
+      }
+    } catch (e) {
+      print('Error loading wards from cache: $e');
+      if (mounted) setState(() => _isLoadingWards = false);
     }
   }
 
@@ -441,6 +606,18 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   Future<void> _saveProfile() async {
+    // Check if offline
+    if (_isOffline) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('অফলাইন মোডে প্রোফাইল আপডেট করা যাবে না। ইন্টারনেট সংযোগ চেক করুন।'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -478,6 +655,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
         address: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
         avatar: _uploadedAvatarUrl, // Include uploaded avatar URL
       );
+
+      // ✅ Fetch updated profile and update cache
+      final updatedUser = await userRepo.getProfile();
+      await _profileCache.cacheProfile(updatedUser);
 
       if (!mounted) return;
 
@@ -568,13 +749,19 @@ class _EditProfilePageState extends State<EditProfilePage> {
           ),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
+      body: Column(
+        children: [
+          // Offline banner
+          if (_isOffline)
+            const OfflineBanner(showLastSync: false),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
               // Profile Picture Section
               Center(
                 child: Stack(
@@ -618,18 +805,21 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       right: 0,
                       bottom: 0,
                       child: GestureDetector(
-                        onTap: _isUploadingImage ? null : _pickAndUploadImage,
+                        onTap: (_isUploadingImage || _isOffline) ? null : _pickAndUploadImage,
                         child: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
                             color: Colors.white,
                             shape: BoxShape.circle,
-                            border: Border.all(color: const Color(0xFF4CAF50), width: 2),
+                            border: Border.all(
+                              color: _isOffline ? Colors.grey : const Color(0xFF4CAF50),
+                              width: 2,
+                            ),
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.camera_alt,
                             size: 20,
-                            color: Color(0xFF4CAF50),
+                            color: _isOffline ? Colors.grey : const Color(0xFF4CAF50),
                           ),
                         ),
                       ),
@@ -640,11 +830,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
               const SizedBox(height: 8),
               Center(
                 child: TextButton(
-                  onPressed: _isUploadingImage ? null : _pickAndUploadImage,
+                  onPressed: (_isUploadingImage || _isOffline) ? null : _pickAndUploadImage,
                   child: TranslatedText(
-                    'Change Profile Picture',
-                    style: const TextStyle(
-                      color: Color(0xFF4CAF50),
+                    _isOffline ? 'Change Profile Picture (Offline)' : 'Change Profile Picture',
+                    style: TextStyle(
+                      color: _isOffline ? Colors.grey : const Color(0xFF4CAF50),
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -877,7 +1067,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _isLoading ? null : _saveProfile,
+                  onPressed: (_isLoading || _isOffline) ? null : _saveProfile,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF4CAF50),
                     foregroundColor: Colors.white,
@@ -897,7 +1087,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                           ),
                         )
                       : TranslatedText(
-                          'Save Changes',
+                          _isOffline ? 'Save Changes (Offline)' : 'Save Changes',
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
@@ -929,9 +1119,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   ),
                 ),
               ),
-            ],
+                  ],
+                ),
+              ),
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

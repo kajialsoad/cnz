@@ -164,17 +164,19 @@ class _DSCCNoticeBoardState extends State<DSCCNoticeBoard>
                                   MediaQuery.of(context).size.width,
                               0,
                             ),
-                            child: Container(
-                              height: 30,
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                scrollingText,
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  color: Color(0xFF333333),
+                            child: RepaintBoundary(
+                              child: Container(
+                                height: 30,
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  scrollingText,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    color: Color(0xFF333333),
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.visible,
                                 ),
-                                maxLines: 1,
-                                overflow: TextOverflow.visible,
                               ),
                             ),
                           ),

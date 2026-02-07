@@ -6,8 +6,11 @@ import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 
 import '../components/custom_bottom_nav.dart';
 import '../widgets/translated_text.dart';
+import '../widgets/offline_banner.dart';
 import '../services/auth_service.dart';
 import '../services/waste_management_service.dart';
+import '../services/offline_cache_service.dart';
+import '../services/connectivity_service.dart';
 import '../models/waste_post_model.dart';
 import 'waste_management_detail_page.dart';
 
@@ -20,12 +23,24 @@ class WasteManagementPage extends StatefulWidget {
 
 class _WasteManagementPageState extends State<WasteManagementPage> {
   final WasteManagementService _service = WasteManagementService();
+  final OfflineCacheService _cacheService = OfflineCacheService();
+  final ConnectivityService _connectivityService = ConnectivityService();
 
-  List<WastePost> _posts = [];
+  List<WastePost> _currentWastePosts = [];
+  List<WastePost> _futureWastePosts = [];
+  DateTime? _lastFetchTimeCurrent;
+  DateTime? _lastFetchTimeFuture;
+
+  List<WastePost> get _posts => _selectedCategory == 'CURRENT_WASTE'
+      ? _currentWastePosts
+      : _futureWastePosts;
+
   bool _isLoading = true;
   String? _error;
   String _selectedCategory = 'CURRENT_WASTE'; // CURRENT_WASTE or FUTURE_WASTE
   String? _token;
+  bool _isOffline = false;
+  DateTime? _lastSyncTime;
 
   // Modern Color palette
   static const Color primaryGreen = Color(0xFF2E8B57); // Sea Green
@@ -39,6 +54,72 @@ class _WasteManagementPageState extends State<WasteManagementPage> {
   @override
   void initState() {
     super.initState();
+    _restoreFromMemory();
+    _initializeServices();
+  }
+
+  void _restoreFromMemory() {
+    bool hasData = false;
+    if (WasteManagementService.currentWastePostsMemory != null) {
+      _currentWastePosts = List.from(
+        WasteManagementService.currentWastePostsMemory!,
+      );
+      _lastFetchTimeCurrent = WasteManagementService.lastFetchTimeCurrent;
+      if (_selectedCategory == 'CURRENT_WASTE' &&
+          _currentWastePosts.isNotEmpty) {
+        hasData = true;
+      }
+    }
+    if (WasteManagementService.futureWastePostsMemory != null) {
+      _futureWastePosts = List.from(
+        WasteManagementService.futureWastePostsMemory!,
+      );
+      _lastFetchTimeFuture = WasteManagementService.lastFetchTimeFuture;
+      if (_selectedCategory == 'FUTURE_WASTE' && _futureWastePosts.isNotEmpty) {
+        hasData = true;
+      }
+    }
+
+    if (hasData) {
+      _isLoading = false;
+    }
+  }
+
+  Future<void> _initializeServices() async {
+    try {
+      await _cacheService.init();
+      await _connectivityService.init();
+
+      // Listen to connectivity changes
+      _connectivityService.connectivityStream.listen((isOnline) {
+        if (mounted) {
+          setState(() {
+            _isOffline = !isOnline;
+          });
+
+          // Auto-refresh when coming back online
+          if (isOnline && _posts.isEmpty) {
+            _loadToken();
+          }
+        }
+      });
+
+      // Set initial offline status
+      _isOffline = !_connectivityService.isOnline;
+
+      // Load last sync time
+      _lastSyncTime = await _cacheService.getLastSyncTime(
+        'waste_post',
+        _selectedCategory,
+      );
+
+      if (mounted) {
+        setState(() {});
+      }
+    } catch (e) {
+      print('Error initializing offline services: $e');
+    }
+
     _loadToken();
   }
 
@@ -70,15 +151,63 @@ class _WasteManagementPageState extends State<WasteManagementPage> {
     }
   }
 
-  Future<void> _fetchPosts() async {
+  Future<void> _fetchPosts({bool forceRefresh = false}) async {
     if (_token == null) return;
+
+    // Determine which list and timestamp to use
+    List<WastePost> currentList = _selectedCategory == 'CURRENT_WASTE'
+        ? _currentWastePosts
+        : _futureWastePosts;
+
+    DateTime? lastFetchTime = _selectedCategory == 'CURRENT_WASTE'
+        ? _lastFetchTimeCurrent
+        : _lastFetchTimeFuture;
+
+    // Check if data is fresh (e.g., less than 5 minutes old)
+    final isFresh =
+        lastFetchTime != null &&
+        DateTime.now().difference(lastFetchTime) < const Duration(minutes: 5);
+
+    // If we have data and it's fresh (and not forcing refresh), just return
+    // This solves the "bar loading" issue when switching tabs
+    if (!forceRefresh && currentList.isNotEmpty && isFresh) {
+      if (_isLoading) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+      return;
+    }
+
+    // Check connectivity
+    final isOnline = await _connectivityService.checkConnectivity();
 
     if (!mounted) return;
 
     setState(() {
-      _isLoading = true;
-      _error = null;
+      _isOffline = !isOnline;
     });
+
+    // If offline, load from cache
+    if (!isOnline) {
+      await _loadFromCache();
+      return;
+    }
+
+    // Show cached data immediately if list is empty
+    if (currentList.isEmpty) {
+      await _loadFromCache();
+    }
+
+    if (!mounted) return;
+
+    // Only show loading indicator if we don't have any data
+    if (currentList.isEmpty) {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+    }
 
     try {
       final posts = await _service.getPostsByCategory(
@@ -88,12 +217,39 @@ class _WasteManagementPageState extends State<WasteManagementPage> {
 
       if (!mounted) return;
 
+      // Cache the fresh data
+      final postsJson = posts.map((p) => p.toJson()).toList();
+      await _cacheService.saveCache('waste_post', _selectedCategory, postsJson);
+
+      final now = DateTime.now();
+
       setState(() {
-        _posts = posts;
+        if (_selectedCategory == 'CURRENT_WASTE') {
+          _currentWastePosts = posts;
+          _lastFetchTimeCurrent = now;
+
+          // Update static memory cache
+          WasteManagementService.currentWastePostsMemory = List.from(posts);
+          WasteManagementService.lastFetchTimeCurrent = now;
+        } else {
+          _futureWastePosts = posts;
+          _lastFetchTimeFuture = now;
+
+          // Update static memory cache
+          WasteManagementService.futureWastePostsMemory = List.from(posts);
+          WasteManagementService.lastFetchTimeFuture = now;
+        }
         _isLoading = false;
+        _error = null;
       });
     } catch (e) {
       if (!mounted) return;
+
+      // If fetch fails and we have no data, try loading from cache
+      if (currentList.isEmpty) {
+        await _loadFromCache();
+      }
+
       setState(() {
         _error = 'Failed to load posts: $e';
         _isLoading = false;
@@ -101,14 +257,47 @@ class _WasteManagementPageState extends State<WasteManagementPage> {
     }
   }
 
+  /// Load posts from local cache
+  Future<void> _loadFromCache() async {
+    try {
+      final cachedData = await _cacheService.getCache(
+        'waste_post',
+        _selectedCategory,
+      );
+      if (cachedData != null && cachedData is List) {
+        final posts = cachedData
+            .map((json) => WastePost.fromJson(json))
+            .toList();
+
+        if (mounted) {
+          setState(() {
+            if (_selectedCategory == 'CURRENT_WASTE') {
+              _currentWastePosts = posts;
+            } else {
+              _futureWastePosts = posts;
+            }
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      print('Error loading from cache: $e');
+    }
+  }
+
   Future<void> _toggleReaction(int postId, String reactionType) async {
     if (_token == null) return;
 
+    // Get current list
+    List<WastePost> currentList = _selectedCategory == 'CURRENT_WASTE'
+        ? _currentWastePosts
+        : _futureWastePosts;
+
     // Find the post and its current state
-    final postIndex = _posts.indexWhere((p) => p.id == postId);
+    final postIndex = currentList.indexWhere((p) => p.id == postId);
     if (postIndex == -1) return;
 
-    final oldPost = _posts[postIndex];
+    final oldPost = currentList[postIndex];
     final String? oldReaction = oldPost.userReaction;
 
     if (!mounted) return;
@@ -136,11 +325,17 @@ class _WasteManagementPageState extends State<WasteManagementPage> {
         }
       }
 
-      _posts[postIndex] = oldPost.copyWith(
+      final updatedPost = oldPost.copyWith(
         likeCount: newLikeCount,
         loveCount: newLoveCount,
         userReaction: newReaction,
       );
+
+      if (_selectedCategory == 'CURRENT_WASTE') {
+        _currentWastePosts[postIndex] = updatedPost;
+      } else {
+        _futureWastePosts[postIndex] = updatedPost;
+      }
     });
 
     try {
@@ -155,14 +350,23 @@ class _WasteManagementPageState extends State<WasteManagementPage> {
       // If the server returns the updated post, use it to ensure sync
       if (response.containsKey('post')) {
         setState(() {
-          _posts[postIndex] = WastePost.fromJson(response['post']);
+          final updatedPost = WastePost.fromJson(response['post']);
+          if (_selectedCategory == 'CURRENT_WASTE') {
+            _currentWastePosts[postIndex] = updatedPost;
+          } else {
+            _futureWastePosts[postIndex] = updatedPost;
+          }
         });
       }
     } catch (e) {
       if (!mounted) return;
       // Revert on error
       setState(() {
-        _posts[postIndex] = oldPost;
+        if (_selectedCategory == 'CURRENT_WASTE') {
+          _currentWastePosts[postIndex] = oldPost;
+        } else {
+          _futureWastePosts[postIndex] = oldPost;
+        }
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -182,7 +386,7 @@ class _WasteManagementPageState extends State<WasteManagementPage> {
           _buildHeader(),
           Expanded(
             child: RefreshIndicator(
-              onRefresh: _fetchPosts,
+              onRefresh: () => _fetchPosts(forceRefresh: true),
               color: primaryGreen,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -396,10 +600,7 @@ class _WasteManagementPageState extends State<WasteManagementPage> {
           const SizedBox(height: 50),
           const CircularProgressIndicator(color: primaryGreen),
           const SizedBox(height: 16),
-          Text(
-            'Loading...',
-            style: TextStyle(color: subtitleColor),
-          ),
+          Text('Loading...', style: TextStyle(color: subtitleColor)),
         ],
       ),
     );
@@ -412,10 +613,7 @@ class _WasteManagementPageState extends State<WasteManagementPage> {
           const SizedBox(height: 50),
           Icon(Icons.error_outline_rounded, size: 64, color: Colors.red[300]),
           const SizedBox(height: 16),
-          Text(
-            _error ?? 'Unknown error',
-            style: TextStyle(color: textColor),
-          ),
+          Text(_error ?? 'Unknown error', style: TextStyle(color: textColor)),
           const SizedBox(height: 16),
           ElevatedButton.icon(
             onPressed: _fetchPosts,
@@ -446,7 +644,11 @@ class _WasteManagementPageState extends State<WasteManagementPage> {
               color: lightGreen,
               shape: BoxShape.circle,
             ),
-            child: Icon(Icons.inventory_2_outlined, size: 64, color: primaryGreen),
+            child: Icon(
+              Icons.inventory_2_outlined,
+              size: 64,
+              color: primaryGreen,
+            ),
           ),
           const SizedBox(height: 24),
           const Text(
@@ -479,9 +681,7 @@ class _WasteManagementPageState extends State<WasteManagementPage> {
           duration: const Duration(milliseconds: 375),
           child: SlideAnimation(
             verticalOffset: 50.0,
-            child: FadeInAnimation(
-              child: _buildPostCard(_posts[index]),
-            ),
+            child: FadeInAnimation(child: _buildPostCard(_posts[index])),
           ),
         );
       },
@@ -537,13 +737,19 @@ class _WasteManagementPageState extends State<WasteManagementPage> {
                           height: 220,
                           color: Colors.grey[100],
                           child: const Center(
-                            child: CircularProgressIndicator(color: primaryGreen),
+                            child: CircularProgressIndicator(
+                              color: primaryGreen,
+                            ),
                           ),
                         ),
                         errorWidget: (context, url, error) => Container(
                           height: 220,
                           color: Colors.grey[100],
-                          child: const Icon(Icons.broken_image_rounded, size: 50, color: Colors.grey),
+                          child: const Icon(
+                            Icons.broken_image_rounded,
+                            size: 50,
+                            color: Colors.grey,
+                          ),
                         ),
                       ),
                     ),
@@ -552,7 +758,10 @@ class _WasteManagementPageState extends State<WasteManagementPage> {
                     top: 12,
                     right: 12,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.black.withOpacity(0.6),
                         borderRadius: BorderRadius.circular(20),
@@ -561,10 +770,16 @@ class _WasteManagementPageState extends State<WasteManagementPage> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.access_time_rounded, color: Colors.white, size: 14),
+                          const Icon(
+                            Icons.access_time_rounded,
+                            color: Colors.white,
+                            size: 14,
+                          ),
                           const SizedBox(width: 4),
                           Text(
-                            post.publishedAt != null ? _formatDate(post.publishedAt!) : 'Just now',
+                            post.publishedAt != null
+                                ? _formatDate(post.publishedAt!)
+                                : 'Just now',
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 12,
@@ -605,10 +820,7 @@ class _WasteManagementPageState extends State<WasteManagementPage> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  Container(
-                    height: 1,
-                    color: Colors.grey[100],
-                  ),
+                  Container(height: 1, color: Colors.grey[100]),
                   const SizedBox(height: 16),
                   Row(
                     children: [
@@ -779,11 +991,7 @@ class _WasteManagementPageState extends State<WasteManagementPage> {
           const SizedBox(height: 4),
           Text(
             desc,
-            style: TextStyle(
-              fontSize: 11,
-              color: subtitleColor,
-              height: 1.4,
-            ),
+            style: TextStyle(fontSize: 11, color: subtitleColor, height: 1.4),
             maxLines: 3,
             overflow: TextOverflow.ellipsis,
           ),
@@ -860,7 +1068,9 @@ class _ReactionButtonState extends State<_ReactionButton>
                 : Colors.grey[50],
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: widget.isSelected ? widget.color.withOpacity(0.5) : Colors.transparent,
+              color: widget.isSelected
+                  ? widget.color.withOpacity(0.5)
+                  : Colors.transparent,
             ),
           ),
           child: Row(
@@ -881,7 +1091,7 @@ class _ReactionButtonState extends State<_ReactionButton>
                   ),
                 ),
               ] else ...[
-                 Text(
+                Text(
                   widget.label,
                   style: TextStyle(
                     fontSize: 13,
@@ -889,7 +1099,7 @@ class _ReactionButtonState extends State<_ReactionButton>
                     color: Colors.grey[500],
                   ),
                 ),
-              ]
+              ],
             ],
           ),
         ),

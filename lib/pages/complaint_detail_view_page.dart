@@ -6,6 +6,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import '../components/custom_bottom_nav.dart';
 import '../widgets/translated_text.dart';
+import '../widgets/offline_banner.dart';
 import '../widgets/resolution_details_card.dart';
 import '../widgets/status_timeline.dart';
 import '../widgets/review_display_card.dart';
@@ -14,6 +15,7 @@ import '../providers/complaint_provider.dart';
 import '../providers/review_provider.dart';
 import '../models/complaint.dart';
 import '../models/review_model.dart';
+import '../services/connectivity_service.dart';
 import '../config/api_config.dart';
 import '../config/url_helper.dart';
 import 'complaint_chat_page.dart';
@@ -31,6 +33,7 @@ class _ComplaintDetailViewPageState extends State<ComplaintDetailViewPage> {
   String? complaintId;
   List<ReviewModel> _reviews = [];
   bool _loadingReviews = false;
+  bool _isOffline = false;
 
   @override
   void initState() {
@@ -48,6 +51,33 @@ class _ComplaintDetailViewPageState extends State<ComplaintDetailViewPage> {
         _loadReviews();
       }
     });
+
+    _initConnectivityMonitoring();
+  }
+
+  void _initConnectivityMonitoring() {
+    // Initialize connectivity service
+    ConnectivityService().init();
+
+    // Listen to connectivity changes
+    ConnectivityService().connectivityStream.listen((isConnected) {
+      if (mounted) {
+        setState(() {
+          _isOffline = !isConnected;
+        });
+      }
+    });
+
+    // Set initial state
+    setState(() {
+      _isOffline = !ConnectivityService().isOnline;
+    });
+  }
+
+  @override
+  void dispose() {
+    ConnectivityService().dispose();
+    super.dispose();
   }
 
   /// Load reviews for the complaint
@@ -247,6 +277,9 @@ class _ComplaintDetailViewPageState extends State<ComplaintDetailViewPage> {
 
   Widget _buildComplaintDetails(Complaint complaint) {
     final cards = [
+      // Offline Banner
+      if (_isOffline) OfflineBanner(),
+
       _buildHeaderCard(complaint),
       _buildDescriptionCard(complaint),
       _buildLocationCard(complaint),

@@ -1,20 +1,22 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 import '../components/custom_bottom_nav.dart';
 import '../components/dscc_notice_board.dart';
-import '../components/elevated_3d_button.dart';
+import '../components/feature_buttons.dart';
 import '../components/mayor_statement_banner.dart';
 import '../providers/language_provider.dart';
 import '../services/auth_service.dart';
 import '../widgets/translated_text.dart';
 import '../providers/notification_provider.dart';
+import '../providers/notice_provider.dart';
 import '../widgets/notification_sheet.dart';
 import '../components/complaint_guide_overlay.dart';
+import '../services/connectivity_service.dart';
+import '../widgets/offline_banner.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -23,29 +25,25 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
-  late AnimationController _backgroundController;
-  late AnimationController _floatingController;
+class _HomePageState extends State<HomePage> {
   int _currentIndex = 0;
   bool _showComplaintGuide = true;
   Timer? _overlayTimer;
+
+  // Offline-first state
+  final ConnectivityService _connectivityService = ConnectivityService();
+  bool _isOffline = false;
+  DateTime? _lastSyncTime;
 
   static const Color green = Color(0xFF2E8B57);
 
   @override
   void initState() {
     super.initState();
-    _backgroundController = AnimationController(
-      duration: const Duration(seconds: 8),
-      vsync: this,
-    )..repeat();
-
-    _floatingController = AnimationController(
-      duration: const Duration(seconds: 3),
-      vsync: this,
-    )..repeat(reverse: true);
-
     _startOverlayTimer();
+
+    // Initialize connectivity monitoring
+    _initConnectivityMonitoring();
 
     // Fetch initial notification count
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -57,10 +55,48 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   @override
   void dispose() {
-    _backgroundController.dispose();
-    _floatingController.dispose();
     _overlayTimer?.cancel();
+    _connectivityService.dispose();
     super.dispose();
+  }
+
+  /// Initialize connectivity monitoring
+  Future<void> _initConnectivityMonitoring() async {
+    await _connectivityService.init();
+
+    // Set initial state
+    setState(() {
+      _isOffline = !_connectivityService.isOnline;
+      _lastSyncTime = DateTime.now();
+    });
+
+    // Listen to connectivity changes
+    _connectivityService.connectivityStream.listen((isOnline) {
+      if (mounted) {
+        setState(() {
+          _isOffline = !isOnline;
+          if (isOnline) {
+            // Update last sync time when coming back online
+            _lastSyncTime = DateTime.now();
+          }
+        });
+      }
+    });
+  }
+
+  Future<void> _handleRefresh() async {
+    // Refresh Notifications
+    if (mounted) {
+      await context.read<NotificationProvider>().fetchNotifications();
+    }
+
+    // Refresh Notices (for DSCCNoticeBoard)
+    if (mounted) {
+      await context.read<NoticeProvider>().loadNotices(refresh: true);
+    }
+
+    // Refresh Connectivity Status
+    await _initConnectivityMonitoring();
   }
 
   @override
@@ -71,7 +107,15 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       appBar: _buildAppBar(),
       body: Column(
         children: [
-          const MayorStatementBanner(),
+          const RepaintBoundary(child: MayorStatementBanner())
+              .animate()
+              .fadeIn(duration: 600.ms)
+              .slideY(begin: -0.2, end: 0, curve: Curves.easeOutQuad),
+          // Offline banner
+          if (_isOffline)
+            OfflineBanner(
+              lastSyncTime: _lastSyncTime,
+            ).animate().fadeIn(duration: 400.ms),
           // Background image container for all sections below banner
           Expanded(
             child: Container(
@@ -83,25 +127,66 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   opacity: 0.1, // 10% opacity
                 ),
               ),
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.only(
-                  bottom: 100, // Space for bottom navigation
-                ),
-                child: Column(
-                  children: [
-                    const SizedBox(height: 20),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: _buildFeatureCluster(),
-                    ),
-                    const SizedBox(height: 30),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: const DSCCNoticeBoard(),
-                    ),
-                    const SizedBox(height: 30),
-                  ],
+              child: RefreshIndicator(
+                onRefresh: _handleRefresh,
+                color: green,
+                backgroundColor: Colors.white,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.only(
+                    bottom: 100, // Space for bottom navigation
+                  ),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 20),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 36,
+                          vertical: 12,
+                        ),
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            FeatureButtons(
+                              onNavigate: (route) => _navigateToPage(route),
+                              onComplaint: _showComplaintConfirmation,
+                            ),
+                            // Tutorial Overlay
+                            if (_showComplaintGuide)
+                              Positioned(
+                                bottom: 155,
+                                left:
+                                    (MediaQuery.of(context).size.width - 40) /
+                                        2 -
+                                    20,
+                                child: ComplaintGuideOverlay(
+                                  onClose: () {
+                                    setState(() {
+                                      _showComplaintGuide = false;
+                                    });
+                                  },
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 30),
+                      Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: const RepaintBoundary(
+                              child: DSCCNoticeBoard(),
+                            ),
+                          )
+                          .animate()
+                          .fadeIn(delay: 400.ms, duration: 600.ms)
+                          .slideY(
+                            begin: 0.2,
+                            end: 0,
+                            curve: Curves.easeOutQuad,
+                          ),
+                      const SizedBox(height: 30),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -209,7 +294,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                               minHeight: 16,
                             ),
                             child: Text(
-                              provider.unreadCount > 99 ? '99+' : '${provider.unreadCount}',
+                              provider.unreadCount > 99
+                                  ? '99+'
+                                  : '${provider.unreadCount}',
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 10,
@@ -342,7 +429,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         color: green.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Icon(Icons.favorite_border, color: green, size: 20),
+                      child: Icon(
+                        Icons.favorite_border,
+                        color: green,
+                        size: 20,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     TranslatedText(
@@ -639,178 +730,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             },
           ),
         ),
-      ],
-    );
-  }
-
-  Widget _buildFeatureCluster() {
-    final screenWidth = MediaQuery.of(context).size.width;
-    // Responsive circle size: small phones -> 100, medium -> 120, large -> 140
-    final double diameter = screenWidth < 360
-        ? 100
-        : (screenWidth < 480 ? 120 : 140);
-
-    // Remove fixed height container to prevent overflow
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
-      child: _buildFlowerPetalLayout(diameter),
-    );
-  }
-
-  Widget _buildFlowerPetalLayout(double diameter) {
-    // Using fixed dimensions for consistent mobile experience
-
-    Widget buildCircleButton({
-      required String title,
-      required String subtitle,
-      required IconData icon,
-      required Color primary,
-      required Color secondary,
-      required VoidCallback onTap,
-      double? size,
-    }) {
-      return Elevated3DButton(
-        title: title,
-        subtitle: subtitle,
-        icon: icon,
-        primaryColor: primary,
-        secondaryColor: secondary,
-        width: double.infinity, // Let Flexible control the width
-        height: 135, // Fixed height for consistent petal shape
-        isOval: false, // use rounded rectangle petal shape
-        isFlat: true, // remove 3D and make 2D flat
-        onTap: onTap,
-      );
-    }
-
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        // Background petal layout with tight spacing
-        Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Row(
-              children: [
-                Flexible(
-                  child: buildCircleButton(
-                    title: "Customer Care",
-                    subtitle: "",
-                    icon: Icons.headset_mic,
-                    primary: const Color(0xFFFF2424),
-                    secondary: const Color(0xFFFF2424).withOpacity(0.8),
-                    onTap: () => _navigateToPage('/customer-care'),
-                  ),
-                ),
-                SizedBox(width: 2), // Reduced gap from 12px to 2px
-                Flexible(
-                  child: buildCircleButton(
-                    title: "Live Chat",
-                    subtitle: "",
-                    icon: Icons.chat_bubble_outline,
-                    primary: const Color(0xFF36724A),
-                    secondary: const Color(0xFF36724A).withOpacity(0.8),
-                    onTap: () => _navigateToPage('/live-chat'),
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 2), // Reduced spacing from 8px to 2px
-
-            Row(
-              children: [
-                Flexible(
-                  child: buildCircleButton(
-                    title: "Waste Management",
-                    subtitle: "",
-                    icon: Icons.recycling,
-                    primary: const Color(0xFF36724A),
-                    secondary: const Color(0xFF36724A).withOpacity(0.8),
-                    onTap: () => _navigateToPage('/waste-management'),
-                  ),
-                ),
-                SizedBox(width: 2), // Reduced gap from 12px to 2px
-                Flexible(
-                  child: buildCircleButton(
-                    title: "Emergency",
-                    subtitle: "",
-                    icon: Icons.emergency,
-                    primary: const Color(0xFFFF2424),
-                    secondary: const Color(0xFFFF2424).withOpacity(0.8),
-                    onTap: () => _navigateToPage('/emergency'),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-
-        // Center complaint button - bigger circle with black background and white border
-        Container(
-          width: 110, // Increased from 120 to 140
-          height: 110, // Increased from 120 to 140
-          decoration: BoxDecoration(
-            color: Colors.blue,
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: Colors.white, // Solid white border
-              width: 4, // Thick white border
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.3),
-                blurRadius: 15,
-                offset: const Offset(0, 5),
-                spreadRadius: 2,
-              ),
-            ],
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(70), // Updated for new size
-              onTap: _showComplaintConfirmation,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  SvgPicture.asset(
-                    'assets/complaint.svg',
-                    width: 36,
-                    height: 36,
-                    colorFilter: const ColorFilter.mode(
-                      Colors.white,
-                      BlendMode.srcIn,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  TranslatedText(
-                    "Complaint",
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-
-        // Tutorial Overlay
-        if (_showComplaintGuide)
-          Positioned(
-            bottom: 155,
-            left: (MediaQuery.of(context).size.width - 40) / 2 - 20,
-            child: ComplaintGuideOverlay(
-              onClose: () {
-                setState(() {
-                  _showComplaintGuide = false;
-                });
-              },
-            ),
-          ),
       ],
     );
   }

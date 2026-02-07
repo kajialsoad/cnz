@@ -6,6 +6,9 @@ import '../providers/notice_provider.dart';
 import '../providers/language_provider.dart';
 import '../models/notice_model.dart';
 import '../widgets/translated_text.dart';
+import '../widgets/offline_banner.dart';
+import '../widgets/optimized/fast_image.dart';
+import '../widgets/optimized/smart_builder.dart';
 import 'notice_detail_page.dart';
 
 class NoticeBoardPage extends StatefulWidget {
@@ -76,38 +79,51 @@ class _NoticeBoardPageState extends State<NoticeBoardPage>
           ),
         ),
         child: SafeArea(
-          child: Column(
-            children: [
-              _buildHeader(),
-              _buildCategoryFilter(noticeProvider),
-              Expanded(
-                child: noticeProvider.isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : noticeProvider.error != null
-                    ? _buildErrorState(noticeProvider.error!)
-                    : RefreshIndicator(
-                        onRefresh: () =>
-                            noticeProvider.loadNotices(refresh: true),
-                        child: SingleChildScrollView(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            children: [
-                              _buildLatestAnnouncementsSection(),
-                              const SizedBox(height: 20),
-                              _buildNoticesList(
-                                noticeProvider.filteredNotices,
-                                currentLanguage,
-                              ),
-                              const SizedBox(height: 20),
-                              _buildStayUpdatedCard(),
-                              const SizedBox(height: 100),
-                            ],
+          child: noticeProvider.isLoading && noticeProvider.notices.isEmpty
+              ? const Center(child: CircularProgressIndicator())
+              : noticeProvider.error != null && noticeProvider.notices.isEmpty
+              ? _buildErrorState(noticeProvider.error!)
+              : RefreshIndicator(
+                  onRefresh: () => noticeProvider.loadNotices(refresh: true),
+                  child: CustomScrollView(
+                    slivers: [
+                      SliverToBoxAdapter(child: _buildHeader()),
+                      // Offline indicator banner
+                      if (noticeProvider.isOffline)
+                        SliverToBoxAdapter(
+                          child: OfflineBanner(
+                            lastSyncTime: noticeProvider.lastSyncTime,
                           ),
                         ),
+                      SliverToBoxAdapter(
+                        child: _buildCategoryFilter(noticeProvider),
                       ),
-              ),
-            ],
-          ),
+                      SliverPadding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        sliver: SliverList(
+                          delegate: SliverChildListDelegate([
+                            _buildLatestAnnouncementsSection(),
+                            const SizedBox(height: 20),
+                          ]),
+                        ),
+                      ),
+                      _buildNoticesListSliver(
+                        noticeProvider.filteredNotices,
+                        currentLanguage,
+                      ),
+                      SliverPadding(
+                        padding: const EdgeInsets.all(16),
+                        sliver: SliverList(
+                          delegate: SliverChildListDelegate([
+                            const SizedBox(height: 20),
+                            _buildStayUpdatedCard(),
+                            const SizedBox(height: 100),
+                          ]),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
         ),
       ),
       bottomNavigationBar: CustomBottomNav(
@@ -118,6 +134,83 @@ class _NoticeBoardPageState extends State<NoticeBoardPage>
           });
           _handleNavigation(index);
         },
+      ),
+    );
+  }
+
+  Widget _buildNoticesListSliver(List<Notice> notices, String currentLanguage) {
+    if (notices.isEmpty) {
+      return SliverToBoxAdapter(
+        child: Center(
+          child: Column(
+            children: [
+              Icon(Icons.inbox_outlined, size: 64, color: Colors.grey.shade400),
+              const SizedBox(height: 16),
+              Text(
+                'No notices available',
+                style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return SliverPadding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      sliver: SliverList(
+        delegate: SliverChildBuilderDelegate((context, index) {
+          final notice = notices[index];
+          final bool isLast = index == notices.length - 1;
+
+          return IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Timeline Indicator
+                Column(
+                  children: [
+                    Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: notice.isUrgent ? red : green,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: (notice.isUrgent ? red : green).withOpacity(
+                              0.4,
+                            ),
+                            blurRadius: 8,
+                            spreadRadius: 2,
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (!isLast)
+                      Expanded(
+                        child: Container(width: 2, color: Colors.grey.shade300),
+                      ),
+                  ],
+                ),
+                const SizedBox(width: 16),
+                // Notice Card
+                Expanded(
+                  child:
+                      Container(
+                            margin: const EdgeInsets.only(bottom: 24),
+                            child: _buildNoticeCard(notice, currentLanguage),
+                          )
+                          .animate(
+                            delay: (index * 50).ms,
+                          ) // Reduced delay for smoother list loading
+                          .slideX(begin: 0.1, duration: 400.ms)
+                          .fadeIn(),
+                ),
+              ],
+            ),
+          );
+        }, childCount: notices.length),
       ),
     );
   }
@@ -449,7 +542,8 @@ class _NoticeBoardPageState extends State<NoticeBoardPage>
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => NoticeDetailPage(noticeId: notice.id),
+            builder: (context) =>
+                NoticeDetailPage(noticeId: notice.id, initialNotice: notice),
           ),
         );
       },
@@ -582,6 +676,7 @@ class _NoticeBoardPageState extends State<NoticeBoardPage>
     final bool isLoved = notice.userInteractions?.contains('LOVE') ?? false;
     final bool hasRsvpYes =
         notice.userInteractions?.contains('RSVP_YES') ?? false;
+    final bool isOffline = noticeProvider.isOffline;
 
     return Row(
       children: [
@@ -590,7 +685,9 @@ class _NoticeBoardPageState extends State<NoticeBoardPage>
           label: '${notice.interactionCounts?['LIKE'] ?? 0}',
           color: blue,
           isActive: isLiked,
-          onTap: () => noticeProvider.toggleInteraction(notice.id, 'LIKE'),
+          onTap: isOffline
+              ? null
+              : () => noticeProvider.toggleInteraction(notice.id, 'LIKE'),
         ),
         const SizedBox(width: 16),
         _buildInteractionButton(
@@ -598,13 +695,16 @@ class _NoticeBoardPageState extends State<NoticeBoardPage>
           label: '${notice.interactionCounts?['LOVE'] ?? 0}',
           color: red,
           isActive: isLoved,
-          onTap: () => noticeProvider.toggleInteraction(notice.id, 'LOVE'),
+          onTap: isOffline
+              ? null
+              : () => noticeProvider.toggleInteraction(notice.id, 'LOVE'),
         ),
         const Spacer(),
         if (notice.type == 'EVENT')
           ElevatedButton.icon(
-            onPressed: () =>
-                noticeProvider.toggleInteraction(notice.id, 'RSVP_YES'),
+            onPressed: isOffline
+                ? null
+                : () => noticeProvider.toggleInteraction(notice.id, 'RSVP_YES'),
             icon: Icon(
               hasRsvpYes ? Icons.check_circle : Icons.event_available,
               size: 18,
@@ -630,70 +730,74 @@ class _NoticeBoardPageState extends State<NoticeBoardPage>
     required String label,
     required Color color,
     required bool isActive,
-    required VoidCallback onTap,
+    required VoidCallback? onTap,
   }) {
     final displayColor = isActive ? Colors.white : color;
     final borderColor = isActive
         ? color.withOpacity(0.35)
         : Colors.grey.withOpacity(0.2);
+    final isDisabled = onTap == null;
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(14),
-        child: TweenAnimationBuilder<double>(
-          tween: Tween(begin: 0, end: isActive ? 1 : 0),
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeInOut,
-          builder: (context, value, child) {
-            return Transform(
-              alignment: Alignment.center,
-              transform: Matrix4.identity()
-                ..setEntry(3, 2, 0.001)
-                ..rotateX(0.06 * value)
-                ..rotateY(-0.06 * value)
-                ..scale(1 + 0.06 * value),
-              child: child,
-            );
-          },
-          child: AnimatedContainer(
+        child: Opacity(
+          opacity: isDisabled ? 0.5 : 1.0,
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0, end: isActive ? 1 : 0),
             duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              gradient: isActive
-                  ? LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [color.withOpacity(0.85), color],
-                    )
-                  : null,
-              color: isActive ? null : Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: borderColor),
-              boxShadow: [
-                BoxShadow(
-                  color: (isActive ? color : Colors.black).withOpacity(
-                    isActive ? 0.35 : 0.08,
+            curve: Curves.easeInOut,
+            builder: (context, value, child) {
+              return Transform(
+                alignment: Alignment.center,
+                transform: Matrix4.identity()
+                  ..setEntry(3, 2, 0.001)
+                  ..rotateX(0.06 * value)
+                  ..rotateY(-0.06 * value)
+                  ..scale(1 + 0.06 * value),
+                child: child,
+              );
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                gradient: isActive
+                    ? LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [color.withOpacity(0.85), color],
+                      )
+                    : null,
+                color: isActive ? null : Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: borderColor),
+                boxShadow: [
+                  BoxShadow(
+                    color: (isActive ? color : Colors.black).withOpacity(
+                      isActive ? 0.35 : 0.08,
+                    ),
+                    blurRadius: isActive ? 12 : 6,
+                    offset: Offset(0, isActive ? 6 : 3),
                   ),
-                  blurRadius: isActive ? 12 : 6,
-                  offset: Offset(0, isActive ? 6 : 3),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Icon(icon, size: 18, color: displayColor),
-                const SizedBox(width: 4),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: displayColor,
-                    fontWeight: FontWeight.w600,
+                ],
+              ),
+              child: Row(
+                children: [
+                  Icon(icon, size: 18, color: displayColor),
+                  const SizedBox(width: 4),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: displayColor,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

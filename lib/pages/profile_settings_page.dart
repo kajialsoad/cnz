@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'package:cached_network_image/cached_network_image.dart';
+
 import '../components/custom_bottom_nav.dart';
 import '../config/api_config.dart';
 import '../models/user_model.dart';
@@ -10,7 +12,10 @@ import '../repositories/auth_repository.dart';
 import '../repositories/user_repository.dart';
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
+import '../services/connectivity_service.dart';
+import '../services/profile_cache_service.dart';
 import '../widgets/translated_text.dart';
+import '../widgets/offline_banner.dart';
 
 class ProfileSettingsPage extends StatefulWidget {
   const ProfileSettingsPage({super.key});
@@ -29,11 +34,40 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
   bool _isLoading = true;
   String? _error;
 
+  // Offline mode support
+  final ConnectivityService _connectivityService = ConnectivityService();
+  final ProfileCacheService _cacheService = ProfileCacheService();
+  bool _isOffline = false;
+
   @override
   void initState() {
     super.initState();
+    _initConnectivityMonitoring();
     _loadUserProfile();
     _loadLanguagePreference();
+  }
+
+  @override
+  void dispose() {
+    _connectivityService.dispose();
+    super.dispose();
+  }
+
+  /// Initialize connectivity monitoring
+  void _initConnectivityMonitoring() {
+    _connectivityService.init();
+    _connectivityService.connectivityStream.listen((isOnline) {
+      if (mounted) {
+        setState(() {
+          _isOffline = !isOnline;
+        });
+
+        if (isOnline && _error != null) {
+          // Back online - retry loading profile
+          _loadUserProfile();
+        }
+      }
+    });
   }
 
   Future<void> _loadLanguagePreference() async {
@@ -48,6 +82,44 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
 
   Future<void> _loadUserProfile() async {
     try {
+      // ✅ CACHE-FIRST STRATEGY: Load from cache immediately
+      final userId = await _getUserId();
+
+      UserModel? cachedUser;
+
+      if (userId != null) {
+        cachedUser = await _cacheService.getCachedProfile(userId);
+      } else {
+        // Try getting generic current user profile if ID is not available
+        cachedUser = await _cacheService.getCurrentUserProfile();
+      }
+
+      if (cachedUser != null) {
+        if (mounted) {
+          setState(() {
+            _user = cachedUser;
+            _isLoading = false;
+            _error = null; // Clear any previous error
+          });
+        }
+
+        // ✅ Refresh in background if online
+        if (!_isOffline) {
+          _refreshProfileInBackground();
+        }
+        return;
+      }
+
+      // If offline and no cache, show error
+      if (_isOffline) {
+        setState(() {
+          _error = 'No profile data available offline';
+          _isLoading = false;
+        });
+        return;
+      }
+
+      // If online and no cache, fetch from network
       setState(() {
         _isLoading = true;
         _error = null;
@@ -56,15 +128,54 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       final userRepo = UserRepository(ApiClient(ApiConfig.baseUrl));
       final user = await userRepo.getProfile();
 
-      setState(() {
-        _user = user;
-        _isLoading = false;
-      });
+      // ✅ Cache the fresh data
+      await _cacheService.cacheProfile(user);
+
+      if (mounted) {
+        setState(() {
+          _user = user;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _error = e.toString().replaceAll('Exception: ', '');
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _error = e.toString().replaceAll('Exception: ', '');
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  /// Get current user ID from token or storage
+  Future<int?> _getUserId() async {
+    try {
+      // You can get user ID from your auth service or stored user data
+      // For now, return null if not available
+      return _user?.id;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Refresh profile data in background without showing loading
+  Future<void> _refreshProfileInBackground() async {
+    try {
+      final userRepo = UserRepository(ApiClient(ApiConfig.baseUrl));
+      final user = await userRepo.getProfile();
+
+      // Update cache
+      await _cacheService.cacheProfile(user);
+
+      // Update UI if still mounted
+      if (mounted) {
+        setState(() {
+          _user = user;
+        });
+      }
+    } catch (e) {
+      // Silent fail - user already has cached data
+      print('Background refresh failed: $e');
     }
   }
 
@@ -98,44 +209,85 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                 children: [
                   const Icon(Icons.error_outline, size: 48, color: Colors.red),
                   const SizedBox(height: 16),
-                  Text(_error!, textAlign: TextAlign.center),
+                  // Display localized error message
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                    child: Builder(
+                      builder: (context) {
+                        // Check if it's a network error
+                        final isNetworkError =
+                            _error?.contains('Network error') ?? false;
+
+                        if (isNetworkError) {
+                          return const TranslatedText(
+                            'Network error. Please check your internet connection.',
+                            bn: 'নেটওয়ার্ক ত্রুটি। আপনার ইন্টারনেট সংযোগ পরীক্ষা করুন।',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Colors.grey),
+                          );
+                        }
+
+                        // Default error text
+                        return Text(
+                          _error!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.grey),
+                        );
+                      },
+                    ),
+                  ),
                   const SizedBox(height: 16),
                   ElevatedButton(
-                    onPressed: _loadUserProfile,
-                    child: TranslatedText('Retry'),
+                    onPressed: _isOffline ? null : _loadUserProfile,
+                    child: TranslatedText(
+                      _isOffline ? 'Offline - Cannot Retry' : 'Retry',
+                      bn: _isOffline
+                          ? 'অফলাইন - পুনরায় চেষ্টা করা যাবে না'
+                          : 'পুনরায় চেষ্টা করুন',
+                    ),
                   ),
                 ],
               ),
             )
-          : SingleChildScrollView(
-              padding: const EdgeInsets.only(
-                left: 16.0,
-                right: 16.0,
-                top: 16.0,
-                bottom: 100,
-              ),
-              child: Column(
-                children: [
-                  // Profile Section
-                  _buildProfileSection(),
-                  const SizedBox(height: 20),
+          : Column(
+              children: [
+                // Offline banner
+                if (_isOffline) const OfflineBanner(showLastSync: false),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.only(
+                      left: 16.0,
+                      right: 16.0,
+                      top: 16.0,
+                      bottom: 100,
+                    ),
+                    child: Column(
+                      children: [
+                        // Profile Section
+                        RepaintBoundary(child: _buildProfileSection()),
+                        const SizedBox(height: 20),
 
-                  // Account Information Section
-                  _buildAccountInformationSection(),
-                  const SizedBox(height: 20),
+                        // Account Information Section
+                        RepaintBoundary(
+                          child: _buildAccountInformationSection(),
+                        ),
+                        const SizedBox(height: 20),
 
-                  // Settings Section
-                  _buildSettingsSection(),
-                  const SizedBox(height: 30),
+                        // Settings Section
+                        RepaintBoundary(child: _buildSettingsSection()),
+                        const SizedBox(height: 30),
 
-                  // Logout Button
-                  _buildLogoutButton(),
-                  const SizedBox(height: 20),
+                        // Logout Button
+                        _buildLogoutButton(),
+                        const SizedBox(height: 20),
 
-                  // Footer
-                  _buildFooter(),
-                ],
-              ),
+                        // Footer
+                        _buildFooter(),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
       bottomNavigationBar: CustomBottomNav(
         currentIndex: _currentIndex,
@@ -166,22 +318,42 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       ),
       child: Column(
         children: [
-          // Avatar
+          // Avatar with cached image
           Container(
             width: 80,
             height: 80,
             decoration: BoxDecoration(
               color: const Color(0xFF4CAF50),
               shape: BoxShape.circle,
-              image: _user?.avatar != null && _user!.avatar!.isNotEmpty
-                  ? DecorationImage(
-                      image: NetworkImage(_user!.avatar!),
-                      fit: BoxFit.cover,
-                    )
-                  : null,
             ),
-            child: _user?.avatar == null || _user!.avatar!.isEmpty
-                ? Center(
+            child: _user?.avatar != null && _user!.avatar!.isNotEmpty
+                ? ClipOval(
+                    child: CachedNetworkImage(
+                      imageUrl: _user!.avatar!,
+                      width: 80,
+                      height: 80,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => const Center(
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white,
+                          ),
+                        ),
+                      ),
+                      errorWidget: (context, url, error) => Center(
+                        child: Text(
+                          _user?.initials ?? 'U',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  )
+                : Center(
                     child: Text(
                       _user?.initials ?? 'U',
                       style: const TextStyle(
@@ -190,8 +362,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                  )
-                : null,
+                  ),
           ),
           const SizedBox(height: 16),
 
@@ -215,32 +386,58 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
 
           // Edit Profile Button
           OutlinedButton.icon(
-            onPressed: () async {
-              if (_user == null) return;
-              
-              // Navigate to edit profile page
-              final result = await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => EditProfilePage(user: _user!),
-                ),
-              );
-              
-              // Reload profile if changes were saved
-              if (result == true) {
-                _loadUserProfile();
+            onPressed: () {
+              if (_isOffline) {
+                // Show offline dialog
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const TranslatedText(
+                      'No Internet Connection',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    content: const TranslatedText(
+                      'Please check your internet connection to edit profile.',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const TranslatedText('OK'),
+                      ),
+                    ],
+                  ),
+                );
+              } else if (_user != null) {
+                // Navigate to edit profile page
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => EditProfilePage(user: _user!),
+                  ),
+                ).then((result) {
+                  // Reload profile if changes were saved
+                  if (result == true) {
+                    _loadUserProfile();
+                  }
+                });
               }
             },
-            icon: const Icon(Icons.edit, size: 18, color: Color(0xFF4CAF50)),
+            icon: Icon(
+              Icons.edit,
+              size: 18,
+              color: _isOffline ? Colors.grey : const Color(0xFF4CAF50),
+            ),
             label: TranslatedText(
               'Edit Profile',
-              style: const TextStyle(
-                color: Color(0xFF4CAF50),
+              style: TextStyle(
+                color: _isOffline ? Colors.grey : const Color(0xFF4CAF50),
                 fontWeight: FontWeight.w500,
               ),
             ),
             style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: Color(0xFF4CAF50)),
+              side: BorderSide(
+                color: _isOffline ? Colors.grey : const Color(0xFF4CAF50),
+              ),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
@@ -317,15 +514,13 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
           const SizedBox(height: 20),
 
           // Geographical Information Section
-          if (_user?.cityCorporation != null || _user?.zoneData != null || _user?.wardData != null) ...[
+          if (_user?.cityCorporation != null ||
+              _user?.zoneData != null ||
+              _user?.wardData != null) ...[
             Divider(height: 32),
             Row(
               children: [
-                Icon(
-                  Icons.location_on,
-                  size: 20,
-                  color: Color(0xFF4CAF50),
-                ),
+                Icon(Icons.location_on, size: 20, color: Color(0xFF4CAF50)),
                 SizedBox(width: 8),
                 TranslatedText(
                   'Administrative Area',
@@ -338,7 +533,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
               ],
             ),
             SizedBox(height: 16),
-            
+
             // City Corporation
             if (_user?.cityCorporation != null)
               _buildGeographicalInfoItem(
@@ -347,10 +542,10 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                 labelBangla: 'সিটি কর্পোরেশন',
                 value: _user!.cityCorporationName,
               ),
-            
+
             if (_user?.cityCorporation != null && _user?.zoneData != null)
               SizedBox(height: 16),
-            
+
             // Zone
             if (_user?.zoneData != null)
               _buildGeographicalInfoItem(
@@ -359,10 +554,10 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                 labelBangla: 'জোন',
                 value: _user!.zoneName,
               ),
-            
+
             if (_user?.zoneData != null && _user?.wardData != null)
               SizedBox(height: 16),
-            
+
             // Ward
             if (_user?.wardData != null)
               _buildGeographicalInfoItem(
@@ -371,7 +566,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                 labelBangla: 'ওয়ার্ড',
                 value: _user!.wardName,
               ),
-            
+
             SizedBox(height: 20),
           ],
 
@@ -441,7 +636,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       ],
     );
   }
-  
+
   Widget _buildGeographicalInfoItem({
     required IconData icon,
     required String label,
@@ -466,11 +661,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
               color: const Color(0xFF4CAF50).withOpacity(0.1),
               shape: BoxShape.circle,
             ),
-            child: Icon(
-              icon,
-              size: 20,
-              color: const Color(0xFF4CAF50),
-            ),
+            child: Icon(icon, size: 20, color: const Color(0xFF4CAF50)),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -486,10 +677,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                 ),
                 Text(
                   labelBangla,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.grey[500],
-                  ),
+                  style: TextStyle(fontSize: 11, color: Colors.grey[500]),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -728,22 +916,22 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
         Switch(
           value: value,
           onChanged: onChanged,
-          thumbColor: WidgetStateProperty.resolveWith<Color>(
-            (Set<WidgetState> states) {
-              if (states.contains(WidgetState.selected)) {
-                return const Color(0xFF4CAF50);
-              }
-              return Colors.grey.shade400;
-            },
-          ),
-          trackColor: WidgetStateProperty.resolveWith<Color>(
-            (Set<WidgetState> states) {
-              if (states.contains(WidgetState.selected)) {
-                return const Color(0xFF4CAF50).withOpacity(0.3);
-              }
-              return Colors.grey.shade300;
-            },
-          ),
+          thumbColor: WidgetStateProperty.resolveWith<Color>((
+            Set<WidgetState> states,
+          ) {
+            if (states.contains(WidgetState.selected)) {
+              return const Color(0xFF4CAF50);
+            }
+            return Colors.grey.shade400;
+          }),
+          trackColor: WidgetStateProperty.resolveWith<Color>((
+            Set<WidgetState> states,
+          ) {
+            if (states.contains(WidgetState.selected)) {
+              return const Color(0xFF4CAF50).withOpacity(0.3);
+            }
+            return Colors.grey.shade300;
+          }),
         ),
       ],
     );

@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:provider/provider.dart';
 
 import '../components/custom_bottom_nav.dart';
 import '../widgets/translated_text.dart';
-import '../services/gallery_service.dart';
-import '../services/auth_service.dart';
+import '../widgets/offline_banner.dart';
+import '../providers/gallery_provider.dart';
+import '../services/connectivity_service.dart';
 import '../models/gallery_image_model.dart';
+import 'gallery_detail_page.dart';
 
 class GalleryPage extends StatefulWidget {
   const GalleryPage({super.key});
@@ -16,74 +19,45 @@ class GalleryPage extends StatefulWidget {
 }
 
 class _GalleryPageState extends State<GalleryPage> {
-  final GalleryService _galleryService = GalleryService();
-  List<GalleryImage> _images = [];
-  bool _isLoading = true;
-  String? _error;
-  String? _token;
-
+  final ConnectivityService _connectivityService = ConnectivityService();
+  final ValueNotifier<bool> _isOfflineNotifier = ValueNotifier(false);
   static const primaryGreen = Color(0xFF4CAF50);
 
   @override
   void initState() {
     super.initState();
-    _loadToken();
-  }
-
-  Future<void> _loadToken() async {
-    try {
-      final token = await AuthService.getAccessToken();
-
-      if (!mounted) return;
-
-      if (token == null) {
-        setState(() {
-          _error = 'Please login first';
-          _isLoading = false;
-        });
-        return;
-      }
-
-      setState(() {
-        _token = token;
-      });
-
-      await _fetchImages();
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error = 'Failed to load: $e';
-        _isLoading = false;
-      });
-    }
-  }
-
-  Future<void> _fetchImages() async {
-    if (_token == null) return;
-
-    if (!mounted) return;
-
-    setState(() {
-      _isLoading = true;
-      _error = null;
+    _initConnectivityMonitoring();
+    // Load images using provider
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<GalleryProvider>(context, listen: false).loadImages();
     });
+  }
 
+  Future<void> _initConnectivityMonitoring() async {
     try {
-      final images = await _galleryService.getActiveImages(_token!);
-
-      if (!mounted) return;
-
-      setState(() {
-        _images = images;
-        _isLoading = false;
+      await _connectivityService.init();
+      
+      _connectivityService.connectivityStream.listen((isOnline) {
+        if (mounted) {
+          _isOfflineNotifier.value = !isOnline;
+          
+          if (isOnline) {
+            Provider.of<GalleryProvider>(context, listen: false).loadImages();
+          }
+        }
       });
+      
+      _isOfflineNotifier.value = !_connectivityService.isOnline;
     } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error = 'Failed to load images: $e';
-        _isLoading = false;
-      });
+      print('Error initializing connectivity monitoring: $e');
     }
+  }
+
+  @override
+  void dispose() {
+    _isOfflineNotifier.dispose();
+    _connectivityService.dispose();
+    super.dispose();
   }
 
   @override
@@ -112,16 +86,37 @@ class _GalleryPageState extends State<GalleryPage> {
           ),
         ),
       ),
-      body: RefreshIndicator(
-        onRefresh: _fetchImages,
-        color: primaryGreen,
-        child: _isLoading
-            ? _buildLoadingState()
-            : _error != null
-                ? _buildErrorState()
-                : _images.isEmpty
-                    ? _buildEmptyState()
-                    : _buildGalleryGrid(),
+      body: ValueListenableBuilder<bool>(
+        valueListenable: _isOfflineNotifier,
+        builder: (context, isOffline, _) {
+          return Column(
+            children: [
+              if (isOffline)
+                Consumer<GalleryProvider>(
+                  builder: (context, provider, _) {
+                    return OfflineBanner(lastSyncTime: provider.lastSyncTime);
+                  },
+                ),
+              Expanded(
+                child: Consumer<GalleryProvider>(
+                  builder: (context, provider, _) {
+                    return RefreshIndicator(
+                      onRefresh: () => provider.loadImages(forceRefresh: true),
+                      color: primaryGreen,
+                      child: provider.isLoading && provider.images.isEmpty
+                          ? _buildLoadingState()
+                          : provider.error != null && provider.images.isEmpty
+                              ? _buildErrorState(provider.error, provider)
+                              : provider.images.isEmpty
+                                  ? _buildEmptyState()
+                                  : _buildGalleryGrid(provider.images),
+                    );
+                  },
+                ),
+              ),
+            ],
+          );
+        },
       ),
       bottomNavigationBar: CustomBottomNav(
         currentIndex: 3,
@@ -164,7 +159,7 @@ class _GalleryPageState extends State<GalleryPage> {
     );
   }
 
-  Widget _buildErrorState() {
+  Widget _buildErrorState(String? error, GalleryProvider provider) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -172,13 +167,13 @@ class _GalleryPageState extends State<GalleryPage> {
           Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
           const SizedBox(height: 16),
           Text(
-            _error ?? 'Unknown error',
+            error ?? 'Unknown error',
             style: TextStyle(color: Colors.grey[800]),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
           ElevatedButton.icon(
-            onPressed: _fetchImages,
+            onPressed: () => provider.loadImages(forceRefresh: true),
             style: ElevatedButton.styleFrom(
               backgroundColor: primaryGreen,
               foregroundColor: Colors.white,
@@ -232,8 +227,9 @@ class _GalleryPageState extends State<GalleryPage> {
     );
   }
 
-  Widget _buildGalleryGrid() {
+  Widget _buildGalleryGrid(List<GalleryImage> images) {
     return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.only(
         left: 16,
         right: 16,
@@ -261,9 +257,9 @@ class _GalleryPageState extends State<GalleryPage> {
               mainAxisSpacing: 8,
               childAspectRatio: 1,
             ),
-            itemCount: _images.length,
+            itemCount: images.length,
             itemBuilder: (context, index) {
-              return _buildImageCard(_images[index], index);
+              return _buildImageCard(images[index], index);
             },
           ),
         ],
@@ -274,155 +270,99 @@ class _GalleryPageState extends State<GalleryPage> {
   Widget _buildImageCard(GalleryImage image, int index) {
     return GestureDetector(
       onTap: () => _showFullScreenImage(image),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              offset: const Offset(0, 6),
-              blurRadius: 15,
-            ),
-            BoxShadow(
-              color: primaryGreen.withOpacity(0.1),
-              offset: const Offset(0, 3),
-              blurRadius: 10,
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: Stack(
-            children: [
-              CachedNetworkImage(
-                imageUrl: image.imageUrl,
-                width: double.infinity,
-                height: double.infinity,
-                fit: BoxFit.cover,
-                placeholder: (context, url) => Container(
-                  color: Colors.grey[200],
-                  child: const Center(
-                    child: CircularProgressIndicator(color: primaryGreen),
-                  ),
-                ),
-                errorWidget: (context, url, error) => Container(
-                  color: Colors.grey[200],
-                  child: Icon(
-                    Icons.broken_image,
-                    size: 32,
-                    color: Colors.grey[600],
-                  ),
-                ),
+      child: Hero(
+        tag: 'gallery_image_${image.id}',
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                offset: const Offset(0, 6),
+                blurRadius: 15,
               ),
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.bottomCenter,
-                      end: Alignment.topCenter,
-                      colors: [
-                        Colors.black.withOpacity(0.8),
-                        Colors.transparent,
-                      ],
-                    ),
-                  ),
-                  child: Text(
-                    image.title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
+              BoxShadow(
+                color: primaryGreen.withOpacity(0.1),
+                offset: const Offset(0, 3),
+                blurRadius: 10,
               ),
             ],
           ),
-        ),
-      ).animate(delay: (index * 100).ms)
-          .fadeIn(duration: 800.ms)
-          .scale(
-            begin: const Offset(0.8, 0.8),
-            duration: 600.ms,
-            curve: Curves.easeOutBack,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Stack(
+              children: [
+                CachedNetworkImage(
+                  imageUrl: image.imageUrl,
+                  width: double.infinity,
+                  height: double.infinity,
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) => Container(
+                    color: Colors.grey[200],
+                    child: const Center(
+                      child: CircularProgressIndicator(color: primaryGreen),
+                    ),
+                  ),
+                  errorWidget: (context, url, error) => Container(
+                    color: Colors.grey[200],
+                    child: Icon(
+                      Icons.broken_image,
+                      size: 32,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ),
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.bottomCenter,
+                        end: Alignment.topCenter,
+                        colors: [
+                          Colors.black.withOpacity(0.8),
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: Text(
+                        image.title,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-    );
+        ),
+      ),
+    ).animate(delay: (index * 50).ms) // Reduced delay for smoother feel
+        .fadeIn(duration: 600.ms)
+        .scale(
+          begin: const Offset(0.9, 0.9),
+          duration: 400.ms,
+          curve: Curves.easeOut,
+        );
   }
 
   void _showFullScreenImage(GalleryImage image) {
-    showDialog(
-      context: context,
-      barrierColor: Colors.black.withOpacity(0.9),
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: EdgeInsets.zero,
-        child: Stack(
-          children: [
-            Center(
-              child: InteractiveViewer(
-                minScale: 0.5,
-                maxScale: 4.0,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CachedNetworkImage(
-                      imageUrl: image.imageUrl,
-                      fit: BoxFit.contain,
-                      placeholder: (context, url) => const Center(
-                        child: CircularProgressIndicator(color: primaryGreen),
-                      ),
-                      errorWidget: (context, url, error) =>
-                          const Icon(Icons.error, color: Colors.white, size: 50),
-                    ),
-                    if (image.description != null && image.description!.isNotEmpty)
-                      Container(
-                        margin: const EdgeInsets.only(top: 16),
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.7),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          image.description!,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-            Positioned(
-              top: 40,
-              right: 20,
-              child: IconButton(
-                icon: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.close_rounded,
-                    color: Colors.white,
-                    size: 24,
-                  ),
-                ),
-                onPressed: () => Navigator.pop(context),
-              ),
-            ),
-          ],
-        ),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => GalleryDetailPage(image: image),
       ),
     );
   }

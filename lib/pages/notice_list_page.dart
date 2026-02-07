@@ -129,7 +129,10 @@ class _NoticeListPageState extends State<NoticeListPage> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => NoticeDetailPage(noticeId: notice.id),
+              builder: (context) => NoticeDetailPage(
+                noticeId: notice.id,
+                initialNotice: notice,
+              ),
             ),
           );
         },

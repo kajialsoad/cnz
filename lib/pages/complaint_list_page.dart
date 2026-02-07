@@ -8,6 +8,8 @@ import '../components/custom_bottom_nav.dart';
 import '../widgets/translated_text.dart';
 import '../widgets/notification_badge.dart';
 import '../widgets/notification_sheet.dart';
+import '../widgets/offline_banner.dart';
+import '../widgets/optimized/fast_image.dart';
 import '../providers/complaint_provider.dart';
 import '../providers/notification_provider.dart';
 import '../models/complaint.dart';
@@ -28,12 +30,18 @@ class _ComplaintListPageState extends State<ComplaintListPage> {
     super.initState();
     // Load complaints when page opens
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final complaintProvider = Provider.of<ComplaintProvider>(context, listen: false);
-      final notificationProvider = Provider.of<NotificationProvider>(context, listen: false);
-      
+      final complaintProvider = Provider.of<ComplaintProvider>(
+        context,
+        listen: false,
+      );
+      final notificationProvider = Provider.of<NotificationProvider>(
+        context,
+        listen: false,
+      );
+
       // Load complaints
       complaintProvider.loadMyComplaints();
-      
+
       // Refresh unread notification count
       notificationProvider.refreshUnreadCount();
     });
@@ -48,13 +56,12 @@ class _ComplaintListPageState extends State<ComplaintListPage> {
         builder: (context, provider, child) {
           return Column(
             children: [
-              // Offline indicator banner
-              if (provider.isOffline) _buildOfflineBanner(provider),
-              
+              // Offline indicator banner (using reusable widget)
+              if (provider.isOffline)
+                OfflineBanner(lastSyncTime: provider.lastSyncTime),
+
               // Main content
-              Expanded(
-                child: _buildContent(provider),
-              ),
+              Expanded(child: _buildContent(provider)),
             ],
           );
         },
@@ -85,70 +92,6 @@ class _ComplaintListPageState extends State<ComplaintListPage> {
     }
 
     return _buildComplaintList(provider);
-  }
-
-  Widget _buildOfflineBanner(ComplaintProvider provider) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.orange[100],
-        border: Border(
-          bottom: BorderSide(
-            color: Colors.orange[300]!,
-            width: 1,
-          ),
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.cloud_off,
-            size: 20,
-            color: Colors.orange[800],
-          ),
-          SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'You are offline',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.orange[900],
-                  ),
-                ),
-                if (provider.lastSyncTime != null)
-                  Text(
-                    'Last updated: ${_formatLastSync(provider.lastSyncTime!)}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.orange[800],
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _formatLastSync(DateTime lastSync) {
-    final now = DateTime.now();
-    final difference = now.difference(lastSync);
-
-    if (difference.inMinutes < 1) {
-      return 'just now';
-    } else if (difference.inMinutes < 60) {
-      return '${difference.inMinutes}m ago';
-    } else if (difference.inHours < 24) {
-      return '${difference.inHours}h ago';
-    } else {
-      return '${difference.inDays}d ago';
-    }
   }
 
   PreferredSizeWidget _buildAppBar() {
@@ -212,9 +155,7 @@ class _ComplaintListPageState extends State<ComplaintListPage> {
           duration: const Duration(milliseconds: 375),
           child: SlideAnimation(
             verticalOffset: 50.0,
-            child: FadeInAnimation(
-              child: _buildSkeletonCard(),
-            ),
+            child: FadeInAnimation(child: _buildSkeletonCard()),
           ),
         );
       },
@@ -313,11 +254,7 @@ class _ComplaintListPageState extends State<ComplaintListPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.error_outline,
-              size: 64,
-              color: Colors.red[300],
-            ),
+            Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
             SizedBox(height: 16),
             TranslatedText(
               'Failed to load complaints',
@@ -331,17 +268,16 @@ class _ComplaintListPageState extends State<ComplaintListPage> {
             Text(
               error,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
-              ),
+              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
             ),
             SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: () {
                 HapticFeedback.mediumImpact();
-                Provider.of<ComplaintProvider>(context, listen: false)
-                    .loadMyComplaints();
+                Provider.of<ComplaintProvider>(
+                  context,
+                  listen: false,
+                ).loadMyComplaints();
               },
               icon: Icon(Icons.refresh),
               label: TranslatedText('Retry'),
@@ -368,11 +304,7 @@ class _ComplaintListPageState extends State<ComplaintListPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.inbox_outlined,
-              size: 80,
-              color: Colors.grey[400],
-            ),
+            Icon(Icons.inbox_outlined, size: 80, color: Colors.grey[400]),
             SizedBox(height: 16),
             TranslatedText(
               'No complaints yet',
@@ -386,10 +318,7 @@ class _ComplaintListPageState extends State<ComplaintListPage> {
             TranslatedText(
               'Your submitted complaints will appear here',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
-              ),
+              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
             ),
             SizedBox(height: 24),
             ElevatedButton.icon(
@@ -419,13 +348,13 @@ class _ComplaintListPageState extends State<ComplaintListPage> {
     return RefreshIndicator(
       onRefresh: () async {
         HapticFeedback.lightImpact();
-        
+
         // Refresh both complaints and notification count
         final notificationProvider = Provider.of<NotificationProvider>(
           context,
           listen: false,
         );
-        
+
         await Future.wait([
           provider.loadMyComplaints(forceRefresh: true),
           notificationProvider.refreshUnreadCount(),
@@ -438,59 +367,45 @@ class _ComplaintListPageState extends State<ComplaintListPage> {
             child: ListView.builder(
               padding: EdgeInsets.all(16),
               itemCount: provider.complaints.length,
+              cacheExtent: 500,
+              addAutomaticKeepAlives: false,
+              addRepaintBoundaries: true,
               itemBuilder: (context, index) {
                 final complaint = provider.complaints[index];
-                return AnimationConfiguration.staggeredList(
-                  position: index,
-                  duration: const Duration(milliseconds: 375),
-                  child: SlideAnimation(
-                    verticalOffset: 50.0,
-                    child: FadeInAnimation(
-                      child: _buildComplaintCard(complaint),
+
+                // ✅ Only animate first 5 items for better performance
+                if (index < 5) {
+                  return AnimationConfiguration.staggeredList(
+                    position: index,
+                    duration: const Duration(
+                      milliseconds: 200,
+                    ), // ✅ Faster animation
+                    child: SlideAnimation(
+                      verticalOffset: 20.0, // ✅ Smaller offset
+                      child: RepaintBoundary(
+                        // ✅ Isolate repaints
+                        child: _buildComplaintCard(complaint),
+                      ),
                     ),
-                  ),
-                );
+                  );
+                }
+
+                // ✅ No animation for rest of items
+                return RepaintBoundary(child: _buildComplaintCard(complaint));
               },
             ),
           ),
-          // Show loading indicator at top when refreshing with existing data
+          // Show subtle loading indicator at top when refreshing with existing data
           if (provider.isLoading && provider.complaints.isNotEmpty)
             Positioned(
               top: 0,
               left: 0,
               right: 0,
               child: Container(
-                padding: EdgeInsets.symmetric(vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      offset: Offset(0, 2),
-                      blurRadius: 4,
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4CAF50)),
-                      ),
-                    ),
-                    SizedBox(width: 8),
-                    Text(
-                      'Updating...',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ],
+                height: 3,
+                child: LinearProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4CAF50)),
+                  backgroundColor: Colors.transparent,
                 ),
               ),
             ),
@@ -506,8 +421,7 @@ class _ComplaintListPageState extends State<ComplaintListPage> {
         // Parse complaint ID to int for notification lookup
         final complaintId = int.tryParse(complaint.id) ?? 0;
         final hasUnreadNotifications = notificationProvider
-            .getNotificationsByComplaint(complaintId)
-            .any((notification) => !notification.isRead);
+            .hasUnreadForComplaint(complaintId);
 
         return Container(
           margin: EdgeInsets.only(bottom: 16),
@@ -517,11 +431,15 @@ class _ComplaintListPageState extends State<ComplaintListPage> {
               onTap: () {
                 // Haptic feedback on tap
                 HapticFeedback.selectionClick();
-                
+
                 // Load the complaint into provider first
-                final provider = Provider.of<ComplaintProvider>(context, listen: false);
-                provider.loadFormFromComplaint(complaint);
-                
+                final provider = Provider.of<ComplaintProvider>(
+                  context,
+                  listen: false,
+                );
+                // Set current complaint immediately to avoid showing stale data
+                provider.setCurrentComplaint(complaint);
+
                 // Navigate to complaint detail view
                 Navigator.pushNamed(
                   context,
@@ -566,7 +484,7 @@ class _ComplaintListPageState extends State<ComplaintListPage> {
                             color: const Color(0xFF4CAF50),
                           ),
                         ),
-                      
+
                       // Thumbnail image if available
                       if (complaint.imageUrls.isNotEmpty)
                         Container(
@@ -575,36 +493,17 @@ class _ComplaintListPageState extends State<ComplaintListPage> {
                           margin: EdgeInsets.only(right: 12),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(8),
-                            child: CachedNetworkImage(
-                              imageUrl: UrlHelper.getImageUrl(complaint.imageUrls.first),
+                            child: FastImage(
+                              imageUrl: UrlHelper.getImageUrl(
+                                complaint.imageUrls.first,
+                              ),
+                              width: 80,
+                              height: 80,
                               fit: BoxFit.cover,
-                              placeholder: (context, url) => Container(
-                                color: Colors.grey[200],
-                                child: Center(
-                                  child: SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                        Color(0xFF4CAF50),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              errorWidget: (context, url, error) => Container(
-                                color: Colors.grey[200],
-                                child: Icon(
-                                  Icons.broken_image,
-                                  color: Colors.grey[400],
-                                  size: 32,
-                                ),
-                              ),
                             ),
                           ),
                         ),
-                      
+
                       // Complaint details
                       Expanded(
                         child: Column(
@@ -666,13 +565,18 @@ class _ComplaintListPageState extends State<ComplaintListPage> {
                               ],
                             ),
                             SizedBox(height: 6),
-                            
+
                             // Geographical Information
                             if (complaint.geographicalInfo.isNotEmpty)
                               Container(
-                                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: Color(0xFF4CAF50).withValues(alpha: 0.1),
+                                  color: Color(
+                                    0xFF4CAF50,
+                                  ).withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Row(
@@ -725,7 +629,8 @@ class _ComplaintListPageState extends State<ComplaintListPage> {
                                 Row(
                                   children: [
                                     // Media indicators
-                                    if (complaint.imageUrls.isNotEmpty || complaint.audioUrls.isNotEmpty)
+                                    if (complaint.imageUrls.isNotEmpty ||
+                                        complaint.audioUrls.isNotEmpty)
                                       Row(
                                         children: [
                                           if (complaint.imageUrls.isNotEmpty)
@@ -746,7 +651,8 @@ class _ComplaintListPageState extends State<ComplaintListPage> {
                                                 ),
                                               ],
                                             ),
-                                          if (complaint.imageUrls.isNotEmpty && complaint.audioUrls.isNotEmpty)
+                                          if (complaint.imageUrls.isNotEmpty &&
+                                              complaint.audioUrls.isNotEmpty)
                                             SizedBox(width: 8),
                                           if (complaint.audioUrls.isNotEmpty)
                                             Icon(
@@ -759,15 +665,21 @@ class _ComplaintListPageState extends State<ComplaintListPage> {
                                     // New update indicator
                                     if (hasUnreadNotifications)
                                       Padding(
-                                        padding: const EdgeInsets.only(left: 8.0),
+                                        padding: const EdgeInsets.only(
+                                          left: 8.0,
+                                        ),
                                         child: Container(
                                           padding: EdgeInsets.symmetric(
                                             horizontal: 8,
                                             vertical: 4,
                                           ),
                                           decoration: BoxDecoration(
-                                            color: const Color(0xFF4CAF50).withValues(alpha: 0.1),
-                                            borderRadius: BorderRadius.circular(8),
+                                            color: const Color(
+                                              0xFF4CAF50,
+                                            ).withValues(alpha: 0.1),
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
                                           ),
                                           child: Row(
                                             mainAxisSize: MainAxisSize.min,
@@ -783,7 +695,9 @@ class _ComplaintListPageState extends State<ComplaintListPage> {
                                                 style: TextStyle(
                                                   fontSize: 11,
                                                   fontWeight: FontWeight.w600,
-                                                  color: const Color(0xFF4CAF50),
+                                                  color: const Color(
+                                                    0xFF4CAF50,
+                                                  ),
                                                 ),
                                               ),
                                             ],
