@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.authenticateToken = void 0;
 exports.authGuard = authGuard;
 exports.rbacGuard = rbacGuard;
 exports.optionalAuth = optionalAuth;
@@ -287,3 +288,5 @@ function wardGuard(req, res, next) {
     }
     next();
 }
+// Export alias for backward compatibility
+exports.authenticateToken = authGuard;

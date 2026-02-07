@@ -94,11 +94,24 @@ async function getNoticeById(req, res) {
 async function updateNotice(req, res) {
     try {
         const id = parseInt(req.params.id);
+        console.log('🔵 Update notice request:', {
+            id,
+            body: req.body,
+            imageUrl: req.body.imageUrl || 'NO IMAGE URL'
+        });
         const notice = await notice_service_1.default.updateNotice(id, req.body);
+        console.log('✅ Notice updated successfully:', {
+            id: notice.id,
+            imageUrl: notice.imageUrl || 'NO IMAGE URL'
+        });
         res.json(notice);
     }
     catch (error) {
-        console.error('Update notice error:', error);
+        console.error('❌ Update notice error:', {
+            message: error.message,
+            stack: error.stack,
+            body: req.body
+        });
         res.status(500).json({ error: error.message });
     }
 }

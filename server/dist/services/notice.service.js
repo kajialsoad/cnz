@@ -224,11 +224,34 @@ class NoticeService {
     }
     // Update notice
     async updateNotice(id, data) {
-        return await prisma.notice.update({
-            where: { id },
-            data,
-            select: adminNoticeSelect,
-        });
+        try {
+            console.log('🔵 Notice service updateNotice:', {
+                id,
+                data,
+                imageUrl: data.imageUrl || 'NO IMAGE URL',
+                targetCities: data.targetCities,
+                targetZones: data.targetZones,
+                targetWards: data.targetWards
+            });
+            const notice = await prisma.notice.update({
+                where: { id },
+                data,
+                select: adminNoticeSelect,
+            });
+            console.log('✅ Notice updated in database:', {
+                id: notice.id,
+                imageUrl: notice.imageUrl || 'NO IMAGE URL'
+            });
+            return notice;
+        }
+        catch (error) {
+            console.error('❌ Prisma update error:', {
+                message: error.message,
+                code: error.code,
+                meta: error.meta
+            });
+            throw error;
+        }
     }
     // Toggle notice active status
     async toggleNoticeStatus(id) {

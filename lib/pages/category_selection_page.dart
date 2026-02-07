@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:provider/provider.dart';  // NEW: Import Provider
+import 'package:provider/provider.dart'; // NEW: Import Provider
 
-import '../providers/complaint_provider.dart';  // NEW: Import ComplaintProvider
+import '../providers/complaint_provider.dart'; // NEW: Import ComplaintProvider
 import '../widgets/translated_text.dart';
 
 class CategorySelectionPage extends StatefulWidget {
@@ -21,7 +21,8 @@ class _CategorySelectionPageState extends State<CategorySelectionPage> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     // Get section data and image path from arguments
-    final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    final args =
+        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
     if (args != null) {
       sectionData = args['sectionData'] as Map<String, dynamic>?;
       if (args.containsKey('imagePath')) {
@@ -31,7 +32,9 @@ class _CategorySelectionPageState extends State<CategorySelectionPage> {
   }
 
   // Category data for each section
-  Map<String, List<Map<String, dynamic>>> getCategoriesForSection(String sectionId) {
+  Map<String, List<Map<String, dynamic>>> getCategoriesForSection(
+    String sectionId,
+  ) {
     final allCategories = {
       'home': [
         {
@@ -41,8 +44,8 @@ class _CategorySelectionPageState extends State<CategorySelectionPage> {
           'id': 'not_collecting_waste',
         },
         {
-          'bangla': 'ময়লা কর্মীদের ব্যবহার আচরণ',
-          'english': 'Poor behavior of waste workers',
+          'bangla': 'ময়লা সংগ্রহকারীদের আচরণগত সমস্যা',
+          'english': 'Behavioral issues of waste collectors',
           'svgAsset': 'assets/house.svg',
           'id': 'worker_behavior',
         },
@@ -99,8 +102,8 @@ class _CategorySelectionPageState extends State<CategorySelectionPage> {
           'id': 'not_collecting',
         },
         {
-          'bangla': 'ময়লা কর্মীদের ব্যবহার খারাপ',
-          'english': 'Poor behavior of waste workers',
+          'bangla': 'ময়লা সংগ্রহকারীদের আচরণগত সমস্যা',
+          'english': 'Behavioral issues of waste collectors',
           'svgAsset': 'assets/building.svg',
           'id': 'worker_behavior',
         },
@@ -125,8 +128,8 @@ class _CategorySelectionPageState extends State<CategorySelectionPage> {
           'id': 'not_collecting',
         },
         {
-          'bangla': 'ময়লা কর্মীদের ব্যবহার খারাপ',
-          'english': 'Poor behavior of waste workers',
+          'bangla': 'ময়লা সংগ্রহকারীদের আচরণগত সমস্যা',
+          'english': 'Behavioral issues of waste collectors',
           'svgAsset': 'assets/building.svg',
           'id': 'worker_behavior',
         },
@@ -151,8 +154,8 @@ class _CategorySelectionPageState extends State<CategorySelectionPage> {
           'id': 'not_collecting',
         },
         {
-          'bangla': 'ময়লা কর্মীদের ব্যবহার খারাপ',
-          'english': 'Poor behavior of waste workers',
+          'bangla': 'ময়লা সংগ্রহকারীদের আচরণগত সমস্যা',
+          'english': 'Behavioral issues of waste collectors',
           'svgAsset': 'assets/graduate.svg',
           'id': 'worker_behavior',
         },
@@ -177,8 +180,8 @@ class _CategorySelectionPageState extends State<CategorySelectionPage> {
           'id': 'not_collecting',
         },
         {
-          'bangla': 'ময়লা কর্মীদের ব্যবহার খারাপ',
-          'english': 'Poor behavior of waste workers',
+          'bangla': 'ময়লা সংগ্রহকারীদের আচরণগত সমস্যা',
+          'english': 'Behavioral issues of waste collectors',
           'svgAsset': 'assets/hospital.svg',
           'id': 'worker_behavior',
         },
@@ -203,8 +206,8 @@ class _CategorySelectionPageState extends State<CategorySelectionPage> {
           'id': 'not_collecting',
         },
         {
-          'bangla': 'ময়লা কর্মীদের ব্যবহার খারাপ',
-          'english': 'Poor behavior of waste workers',
+          'bangla': 'ময়লা সংগ্রহকারীদের আচরণগত সমস্যা',
+          'english': 'Behavioral issues of waste collectors',
           'svgAsset': 'assets/church.svg',
           'id': 'worker_behavior',
         },
@@ -324,11 +327,15 @@ class _CategorySelectionPageState extends State<CategorySelectionPage> {
       );
     }
 
-    final categories = getCategoriesForSection(sectionData!['id'])[sectionData!['id']] ?? [];
-    final themeColor = (sectionData!['specialColor'] as Color?) ?? const Color(0xFF3FA564);
+    final categories =
+        getCategoriesForSection(sectionData!['id'])[sectionData!['id']] ?? [];
+    final themeColor =
+        (sectionData!['specialColor'] as Color?) ?? const Color(0xFF3FA564);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFE8F5E8), // Fixed green background like others page
+      backgroundColor: const Color(
+        0xFFE8F5E8,
+      ), // Fixed green background like others page
       appBar: AppBar(
         backgroundColor: const Color(0xFF3FA564), // Fixed green app bar
         elevation: 0,
@@ -379,10 +386,7 @@ class _CategorySelectionPageState extends State<CategorySelectionPage> {
                 const SizedBox(height: 8),
                 Text(
                   'Select the specific issue',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[600],
-                  ),
+                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                   textAlign: TextAlign.center,
                 ),
               ],
@@ -415,19 +419,13 @@ class _CategorySelectionPageState extends State<CategorySelectionPage> {
               children: [
                 TranslatedText(
                   'আপনার সমস্যা অনুসারে সঠিক অপশন নির্বাচন করুন',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.grey[600],
-                  ),
+                  style: TextStyle(fontSize: 13, color: Colors.grey[600]),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Select the option that best matches your issue',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.grey[500],
-                  ),
+                  style: TextStyle(fontSize: 11, color: Colors.grey[500]),
                   textAlign: TextAlign.center,
                 ),
               ],
@@ -447,20 +445,27 @@ class _CategorySelectionPageState extends State<CategorySelectionPage> {
       themeColor.blue,
       0.19, // 19% opacity like others_page
     );
-    
+
     return GestureDetector(
       onTap: () {
         setState(() {
           selectedCategory = category['id'];
         });
-        
+
         // NEW: Store category and subcategory in provider
-        final complaintProvider = Provider.of<ComplaintProvider>(context, listen: false);
+        final complaintProvider = Provider.of<ComplaintProvider>(
+          context,
+          listen: false,
+        );
         if (sectionData != null) {
-          complaintProvider.setCategory(sectionData!['id']);  // Set primary category (e.g., 'home', 'road_environment')
+          complaintProvider.setCategory(
+            sectionData!['id'],
+          ); // Set primary category (e.g., 'home', 'road_environment')
         }
-        complaintProvider.setSubcategory(category['id']);  // Set subcategory (e.g., 'not_collecting_waste')
-        
+        complaintProvider.setSubcategory(
+          category['id'],
+        ); // Set subcategory (e.g., 'not_collecting_waste')
+
         // Navigate to complaint details after short delay
         Future.delayed(const Duration(milliseconds: 300), () {
           Navigator.pushNamed(
@@ -504,20 +509,16 @@ class _CategorySelectionPageState extends State<CategorySelectionPage> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: category.containsKey('svgAsset')
-                  ? SvgPicture.asset(
-                      category['svgAsset'],
-                      width: 24,
-                      height: 24,
-                      colorFilter: ColorFilter.mode(
-                        themeColor,
-                        BlendMode.srcIn,
-                      ),
-                    )
-                  : Icon(
-                      category['icon'],
-                      size: 24,
-                      color: themeColor,
-                    ),
+                    ? SvgPicture.asset(
+                        category['svgAsset'],
+                        width: 24,
+                        height: 24,
+                        colorFilter: ColorFilter.mode(
+                          themeColor,
+                          BlendMode.srcIn,
+                        ),
+                      )
+                    : Icon(category['icon'], size: 24, color: themeColor),
               ),
               const SizedBox(height: 8),
               // Bangla text

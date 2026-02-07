@@ -34,6 +34,7 @@ const public_zone_routes_1 = __importDefault(require("./routes/public-zone.route
 const ward_routes_1 = __importDefault(require("./routes/ward.routes"));
 const public_ward_routes_1 = __importDefault(require("./routes/public-ward.routes"));
 const waste_management_routes_1 = __importDefault(require("./routes/waste-management.routes"));
+const gallery_routes_1 = __importDefault(require("./routes/gallery.routes"));
 const notification_routes_1 = __importDefault(require("./routes/notification.routes"));
 const review_routes_1 = __importDefault(require("./routes/review.routes"));
 const admin_review_routes_1 = __importDefault(require("./routes/admin.review.routes"));
@@ -190,7 +191,8 @@ app.use('/api/admin/wards', ward_routes_1.default); // Ward routes
 console.log('✅ Ward routes registered at /api/admin/wards');
 app.use('/api/wards', public_ward_routes_1.default); // Public Ward routes
 console.log('✅ Public Ward routes registered at /api/wards');
-app.use('/api/waste-management', waste_management_routes_1.default); // Waste Management routes
+app.use('/api/waste-management', waste_management_routes_1.default);
+app.use('/api/gallery', gallery_routes_1.default); // Waste Management routes
 console.log('✅ Waste Management routes registered at /api/waste-management');
 // Notice Board routes
 const notice_routes_1 = __importDefault(require("./routes/notice.routes"));
@@ -199,6 +201,14 @@ app.use('/api/notices', notice_routes_1.default); // Notice routes (public + adm
 console.log('✅ Notice routes registered at /api/notices');
 app.use('/api/notice-categories', notice_category_routes_1.default); // Notice category routes
 console.log('✅ Notice category routes registered at /api/notice-categories');
+// Officer Review routes (Home Page Dynamic Reviews)
+const officer_review_routes_1 = __importDefault(require("./routes/officer-review.routes"));
+app.use('/api/officer-reviews', officer_review_routes_1.default); // Officer review routes (public + admin)
+console.log('✅ Officer review routes registered at /api/officer-reviews');
+// Calendar routes
+const calendar_routes_1 = __importDefault(require("./routes/calendar.routes"));
+app.use('/api/calendars', calendar_routes_1.default); // Calendar routes (public + admin)
+console.log('✅ Calendar routes registered at /api/calendars');
 // Add test route to verify admin path works
 app.get('/api/admin/test', (req, res) => {
     res.json({

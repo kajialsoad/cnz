@@ -18,8 +18,8 @@ class CategoryService {
                     },
                     {
                         id: 'worker_behavior',
-                        bangla: 'ময়লা কর্মীদের ব্যবহার আচরণ',
-                        english: 'Poor behavior of waste workers'
+                        bangla: 'ময়লা সংগ্রহকারীদের আচরণগত সমস্যা',
+                        english: 'Behavioral issues of waste collectors'
                     },
                     {
                         id: 'billing_issue',
@@ -81,8 +81,8 @@ class CategoryService {
                     },
                     {
                         id: 'worker_behavior',
-                        bangla: 'ময়লা কর্মীদের ব্যবহার খারাপ',
-                        english: 'Poor behavior of waste workers'
+                        bangla: 'ময়লা সংগ্রহকারীদের আচরণগত সমস্যা',
+                        english: 'Behavioral issues of waste collectors'
                     },
                     {
                         id: 'billing_issue',
@@ -110,8 +110,8 @@ class CategoryService {
                     },
                     {
                         id: 'worker_behavior',
-                        bangla: 'ময়লা কর্মীদের ব্যবহার খারাপ',
-                        english: 'Poor behavior of waste workers'
+                        bangla: 'ময়লা সংগ্রহকারীদের আচরণগত সমস্যা',
+                        english: 'Behavioral issues of waste collectors'
                     },
                     {
                         id: 'billing_issue',
@@ -139,8 +139,8 @@ class CategoryService {
                     },
                     {
                         id: 'worker_behavior',
-                        bangla: 'ময়লা কর্মীদের ব্যবহার খারাপ',
-                        english: 'Poor behavior of waste workers'
+                        bangla: 'ময়লা সংগ্রহকারীদের আচরণগত সমস্যা',
+                        english: 'Behavioral issues of waste collectors'
                     },
                     {
                         id: 'billing_issue',
@@ -168,8 +168,8 @@ class CategoryService {
                     },
                     {
                         id: 'worker_behavior',
-                        bangla: 'ময়লা কর্মীদের ব্যবহার খারাপ',
-                        english: 'Poor behavior of waste workers'
+                        bangla: 'ময়লা সংগ্রহকারীদের আচরণগত সমস্যা',
+                        english: 'Behavioral issues of waste collectors'
                     },
                     {
                         id: 'billing_issue',
@@ -197,8 +197,8 @@ class CategoryService {
                     },
                     {
                         id: 'worker_behavior',
-                        bangla: 'ময়লা কর্মীদের ব্যবহার খারাপ',
-                        english: 'Poor behavior of waste workers'
+                        bangla: 'ময়লা সংগ্রহকারীদের আচরণগত সমস্যা',
+                        english: 'Behavioral issues of waste collectors'
                     },
                     {
                         id: 'billing_issue',

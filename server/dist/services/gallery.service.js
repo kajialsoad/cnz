@@ -1,0 +1,95 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.galleryService = void 0;
+const client_1 = require("@prisma/client");
+const prisma = new client_1.PrismaClient();
+class GalleryService {
+    // Admin: Create new gallery image
+    async createImage(data) {
+        return await prisma.galleryImage.create({
+            data: {
+                ...data,
+                status: 'ACTIVE',
+            },
+        });
+    }
+    // Admin: Update gallery image
+    async updateImage(imageId, data) {
+        return await prisma.galleryImage.update({
+            where: { id: imageId },
+            data,
+        });
+    }
+    // Admin: Delete gallery image
+    async deleteImage(imageId) {
+        await prisma.galleryImage.delete({
+            where: { id: imageId },
+        });
+    }
+    // Admin: Get all images (including inactive)
+    async getAllImagesForAdmin() {
+        return await prisma.galleryImage.findMany({
+            orderBy: [
+                { displayOrder: 'asc' },
+                { createdAt: 'desc' },
+            ],
+        });
+    }
+    // Admin: Toggle image status
+    async toggleStatus(imageId) {
+        const image = await prisma.galleryImage.findUnique({
+            where: { id: imageId },
+        });
+        if (!image) {
+            throw new Error('Image not found');
+        }
+        const newStatus = image.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+        return await prisma.galleryImage.update({
+            where: { id: imageId },
+            data: { status: newStatus },
+        });
+    }
+    // Admin: Reorder images
+    async reorderImages(imageIds) {
+        const updates = imageIds.map((id, index) => prisma.galleryImage.update({
+            where: { id },
+            data: { displayOrder: index },
+        }));
+        await prisma.$transaction(updates);
+        return { success: true, message: 'Images reordered successfully' };
+    }
+    // User: Get active images only
+    async getActiveImages() {
+        return await prisma.galleryImage.findMany({
+            where: {
+                status: 'ACTIVE',
+            },
+            orderBy: [
+                { displayOrder: 'asc' },
+                { createdAt: 'desc' },
+            ],
+            select: {
+                id: true,
+                title: true,
+                description: true,
+                imageUrl: true,
+                displayOrder: true,
+                createdAt: true,
+            },
+        });
+    }
+    // User: Get image by ID
+    async getImageById(imageId) {
+        return await prisma.galleryImage.findUnique({
+            where: { id: imageId },
+            select: {
+                id: true,
+                title: true,
+                description: true,
+                imageUrl: true,
+                createdAt: true,
+            },
+        });
+    }
+}
+exports.galleryService = new GalleryService();

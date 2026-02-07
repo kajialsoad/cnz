@@ -70,10 +70,11 @@ const getUsersQuerySchema = zod_1.z.object({
 const createUserSchema = zod_1.z.object({
     firstName: zod_1.z.string().min(1, 'First name is required'),
     lastName: zod_1.z.string().min(1, 'Last name is required'),
+    designation: zod_1.z.string().optional(), // Add designation field
     phone: zod_1.z.string().min(10, 'Valid phone number is required'),
     email: zod_1.z.string().email().optional().or(zod_1.z.literal('')),
     whatsapp: zod_1.z.string().optional(),
-    joiningDate: zod_1.z.string().optional().transform(val => val ? new Date(val) : undefined),
+    joiningDate: zod_1.z.union([zod_1.z.string(), zod_1.z.date()]).optional().transform(val => val ? new Date(val) : undefined),
     address: zod_1.z.string().optional(),
     password: zod_1.z.string().min(8, 'Password must be at least 8 characters'),
     cityCorporationCode: zod_1.z.string().optional(),
@@ -87,10 +88,11 @@ const createUserSchema = zod_1.z.object({
 const updateUserSchema = zod_1.z.object({
     firstName: zod_1.z.string().min(1).optional(), // Regex validation handled in frontend, basic length check here
     lastName: zod_1.z.string().min(1).optional(),
+    designation: zod_1.z.string().optional(), // Add designation field
     email: zod_1.z.string().email().optional().or(zod_1.z.literal('')),
     phone: zod_1.z.string().min(10).optional().or(zod_1.z.literal('')), // Allow updating phone or keeping it
     whatsapp: zod_1.z.string().optional(),
-    joiningDate: zod_1.z.string().optional().transform(val => val ? new Date(val) : undefined),
+    joiningDate: zod_1.z.union([zod_1.z.string(), zod_1.z.date()]).optional().transform(val => val ? new Date(val) : undefined),
     address: zod_1.z.string().optional(),
     cityCorporationCode: zod_1.z.string().optional(),
     ward: zod_1.z.string().optional(),
@@ -232,9 +234,10 @@ async function getUserStatistics(req, res) {
 // Create new user
 async function createUser(req, res) {
     try {
-        console.log('➕ Creating new user:', { ...req.body, password: '***' });
+        console.log('➕ Creating new user - Raw body:', { ...req.body, password: '***' });
         // Validate request body
         const rawData = createUserSchema.parse(req.body);
+        console.log('✅ Validation passed - Parsed data:', { ...rawData, password: '***' });
         const data = { ...rawData, email: rawData.email?.toLowerCase() };
         // Get IP address and user agent for activity logging
         const ipAddress = req.ip || req.socket.remoteAddress;
@@ -249,8 +252,9 @@ async function createUser(req, res) {
     }
     catch (err) {
         console.error('❌ Error creating user:', err);
+        console.error('❌ Error stack:', err.stack);
         if (err instanceof zod_1.z.ZodError) {
-            console.error('❌ Zod Validation Error:', JSON.stringify(err.errors, null, 2));
+            console.error('❌ Zod Validation Error Details:', JSON.stringify(err.errors, null, 2));
             return res.status(400).json({
                 success: false,
                 message: 'Validation error',

@@ -33,8 +33,8 @@ class _HomeHouseCategoryPageState extends State<HomeHouseCategoryPage> {
       'id': 'not_collecting_waste',
     },
     {
-      'bangla': 'ময়লা কর্মীদের ব্যবহার আচরণ',
-      'english': 'Poor behavior of waste workers',
+      'bangla': 'ময়লা সংগ্রহকারীদের আচরণগত সমস্যা',
+      'english': 'Behavioral issues of waste collectors',
       'icon': Icons.home_outlined,
       'id': 'worker_behavior',
     },

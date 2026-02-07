@@ -772,19 +772,39 @@ class AdminUserService {
     async validateCreatorScope(data, createdBy) {
         const creator = await prisma_1.default.user.findUnique({
             where: { id: createdBy },
-            select: { role: true }
-        });
-        if (creator?.role === client_1.users_role.SUPER_ADMIN) {
-            const assignedZoneIds = await multi_zone_service_1.multiZoneService.getAssignedZoneIds(createdBy);
-            // Should strictly check if zone matches
-            if (data.zoneId) {
-                if (!assignedZoneIds.includes(data.zoneId)) {
-                    throw new Error('You do not have permission to manage users in this zone');
-                }
+            select: {
+                role: true,
+                firstName: true,
+                lastName: true
             }
-            else if (assignedZoneIds.length > 0 && !data.cityCorporationCode) {
-                // If they have assigned zones, they generally shouldn't be creating users without context?
-                // But let's stick to preventing explicit unauthorized assignment.
+        });
+        if (!creator) {
+            throw new Error('Creator user not found');
+        }
+        // MASTER_ADMIN can create users in any zone without restrictions
+        if (creator.role === client_1.users_role.MASTER_ADMIN) {
+            return; // No validation needed for MASTER_ADMIN
+        }
+        // SUPER_ADMIN has zone restrictions
+        if (creator.role === client_1.users_role.SUPER_ADMIN) {
+            const assignedZoneIds = await multi_zone_service_1.multiZoneService.getAssignedZoneIds(createdBy);
+            // Check if zone is specified and if creator has permission
+            if (data.zoneId) {
+                if (assignedZoneIds.length > 0 && !assignedZoneIds.includes(data.zoneId)) {
+                    // Get zone details for better error message
+                    const zone = await prisma_1.default.zone.findUnique({
+                        where: { id: data.zoneId },
+                        select: {
+                            name: true,
+                            zoneNumber: true,
+                            cityCorporation: {
+                                select: { name: true }
+                            }
+                        }
+                    });
+                    const zoneName = zone ? `${zone.cityCorporation?.name || ''} - Zone ${zone.zoneNumber || zone.name}` : `Zone ID ${data.zoneId}`;
+                    throw new Error(`You do not have permission to manage users in ${zoneName}. Please contact your administrator to get access to this zone.`);
+                }
             }
         }
     }
