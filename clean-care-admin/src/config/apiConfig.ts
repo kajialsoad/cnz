@@ -1,8 +1,19 @@
 // Dynamic URL selection based on environment
 const USE_PRODUCTION = import.meta.env.VITE_USE_PRODUCTION === 'true' || import.meta.env.PROD;
-const PRODUCTION_API_URL = import.meta.env.VITE_PRODUCTION_API_URL || 'https://munna-production.up.railway.app';
+const getProductionApiUrl = () => {
+  if (import.meta.env.VITE_PRODUCTION_API_URL) return import.meta.env.VITE_PRODUCTION_API_URL;
+  if (import.meta.env.VITE_API_BASE_URL) return import.meta.env.VITE_API_BASE_URL;
+  return 'https://munna-production.up.railway.app';
+};
+
+const getProductionWsUrl = () => {
+  if (import.meta.env.VITE_PRODUCTION_WS_URL) return import.meta.env.VITE_PRODUCTION_WS_URL;
+  return 'wss://munna-production.up.railway.app';
+};
+
+const PRODUCTION_API_URL = getProductionApiUrl();
 const LOCAL_API_URL = import.meta.env.VITE_LOCAL_API_URL || 'http://192.168.0.100:4000';
-const PRODUCTION_WS_URL = import.meta.env.VITE_PRODUCTION_WS_URL || 'wss://munna-production.up.railway.app';
+const PRODUCTION_WS_URL = getProductionWsUrl();
 const LOCAL_WS_URL = import.meta.env.VITE_LOCAL_WS_URL || 'ws://192.168.0.100:4000';
 
 // Select URL based on USE_PRODUCTION flag

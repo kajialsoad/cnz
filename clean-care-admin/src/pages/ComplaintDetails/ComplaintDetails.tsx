@@ -935,30 +935,30 @@ const ComplaintDetails: React.FC = () => {
                                 <Box sx={{ p: 3 }}>
                                     <Grid container spacing={2}>
                                         {/* Ward Inspector */}
-                                        <Grid size={{ xs: 12 }}>
-                                            <Box sx={{
-                                                p: 2,
-                                                border: '1px solid #bfdbfe',
-                                                borderRadius: 2,
-                                                backgroundColor: '#eff6ff'
-                                            }}>
-                                                <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
-                                                    <Avatar sx={{
-                                                        bgcolor: '#fff',
-                                                        color: '#2563eb',
-                                                        width: 48,
-                                                        height: 48,
-                                                        boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
-                                                    }}>
-                                                        <AdminIcon />
-                                                    </Avatar>
-                                                    <Box>
-                                                        <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mb: 0.5 }}>
-                                                            Ward Inspector / ওয়ার্ড ইন্সপেক্টর
-                                                        </Typography>
-                                                        <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#1e2939' }}>
-                                                            {correctWardData?.inspectorName || complaint.wards?.inspectorName || '???? ???'}
-                                                        </Typography>
+                                    <Grid size={{ xs: 12 }}>
+                                        <Box sx={{
+                                            p: 2,
+                                            border: '1px solid #bfdbfe',
+                                            borderRadius: 2,
+                                            backgroundColor: '#eff6ff'
+                                        }}>
+                                            <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+                                                <Avatar sx={{
+                                                    bgcolor: '#fff',
+                                                    color: '#2563eb',
+                                                    width: 48,
+                                                    height: 48,
+                                                    boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                                                }}>
+                                                    <AdminIcon />
+                                                </Avatar>
+                                                <Box>
+                                                    <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mb: 0.5 }}>
+                                                        ওয়ার্ড ইন্সপেক্টর
+                                                    </Typography>
+                                                    <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#1e2939' }}>
+                                                        {correctWardData?.inspectorName || complaint.wards?.inspectorName || 'তথ্য নেই'}
+                                                    </Typography>
                                                         {(correctWardData?.inspectorPhone || complaint.wards?.inspectorPhone) && (
                                                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
                                                                 <PhoneIcon sx={{ fontSize: 16, color: '#2563eb' }} />
@@ -992,7 +992,7 @@ const ComplaintDetails: React.FC = () => {
                                                     </Avatar>
                                                     <Box>
                                                         <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mb: 0.5 }}>
-                                                            Zone Officer / ??? ??????
+                                                            জোন অফিসার
                                                         </Typography>
                                                         <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#1e2939' }}>
                                                             {correctWardData?.zone?.officerName || complaint.zone?.officerName || 'No Info'}
@@ -1267,7 +1267,7 @@ const ComplaintDetails: React.FC = () => {
                                     <Grid size={{ xs: 12, sm: 6 }}>
                                         <Box sx={{ p: 2, border: '1px solid #e5e7eb', borderRadius: 2, height: '100%' }}>
                                             <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mb: 0.5 }}>
-                                                ???????
+                                                ওয়ার্ড
                                             </Typography>
                                             <Typography variant="body2" sx={{ fontWeight: 600, color: '#1e2939' }}>
 
@@ -1277,7 +1277,7 @@ const ComplaintDetails: React.FC = () => {
                                                         (complaint.wards?.wardNumber ? `Ward ${complaint.wards.wardNumber}` : null) ||
                                                         (complaint.wards?.number ? `Ward ${complaint.wards.number}` : null) ||
                                                         (typeof complaint.user?.ward === 'object' ? (complaint.user.ward as any)?.wardNumber || (complaint.user.ward as any)?.number : complaint.user?.ward) ||
-                                                        '???? ???')}
+                                                        'তথ্য নেই')}
                                             </Typography>
                                         </Box>
                                     </Grid>
@@ -1286,7 +1286,7 @@ const ComplaintDetails: React.FC = () => {
                                     <Grid size={{ xs: 12, sm: 6 }}>
                                         <Box sx={{ p: 2, border: '1px solid #e5e7eb', borderRadius: 2, height: '100%' }}>
                                             <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mb: 0.5 }}>
-                                                ???
+                                                জোন
                                             </Typography>
                                             <Typography variant="body2" sx={{ fontWeight: 600, color: '#1e2939' }}>
                                                 {/* Prioritize correctWardData then complaint.zone over complaint.user.zone */}
@@ -1295,7 +1295,7 @@ const ComplaintDetails: React.FC = () => {
                                                     complaint.zone?.name ||
                                                     (complaint.zone?.zoneNumber ? `Zone ${complaint.zone.zoneNumber}` : null) ||
                                                     (typeof complaint.user?.zone === 'object' ? (complaint.user.zone as any)?.name || (complaint.user.zone as any)?.zoneNumber : complaint.user?.zone) ||
-                                                    '???? ???'}
+                                                    'তথ্য নেই'}
                                             </Typography>
                                         </Box>
                                     </Grid>
@@ -1304,10 +1304,10 @@ const ComplaintDetails: React.FC = () => {
                                     <Grid size={{ xs: 12, sm: 6 }}>
                                         <Box sx={{ p: 2, border: '1px solid #e5e7eb', borderRadius: 2, height: '100%' }}>
                                             <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mb: 0.5 }}>
-                                                ????
+                                                থানা
                                             </Typography>
                                             <Typography variant="body2" sx={{ fontWeight: 600, color: '#1e2939' }}>
-                                                {complaint.user.thana?.name || '??????'}
+                                                {complaint.user.thana?.name || 'তথ্য নেই'}
                                             </Typography>
                                         </Box>
                                     </Grid>
@@ -1325,7 +1325,7 @@ const ComplaintDetails: React.FC = () => {
                             }}>
                                 <Box sx={{ p: 2, borderBottom: '1px solid #f3f4f6', backgroundColor: '#f9fafb' }}>
                                     <Typography variant="h6" sx={{ fontWeight: 700, color: '#1e2939' }}>
-                                        ?? ??????? ??? ({complaint.imageUrls.length})
+                                        সংযুক্ত ছবি ({complaint.imageUrls.length})
                                     </Typography>
                                 </Box>
                                 <Box sx={{ p: 2 }}>
@@ -1393,7 +1393,7 @@ const ComplaintDetails: React.FC = () => {
                                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                             <Mic sx={{ color: '#15803d' }} />
                                             <Typography variant="h6" sx={{ fontWeight: 700, color: '#14532d' }}>
-                                                ?? ????? ???????? ({complaint.audioUrls.length})
+                                                ভয়েস রেকর্ড ({complaint.audioUrls.length})
                                             </Typography>
                                         </Box>
                                         {user?.role === 'MASTER_ADMIN' && (
@@ -1481,7 +1481,7 @@ const ComplaintDetails: React.FC = () => {
                         }}>
                             <Box sx={{ p: 2, borderBottom: '1px solid #f3f4f6', backgroundColor: '#f9fafb' }}>
                                 <Typography variant="h6" sx={{ fontWeight: 700, color: '#1e2939' }}>
-                                    ????????
+                                    টাইমলাইন
                                 </Typography>
                             </Box>
                             <Box sx={{ p: 3 }}>
@@ -1542,7 +1542,7 @@ const ComplaintDetails: React.FC = () => {
                         }}>
                             <Box sx={{ p: 2, borderBottom: '1px solid #f3f4f6', backgroundColor: '#f9fafb' }}>
                                 <Typography variant="h6" sx={{ fontWeight: 700, color: '#1e2939' }}>
-                                    ???????? ????
+                                    নাগরিক তথ্য
                                 </Typography>
                             </Box>
                             <Box sx={{ p: 3 }}>
@@ -1558,7 +1558,7 @@ const ComplaintDetails: React.FC = () => {
                                             </Avatar>
                                             <Box>
                                                 <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>
-                                                    ???
+                                                    নাম
                                                 </Typography>
                                                 <Typography variant="body1" sx={{ fontWeight: 600, color: '#1f2937' }}>
                                                     {complaint.user.firstName} {complaint.user.lastName}
@@ -1575,7 +1575,7 @@ const ComplaintDetails: React.FC = () => {
                                             </Avatar>
                                             <Box>
                                                 <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>
-                                                    ???
+                                                    ফোন
                                                 </Typography>
                                                 <Typography
                                                     variant="body1"
@@ -1602,7 +1602,7 @@ const ComplaintDetails: React.FC = () => {
                                             </Avatar>
                                             <Box>
                                                 <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>
-                                                    ?????
+                                                    ইমেইল
                                                 </Typography>
                                                 <Typography
                                                     variant="body1"
@@ -1630,7 +1630,7 @@ const ComplaintDetails: React.FC = () => {
                                             </Avatar>
                                             <Box>
                                                 <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>
-                                                    ????? ????
+                                                    ইউজার আইডি
                                                 </Typography>
                                                 <Typography variant="body1" sx={{ fontWeight: 600, color: '#1f2937' }}>
                                                     CC-USER-{complaint.user.id}
@@ -1652,7 +1652,7 @@ const ComplaintDetails: React.FC = () => {
                             }}>
                                 <Box sx={{ p: 2, borderBottom: '1px solid #f3f4f6', backgroundColor: '#f9fafb' }}>
                                     <Typography variant="h6" sx={{ fontWeight: 700, color: '#1e2939' }}>
-                                        ??????? ??????????
+                                        ওয়ার্ড ইন্সপেক্টর
                                     </Typography>
                                 </Box>
                                 <Box sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -1661,7 +1661,7 @@ const ComplaintDetails: React.FC = () => {
                                     </Avatar>
                                     <Box sx={{ flex: 1 }}>
                                         <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1f2937' }}>
-                                            {complaint.wards.inspectorName || '???? ???'}
+                                            {complaint.wards.inspectorName || 'তথ্য নেই'}
                                         </Typography>
                                         <Typography variant="caption" sx={{ display: 'block', color: '#6b7280', mt: 0.5 }}>
                                             Ward {complaint.wards.wardNumber || complaint.wards.number || complaint.wards.id}
@@ -1692,7 +1692,7 @@ const ComplaintDetails: React.FC = () => {
                                             href={`tel:${complaint.wards.inspectorPhone}`}
                                             sx={{ borderColor: '#e5e7eb', color: '#374151' }}
                                         >
-                                            ???????
+                                            কল করুন
                                         </Button>
                                     )}
                                 </Box>
@@ -1709,7 +1709,7 @@ const ComplaintDetails: React.FC = () => {
                             }}>
                                 <Box sx={{ p: 2, borderBottom: '1px solid #f3f4f6', backgroundColor: '#f9fafb' }}>
                                     <Typography variant="h6" sx={{ fontWeight: 700, color: '#1e2939' }}>
-                                        Zone Officer
+                                        জোন অফিসার
                                     </Typography>
                                 </Box>
                                 <Box sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -1721,7 +1721,7 @@ const ComplaintDetails: React.FC = () => {
                                             {complaint.zone.officerName || 'No Info'}
                                         </Typography>
                                         <Typography variant="caption" sx={{ color: '#6b7280' }}>
-                                            Zone Officer
+                                            জোন অফিসার
                                         </Typography>
                                     </Box>
                                 </Box>

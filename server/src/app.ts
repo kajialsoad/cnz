@@ -1,5 +1,6 @@
-import express, { Request, Response } from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import path from 'path';
+import fs from 'fs';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import prisma from './utils/prisma';
@@ -45,6 +46,100 @@ import { ipRateLimit, apiRateLimit } from './middlewares/rate-limit.middleware';
 
 const app = express();
 
+// Debug logging
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} | Origin: ${req.headers.origin}`);
+  next();
+});
+
+// Serve admin panel static files - MOVED UP before security middleware
+// Robust path resolution for admin panel
+const getAdminPanelPath = () => {
+  const potentialPaths = [
+    path.join(__dirname, '../../clean-care-admin/dist'), // Standard dev/prod structure
+    path.join(process.cwd(), 'clean-care-admin/dist'),   // From root
+    path.join(process.cwd(), '../clean-care-admin/dist'), // If running from server dir
+    path.join(__dirname, '../public/admin')              // Fallback if moved to public
+  ];
+
+  console.log('🔍 Searching for admin panel in:', potentialPaths);
+
+  for (const p of potentialPaths) {
+    if (fs.existsSync(p) && fs.existsSync(path.join(p, 'index.html'))) {
+      console.log('✅ Found admin panel at:', p);
+      // List assets to verify
+      const assetsPath = path.join(p, 'assets');
+      if (fs.existsSync(assetsPath)) {
+        try {
+          const files = fs.readdirSync(assetsPath);
+          console.log(`📂 Assets found (${files.length} files):`, files.slice(0, 5), '...');
+        } catch (e) {
+          console.error('⚠️ Could not list assets:', e);
+        }
+      } else {
+        console.warn('⚠️ Admin panel found but assets directory missing at:', assetsPath);
+      }
+      return p;
+    }
+  }
+  
+  console.error('❌ Admin panel NOT found in any potential path');
+  return null;
+};
+
+const adminPanelPath = getAdminPanelPath();
+
+if (adminPanelPath) {
+  // Serve static files from admin panel dist folder at /admin
+  // Use explicit cache control for assets
+  app.use('/admin', express.static(adminPanelPath, {
+    maxAge: '1d',
+    index: false // We handle index.html manually for SPA
+  }));
+
+  // Explicitly serve index.html for root /admin
+  app.get('/admin', (_req: Request, res: Response) => {
+    res.sendFile(path.join(adminPanelPath, 'index.html'));
+  });
+
+  // Debug route to check file existence
+  app.get('/admin/debug-file/:filename(*)', (req, res) => {
+    const filename = req.params.filename;
+    const filePath = path.join(adminPanelPath, filename);
+    const exists = fs.existsSync(filePath);
+    res.json({
+      filename,
+      resolvedPath: filePath,
+      exists,
+      stat: exists ? fs.statSync(filePath) : null
+    });
+  });
+
+  // Handle SPA routing for admin panel - serve index.html for any /admin/* requests
+  // BUT ONLY if it's not a static asset request that failed (which should be 404)
+  app.get('/admin/*', (req: Request, res: Response) => {
+    // If it looks like an asset request (has extension), return 404 instead of index.html
+    // This prevents MIME type errors for missing CSS/JS
+    if (req.path.includes('.') && !req.path.endsWith('.html')) {
+       console.warn(`⚠️ 404 for asset: ${req.path}`);
+       return res.status(404).send('File not found');
+    }
+
+    // Verify file exists before sending to avoid 500s
+    const indexPath = path.join(adminPanelPath, 'index.html');
+    if (fs.existsSync(indexPath)) {
+      res.sendFile(indexPath);
+    } else {
+      res.status(404).send('Admin panel not found');
+    }
+  });
+  
+  console.log('✅ Admin panel configured at /admin');
+} else {
+  console.log('⚠️ Admin panel serving skipped - directory not found');
+  app.get('/admin*', (_req, res) => res.status(404).send('Admin panel not available'));
+}
+
 // Add prisma to request object
 declare global {
   namespace Express {
@@ -82,16 +177,28 @@ app.use(cookieParser());
 app.use(xssPrevention);
 // Allow multiple origins and any localhost:* during development
 const allowedOrigins = env.CORS_ORIGINS;
+// Explicitly trusted domains for production
+const trustedDomains = [
+  'https://www.cleancaresupport.com',
+  'https://cleancaresupport.com',
+  'https://munna-production.up.railway.app'
+];
+
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
     if (allowedOrigins.includes('*')) return callback(null, true);
     if (allowedOrigins.includes(origin)) return callback(null, true);
+    if (trustedDomains.includes(origin)) return callback(null, true);
+    
     // Allow localhost and 127.0.0.1
     if (/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return callback(null, true);
     // Allow local network IPs (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
     if (/^http:\/\/(192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2[0-9]|3[0-1])\.\d+\.\d+)(:\d+)?$/.test(origin)) return callback(null, true);
-    return callback(new Error('Not allowed by CORS'));
+    
+    // Log blocked origin for debugging
+    console.warn(`⚠️ CORS blocked request from: ${origin}`);
+    return callback(new Error(`Not allowed by CORS: ${origin}`));
   },
   credentials: true,
 }));
@@ -107,38 +214,7 @@ app.get('/', (_req: Request, res: Response) => {
 app.get('/health', (_req: Request, res: Response) => res.json({ ok: true, status: 'healthy' }));
 app.get('/api/health', (_req: Request, res: Response) => res.json({ ok: true, status: 'healthy' }));
 
-// Serve admin panel static files
-const adminPanelPath = path.join(__dirname, '../../clean-care-admin/dist');
-console.log('🔧 Admin panel path:', adminPanelPath);
 
-// Check if directory exists and log contents
-import fs from 'fs';
-try {
-  if (fs.existsSync(adminPanelPath)) {
-    console.log('✅ Admin panel directory exists');
-    const files = fs.readdirSync(adminPanelPath);
-    console.log('📂 Files in admin panel directory:', files);
-  } else {
-    console.error('❌ Admin panel directory does NOT exist at:', adminPanelPath);
-  }
-} catch (err) {
-  console.error('❌ Error checking admin panel directory:', err);
-}
-
-// Serve static files from admin panel dist folder at /admin
-app.use('/admin', express.static(adminPanelPath));
-
-// Explicitly handle /admin route (without trailing slash)
-app.get('/admin', (_req: Request, res: Response) => {
-  res.sendFile(path.join(adminPanelPath, 'index.html'));
-});
-
-// Handle SPA routing for admin panel - serve index.html for any /admin/* requests
-app.get('/admin/*', (_req: Request, res: Response) => {
-  res.sendFile(path.join(adminPanelPath, 'index.html'));
-});
-
-console.log('✅ Admin panel served at /admin');
 
 // API routes with /api prefix
 app.use('/api/auth', authRoutes);
@@ -279,6 +355,16 @@ console.log('✅ Admin test route added at /api/admin/test');
 // Legacy routes without /api prefix (for backward compatibility)
 app.use('/auth', authRoutes);
 app.use('/users', userRoutes);
+
+// Global error handler
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  console.error('[Global Error Handler]', err);
+  res.status(500).json({
+    success: false,
+    message: 'Internal Server Error',
+    error: process.env.NODE_ENV === 'development' ? err.message : undefined
+  });
+});
 
 export default app;
 
