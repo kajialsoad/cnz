@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:path/path.dart';
 
 /// SQLite Database Helper for Persistent Caching
@@ -20,6 +22,9 @@ class DatabaseHelper {
 
   /// Get database instance
   Future<Database> get database async {
+    if (kIsWeb) {
+      throw UnsupportedError('SQLite is not supported on Web');
+    }
     if (_database != null) return _database!;
     _database = await _initDB('clean_care.db');
     return _database!;
@@ -27,8 +32,25 @@ class DatabaseHelper {
 
   /// Initialize database
   Future<Database> _initDB(String filePath) async {
+    if (_isDesktop) {
+      sqfliteFfiInit();
+      databaseFactory = databaseFactoryFfi;
+      print('✅ Using sqflite_common_ffi for desktop database');
+    }
+
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
+
+    if (_isDesktop) {
+      return await databaseFactoryFfi.openDatabase(
+        path,
+        options: OpenDatabaseOptions(
+          version: 3,
+          onCreate: _createDB,
+          onUpgrade: _onUpgrade,
+        ),
+      );
+    }
 
     return await openDatabase(
       path,
@@ -37,6 +59,12 @@ class DatabaseHelper {
       onUpgrade: _onUpgrade,
     );
   }
+
+  bool get _isDesktop =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.windows ||
+          defaultTargetPlatform == TargetPlatform.linux ||
+          defaultTargetPlatform == TargetPlatform.macOS);
 
   /// Create database tables
   Future<void> _createDB(Database db, int version) async {

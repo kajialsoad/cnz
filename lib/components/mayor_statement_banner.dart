@@ -154,6 +154,9 @@ class _MayorStatementBannerState extends State<MayorStatementBanner>
 
   void _nextPerson() {
     if (_officerReviews.isEmpty) return;
+    
+    // Check if controller is attached to any view
+    if (!_pageController.hasClients) return;
 
     final nextIndex = (_currentPersonIndex + 1) % _officerReviews.length;
     _pageController.animateToPage(

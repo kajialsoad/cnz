@@ -128,15 +128,17 @@ class _DSCCNoticeBoardState extends State<DSCCNoticeBoard>
                       ),
                     ),
                     const SizedBox(width: 8),
-                    TranslatedText(
-                      "DSCC Notice Board",
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF2E8B57),
+                    Expanded(
+                      child: TranslatedText(
+                        "DSCC Notice Board",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF2E8B57),
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    const Spacer(),
                     Icon(
                       Icons.arrow_forward_ios,
                       size: 16,
