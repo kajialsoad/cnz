@@ -9,6 +9,7 @@ import '../components/custom_bottom_nav.dart';
 import '../components/dscc_notice_board.dart';
 import '../components/feature_buttons.dart';
 import '../components/mayor_statement_banner.dart';
+import '../l10n/app_localizations.dart';
 import '../providers/language_provider.dart';
 import '../services/auth_service.dart';
 import '../widgets/translated_text.dart';
@@ -102,6 +103,9 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final currentLanguage = context.watch<LanguageProvider>().currentLanguage;
+    final localizations = AppLocalizations.of(currentLanguage);
+
     return Scaffold(
       backgroundColor: const Color(0xFFF3FAF5),
       extendBody: true, // Allow bottom nav to extend over body
@@ -227,10 +231,10 @@ class _HomePageState extends State<HomePage> {
                                       ),
                                       const SizedBox(width: 16),
                                       // Text
-                                      const Expanded(
+                                      Expanded(
                                         child: Text(
-                                          'ডিএসসিসির অন্যান্য সেবা পেতে আমাদের ওয়েবসাইটে ভিজিট করুন।',
-                                          style: TextStyle(
+                                          localizations.dsccWebsiteLinkText,
+                                          style: const TextStyle(
                                             fontSize: 14,
                                             fontWeight: FontWeight.w600,
                                             color: Color(0xFF2E8B57),
@@ -249,9 +253,9 @@ class _HomePageState extends State<HomePage> {
                                             20,
                                           ),
                                         ),
-                                        child: const Text(
-                                          'ভিজিট করুন',
-                                          style: TextStyle(
+                                        child: Text(
+                                          localizations.visitButton,
+                                          style: const TextStyle(
                                             color: Colors.white,
                                             fontSize: 12,
                                             fontWeight: FontWeight.bold,

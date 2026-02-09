@@ -78,6 +78,10 @@ class AppLocalizations {
   String get viewPhotos => isBangla ? 'ছবি দেখুন' : 'View Photos';
   String get complaint => isBangla ? 'অভিযোগ' : 'Complaint';
   String get reportIssue => isBangla ? 'সমস্যা রিপোর্ট করুন' : 'Report Issue';
+  String get dsccWebsiteLinkText => isBangla 
+      ? 'ডিএসসিসির অন্যান্য সেবা পেতে আমাদের ওয়েবসাইটে ভিজিট করুন।' 
+      : 'Visit our website to get other DSCC services.';
+  String get visitButton => isBangla ? 'ভিজিট করুন' : 'Visit';
 
   // Profile Settings
   String get profile => isBangla ? 'প্রোফাইল' : 'Profile';
