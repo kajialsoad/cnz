@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../components/custom_bottom_nav.dart';
 import '../components/dscc_notice_board.dart';
@@ -179,6 +180,92 @@ class _HomePageState extends State<HomePage> {
                           )
                           .animate()
                           .fadeIn(delay: 400.ms, duration: 600.ms)
+                          .slideY(
+                            begin: 0.2,
+                            end: 0,
+                            curve: Curves.easeOutQuad,
+                          ),
+
+                      // DSCC Website Link Section
+                      const SizedBox(height: 20),
+                      Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: Material(
+                              color: Colors.white,
+                              elevation: 2,
+                              borderRadius: BorderRadius.circular(16),
+                              clipBehavior: Clip.antiAlias,
+                              child: InkWell(
+                                onTap: () async {
+                                  final Uri url = Uri.parse(
+                                    'https://dscc.gov.bd/',
+                                  );
+                                  if (!await launchUrl(
+                                    url,
+                                    mode: LaunchMode.externalApplication,
+                                  )) {
+                                    debugPrint('Could not launch \$url');
+                                  }
+                                },
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Row(
+                                    children: [
+                                      // Logo
+                                      Container(
+                                        width: 40,
+                                        height: 40,
+                                        decoration: const BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          image: DecorationImage(
+                                            image: AssetImage(
+                                              'assets/logo.png',
+                                            ),
+                                            fit: BoxFit.cover,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      // Text
+                                      const Expanded(
+                                        child: Text(
+                                          'ডিএসসিসির অন্যান্য সেবা পেতে আমাদের ওয়েবসাইটে ভিজিট করুন।',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
+                                            color: Color(0xFF2E8B57),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 6,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF2E8B57),
+                                          borderRadius: BorderRadius.circular(
+                                            20,
+                                          ),
+                                        ),
+                                        child: const Text(
+                                          'ভিজিট করুন',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          )
+                          .animate()
+                          .fadeIn(delay: 500.ms, duration: 600.ms)
                           .slideY(
                             begin: 0.2,
                             end: 0,
