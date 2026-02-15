@@ -112,7 +112,8 @@ class NotificationLocalService {
   Future<void> markAllAsRead() async {
     if (kIsWeb) {
       for (var i = 0; i < _webCache.length; i++) {
-        _webCache[i] = Map<String, dynamic>.from(_webCache[i])..['isRead'] = true;
+        _webCache[i] = Map<String, dynamic>.from(_webCache[i])
+          ..['isRead'] = true;
       }
       return;
     }
