@@ -1,7 +1,6 @@
-import { PrismaClient, NoticeType, NoticePriority, InteractionType } from '@prisma/client';
+import { NoticeType, NoticePriority, InteractionType } from '@prisma/client';
 import notificationService from './notification.service';
-
-const prisma = new PrismaClient();
+import prisma from '../utils/prisma';
 
 const publicNoticeSelect = {
     id: true,
@@ -173,6 +172,7 @@ class NoticeService {
                 where,
                 select: adminNoticeSelect,
                 orderBy: [
+                    { displayOrder: 'asc' },
                     { priority: 'desc' },
                     { publishDate: 'desc' },
                 ],
@@ -237,6 +237,7 @@ class NoticeService {
                 where,
                 select: publicNoticeSelect,
                 orderBy: [
+                    { displayOrder: 'asc' },
                     { priority: 'desc' },
                     { publishDate: 'desc' },
                 ],
@@ -571,6 +572,19 @@ class NoticeService {
             counts: interactionCounts,
             userInteractions: userInteractions.map(i => i.type),
         };
+    }
+
+    // Admin: Reorder notices
+    async reorderNotices(orders: Array<{ id: number; displayOrder: number }>) {
+        const updates = orders.map((item) =>
+            prisma.notice.update({
+                where: { id: item.id },
+                data: { displayOrder: item.displayOrder },
+            })
+        );
+
+        await prisma.$transaction(updates);
+        return { success: true, message: 'Notices reordered successfully' };
     }
 
     // Auto-archive expired notices (Cron Job)

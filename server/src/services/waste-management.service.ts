@@ -1,6 +1,5 @@
-import { PrismaClient, WastePostCategory, WastePostStatus } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { WastePostCategory, WastePostStatus } from '@prisma/client';
+import prisma from '../utils/prisma';
 
 export interface CreateWastePostDto {
     title: string;
@@ -86,6 +85,7 @@ class WasteManagementService {
     async getAllPostsForAdmin(): Promise<WastePostWithStats[]> {
         const posts = await prisma.wastePost.findMany({
             orderBy: [
+                { displayOrder: 'asc' },
                 { status: 'asc' }, // PUBLISHED first
                 { createdAt: 'desc' },
             ],
@@ -102,15 +102,28 @@ class WasteManagementService {
         );
     }
 
+    // Admin: Reorder posts
+    async reorder(orders: Array<{ id: number; displayOrder: number }>): Promise<void> {
+        await prisma.$transaction(
+            orders.map((item) =>
+                prisma.wastePost.update({
+                    where: { id: item.id },
+                    data: { displayOrder: item.displayOrder },
+                })
+            )
+        );
+    }
+
     // User: Get published posts only
     async getPublishedPosts(userId?: number): Promise<WastePostWithStats[]> {
         const posts = await prisma.wastePost.findMany({
             where: {
                 status: 'PUBLISHED',
             },
-            orderBy: {
-                publishedAt: 'desc',
-            },
+            orderBy: [
+                { displayOrder: 'asc' },
+                { publishedAt: 'desc' },
+            ],
         });
 
         return await Promise.all(
@@ -258,9 +271,10 @@ class WasteManagementService {
                 status: 'PUBLISHED',
                 category,
             },
-            orderBy: {
-                publishedAt: 'desc',
-            },
+            orderBy: [
+                { displayOrder: 'asc' },
+                { publishedAt: 'desc' },
+            ],
         });
 
         return await Promise.all(

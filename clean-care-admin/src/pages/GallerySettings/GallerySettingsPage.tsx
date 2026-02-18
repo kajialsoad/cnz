@@ -29,6 +29,23 @@ import {
     Image as ImageIcon,
     DragIndicator as DragIcon,
 } from '@mui/icons-material';
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    DragEndEvent,
+} from '@dnd-kit/core';
+import {
+    arrayMove,
+    SortableContext,
+    sortableKeyboardCoordinates,
+    useSortable,
+    rectSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import MainLayout from '../../components/common/Layout/MainLayout';
 import { galleryService, GalleryImage } from '../../services/galleryService';
 
@@ -47,6 +64,131 @@ const StyledCard = styled(Card)(({ theme }) => ({
         boxShadow: `0 20px 40px -15px ${alpha(theme.palette.common.black, 0.2)}`,
     },
 }));
+
+// Sortable Gallery Item Component
+interface SortableGalleryItemProps {
+    image: GalleryImage;
+    index: number;
+    onEdit: (image: GalleryImage) => void;
+    onToggleStatus: (image: GalleryImage) => void;
+    onDelete: (id: number) => void;
+}
+
+const SortableGalleryItem: React.FC<SortableGalleryItemProps> = ({ image, index, onEdit, onToggleStatus, onDelete }) => {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging,
+    } = useSortable({ id: image.id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        zIndex: isDragging ? 1 : 'auto',
+    };
+
+    return (
+        <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} ref={setNodeRef} style={style}>
+            <Fade in={true} style={{ transitionDelay: `${index * 50}ms` }}>
+                <StyledCard sx={{ opacity: isDragging ? 0.5 : 1 }}>
+                    <Box sx={{ position: 'relative' }}>
+                        <CardMedia
+                            component="img"
+                            height="220"
+                            image={image.imageUrl}
+                            alt={image.title}
+                            onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                                e.currentTarget.src = 'https://via.placeholder.com/400x220?text=Image+Not+Found';
+                            }}
+                            sx={{
+                                objectFit: 'cover',
+                                filter: image.status === 'INACTIVE' ? 'grayscale(0.8)' : 'none'
+                            }}
+                        />
+                        <Box sx={{ position: 'absolute', top: 12, right: 12 }}>
+                            <Chip
+                                label={image.status === 'ACTIVE' ? 'সক্রিয়' : 'নিষ্ক্রিয়'}
+                                size="small"
+                                sx={{
+                                    bgcolor: image.status === 'ACTIVE' ? alpha('#4caf50', 0.9) : alpha('#000', 0.6),
+                                    color: '#fff',
+                                    fontWeight: '700',
+                                }}
+                            />
+                        </Box>
+
+                        {/* Drag Handle */}
+                        <Box
+                            {...attributes}
+                            {...listeners}
+                            sx={{
+                                position: 'absolute',
+                                top: 12,
+                                left: 12,
+                                bgcolor: alpha('#000', 0.6),
+                                color: '#fff',
+                                borderRadius: '50%',
+                                p: 0.5,
+                                cursor: 'grab',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                backdropFilter: 'blur(4px)',
+                                '&:hover': { bgcolor: alpha('#000', 0.8) },
+                                '&:active': { cursor: 'grabbing' },
+                            }}
+                        >
+                            <DragIcon fontSize="small" />
+                        </Box>
+
+                        <Box sx={{
+                            position: 'absolute',
+                            bottom: 0,
+                            left: 0,
+                            right: 0,
+                            p: 1.5,
+                            background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)',
+                            display: 'flex',
+                            justifyContent: 'flex-end',
+                            gap: 1,
+                            opacity: 0,
+                            transition: 'opacity 0.3s ease',
+                            '.MuiCard-root:hover &': { opacity: 1 }
+                        }}>
+                            <IconButton size="small" onClick={() => onEdit(image)} sx={{ bgcolor: 'rgba(255,255,255,0.9)' }}>
+                                <EditIcon fontSize="small" color="primary" />
+                            </IconButton>
+                            <IconButton
+                                size="small"
+                                onClick={() => onToggleStatus(image)}
+                                sx={{ bgcolor: 'rgba(255,255,255,0.9)' }}
+                            >
+                                {image.status === 'ACTIVE' ? <VisibilityOffIcon fontSize="small" /> : <VisibilityIcon fontSize="small" />}
+                            </IconButton>
+                            <IconButton size="small" onClick={() => onDelete(image.id)} sx={{ bgcolor: 'rgba(255,255,255,0.9)' }}>
+                                <DeleteIcon fontSize="small" color="error" />
+                            </IconButton>
+                        </Box>
+                    </Box>
+
+                    <CardContent sx={{ flexGrow: 1, pt: 2.5 }}>
+                        <Typography variant="h6" gutterBottom fontWeight="800" sx={{ lineHeight: 1.3 }}>
+                            {image.title}
+                        </Typography>
+                        {image.description && (
+                            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                                {image.description}
+                            </Typography>
+                        )}
+                    </CardContent>
+                </StyledCard>
+            </Fade>
+        </Grid>
+    );
+};
 
 const GallerySettingsPage: React.FC = () => {
     const [images, setImages] = useState<GalleryImage[]>([]);
@@ -67,6 +209,50 @@ const GallerySettingsPage: React.FC = () => {
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [uploadingImage, setUploadingImage] = useState(false);
+
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 8,
+            },
+        }),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
+
+    const handleDragEnd = async (event: DragEndEvent) => {
+        const { active, over } = event;
+
+        if (!over || active.id === over.id) return;
+
+        const oldIndex = images.findIndex((img) => img.id === active.id);
+        const newIndex = images.findIndex((img) => img.id === over.id);
+
+        if (oldIndex === -1 || newIndex === -1) return;
+
+        // Calculate new order locally to update UI immediately
+        const newImages = arrayMove(images, oldIndex, newIndex);
+        
+        // Update local state 'images'
+        // We need to update the displayOrder of the affected images
+        const updates = newImages.map((img, index) => ({
+            id: img.id,
+            displayOrder: index,
+        }));
+
+        setImages(newImages);
+
+        try {
+            await galleryService.reorderImages(newImages.map(img => img.id));
+            setSuccess('Order updated successfully');
+            setTimeout(() => setSuccess(null), 2000);
+        } catch (err) {
+            console.error(err);
+            setError('Failed to update order');
+            fetchImages(); // Revert on error
+        }
+    };
 
     useEffect(() => {
         fetchImages();
@@ -270,93 +456,40 @@ const GallerySettingsPage: React.FC = () => {
                 {error && <Alert severity="error" sx={{ mb: 3, borderRadius: '12px' }} onClose={() => setError(null)}>{error}</Alert>}
                 {success && <Alert severity="success" sx={{ mb: 3, borderRadius: '12px' }} onClose={() => setSuccess(null)}>{success}</Alert>}
 
-                <Grid container spacing={4}>
-                    {images.map((image, index) => (
-                        <Grid size={{ xs: 12, sm: 6 }} size={{ md: 4, lg: 3 }} key={image.id}>
-                            <Fade in={true} style={{ transitionDelay: `${index * 50}ms` }}>
-                                <StyledCard>
-                                    <Box sx={{ position: 'relative' }}>
-                                        <CardMedia
-                                            component="img"
-                                            height="220"
-                                            image={image.imageUrl}
-                                            alt={image.title}
-                                            onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-                                                e.currentTarget.src = 'https://via.placeholder.com/400x220?text=Image+Not+Found';
-                                            }}
-                                            sx={{
-                                                objectFit: 'cover',
-                                                filter: image.status === 'INACTIVE' ? 'grayscale(0.8)' : 'none'
-                                            }}
-                                        />
-                                        <Box sx={{ position: 'absolute', top: 12, right: 12 }}>
-                                            <Chip
-                                                label={image.status === 'ACTIVE' ? 'সক্রিয়' : 'নিষ্ক্রিয়'}
-                                                size="small"
-                                                sx={{
-                                                    bgcolor: image.status === 'ACTIVE' ? alpha('#4caf50', 0.9) : alpha('#000', 0.6),
-                                                    color: '#fff',
-                                                    fontWeight: '700',
-                                                }}
-                                            />
-                                        </Box>
-
-                                        <Box sx={{
-                                            position: 'absolute',
-                                            bottom: 0,
-                                            left: 0,
-                                            right: 0,
-                                            p: 1.5,
-                                            background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)',
-                                            display: 'flex',
-                                            justifyContent: 'flex-end',
-                                            gap: 1,
-                                            opacity: 0,
-                                            transition: 'opacity 0.3s ease',
-                                            '.MuiCard-root:hover &': { opacity: 1 }
-                                        }}>
-                                            <IconButton size="small" onClick={() => handleOpenDialog(image)} sx={{ bgcolor: 'rgba(255,255,255,0.9)' }}>
-                                                <EditIcon fontSize="small" color="primary" />
-                                            </IconButton>
-                                            <IconButton
-                                                size="small"
-                                                onClick={() => handleToggleStatus(image)}
-                                                sx={{ bgcolor: 'rgba(255,255,255,0.9)' }}
-                                            >
-                                                {image.status === 'ACTIVE' ? <VisibilityOffIcon fontSize="small" /> : <VisibilityIcon fontSize="small" />}
-                                            </IconButton>
-                                            <IconButton size="small" onClick={() => handleDeleteClick(image.id)} sx={{ bgcolor: 'rgba(255,255,255,0.9)' }}>
-                                                <DeleteIcon fontSize="small" color="error" />
-                                            </IconButton>
-                                        </Box>
-                                    </Box>
-
-                                    <CardContent sx={{ flexGrow: 1, pt: 2.5 }}>
-                                        <Typography variant="h6" gutterBottom fontWeight="800" sx={{ lineHeight: 1.3 }}>
-                                            {image.title}
+                <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                >
+                    <SortableContext
+                        items={images.map((img) => img.id)}
+                        strategy={rectSortingStrategy}
+                    >
+                        <Grid container spacing={4}>
+                            {images.map((image, index) => (
+                                <SortableGalleryItem
+                                    key={image.id}
+                                    image={image}
+                                    index={index}
+                                    onEdit={handleOpenDialog}
+                                    onToggleStatus={handleToggleStatus}
+                                    onDelete={handleDeleteClick}
+                                />
+                            ))}
+                            {images.length === 0 && (
+                                <Grid size={{ xs: 12 }}>
+                                    <Box textAlign="center" py={8}>
+                                        <ImageIcon sx={{ fontSize: 80, color: alpha('#000', 0.1), mb: 2 }} />
+                                        <Typography variant="h6" color="text.secondary">কোনো ছবি নেই</Typography>
+                                        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                                            নতুন ছবি যোগ করতে উপরের বাটনে ক্লিক করুন
                                         </Typography>
-                                        {image.description && (
-                                            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                                                {image.description}
-                                            </Typography>
-                                        )}
-                                    </CardContent>
-                                </StyledCard>
-                            </Fade>
+                                    </Box>
+                                </Grid>
+                            )}
                         </Grid>
-                    ))}
-                    {images.length === 0 && (
-                        <Grid size={{ xs: 12 }}>
-                            <Box textAlign="center" py={8}>
-                                <ImageIcon sx={{ fontSize: 80, color: alpha('#000', 0.1), mb: 2 }} />
-                                <Typography variant="h6" color="text.secondary">কোনো ছবি নেই</Typography>
-                                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                                    নতুন ছবি যোগ করতে উপরের বাটনে ক্লিক করুন
-                                </Typography>
-                            </Box>
-                        </Grid>
-                    )}
-                </Grid>
+                    </SortableContext>
+                </DndContext>
 
                 {/* Add/Edit Dialog */}
                 <Dialog

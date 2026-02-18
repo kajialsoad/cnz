@@ -6,6 +6,7 @@ const router = Router();
 
 // Admin routes (must come before public /posts/:id to avoid route collision)
 router.get('/admin/posts', authGuard, wasteManagementController.getAllPostsForAdmin.bind(wasteManagementController));
+router.post('/admin/posts/reorder', authGuard, wasteManagementController.reorder.bind(wasteManagementController));
 router.post('/admin/posts', authGuard, wasteManagementController.createPost.bind(wasteManagementController));
 router.put('/admin/posts/:id', authGuard, wasteManagementController.updatePost.bind(wasteManagementController));
 router.post('/admin/posts/:id/publish', authGuard, wasteManagementController.publishPost.bind(wasteManagementController));

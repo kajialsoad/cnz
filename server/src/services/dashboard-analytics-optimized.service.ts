@@ -4,7 +4,7 @@
  * Implements Redis caching for frequently accessed data
  */
 
-import { PrismaClient, Complaint_status } from '@prisma/client';
+import { Complaint_status } from '@prisma/client';
 import redis, {
     getOrSetCache,
     getCacheKey,
@@ -13,7 +13,7 @@ import redis, {
     invalidateCacheHelpers
 } from '../config/redis-cache-production';
 
-const prisma = new PrismaClient();
+import prisma from '../utils/prisma';
 
 interface DashboardStatsInput {
     cityCorporationCode?: string;

@@ -1,6 +1,5 @@
-import { PrismaClient, CityCorporationStatus } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { CityCorporationStatus } from '@prisma/client';
+import prisma from '../utils/prisma';
 
 interface CreateCityCorporationDto {
     code: string;

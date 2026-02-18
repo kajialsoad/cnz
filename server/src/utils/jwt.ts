@@ -1,8 +1,6 @@
 import jwt, { Secret, SignOptions } from 'jsonwebtoken';
 import env from '../config/env';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from './prisma';
 
 export interface JwtPayload {
   id: number;

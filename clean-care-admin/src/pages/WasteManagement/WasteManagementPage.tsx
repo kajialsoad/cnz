@@ -43,7 +43,25 @@ import {
     Description as DraftIcon,
     AutoGraph as StatsIcon,
     Visibility as ViewIcon,
+    DragIndicator as DragIcon,
 } from '@mui/icons-material';
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    DragEndEvent,
+} from '@dnd-kit/core';
+import {
+    arrayMove,
+    SortableContext,
+    sortableKeyboardCoordinates,
+    useSortable,
+    rectSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import MainLayout from '../../components/common/Layout/MainLayout';
 import { wasteManagementService, WastePost } from '../../services/wasteManagementService';
 import WastePostDetailModal from '../../components/WasteManagement/WastePostDetailModal';
@@ -104,6 +122,160 @@ const ActionButton = styled(IconButton)(({ theme }) => ({
     }
 }));
 
+// Sortable Post Item Component
+interface SortablePostItemProps {
+    post: WastePost;
+    index: number;
+    onView: (post: WastePost) => void;
+    onEdit: (post: WastePost) => void;
+    onDelete: (id: number) => void;
+    onPublishToggle: (post: WastePost) => void;
+}
+
+const SortablePostItem: React.FC<SortablePostItemProps> = ({ post, index, onView, onEdit, onDelete, onPublishToggle }) => {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging,
+    } = useSortable({ id: post.id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        zIndex: isDragging ? 1 : 'auto',
+    };
+
+    return (
+        <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} ref={setNodeRef} style={style}>
+            <Fade in={true} style={{ transitionDelay: `${index * 50}ms` }}>
+                <StyledCard sx={{ opacity: isDragging ? 0.5 : 1 }}>
+                    <Box sx={{ position: 'relative' }}>
+                        <CardMedia
+                            component="img"
+                            height="220"
+                            image={post.imageUrl || 'https://via.placeholder.com/400x220?text=No+Image'}
+                            alt={post.title}
+                            sx={{
+                                objectFit: 'cover',
+                                filter: post.status === 'DRAFT' ? 'grayscale(0.4)' : 'none'
+                            }}
+                        />
+                        <Box sx={{ position: 'absolute', top: 12, right: 12, display: 'flex', gap: 1 }}>
+                            <Chip
+                                label={post.status === 'PUBLISHED' ? 'প্রকাশিত' : 'খসড়া'}
+                                size="small"
+                                sx={{
+                                    bgcolor: post.status === 'PUBLISHED' ? alpha('#4caf50', 0.9) : alpha('#000', 0.6),
+                                    color: '#fff',
+                                    fontWeight: '700',
+                                    backdropFilter: 'blur(4px)',
+                                    border: 'none'
+                                }}
+                            />
+                        </Box>
+                        
+                        {/* Drag Handle */}
+                        <Box
+                            {...attributes}
+                            {...listeners}
+                            sx={{
+                                position: 'absolute',
+                                top: 12,
+                                left: 12,
+                                bgcolor: alpha('#000', 0.6),
+                                color: '#fff',
+                                borderRadius: '50%',
+                                p: 0.5,
+                                cursor: 'grab',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                backdropFilter: 'blur(4px)',
+                                '&:hover': { bgcolor: alpha('#000', 0.8) },
+                                '&:active': { cursor: 'grabbing' },
+                            }}
+                        >
+                            <DragIcon fontSize="small" />
+                        </Box>
+
+                        {/* Action Overlays */}
+                        <Box sx={{
+                            position: 'absolute',
+                            bottom: 0,
+                            left: 0,
+                            right: 0,
+                            p: 1.5,
+                            background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)',
+                            display: 'flex',
+                            justifyContent: 'flex-end',
+                            gap: 1,
+                            opacity: 0,
+                            transition: 'opacity 0.3s ease',
+                            '.MuiCard-root:hover &': { opacity: 1 }
+                        }}>
+                            <ActionButton size="small" onClick={() => onView(post)} sx={{ color: '#2196f3' }}>
+                                <ViewIcon fontSize="small" />
+                            </ActionButton>
+                            <ActionButton size="small" onClick={() => onEdit(post)} color="primary">
+                                <EditIcon fontSize="small" />
+                            </ActionButton>
+                            <ActionButton
+                                size="small"
+                                onClick={() => onPublishToggle(post)}
+                                sx={{ color: post.status === 'PUBLISHED' ? '#ff9800' : '#4caf50' }}
+                            >
+                                {post.status === 'PUBLISHED' ? <UnpublishIcon fontSize="small" /> : <PublishIcon fontSize="small" />}
+                            </ActionButton>
+                            <ActionButton
+                                size="small"
+                                onClick={() => onDelete(post.id)}
+                                sx={{ color: '#f44336', '&:hover': { bgcolor: '#ffebee' } }}
+                            >
+                                <DeleteIcon fontSize="small" />
+                            </ActionButton>
+                        </Box>
+                    </Box>
+
+                    <CardContent sx={{ flexGrow: 1, pt: 3 }}>
+                        <Typography variant="h6" fontWeight="800" gutterBottom noWrap title={post.title}>
+                            {post.title}
+                        </Typography>
+
+                        <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            sx={{
+                                mb: 2,
+                                height: '4.5em',
+                                overflow: 'hidden',
+                                display: '-webkit-box',
+                                WebkitLineClamp: 3,
+                                WebkitBoxOrient: 'vertical',
+                            }}
+                        >
+                            {post.content}
+                        </Typography>
+
+                        <Stack direction="row" spacing={2} sx={{ mt: 'auto', pt: 2, borderTop: `1px solid ${alpha('#000', 0.05)}` }}>
+                            <Box display="flex" alignItems="center" gap={0.8}>
+                                <ThumbUpIcon fontSize="small" sx={{ color: alpha('#2196f3', 0.8) }} />
+                                <Typography variant="body2" fontWeight="700">{post.likeCount}</Typography>
+                            </Box>
+                            <Box display="flex" alignItems="center" gap={0.8}>
+                                <LoveIcon fontSize="small" sx={{ color: alpha('#e91e63', 0.8) }} />
+                                <Typography variant="body2" fontWeight="700">{post.loveCount}</Typography>
+                            </Box>
+                        </Stack>
+                    </CardContent>
+                </StyledCard>
+            </Fade>
+        </Grid>
+    );
+};
+
 const WasteManagementPage: React.FC = () => {
     const [posts, setPosts] = useState<WastePost[]>([]);
     const [loading, setLoading] = useState(true);
@@ -129,6 +301,69 @@ const WasteManagementPage: React.FC = () => {
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [uploadingImage, setUploadingImage] = useState(false);
+
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 8,
+            },
+        }),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
+
+    const handleDragEnd = async (event: DragEndEvent) => {
+        const { active, over } = event;
+
+        if (!over || active.id === over.id) return;
+
+        // We need access to filteredPosts here. Since it's derived from posts, 
+        // we can recalculate or use the memoized value if accessible.
+        // It is accessible in scope.
+        
+        const oldIndex = filteredPosts.findIndex((p) => p.id === active.id);
+        const newIndex = filteredPosts.findIndex((p) => p.id === over.id);
+
+        if (oldIndex === -1 || newIndex === -1) return;
+
+        // Calculate new order locally to update UI immediately
+        const newFilteredPosts = arrayMove(filteredPosts, oldIndex, newIndex);
+        
+        // Calculate updates for backend
+        // We assign displayOrder based on the new index in the filtered list
+        const updates = newFilteredPosts.map((post, index) => ({
+            id: post.id,
+            displayOrder: index,
+        }));
+
+        // Update local state 'posts'
+        // We need to update the displayOrder of the affected posts and re-sort 'posts'
+        setPosts((prevPosts) => {
+            const updatedPosts = prevPosts.map((p) => {
+                const update = updates.find((u) => u.id === p.id);
+                return update ? { ...p, displayOrder: update.displayOrder } : p;
+            });
+            
+            // Re-sort posts by displayOrder to maintain consistency
+            // Note: This might mix categories if their displayOrders overlap, 
+            // but filteredPosts will filter correctly anyway.
+            return updatedPosts.sort((a, b) => {
+                if (a.displayOrder !== b.displayOrder) return a.displayOrder - b.displayOrder;
+                return 0;
+            });
+        });
+
+        try {
+            await wasteManagementService.reorder(updates);
+            setSuccess('Order updated successfully');
+            setTimeout(() => setSuccess(null), 2000);
+        } catch (err) {
+            console.error(err);
+            setError('Failed to update order');
+            fetchPosts(); // Revert on error
+        }
+    };
 
     useEffect(() => {
         fetchPosts();
@@ -444,121 +679,38 @@ const WasteManagementPage: React.FC = () => {
                         <Tab label="ভবিষ্যত পরিকল্পনা" />
                     </Tabs>
 
-                    <Grid container spacing={4}>
-                        {filteredPosts.map((post, index) => (
-                            <Grid size={{ xs: 12, sm: 6 }} size={{ md: 4, lg: 3 }} key={post.id}>
-                                <Fade in={true} style={{ transitionDelay: `${index * 50}ms` }}>
-                                    <StyledCard>
-                                        <Box sx={{ position: 'relative' }}>
-                                            <CardMedia
-                                                component="img"
-                                                height="220"
-                                                image={post.imageUrl || 'https://via.placeholder.com/400x220?text=No+Image'}
-                                                alt={post.title}
-                                                sx={{
-                                                    objectFit: 'cover',
-                                                    filter: post.status === 'DRAFT' ? 'grayscale(0.4)' : 'none'
-                                                }}
-                                            />
-                                            <Box sx={{ position: 'absolute', top: 12, right: 12, display: 'flex', gap: 1 }}>
-                                                <Chip
-                                                    label={post.status === 'PUBLISHED' ? 'প্রকাশিত' : 'খসড়া'}
-                                                    size="small"
-                                                    sx={{
-                                                        bgcolor: post.status === 'PUBLISHED' ? alpha('#4caf50', 0.9) : alpha('#000', 0.6),
-                                                        color: '#fff',
-                                                        fontWeight: '700',
-                                                        backdropFilter: 'blur(4px)',
-                                                        border: 'none'
-                                                    }}
-                                                />
-                                            </Box>
-
-                                            {/* Action Overlays */}
-                                            <Box sx={{
-                                                position: 'absolute',
-                                                bottom: 0,
-                                                left: 0,
-                                                right: 0,
-                                                p: 1.5,
-                                                background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)',
-                                                display: 'flex',
-                                                justifyContent: 'flex-end',
-                                                gap: 1,
-                                                opacity: 0,
-                                                transition: 'opacity 0.3s ease',
-                                                '.MuiCard-root:hover &': { opacity: 1 }
-                                            }}>
-                                                <ActionButton size="small" onClick={() => handleViewDetail(post)} sx={{ color: '#2196f3' }}>
-                                                    <ViewIcon fontSize="small" />
-                                                </ActionButton>
-                                                <ActionButton size="small" onClick={() => handleOpenDialog(post)} color="primary">
-                                                    <EditIcon fontSize="small" />
-                                                </ActionButton>
-                                                <ActionButton
-                                                    size="small"
-                                                    onClick={() => handlePublishToggle(post)}
-                                                    sx={{ color: post.status === 'PUBLISHED' ? '#ff9800' : '#4caf50' }}
-                                                >
-                                                    {post.status === 'PUBLISHED' ? <UnpublishIcon fontSize="small" /> : <PublishIcon fontSize="small" />}
-                                                </ActionButton>
-                                                <ActionButton size="small" onClick={() => handleDeleteClick(post.id)} color="error">
-                                                    <DeleteIcon fontSize="small" />
-                                                </ActionButton>
-                                            </Box>
+                    <DndContext
+                        sensors={sensors}
+                        collisionDetection={closestCenter}
+                        onDragEnd={handleDragEnd}
+                    >
+                        <SortableContext
+                            items={filteredPosts.map((post) => post.id)}
+                            strategy={rectSortingStrategy}
+                        >
+                            <Grid container spacing={4}>
+                                {filteredPosts.map((post, index) => (
+                                    <SortablePostItem
+                                        key={post.id}
+                                        post={post}
+                                        index={index}
+                                        onView={handleViewDetail}
+                                        onEdit={handleOpenDialog}
+                                        onDelete={handleDeleteClick}
+                                        onPublishToggle={handlePublishToggle}
+                                    />
+                                ))}
+                                {filteredPosts.length === 0 && (
+                                    <Grid size={{ xs: 12 }}>
+                                        <Box textAlign="center" py={8}>
+                                            <ArticleIcon sx={{ fontSize: 80, color: alpha('#000', 0.1), mb: 2 }} />
+                                            <Typography variant="h6" color="text.secondary">এই বিভাগে কোনো পোস্ট নেই</Typography>
                                         </Box>
-
-                                        <CardContent sx={{ flexGrow: 1, pt: 2.5 }}>
-                                            <Typography variant="h6" gutterBottom fontWeight="800" sx={{
-                                                lineHeight: 1.3,
-                                                height: '3.9em',
-                                                overflow: 'hidden',
-                                                display: '-webkit-box',
-                                                WebkitLineClamp: 3,
-                                                WebkitBoxOrient: 'vertical',
-                                            }}>
-                                                {post.title}
-                                            </Typography>
-
-                                            <Typography
-                                                variant="body2"
-                                                color="text.secondary"
-                                                sx={{
-                                                    mb: 2,
-                                                    height: '4.5em',
-                                                    overflow: 'hidden',
-                                                    display: '-webkit-box',
-                                                    WebkitLineClamp: 3,
-                                                    WebkitBoxOrient: 'vertical',
-                                                }}
-                                            >
-                                                {post.content}
-                                            </Typography>
-
-                                            <Stack direction="row" spacing={2} sx={{ mt: 'auto', pt: 2, borderTop: `1px solid ${alpha('#000', 0.05)}` }}>
-                                                <Box display="flex" alignItems="center" gap={0.8}>
-                                                    <ThumbUpIcon fontSize="small" sx={{ color: alpha('#2196f3', 0.8) }} />
-                                                    <Typography variant="body2" fontWeight="700">{post.likeCount}</Typography>
-                                                </Box>
-                                                <Box display="flex" alignItems="center" gap={0.8}>
-                                                    <LoveIcon fontSize="small" sx={{ color: alpha('#e91e63', 0.8) }} />
-                                                    <Typography variant="body2" fontWeight="700">{post.loveCount}</Typography>
-                                                </Box>
-                                            </Stack>
-                                        </CardContent>
-                                    </StyledCard>
-                                </Fade>
+                                    </Grid>
+                                )}
                             </Grid>
-                        ))}
-                        {filteredPosts.length === 0 && (
-                            <Grid size={{ xs: 12 }}>
-                                <Box textAlign="center" py={8}>
-                                    <ArticleIcon sx={{ fontSize: 80, color: alpha('#000', 0.1), mb: 2 }} />
-                                    <Typography variant="h6" color="text.secondary">এই বিভাগে কোনো পোস্ট নেই</Typography>
-                                </Box>
-                            </Grid>
-                        )}
-                    </Grid>
+                        </SortableContext>
+                    </DndContext>
                 </GlassPaper>
 
                 {/* Dialogs remain functional but styled better */}

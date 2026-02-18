@@ -92,6 +92,18 @@ export class WasteManagementController {
         }
     }
 
+    // Admin: Reorder posts
+    async reorder(req: AuthRequest, res: Response): Promise<void> {
+        try {
+            const { orders } = req.body;
+            await wasteManagementService.reorder(orders);
+            res.json({ success: true, message: 'Posts reordered successfully' });
+        } catch (error) {
+            console.error('Error reordering waste posts:', error);
+            res.status(500).json({ error: 'Failed to reorder posts' });
+        }
+    }
+
     // Admin: Get all posts
     async getAllPostsForAdmin(req: AuthRequest, res: Response): Promise<void> {
         try {

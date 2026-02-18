@@ -8,6 +8,7 @@ import {
     updateNotice,
     toggleNoticeStatus,
     deleteNotice,
+    reorderNotices,
     incrementViewCount,
     markAsRead,
     getAnalytics,
@@ -19,6 +20,7 @@ const router = Router();
 
 // Admin routes (protected) - MUST come before public routes to avoid conflicts
 router.post('/', authGuard, createNotice);
+router.post('/reorder', authGuard, reorderNotices);
 router.get('/analytics/stats', authGuard, getAnalytics);
 router.get('/', authGuard, getAllNotices);
 router.put('/:id', authGuard, updateNotice);

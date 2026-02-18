@@ -134,7 +134,7 @@ class _SignUpPageState extends State<SignUpPage> {
         _selectedZone = ward.zone;
         // Make sure the auto-selected zone is available in the list for dropdown
         if (!_zones.any((z) => z.id == ward.zone!.id)) {
-           _zones = [ward.zone!];
+          _zones = [ward.zone!];
         }
       } else {
         _selectedZone = null;
@@ -143,7 +143,7 @@ class _SignUpPageState extends State<SignUpPage> {
   }
 
   // _onZoneChanged is no longer needed but keeping empty or removing references
-  // Future<void> _onZoneChanged(Zone? zone) async {} 
+  // Future<void> _onZoneChanged(Zone? zone) async {}
 
   @override
   void dispose() {
@@ -378,6 +378,92 @@ class _SignUpPageState extends State<SignUpPage> {
     ).showSnackBar(const SnackBar(content: Text('ডেমো: NID সংযুক্ত হয়েছে')));
   }
 
+  void _showTermsDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Terms & Conditions / শর্তাবলী'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: const [
+              Text(
+                'English:',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              SizedBox(height: 8),
+              Text(
+                '1. Account Registration:\n'
+                '   - You must provide accurate and complete information (Name, Phone, Address).\n'
+                '   - You are responsible for maintaining the confidentiality of your account credentials.\n\n'
+                '2. User Conduct:\n'
+                '   - Do not submit false, misleading, or fake complaints.\n'
+                '   - Do not use abusive, threatening, or obscene language in complaints or chats.\n'
+                '   - Do not upload inappropriate, offensive, or illegal images/audio.\n\n'
+                '3. Legal Compliance:\n'
+                '   - You strictly agree not to use this app for any activities that violate the existing laws of Bangladesh.\n'
+                '   - Any attempt to disrupt public order or spread misinformation through this app is punishable by law.\n\n'
+                '4. Liability:\n'
+                '   - You are solely responsible for your actions and the content you submit.\n'
+                '   - The app authorities (Clean Care) are not liable for any user-generated content or misuse of the platform.\n\n'
+                '5. Termination:\n'
+                '   - We reserve the right to suspend or ban your account immediately if you violate these terms.',
+                style: TextStyle(fontSize: 13),
+              ),
+              SizedBox(height: 16),
+              Divider(),
+              SizedBox(height: 16),
+              Text(
+                'বাংলা:',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              SizedBox(height: 8),
+              Text(
+                '১. অ্যাকাউন্ট নিবন্ধন:\n'
+                '   - আপনাকে অবশ্যই সঠিক এবং পূর্ণাঙ্গ তথ্য (নাম, ফোন, ঠিকানা) প্রদান করতে হবে।\n'
+                '   - আপনার অ্যাকাউন্টের তথ্যের গোপনীয়তা রক্ষার দায়িত্ব আপনার।\n\n'
+                '২. ব্যবহারকারীর আচরণ:\n'
+                '   - কোনো ভুল, মিথ্যা বা বিভ্রান্তিকর অভিযোগ দায়ের করা যাবে না।\n'
+                '   - অভিযোগ বা চ্যাটে কোনো অশালীন, গালিগালাজ বা হুমকিধামকি ব্যবহার করা যাবে না।\n'
+                '   - কোনো আপত্তিকর বা বেআইনি ছবি/অডিও আপলোড করা সম্পূর্ণ নিষিদ্ধ।\n\n'
+                '৩. আইন মেনে চলা:\n'
+                '   - এই অ্যাপ ব্যবহার করে বাংলাদেশের প্রচলিত আইনের পরিপন্থী কোনো কাজ করা যাবে না।\n'
+                '   - অ্যাপের মাধ্যমে জনশৃঙ্খলা বিঘ্নিত করার চেষ্টা বা গুজব ছড়ানো আইনত দণ্ডনীয় অপরাধ।\n\n'
+                '৪. দায়বদ্ধতা:\n'
+                '   - অ্যাপে আপনার কার্যকলাপ এবং জমা দেওয়া তথ্যের জন্য আপনি এককভাবে দায়ী থাকবেন।\n'
+                '   - অ্যাপ কর্তৃপক্ষ ব্যবহারকারীর কোনো ভুল কাজ বা অপব্যবহারের জন্য দায়ী থাকবে না।\n\n'
+                '৫. বাতিলকরণ:\n'
+                '   - শর্তাবলী লঙ্ঘন করলে কোনো পূর্ব নোটিশ ছাড়াই আপনার অ্যাকাউন্ট বাতিল বা স্থগিত করার অধিকার কর্তৃপক্ষ সংরক্ষণ করে।',
+                style: TextStyle(fontSize: 13),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              setState(() => _agree = false);
+            },
+            child: const Text('Cancel / বাতিল'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              setState(() => _agree = true);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2E8B57),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Agree & Continue / সম্মত আছি'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _dashedUploadBox() {
     return Container(
       decoration: BoxDecoration(
@@ -592,7 +678,7 @@ class _SignUpPageState extends State<SignUpPage> {
                               style: Theme.of(context).textTheme.bodyMedium,
                             ),
                           ),
-                           _isLoadingWards
+                          _isLoadingWards
                               ? const Center(child: CircularProgressIndicator())
                               : DropdownButtonFormField<Ward>(
                                   isExpanded: true,
@@ -625,18 +711,21 @@ class _SignUpPageState extends State<SignUpPage> {
                           DropdownButtonFormField<Zone>(
                             isExpanded: true,
                             value: _selectedZone,
-                            decoration: _dec('Zone', hint: 'Zone will appear here').copyWith(
-                                fillColor: Colors.grey[200],
-                            ),
-                            items: _selectedZone != null 
-                              ? [DropdownMenuItem<Zone>(
-                                  value: _selectedZone,
-                                  child: Text(
-                                    _selectedZone!.displayName,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                )] 
-                              : [],
+                            decoration: _dec(
+                              'Zone',
+                              hint: 'Zone will appear here',
+                            ).copyWith(fillColor: Colors.grey[200]),
+                            items: _selectedZone != null
+                                ? [
+                                    DropdownMenuItem<Zone>(
+                                      value: _selectedZone,
+                                      child: Text(
+                                        _selectedZone!.displayName,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ]
+                                : [],
                             onChanged: null, // Read-only
                           ),
                           const SizedBox(height: 12),
@@ -672,6 +761,7 @@ class _SignUpPageState extends State<SignUpPage> {
                           ),
                         ),
                         const SizedBox(height: 16),
+                        /*
                         Align(
                           alignment: Alignment.centerLeft,
                           child: Text(
@@ -683,25 +773,36 @@ class _SignUpPageState extends State<SignUpPage> {
                         const SizedBox(height: 8),
                         _dashedUploadBox(),
                         const SizedBox(height: 16),
+                        */
                         Row(
                           children: [
                             Checkbox(
                               value: _agree,
-                              onChanged: (v) =>
-                                  setState(() => _agree = v ?? false),
+                              onChanged: (v) {
+                                if (v == true) {
+                                  _showTermsDialog();
+                                } else {
+                                  setState(() => _agree = false);
+                                }
+                              },
                             ),
                             Expanded(
                               child: Wrap(
-                                children: const [
-                                  Text('I agree to the '),
-                                  Text(
-                                    'Terms & Conditions',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
+                                children: [
+                                  const Text('I agree to the '),
+                                  GestureDetector(
+                                    onTap: _showTermsDialog,
+                                    child: const Text(
+                                      'Terms & Conditions',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFF2E8B57),
+                                        decoration: TextDecoration.underline,
+                                      ),
                                     ),
                                   ),
-                                  Text(' and '),
-                                  Text(
+                                  const Text(' and '),
+                                  const Text(
                                     'Privacy Policy',
                                     style: TextStyle(
                                       fontWeight: FontWeight.w600,

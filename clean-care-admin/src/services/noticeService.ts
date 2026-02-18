@@ -98,6 +98,11 @@ class NoticeService {
         await apiClient.delete(`/api/notices/${id}`);
     }
 
+    // Reorder notices
+    async reorderNotices(orders: Array<{ id: number; displayOrder: number }>): Promise<void> {
+        await apiClient.post('/api/notices/reorder', { orders });
+    }
+
     // Get analytics
     async getAnalytics(): Promise<NoticeAnalytics> {
         const response = await apiClient.get('/api/notices/analytics/stats');

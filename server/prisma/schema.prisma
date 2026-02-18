@@ -632,6 +632,7 @@ model WastePost {
   publishedAt DateTime?
   createdAt   DateTime             @default(now())
   updatedAt   DateTime             @updatedAt
+  displayOrder Int                 @default(0)
   reactions   WastePostReaction[]
 
   @@index([status])
@@ -748,6 +749,7 @@ model Notice {
   targetCities  Json?          @map("target_cities")
   viewCount     Int            @default(0) @map("view_count")
   readCount     Int            @default(0) @map("read_count")
+  displayOrder  Int            @default(0) @map("display_order")
   createdBy     Int            @map("created_by")
   createdAt     DateTime       @default(now()) @map("created_at")
   updatedAt     DateTime       @updatedAt @map("updated_at")

@@ -41,7 +41,25 @@ import {
     MeetingRoom as WardIcon,
     CloudUpload as UploadIcon,
     Close as CloseIcon,
+    DragIndicator as DragIndicatorIcon,
 } from '@mui/icons-material';
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    DragEndEvent,
+} from '@dnd-kit/core';
+import {
+    arrayMove,
+    SortableContext,
+    sortableKeyboardCoordinates,
+    verticalListSortingStrategy,
+    useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import MainLayout from '../../components/common/Layout/MainLayout/MainLayout';
 import NoticeAnalyticsDashboard from './components/NoticeAnalyticsDashboard';
 import NoticeDetailModal from '../../components/Notice/NoticeDetailModal';
@@ -83,6 +101,196 @@ function TabPanel(props: TabPanelProps) {
     );
 }
 
+interface SortableNoticeItemProps {
+    notice: Notice;
+    index: number;
+    onView: (notice: Notice) => void;
+    onEdit: (notice: Notice) => void;
+    onToggleStatus: (notice: Notice) => void;
+    onDelete: (notice: Notice) => void;
+    getTypeColor: (type: NoticeType) => any;
+    getPriorityColor: (priority: NoticePriority) => any;
+}
+
+const SortableNoticeItem = ({
+    notice,
+    index,
+    onView,
+    onEdit,
+    onToggleStatus,
+    onDelete,
+    getTypeColor,
+    getPriorityColor
+}: SortableNoticeItemProps) => {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging,
+    } = useSortable({ id: notice.id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        zIndex: isDragging ? 1 : 0,
+        opacity: isDragging ? 0.5 : 1,
+    };
+
+    return (
+        <Grid size={{ xs: 12 }} ref={setNodeRef} style={style}>
+            <Card
+                sx={{
+                    borderRadius: 3,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    boxShadow: isDragging ? '0 12px 26px rgba(15, 23, 42, 0.2)' : '0 6px 18px rgba(15, 23, 42, 0.06)',
+                    transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                    position: 'relative',
+                    bgcolor: 'background.paper',
+                }}
+            >
+                <CardContent>
+                    <Box
+                        sx={{
+                            display: 'flex',
+                            flexDirection: { xs: 'column', md: 'row' },
+                            justifyContent: 'space-between',
+                            gap: 2,
+                        }}
+                    >
+                        <Box
+                            sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                mr: 1,
+                                cursor: 'grab',
+                                color: 'text.secondary',
+                                '&:hover': { color: 'primary.main' }
+                            }}
+                            {...attributes}
+                            {...listeners}
+                        >
+                            <DragIndicatorIcon />
+                        </Box>
+
+                        <Box sx={{ flex: 1, display: 'flex', gap: 2 }}>
+                            {notice.imageUrl && (
+                                <Box sx={{ flexShrink: 0 }}>
+                                    <Card sx={{ width: 120, height: 120 }}>
+                                        <CardMedia
+                                            component="img"
+                                            height="120"
+                                            image={notice.imageUrl}
+                                            alt={notice.title}
+                                            sx={{ objectFit: 'cover' }}
+                                            onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                                                e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="120" height="120"%3E%3Crect fill="%23f0f0f0" width="120" height="120"/%3E%3Ctext fill="%23999" x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3ENo Image%3C/text%3E%3C/svg%3E';
+                                            }}
+                                        />
+                                    </Card>
+                                </Box>
+                            )}
+                            <Box sx={{ flex: 1 }}>
+                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 1 }}>
+                                    <Chip
+                                        label={notice.type}
+                                        color={getTypeColor(notice.type)}
+                                        size="small"
+                                    />
+                                    <Chip
+                                        label={notice.priority}
+                                        color={getPriorityColor(notice.priority)}
+                                        size="small"
+                                    />
+                                    {notice.category && (
+                                        <Chip
+                                            label={notice.category.name}
+                                            size="small"
+                                            sx={{ bgcolor: notice.category.color, color: 'white' }}
+                                        />
+                                    )}
+                                    <Chip
+                                        label={notice.isActive ? 'Active' : 'Inactive'}
+                                        color={notice.isActive ? 'success' : 'default'}
+                                        size="small"
+                                    />
+                                </Box>
+                                <Typography variant="h6" fontWeight="bold">
+                                    {notice.title}
+                                </Typography>
+                                {notice.titleBn && (
+                                    <Typography variant="body2" color="text.secondary">
+                                        {notice.titleBn}
+                                    </Typography>
+                                )}
+                                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                                    {notice.description}
+                                </Typography>
+                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, mt: 2 }}>
+                                    <Chip
+                                        label={`Views: ${notice.viewCount}`}
+                                        size="small"
+                                        variant="outlined"
+                                    />
+                                    <Chip
+                                        label={`Reads: ${notice.readCount}`}
+                                        size="small"
+                                        variant="outlined"
+                                    />
+                                    <Chip
+                                        label={`Published: ${new Date(notice.publishDate).toLocaleDateString()}`}
+                                        size="small"
+                                        variant="outlined"
+                                    />
+                                </Box>
+                            </Box>
+                        </Box>
+                        <Box
+                            sx={{
+                                display: 'flex',
+                                gap: 1,
+                                justifyContent: { xs: 'flex-start', md: 'flex-end' },
+                                alignItems: 'flex-start',
+                            }}
+                        >
+                            <IconButton
+                                color="info"
+                                onClick={() => onView(notice)}
+                                title="View Details"
+                            >
+                                <ViewIcon />
+                            </IconButton>
+                            <IconButton
+                                color="primary"
+                                onClick={() => onEdit(notice)}
+                                title="Edit"
+                            >
+                                <EditIcon />
+                            </IconButton>
+                            <IconButton
+                                color={notice.isActive ? 'warning' : 'success'}
+                                onClick={() => onToggleStatus(notice)}
+                                title={notice.isActive ? 'Deactivate' : 'Activate'}
+                            >
+                                {notice.isActive ? <VisibilityOffIcon /> : <ViewIcon />}
+                            </IconButton>
+                            <IconButton
+                                color="error"
+                                onClick={() => onDelete(notice)}
+                                title="Delete"
+                            >
+                                <DeleteIcon />
+                            </IconButton>
+                        </Box>
+                    </Box>
+                </CardContent>
+            </Card>
+        </Grid>
+    );
+};
+
 const NoticeManagementPage: React.FC = () => {
     const [tabValue, setTabValue] = useState(0);
     const [notices, setNotices] = useState<Notice[]>([]);
@@ -110,6 +318,41 @@ const NoticeManagementPage: React.FC = () => {
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [cityCorporationsLoading, setCityCorporationsLoading] = useState(false);
+
+    // DnD Sensors
+    const sensors = useSensors(
+        useSensor(PointerSensor),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
+
+    const handleDragEnd = async (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (!over || active.id === over.id) return;
+
+        const oldIndex = notices.findIndex((item) => item.id === active.id);
+        const newIndex = notices.findIndex((item) => item.id === over.id);
+
+        if (oldIndex === -1 || newIndex === -1) return;
+
+        const newNotices = arrayMove(notices, oldIndex, newIndex);
+        setNotices(newNotices);
+
+        // Update order in backend
+        try {
+            const updates = newNotices.map((notice, index) => ({
+                id: notice.id,
+                displayOrder: index,
+            }));
+            await noticeService.reorderNotices(updates);
+        } catch (err) {
+            console.error('Failed to reorder notices:', err);
+            setError('Failed to update notice order');
+            // Revert changes if failed
+            loadNotices();
+        }
+    };
 
     // Category form
     const [categoryForm, setCategoryForm] = useState<{
@@ -776,174 +1019,57 @@ const NoticeManagementPage: React.FC = () => {
                             <CircularProgress />
                         </Box>
                     ) : (
-                        <Grid container spacing={2}>
-                            {notices.map((notice, index) => (
-                                <Grid size={{ xs: 12 }} key={notice.id}>
-                                    <Card
-                                        sx={{
-                                            borderRadius: 3,
-                                            border: '1px solid',
-                                            borderColor: 'divider',
-                                            boxShadow: '0 6px 18px rgba(15, 23, 42, 0.06)',
-                                            transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-                                            animation: `${slideInUp} ${animationConfig.normal.duration} ${animationConfig.smooth.timing}`,
-                                            animationFillMode: 'both',
-                                            animationDelay: `${Math.min(index * 60, 300)}ms`,
-                                            '&:hover': {
-                                                transform: 'translateY(-3px)',
-                                                boxShadow: '0 12px 26px rgba(15, 23, 42, 0.12)',
-                                            },
-                                        }}
-                                    >
-                                        <CardContent>
-                                            <Box
+                        <DndContext
+                            sensors={sensors}
+                            collisionDetection={closestCenter}
+                            onDragEnd={handleDragEnd}
+                        >
+                            <SortableContext
+                                items={notices.map(n => n.id)}
+                                strategy={verticalListSortingStrategy}
+                            >
+                                <Grid container spacing={2}>
+                                    {notices.map((notice, index) => (
+                                        <SortableNoticeItem
+                                            key={notice.id}
+                                            notice={notice}
+                                            index={index}
+                                            onView={(n) => {
+                                                setSelectedNotice(n);
+                                                setDetailModalOpen(true);
+                                            }}
+                                            onEdit={openEditModal}
+                                            onToggleStatus={handleToggleStatus}
+                                            onDelete={(n) => {
+                                                setSelectedNotice(n);
+                                                setDeleteDialogOpen(true);
+                                            }}
+                                            getTypeColor={getTypeColor}
+                                            getPriorityColor={getPriorityColor}
+                                        />
+                                    ))}
+                                    {!loading && notices.length === 0 && (
+                                        <Grid size={{ xs: 12 }}>
+                                            <Card
                                                 sx={{
-                                                    display: 'flex',
-                                                    flexDirection: { xs: 'column', md: 'row' },
-                                                    justifyContent: 'space-between',
-                                                    gap: 2,
+                                                    borderRadius: 3,
+                                                    border: '1px dashed',
+                                                    borderColor: 'divider',
+                                                    animation: `${fadeIn} ${animationConfig.normal.duration} ${animationConfig.smooth.timing}`,
+                                                    animationFillMode: 'both',
                                                 }}
                                             >
-                                                <Box sx={{ flex: 1, display: 'flex', gap: 2 }}>
-                                                    {notice.imageUrl && (
-                                                        <Box sx={{ flexShrink: 0 }}>
-                                                            <Card sx={{ width: 120, height: 120 }}>
-                                                                <CardMedia
-                                                                    component="img"
-                                                                    height="120"
-                                                                    image={notice.imageUrl}
-                                                                    alt={notice.title}
-                                                                    sx={{ objectFit: 'cover' }}
-                                                                    onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-                                                                        console.error('Failed to load image:', notice.imageUrl);
-                                                                        e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="120" height="120"%3E%3Crect fill="%23f0f0f0" width="120" height="120"/%3E%3Ctext fill="%23999" x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3ENo Image%3C/text%3E%3C/svg%3E';
-                                                                    }}
-                                                                />
-                                                            </Card>
-                                                        </Box>
-                                                    )}
-                                                    <Box sx={{ flex: 1 }}>
-                                                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 1 }}>
-                                                            <Chip
-                                                                label={notice.type}
-                                                                color={getTypeColor(notice.type)}
-                                                                size="small"
-                                                            />
-                                                            <Chip
-                                                                label={notice.priority}
-                                                                color={getPriorityColor(notice.priority)}
-                                                                size="small"
-                                                            />
-                                                            {notice.category && (
-                                                                <Chip
-                                                                    label={notice.category.name}
-                                                                    size="small"
-                                                                    sx={{ bgcolor: notice.category.color, color: 'white' }}
-                                                                />
-                                                            )}
-                                                            <Chip
-                                                                label={notice.isActive ? 'Active' : 'Inactive'}
-                                                                color={notice.isActive ? 'success' : 'default'}
-                                                                size="small"
-                                                            />
-                                                        </Box>
-                                                        <Typography variant="h6" fontWeight="bold">
-                                                            {notice.title}
-                                                        </Typography>
-                                                        {notice.titleBn && (
-                                                            <Typography variant="body2" color="text.secondary">
-                                                                {notice.titleBn}
-                                                            </Typography>
-                                                        )}
-                                                        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                                                            {notice.description}
-                                                        </Typography>
-                                                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, mt: 2 }}>
-                                                            <Chip
-                                                                label={`Views: ${notice.viewCount}`}
-                                                                size="small"
-                                                                variant="outlined"
-                                                            />
-                                                            <Chip
-                                                                label={`Reads: ${notice.readCount}`}
-                                                                size="small"
-                                                                variant="outlined"
-                                                            />
-                                                            <Chip
-                                                                label={`Published: ${new Date(notice.publishDate).toLocaleDateString()}`}
-                                                                size="small"
-                                                                variant="outlined"
-                                                            />
-                                                        </Box>
-                                                    </Box>
-                                                </Box>
-                                                <Box
-                                                    sx={{
-                                                        display: 'flex',
-                                                        gap: 1,
-                                                        justifyContent: { xs: 'flex-start', md: 'flex-end' },
-                                                    }}
-                                                >
-                                                    <IconButton
-                                                        color="info"
-                                                        onClick={() => {
-                                                            setSelectedNotice(notice);
-                                                            setDetailModalOpen(true);
-                                                        }}
-                                                        title="View Details"
-                                                    >
-                                                        <ViewIcon />
-                                                    </IconButton>
-                                                    <IconButton
-                                                        color="primary"
-                                                        onClick={() => openEditModal(notice)}
-                                                        title="Edit"
-                                                    >
-                                                        <EditIcon />
-                                                    </IconButton>
-                                                    <IconButton
-                                                        color={notice.isActive ? 'warning' : 'success'}
-                                                        onClick={() => handleToggleStatus(notice)}
-                                                        title={notice.isActive ? 'Deactivate' : 'Activate'}
-                                                    >
-                                                        {notice.isActive ? <VisibilityOffIcon /> : <ViewIcon />}
-                                                    </IconButton>
-                                                    <IconButton
-                                                        color="error"
-                                                        onClick={() => {
-                                                            setSelectedNotice(notice);
-                                                            setDeleteDialogOpen(true);
-                                                        }}
-                                                        title="Delete"
-                                                    >
-                                                        <DeleteIcon />
-                                                    </IconButton>
-                                                </Box>
-                                            </Box>
-                                        </CardContent>
-                                    </Card>
+                                                <CardContent>
+                                                    <Typography color="text.secondary" align="center">
+                                                        No notices found. Create a new notice to get started.
+                                                    </Typography>
+                                                </CardContent>
+                                            </Card>
+                                        </Grid>
+                                    )}
                                 </Grid>
-                            ))}
-                            {!loading && notices.length === 0 && (
-                                <Grid size={{ xs: 12 }}>
-                                    <Card
-                                        sx={{
-                                            borderRadius: 3,
-                                            border: '1px dashed',
-                                            borderColor: 'divider',
-                                            animation: `${fadeIn} ${animationConfig.normal.duration} ${animationConfig.smooth.timing}`,
-                                            animationFillMode: 'both',
-                                        }}
-                                    >
-                                        <CardContent>
-                                            <Typography color="text.secondary" align="center">
-                                                No notices found. Create a new notice to get started.
-                                            </Typography>
-                                        </CardContent>
-                                    </Card>
-                                </Grid>
-                            )}
-                        </Grid>
+                            </SortableContext>
+                        </DndContext>
                     )}
                 </TabPanel>
 

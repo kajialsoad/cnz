@@ -1,7 +1,5 @@
-import { PrismaClient } from '@prisma/client';
 import { cloudUploadService } from './cloud-upload.service';
-
-const prisma = new PrismaClient();
+import prisma from '../utils/prisma';
 
 export interface CreateCalendarDto {
     title: string;

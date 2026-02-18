@@ -3,6 +3,7 @@ import { AuthRequest } from '../types/auth';
 import { authService } from '../services/auth.service';
 import notificationService from '../services/notification.service';
 import { z } from 'zod';
+import prisma from '../utils/prisma';
 import env from '../config/env';
 import { trackLoginAttempt, checkAccountLockout } from '../middlewares/rate-limit.middleware';
 
@@ -85,7 +86,6 @@ export async function adminLogin(req: AuthRequest, res: Response) {
         }
 
         // First, verify the user exists and has admin role
-        const prisma = (await import('../utils/prisma')).default;
         const user = await prisma.user.findUnique({
             where: { email: body.email },
             select: {

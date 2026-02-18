@@ -49,6 +49,7 @@ export interface Notice {
     targetCities?: number[];
     viewCount: number;
     readCount: number;
+    displayOrder: number;
     createdBy: number;
     creator?: {
         id: number;

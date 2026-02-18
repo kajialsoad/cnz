@@ -9,6 +9,7 @@ export interface WastePost {
     imageUrl: string | null;
     category: 'CURRENT_WASTE' | 'FUTURE_WASTE';
     status: 'DRAFT' | 'PUBLISHED';
+    displayOrder: number;
     createdBy: number;
     publishedAt: string | null;
     createdAt: string;
@@ -117,6 +118,11 @@ class WasteManagementService {
     // Admin: Delete post
     async deletePost(postId: number): Promise<void> {
         await this.apiClient.delete(`${this.baseUrl}/admin/posts/${postId}`);
+    }
+
+    // Admin: Reorder posts
+    async reorder(orders: Array<{ id: number; displayOrder: number }>): Promise<void> {
+        await this.apiClient.post(`${this.baseUrl}/admin/posts/reorder`, { orders });
     }
 
     // User: Get published posts

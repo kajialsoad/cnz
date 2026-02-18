@@ -8,7 +8,7 @@
  * - Analytics tracking
  */
 
-import { PrismaClient, ChatType } from '@prisma/client';
+import { ChatType } from '@prisma/client';
 import {
     BotMessage,
     BotTriggerRule,
@@ -26,7 +26,7 @@ import {
     UpdateTriggerRulesInput
 } from '../types/bot-message.types';
 
-const prisma = new PrismaClient();
+import prisma from '../utils/prisma';
 
 export class BotMessageService {
     /**

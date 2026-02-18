@@ -1,6 +1,5 @@
-import { PrismaClient, ZoneStatus } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { ZoneStatus } from '@prisma/client';
+import prisma from '../utils/prisma';
 
 interface CreateZoneDto {
     zoneNumber: number; // 1-20

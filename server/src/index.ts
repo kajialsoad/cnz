@@ -1,9 +1,7 @@
 import app from './app';
 import env from './config/env';
-import { PrismaClient } from '@prisma/client';
+import prisma from './utils/prisma';
 import { initCronJobs } from './utils/cron';
-
-const prisma = new PrismaClient();
 
 async function start() {
   try {

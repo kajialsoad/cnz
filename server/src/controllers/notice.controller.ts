@@ -18,6 +18,21 @@ export async function createNotice(req: Request, res: Response) {
     }
 }
 
+// Admin: Reorder notices
+export async function reorderNotices(req: Request, res: Response) {
+    try {
+        const { orders } = req.body;
+        if (!Array.isArray(orders)) {
+            return res.status(400).json({ error: 'orders must be an array' });
+        }
+        const result = await noticeService.reorderNotices(orders);
+        res.json(result);
+    } catch (error: any) {
+        console.error('Reorder notices error:', error);
+        res.status(500).json({ error: error.message });
+    }
+}
+
 // Admin: Get all notices
 export async function getAllNotices(req: Request, res: Response) {
     try {
