@@ -450,9 +450,11 @@ const Home = () => {
               </Grid>
               <Grid size={{ xs: 12, md: 4 }} sx={{ textAlign: { md: 'center' } }}>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, alignItems: { md: 'center' } }}>
-                  <Typography component="a" href="/" sx={{ color: 'inherit', textDecoration: 'none' }}>Home</Typography>
-                  <Typography component="a" href="/about" sx={{ color: 'inherit', textDecoration: 'none' }}>About Us</Typography>
-                  <Typography component="a" href="/blog" sx={{ color: 'inherit', textDecoration: 'none' }}>Blog</Typography>
+                  <Typography component="a" href={import.meta.env.BASE_URL} sx={{ color: 'inherit', textDecoration: 'none' }}>Home</Typography>
+                  <Typography component="a" href={`${import.meta.env.BASE_URL}about`} sx={{ color: 'inherit', textDecoration: 'none' }}>About Us</Typography>
+                  <Typography component="a" href={`${import.meta.env.BASE_URL}blog`} sx={{ color: 'inherit', textDecoration: 'none' }}>Blog</Typography>
+                  <Typography component="a" href={`${import.meta.env.BASE_URL}user-privacy-policy.html`} sx={{ color: 'inherit', textDecoration: 'none' }}>User Privacy Policy</Typography>
+                  <Typography component="a" href={`${import.meta.env.BASE_URL}admin-privacy-policy.html`} sx={{ color: 'inherit', textDecoration: 'none' }}>Admin Privacy Policy</Typography>
                 </Box>
               </Grid>
               <Grid size={{ xs: 12, md: 4 }} sx={{ textAlign: { md: 'right' } }}>

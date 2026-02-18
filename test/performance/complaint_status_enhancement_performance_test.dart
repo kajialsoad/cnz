@@ -140,13 +140,7 @@ Future<PerformanceTestResult> measureWidgetBuildTime({
   return measurePerformance(
     name: name,
     operation: () async {
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: widget,
-          ),
-        ),
-      );
+      await tester.pumpWidget(MaterialApp(home: Scaffold(body: widget)));
     },
     iterations: iterations,
     threshold: threshold,
@@ -249,8 +243,8 @@ void main() {
                   index == 0
                       ? Icons.check_circle
                       : index == 1
-                          ? Icons.hourglass_empty
-                          : Icons.pending,
+                      ? Icons.hourglass_empty
+                      : Icons.pending,
                 ),
               ),
               title: Text('Status ${index + 1}'),
@@ -283,11 +277,8 @@ void main() {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: List.generate(
                     5,
-                    (index) => Icon(
-                      Icons.star_border,
-                      size: 40,
-                      color: Colors.amber,
-                    ),
+                    (index) =>
+                        Icon(Icons.star_border, size: 40, color: Colors.amber),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -302,10 +293,7 @@ void main() {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    TextButton(
-                      onPressed: () {},
-                      child: const Text('Cancel'),
-                    ),
+                    TextButton(onPressed: () {}, child: const Text('Cancel')),
                     const SizedBox(width: 8),
                     ElevatedButton(
                       onPressed: () {},
@@ -318,7 +306,7 @@ void main() {
           ),
         ),
         iterations: 10,
-        threshold: kPerformanceThresholds['reviewModalRender'],
+        threshold: kPerformanceThresholds['reviewModalRender']?.toDouble(),
       );
       results.add(reviewModalResult);
       print('  ${reviewModalResult.toString()}\n');
@@ -354,7 +342,8 @@ void main() {
       }
 
       frameTimes.sort();
-      final avgFrameTime = frameTimes.reduce((a, b) => a + b) / frameTimes.length;
+      final avgFrameTime =
+          frameTimes.reduce((a, b) => a + b) / frameTimes.length;
       final frameResult = PerformanceTestResult(
         name: 'Frame Render Time (Scrolling)',
         avgMs: avgFrameTime,
@@ -363,8 +352,10 @@ void main() {
         medianMs: frameTimes[frameTimes.length ~/ 2],
         p95Ms: frameTimes[(frameTimes.length * 0.95).floor()],
         iterations: frameTimes.length,
-        threshold: kPerformanceThresholds['frameRenderTime'],
-        passed: avgFrameTime <= kPerformanceThresholds['frameRenderTime']!,
+        threshold: kPerformanceThresholds['frameRenderTime']?.toDouble(),
+        passed:
+            avgFrameTime <=
+            (kPerformanceThresholds['frameRenderTime'] ?? 0).toDouble(),
       );
       results.add(frameResult);
       print('  ${frameResult.toString()}\n');
@@ -388,7 +379,9 @@ void main() {
       print('-' * 90);
 
       for (final result in results) {
-        final thresholdStr = result.threshold != null ? '${result.threshold}ms' : 'N/A';
+        final thresholdStr = result.threshold != null
+            ? '${result.threshold}ms'
+            : 'N/A';
         final status = result.passed ? '✅ PASS' : '⚠️  SLOW';
 
         print(
@@ -418,8 +411,10 @@ void main() {
         print('\n⚠️  SLOW TESTS (exceeded thresholds):');
         for (final result in slowTests) {
           final percentage = ((result.avgMs / result.threshold!) * 100).round();
-          print('  - ${result.name}: ${result.avgMs.toStringAsFixed(1)}ms '
-              '($percentage% of ${result.threshold}ms threshold)');
+          print(
+            '  - ${result.name}: ${result.avgMs.toStringAsFixed(1)}ms '
+            '($percentage% of ${result.threshold}ms threshold)',
+          );
         }
       }
 
@@ -438,8 +433,11 @@ void main() {
       print('\n✨ Performance testing completed!\n');
 
       // Verify all tests passed
-      expect(slowTests.isEmpty, true,
-          reason: 'Some tests exceeded performance thresholds');
+      expect(
+        slowTests.isEmpty,
+        true,
+        reason: 'Some tests exceeded performance thresholds',
+      );
     });
   });
 }

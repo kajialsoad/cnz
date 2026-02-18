@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Typography, Container, Grid, Paper, Button, Card, CardMedia, CardContent, CardActions } from '@mui/material';
+import { Box, Typography, Container, Grid, Paper, Button, Card, CardMedia, CardContent, CardActions, Divider } from '@mui/material';
 import PublicNavbar from '../../components/layout/PublicNavbar';
 import logoImage from '../../assets/images/logo_clean_c.png';
 import { ArrowForward } from '@mui/icons-material';
@@ -165,6 +165,14 @@ const Blog = () => {
             <Box sx={{ textAlign: 'center', mb: 4 }}>
               <Typography variant="h5" color="white" gutterBottom fontWeight="bold">Together for a Cleaner Dhaka and a Sustainable Bangladesh.</Typography>
               <Typography variant="body1">পরিবর্তন আজই শুরু হোক—আমাদের সবার অংশগ্রহণে।</Typography>
+            </Box>
+            <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)', mb: 3 }} />
+            <Box sx={{ display: 'flex', justifyContent: 'center', gap: 3, flexWrap: 'wrap' }}>
+              <Typography component="a" href={import.meta.env.BASE_URL} sx={{ color: 'inherit', textDecoration: 'none' }}>Home</Typography>
+              <Typography component="a" href={`${import.meta.env.BASE_URL}about`} sx={{ color: 'inherit', textDecoration: 'none' }}>About Us</Typography>
+              <Typography component="a" href={`${import.meta.env.BASE_URL}blog`} sx={{ color: 'inherit', textDecoration: 'none' }}>Blog</Typography>
+              <Typography component="a" href={`${import.meta.env.BASE_URL}user-privacy-policy.html`} sx={{ color: 'inherit', textDecoration: 'none' }}>User Privacy Policy</Typography>
+              <Typography component="a" href={`${import.meta.env.BASE_URL}admin-privacy-policy.html`} sx={{ color: 'inherit', textDecoration: 'none' }}>Admin Privacy Policy</Typography>
             </Box>
           </motion.div>
         </Container>

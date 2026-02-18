@@ -1,4 +1,4 @@
-package com.example.clean_care_mobile_app
+package com.cleancaresupport.app
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -30,6 +30,7 @@ const PublicNavbar = () => {
             <Button color="inherit" onClick={() => navigate('/home')}>Home</Button>
             <Button color="inherit" onClick={() => navigate('/about')}>About</Button>
             <Button color="inherit" onClick={() => navigate('/blog')}>Blog</Button>
+            <Button color="inherit" component="a" href={`${import.meta.env.BASE_URL}user-privacy-policy.html`}>User Privacy</Button>
             <Button 
               variant="contained" 
               color="success" 
