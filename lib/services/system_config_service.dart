@@ -10,6 +10,9 @@ class SystemConfigService {
   // Cache keys
   static const String _dailyComplaintLimitKey = 'daily_complaint_limit';
   static const String _wardImageLimitKey = 'ward_image_limit';
+  static const String _verificationSmsEnabledKey = 'verification_sms_enabled';
+  static const String _verificationWhatsappEnabledKey = 'verification_whatsapp_enabled';
+  static const String _verificationTruecallerEnabledKey = 'verification_truecaller_enabled';
 
   SystemConfigService(this._apiClient);
 
@@ -71,6 +74,9 @@ class SystemConfigService {
     return {
       _dailyComplaintLimitKey: sp.getString('config_$_dailyComplaintLimitKey') ?? '20',
       _wardImageLimitKey: sp.getString('config_$_wardImageLimitKey') ?? '10',
+      _verificationSmsEnabledKey: sp.getString('config_$_verificationSmsEnabledKey') ?? 'true',
+      _verificationWhatsappEnabledKey: sp.getString('config_$_verificationWhatsappEnabledKey') ?? 'true',
+      _verificationTruecallerEnabledKey: sp.getString('config_$_verificationTruecallerEnabledKey') ?? 'false',
     };
   }
 }

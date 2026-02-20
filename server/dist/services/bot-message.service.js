@@ -8,10 +8,12 @@
  * - Bot message retrieval
  * - Analytics tracking
  */
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.botMessageService = exports.BotMessageService = void 0;
-const client_1 = require("@prisma/client");
-const prisma = new client_1.PrismaClient();
+const prisma_1 = __importDefault(require("../utils/prisma"));
 class BotMessageService {
     /**
      * Check if bot should send a message
@@ -228,7 +230,7 @@ class BotMessageService {
      */
     async getBotMessageByStep(chatType, stepNumber) {
         try {
-            const message = await prisma.botMessageConfig.findFirst({
+            const message = await prisma_1.default.botMessageConfig.findFirst({
                 where: {
                     chatType,
                     stepNumber,
@@ -254,7 +256,7 @@ class BotMessageService {
      */
     async getConversationState(chatType, conversationId) {
         try {
-            const state = await prisma.botConversationState.findUnique({
+            const state = await prisma_1.default.botConversationState.findUnique({
                 where: {
                     chatType_conversationId: {
                         chatType,
@@ -277,7 +279,7 @@ class BotMessageService {
      */
     async createConversationState(input) {
         try {
-            const state = await prisma.botConversationState.create({
+            const state = await prisma_1.default.botConversationState.create({
                 data: {
                     chatType: input.chatType,
                     conversationId: input.conversationId,
@@ -302,7 +304,7 @@ class BotMessageService {
      */
     async updateConversationState(stateId, input) {
         try {
-            const state = await prisma.botConversationState.update({
+            const state = await prisma_1.default.botConversationState.update({
                 where: { id: stateId },
                 data: input
             });
@@ -321,7 +323,7 @@ class BotMessageService {
      */
     async getTriggerRules(chatType) {
         try {
-            const rules = await prisma.botTriggerRule.findUnique({
+            const rules = await prisma_1.default.botTriggerRule.findUnique({
                 where: { chatType }
             });
             return rules;
@@ -340,7 +342,7 @@ class BotMessageService {
      */
     async updateTriggerRules(chatType, input) {
         try {
-            const rules = await prisma.botTriggerRule.upsert({
+            const rules = await prisma_1.default.botTriggerRule.upsert({
                 where: { chatType },
                 update: input,
                 create: {
@@ -365,7 +367,7 @@ class BotMessageService {
      */
     async getBotMessages(chatType) {
         try {
-            const messages = await prisma.botMessageConfig.findMany({
+            const messages = await prisma_1.default.botMessageConfig.findMany({
                 where: { chatType },
                 orderBy: [
                     { displayOrder: 'asc' },
@@ -387,7 +389,7 @@ class BotMessageService {
      */
     async createBotMessage(input) {
         try {
-            const message = await prisma.botMessageConfig.create({
+            const message = await prisma_1.default.botMessageConfig.create({
                 data: {
                     chatType: input.chatType,
                     messageKey: input.messageKey,
@@ -414,7 +416,7 @@ class BotMessageService {
      */
     async updateBotMessage(messageId, input) {
         try {
-            const message = await prisma.botMessageConfig.update({
+            const message = await prisma_1.default.botMessageConfig.update({
                 where: { id: messageId },
                 data: input
             });
@@ -432,7 +434,7 @@ class BotMessageService {
      */
     async deleteBotMessage(messageId) {
         try {
-            await prisma.botMessageConfig.delete({
+            await prisma_1.default.botMessageConfig.delete({
                 where: { id: messageId }
             });
         }
@@ -453,7 +455,7 @@ class BotMessageService {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             // Find existing analytics record for today
-            const existing = await prisma.botMessageAnalytics.findFirst({
+            const existing = await prisma_1.default.botMessageAnalytics.findFirst({
                 where: {
                     chatType,
                     messageKey,
@@ -465,7 +467,7 @@ class BotMessageService {
             });
             if (existing) {
                 // Update existing record
-                await prisma.botMessageAnalytics.update({
+                await prisma_1.default.botMessageAnalytics.update({
                     where: { id: existing.id },
                     data: {
                         triggerCount: {
@@ -476,7 +478,7 @@ class BotMessageService {
             }
             else {
                 // Create new record
-                await prisma.botMessageAnalytics.create({
+                await prisma_1.default.botMessageAnalytics.create({
                     data: {
                         chatType,
                         messageKey,
@@ -504,7 +506,7 @@ class BotMessageService {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             // Find the analytics record for the current step
-            const analytics = await prisma.botMessageAnalytics.findFirst({
+            const analytics = await prisma_1.default.botMessageAnalytics.findFirst({
                 where: {
                     chatType,
                     stepNumber: currentStep,
@@ -512,7 +514,7 @@ class BotMessageService {
                 }
             });
             if (analytics) {
-                await prisma.botMessageAnalytics.update({
+                await prisma_1.default.botMessageAnalytics.update({
                     where: { id: analytics.id },
                     data: {
                         adminReplyCount: {
@@ -548,7 +550,7 @@ class BotMessageService {
                     where.date.lte = query.endDate;
                 }
             }
-            const analytics = await prisma.botMessageAnalytics.findMany({
+            const analytics = await prisma_1.default.botMessageAnalytics.findMany({
                 where
             });
             // Calculate aggregated metrics

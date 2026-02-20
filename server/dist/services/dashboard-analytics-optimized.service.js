@@ -4,13 +4,16 @@
  * Uses single queries with groupBy instead of multiple count queries
  * Implements Redis caching for frequently accessed data
  */
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getDashboardStats = getDashboardStats;
 exports.getComplaintTrends = getComplaintTrends;
 exports.invalidateDashboardCache = invalidateDashboardCache;
 const client_1 = require("@prisma/client");
 const redis_cache_production_1 = require("../config/redis-cache-production");
-const prisma = new client_1.PrismaClient();
+const prisma_1 = __importDefault(require("../utils/prisma"));
 /**
  * Get dashboard statistics with optimized queries and caching
  */
@@ -40,15 +43,15 @@ async function getDashboardStats(filters) {
         // OPTIMIZED: Single query with groupBy instead of 5 separate count queries
         const [userCount, complaintStats, resolutionData] = await Promise.all([
             // User count
-            prisma.user.count({ where: userWhere }),
+            prisma_1.default.user.count({ where: userWhere }),
             // Complaint counts grouped by status (1 query instead of 5)
-            prisma.complaint.groupBy({
+            prisma_1.default.complaint.groupBy({
                 by: ['status'],
                 where: complaintWhere,
                 _count: { id: true },
             }),
             // Resolution time calculation (optimized with database aggregation)
-            prisma.complaint.aggregate({
+            prisma_1.default.complaint.aggregate({
                 where: {
                     ...complaintWhere,
                     status: client_1.Complaint_status.RESOLVED,
@@ -80,7 +83,7 @@ async function getDashboardStats(filters) {
         // In production, consider adding a computed column in database
         let averageResolutionTime = 0;
         if (resolvedComplaints > 0) {
-            const resolvedComplaintsData = await prisma.complaint.findMany({
+            const resolvedComplaintsData = await prisma_1.default.complaint.findMany({
                 where: {
                     ...complaintWhere,
                     status: client_1.Complaint_status.RESOLVED,
@@ -151,7 +154,7 @@ async function getComplaintTrends(filters, period = 'week') {
             complaintWhere.user = userWhere;
         }
         // Fetch complaints
-        const complaints = await prisma.complaint.findMany({
+        const complaints = await prisma_1.default.complaint.findMany({
             where: complaintWhere,
             select: {
                 createdAt: true,

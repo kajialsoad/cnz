@@ -1,6 +1,7 @@
 import jwt, { Secret, SignOptions } from 'jsonwebtoken';
 import env from '../config/env';
 import prisma from './prisma';
+import { systemConfigService } from '../services/system-config.service';
 
 export interface JwtPayload {
   id: number;
@@ -82,6 +83,21 @@ export function generateOTP(length: number = 6): string {
     otp += digits[Math.floor(Math.random() * digits.length)];
   }
   return otp;
+}
+
+/**
+ * Async wrapper for generating OTP to support dynamic length from DB
+ */
+export async function generateDynamicOTP(): Promise<string> {
+  let length = 6;
+  try {
+    const lengthStr = await systemConfigService.get('verification_code_length', process.env.VERIFICATION_CODE_LENGTH || '6');
+    length = parseInt(lengthStr, 10);
+    if (isNaN(length) || length < 4 || length > 10) length = 6;
+  } catch (e) {
+    console.warn('Failed to fetch OTP length config, using default 6');
+  }
+  return generateOTP(length);
 }
 
 /**

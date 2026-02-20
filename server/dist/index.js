@@ -5,18 +5,17 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const app_1 = __importDefault(require("./app"));
 const env_1 = __importDefault(require("./config/env"));
-const client_1 = require("@prisma/client");
+const prisma_1 = __importDefault(require("./utils/prisma"));
 const cron_1 = require("./utils/cron");
-const prisma = new client_1.PrismaClient();
 async function start() {
     try {
         console.log('🚀 Starting Clean Care API Server...');
         if (!env_1.default.DEMO_MODE) {
-            await prisma.$connect();
+            await prisma_1.default.$connect();
             console.log('✅ Database connected');
             // Cleanup INACTIVE users (fix unique constraint violation)
             console.log('🧹 Cleaning up INACTIVE users...');
-            const inactiveUsers = await prisma.user.findMany({
+            const inactiveUsers = await prisma_1.default.user.findMany({
                 where: { status: 'INACTIVE' },
             });
             let updatedCount = 0;
@@ -34,7 +33,7 @@ async function start() {
                 }
                 if (updated) {
                     try {
-                        await prisma.user.update({
+                        await prisma_1.default.user.update({
                             where: { id: user.id },
                             data: updateData,
                         });

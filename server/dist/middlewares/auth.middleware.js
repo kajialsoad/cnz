@@ -5,6 +5,7 @@ exports.authGuard = authGuard;
 exports.rbacGuard = rbacGuard;
 exports.optionalAuth = optionalAuth;
 exports.createRateLimiter = createRateLimiter;
+exports.createPhoneRateLimiter = createPhoneRateLimiter;
 exports.createEmailRateLimiter = createEmailRateLimiter;
 exports.createCodeRateLimiter = createCodeRateLimiter;
 exports.cityCorporationGuard = cityCorporationGuard;
@@ -114,6 +115,35 @@ function createRateLimiter(windowMs, max, message) {
     const requests = new Map();
     return (req, res, next) => {
         const key = req.ip || 'unknown';
+        const now = Date.now();
+        const current = requests.get(key);
+        if (!current || now > current.resetTime) {
+            requests.set(key, { count: 1, resetTime: now + windowMs });
+            return next();
+        }
+        if (current.count >= max) {
+            return res.status(429).json({
+                success: false,
+                message,
+                retryAfter: Math.ceil((current.resetTime - now) / 1000)
+            });
+        }
+        current.count++;
+        next();
+    };
+}
+// Phone-based rate limiting middleware
+function createPhoneRateLimiter(windowMs, max, message) {
+    const requests = new Map();
+    return (req, res, next) => {
+        const phone = req.body?.phone || req.query?.phone;
+        if (!phone) {
+            return res.status(400).json({
+                success: false,
+                message: 'Phone number is required'
+            });
+        }
+        const key = String(phone);
         const now = Date.now();
         const current = requests.get(key);
         if (!current || now > current.resetTime) {

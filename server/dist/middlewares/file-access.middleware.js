@@ -5,13 +5,15 @@
  * This middleware provides authorization checks before allowing access to file URLs.
  * It ensures users can only access files they have permission to view.
  */
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.checkComplaintFileAccess = checkComplaintFileAccess;
 exports.checkChatFileAccess = checkChatFileAccess;
 exports.validateCloudinaryUrls = validateCloudinaryUrls;
 exports.ensureHttpsUrls = ensureHttpsUrls;
-const client_1 = require("@prisma/client");
-const prisma = new client_1.PrismaClient();
+const prisma_1 = __importDefault(require("../utils/prisma"));
 /**
  * Check if user has access to a complaint's files
  *
@@ -40,7 +42,7 @@ async function checkComplaintFileAccess(req, res, next) {
             return next();
         }
         // Regular users can only access their own complaint files
-        const complaint = await prisma.complaint.findUnique({
+        const complaint = await prisma_1.default.complaint.findUnique({
             where: { id: complaintId },
             select: { userId: true }
         });
@@ -94,7 +96,7 @@ async function checkChatFileAccess(req, res, next) {
             return next();
         }
         // Regular users can only access files from their own complaints
-        const message = await prisma.complaintChatMessage.findUnique({
+        const message = await prisma_1.default.complaintChatMessage.findUnique({
             where: { id: messageId },
             include: {
                 complaint: {

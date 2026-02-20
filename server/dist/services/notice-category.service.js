@@ -1,11 +1,13 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-const client_1 = require("@prisma/client");
-const prisma = new client_1.PrismaClient();
+const prisma_1 = __importDefault(require("../utils/prisma"));
 class NoticeCategoryService {
     // Create category
     async createCategory(data) {
-        return await prisma.noticeCategory.create({
+        return await prisma_1.default.noticeCategory.create({
             data,
             include: {
                 parent: true,
@@ -16,7 +18,7 @@ class NoticeCategoryService {
     // Get all categories
     async getAllCategories(includeInactive = false) {
         const where = includeInactive ? {} : { isActive: true };
-        return await prisma.noticeCategory.findMany({
+        return await prisma_1.default.noticeCategory.findMany({
             where,
             include: {
                 parent: true,
@@ -34,7 +36,7 @@ class NoticeCategoryService {
     }
     // Get category tree (hierarchical)
     async getCategoryTree() {
-        const categories = await prisma.noticeCategory.findMany({
+        const categories = await prisma_1.default.noticeCategory.findMany({
             where: {
                 isActive: true,
                 parentId: null,
@@ -64,7 +66,7 @@ class NoticeCategoryService {
     }
     // Get category by ID
     async getCategoryById(id) {
-        return await prisma.noticeCategory.findUnique({
+        return await prisma_1.default.noticeCategory.findUnique({
             where: { id },
             include: {
                 parent: true,
@@ -79,7 +81,7 @@ class NoticeCategoryService {
     }
     // Update category
     async updateCategory(id, data) {
-        return await prisma.noticeCategory.update({
+        return await prisma_1.default.noticeCategory.update({
             where: { id },
             data,
             include: {
@@ -91,29 +93,29 @@ class NoticeCategoryService {
     // Delete category
     async deleteCategory(id) {
         // Check if category has notices
-        const noticeCount = await prisma.notice.count({
+        const noticeCount = await prisma_1.default.notice.count({
             where: { categoryId: id },
         });
         if (noticeCount > 0) {
             throw new Error('Cannot delete category with existing notices');
         }
         // Check if category has children
-        const childrenCount = await prisma.noticeCategory.count({
+        const childrenCount = await prisma_1.default.noticeCategory.count({
             where: { parentId: id },
         });
         if (childrenCount > 0) {
             throw new Error('Cannot delete category with subcategories');
         }
-        return await prisma.noticeCategory.delete({
+        return await prisma_1.default.noticeCategory.delete({
             where: { id },
         });
     }
     // Toggle category status
     async toggleCategoryStatus(id) {
-        const category = await prisma.noticeCategory.findUnique({ where: { id } });
+        const category = await prisma_1.default.noticeCategory.findUnique({ where: { id } });
         if (!category)
             throw new Error('Category not found');
-        return await prisma.noticeCategory.update({
+        return await prisma_1.default.noticeCategory.update({
             where: { id },
             data: { isActive: !category.isActive },
         });

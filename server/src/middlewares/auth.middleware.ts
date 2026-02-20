@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyAccessToken, JwtPayload, validateUserSession, isTokenExpired } from '../utils/jwt';
+import { systemConfigService } from '../services/system-config.service';
 
 export interface AuthRequest extends Request {
   user?: JwtPayload;
@@ -142,11 +143,87 @@ export function createRateLimiter(windowMs: number, max: number, message: string
   };
 }
 
-// Email-based rate limiting middleware for verification code requests
-export function createEmailRateLimiter(windowMs: number, max: number, message: string) {
+// Phone-based rate limiting middleware
+export function createPhoneRateLimiter(windowMs: number, max: number, message: string, configType?: 'request' | 'attempt') {
   const requests = new Map<string, { count: number; resetTime: number }>();
 
-  return (req: Request, res: Response, next: NextFunction) => {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    let dynamicMax = max;
+    let dynamicWindowMs = windowMs;
+
+    try {
+        if (configType) {
+            const windowStr = await systemConfigService.get('verification_request_window_minutes');
+            if (windowStr) dynamicWindowMs = parseInt(windowStr, 10) * 60 * 1000;
+
+            if (configType === 'request') {
+                const limitStr = await systemConfigService.get('verification_request_limit');
+                if (limitStr) dynamicMax = parseInt(limitStr, 10);
+            } else if (configType === 'attempt') {
+                const limitStr = await systemConfigService.get('verification_attempt_limit');
+                if (limitStr) dynamicMax = parseInt(limitStr, 10);
+            }
+        }
+    } catch (e) {
+        // Fallback to static defaults
+    }
+
+    const phone = req.body?.phone || req.query?.phone;
+
+    if (!phone) {
+      return res.status(400).json({
+        success: false,
+        message: 'Phone number is required'
+      });
+    }
+
+    const key = String(phone);
+    const now = Date.now();
+
+    const current = requests.get(key);
+    if (!current || now > current.resetTime) {
+      requests.set(key, { count: 1, resetTime: now + dynamicWindowMs });
+      return next();
+    }
+
+    if (current.count >= dynamicMax) {
+      return res.status(429).json({
+        success: false,
+        message,
+        retryAfter: Math.ceil((current.resetTime - now) / 1000)
+      });
+    }
+
+    current.count++;
+    next();
+  };
+}
+
+// Email-based rate limiting middleware for verification code requests
+export function createEmailRateLimiter(windowMs: number, max: number, message: string, configType?: 'request' | 'attempt') {
+  const requests = new Map<string, { count: number; resetTime: number }>();
+
+  return async (req: Request, res: Response, next: NextFunction) => {
+    let dynamicMax = max;
+    let dynamicWindowMs = windowMs;
+
+    try {
+        if (configType) {
+            const windowStr = await systemConfigService.get('verification_request_window_minutes');
+            if (windowStr) dynamicWindowMs = parseInt(windowStr, 10) * 60 * 1000;
+
+            if (configType === 'request') {
+                const limitStr = await systemConfigService.get('verification_request_limit');
+                if (limitStr) dynamicMax = parseInt(limitStr, 10);
+            } else if (configType === 'attempt') {
+                const limitStr = await systemConfigService.get('verification_attempt_limit');
+                if (limitStr) dynamicMax = parseInt(limitStr, 10);
+            }
+        }
+    } catch (e) {
+        // Fallback to static defaults
+    }
+
     const email = req.body?.email || req.query?.email;
 
     if (!email) {
@@ -161,11 +238,11 @@ export function createEmailRateLimiter(windowMs: number, max: number, message: s
 
     const current = requests.get(key);
     if (!current || now > current.resetTime) {
-      requests.set(key, { count: 1, resetTime: now + windowMs });
+      requests.set(key, { count: 1, resetTime: now + dynamicWindowMs });
       return next();
     }
 
-    if (current.count >= max) {
+    if (current.count >= dynamicMax) {
       return res.status(429).json({
         success: false,
         message,
@@ -179,10 +256,30 @@ export function createEmailRateLimiter(windowMs: number, max: number, message: s
 }
 
 // Code-based rate limiting middleware for verification attempts
-export function createCodeRateLimiter(windowMs: number, max: number, message: string) {
+export function createCodeRateLimiter(windowMs: number, max: number, message: string, configType?: 'request' | 'attempt') {
   const requests = new Map<string, { count: number; resetTime: number }>();
 
-  return (req: Request, res: Response, next: NextFunction) => {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    let dynamicMax = max;
+    let dynamicWindowMs = windowMs;
+
+    try {
+        if (configType) {
+            const windowStr = await systemConfigService.get('verification_request_window_minutes');
+            if (windowStr) dynamicWindowMs = parseInt(windowStr, 10) * 60 * 1000;
+
+            if (configType === 'request') {
+                const limitStr = await systemConfigService.get('verification_request_limit');
+                if (limitStr) dynamicMax = parseInt(limitStr, 10);
+            } else if (configType === 'attempt') {
+                const limitStr = await systemConfigService.get('verification_attempt_limit');
+                if (limitStr) dynamicMax = parseInt(limitStr, 10);
+            }
+        }
+    } catch (e) {
+        // Fallback to static defaults
+    }
+
     const email = req.body?.email;
 
     if (!email) {
@@ -197,11 +294,11 @@ export function createCodeRateLimiter(windowMs: number, max: number, message: st
 
     const current = requests.get(key);
     if (!current || now > current.resetTime) {
-      requests.set(key, { count: 1, resetTime: now + windowMs });
+      requests.set(key, { count: 1, resetTime: now + dynamicWindowMs });
       return next();
     }
 
-    if (current.count >= max) {
+    if (current.count >= dynamicMax) {
       return res.status(429).json({
         success: false,
         message,

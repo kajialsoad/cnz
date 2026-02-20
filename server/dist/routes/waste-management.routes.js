@@ -6,6 +6,7 @@ const auth_middleware_1 = require("../middlewares/auth.middleware");
 const router = (0, express_1.Router)();
 // Admin routes (must come before public /posts/:id to avoid route collision)
 router.get('/admin/posts', auth_middleware_1.authGuard, waste_management_controller_1.wasteManagementController.getAllPostsForAdmin.bind(waste_management_controller_1.wasteManagementController));
+router.post('/admin/posts/reorder', auth_middleware_1.authGuard, waste_management_controller_1.wasteManagementController.reorder.bind(waste_management_controller_1.wasteManagementController));
 router.post('/admin/posts', auth_middleware_1.authGuard, waste_management_controller_1.wasteManagementController.createPost.bind(waste_management_controller_1.wasteManagementController));
 router.put('/admin/posts/:id', auth_middleware_1.authGuard, waste_management_controller_1.wasteManagementController.updatePost.bind(waste_management_controller_1.wasteManagementController));
 router.post('/admin/posts/:id/publish', auth_middleware_1.authGuard, waste_management_controller_1.wasteManagementController.publishPost.bind(waste_management_controller_1.wasteManagementController));

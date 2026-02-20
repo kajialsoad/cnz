@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { authService } from '../services/auth.service';
 import { validateInput } from '../utils/validation';
 import { registerSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema } from '../utils/validation';
-import { createRateLimiter, createEmailRateLimiter, createCodeRateLimiter } from '../middlewares/auth.middleware';
+import { createRateLimiter, createEmailRateLimiter, createCodeRateLimiter, createPhoneRateLimiter } from '../middlewares/auth.middleware';
 import { loginRateLimit } from '../middlewares/rate-limit.middleware';
 import * as authController from '../controllers/auth.controller';
 
@@ -14,10 +14,14 @@ const registrationRateLimiter = createRateLimiter(60 * 60 * 1000, 50, 'Too many 
 
 // Email verification rate limiters
 // 3 requests per 15 minutes per email for resend verification
-const resendVerificationRateLimiter = createEmailRateLimiter(15 * 60 * 1000, 3, 'Too many verification code requests. Please try again in 15 minutes.');
+const resendVerificationRateLimiter = createEmailRateLimiter(15 * 60 * 1000, 3, 'Too many verification code requests. Please try again in 15 minutes.', 'request');
 
 // 5 attempts per 15 minutes per email for verification
-const verifyEmailRateLimiter = createCodeRateLimiter(15 * 60 * 1000, 5, 'Too many verification attempts. Please try again in 15 minutes.');
+const verifyEmailRateLimiter = createCodeRateLimiter(15 * 60 * 1000, 5, 'Too many verification attempts. Please try again in 15 minutes.', 'attempt');
+
+// Phone verification rate limiters
+const resendPhoneVerificationRateLimiter = createPhoneRateLimiter(15 * 60 * 1000, 3, 'Too many verification code requests. Please try again in 15 minutes.', 'request');
+const verifyPhoneRateLimiter = createPhoneRateLimiter(15 * 60 * 1000, 5, 'Too many verification attempts. Please try again in 15 minutes.', 'attempt');
 
 // Register endpoint
 router.post('/register', registrationRateLimiter, async (req, res) => {
@@ -193,32 +197,8 @@ router.post('/reset-password', async (req, res) => {
   }
 });
 
-// Verify email with OTP code endpoint
-router.post('/verify-email-code', async (req, res) => {
-  try {
-    const { email, code } = req.body;
-    if (!email || !code) {
-      return res.status(400).json({
-        success: false,
-        message: 'Email and verification code are required'
-      });
-    }
-
-    const result = await authService.verifyEmailWithCode(email, code);
-    res.json(result);
-  } catch (error) {
-    if (error instanceof Error) {
-      return res.status(400).json({
-        success: false,
-        message: error.message
-      });
-    }
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error'
-    });
-  }
-});
+// Verify email with OTP code endpoint (Moved to use controller below)
+// router.post('/verify-email-code', ...); 
 
 // Verify email endpoint (legacy - for backward compatibility)
 router.get('/verify-email', async (req, res) => {
@@ -279,6 +259,13 @@ router.post('/verify-email-code', verifyEmailRateLimiter, authController.verifyE
 
 // Resend verification code endpoint
 router.post('/resend-verification-code', resendVerificationRateLimiter, authController.resendVerificationCode);
+
+// Phone verification endpoints
+router.post('/verify-phone-code', verifyPhoneRateLimiter, authController.verifyPhoneWithCode);
+router.post('/resend-phone-code', resendPhoneVerificationRateLimiter, authController.resendPhoneVerificationCode);
+
+// Verify Registration endpoint (Finalizes user creation)
+router.post('/verify-registration', verifyPhoneRateLimiter, authController.verifyRegistration);
 
 // Test email service connection endpoint (for development/testing)
 router.get('/test-email', async (req, res) => {

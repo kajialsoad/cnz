@@ -10,6 +10,7 @@ const jwt_1 = require("../utils/jwt");
 const email_1 = __importDefault(require("../utils/email"));
 const env_1 = __importDefault(require("../config/env"));
 const city_corporation_service_1 = __importDefault(require("./city-corporation.service"));
+const sms_service_1 = __importDefault(require("./sms.service"));
 // import thanaService from './thana.service'; // Thana service disabled - using Zone/Ward now
 const zone_service_1 = __importDefault(require("./zone.service"));
 const ward_service_1 = __importDefault(require("./ward.service"));
@@ -94,6 +95,8 @@ class AuthService {
         const verificationToken = (0, jwt_1.generateSecureToken)();
         const verificationCode = (0, jwt_1.generateOTP)(6); // Generate 6-digit OTP
         const emailVerificationEnabled = env_1.default.EMAIL_VERIFICATION_ENABLED;
+        const phoneVerificationEnabled = env_1.default.PHONE_VERIFICATION_ENABLED;
+        const verificationRequired = emailVerificationEnabled || phoneVerificationEnabled;
         const user = await prisma_1.default.user.create({
             data: {
                 email: input.email,
@@ -108,15 +111,16 @@ class AuthService {
                 wardId: input.wardId,
                 wardImageCount: 0, // Initialize to 0 for new users
                 role: input.role || 'CUSTOMER',
-                status: emailVerificationEnabled ? 'PENDING' : 'ACTIVE',
-                emailVerified: !emailVerificationEnabled, // Mark as verified if verification is disabled
-                phoneVerified: false,
+                status: verificationRequired ? 'PENDING' : 'ACTIVE',
+                emailVerified: !emailVerificationEnabled, // Mark as verified if email verification is disabled
+                phoneVerified: !phoneVerificationEnabled, // Mark as verified if phone verification is disabled
             },
             select: {
                 id: true,
                 email: true,
                 firstName: true,
                 lastName: true,
+                phone: true,
                 address: true,
                 cityCorporationCode: true,
                 zoneId: true,
@@ -127,8 +131,22 @@ class AuthService {
                 createdAt: true
             }
         });
-        // Only create verification token and send email if verification is enabled
-        if (emailVerificationEnabled) {
+        // Handle Phone Verification
+        if (phoneVerificationEnabled && user.phone) {
+            // Create phone verification token with OTP code
+            await prisma_1.default.phoneVerificationToken.create({
+                data: {
+                    token: verificationToken,
+                    code: verificationCode,
+                    userId: user.id,
+                    expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes expiry for OTP
+                }
+            });
+            // Send verification SMS with OTP code
+            await sms_service_1.default.sendOTP(user.phone, verificationCode);
+        }
+        // Handle Email Verification (if enabled)
+        if (emailVerificationEnabled && user.email) {
             // Create email verification token with OTP code
             await prisma_1.default.emailVerificationToken.create({
                 data: {
@@ -139,18 +157,22 @@ class AuthService {
                 }
             });
             // Send verification email with OTP code
-            if (user.email) {
-                await email_1.default.sendEmailVerificationEmail(user.email, verificationCode);
-            }
+            await email_1.default.sendEmailVerificationEmail(user.email, verificationCode);
+        }
+        let message = 'Registration successful. You can now login.';
+        if (phoneVerificationEnabled) {
+            message = 'Registration successful. Please verify your phone number.';
+        }
+        else if (emailVerificationEnabled) {
+            message = 'Registration successful. Please verify your email.';
         }
         return {
             success: true,
-            message: emailVerificationEnabled
-                ? 'Registration successful. Please verify your email.'
-                : 'Registration successful. You can now login.',
+            message,
             data: {
                 email: user.email,
-                requiresVerification: emailVerificationEnabled
+                phone: user.phone,
+                requiresVerification: verificationRequired
             }
         };
     }
@@ -456,6 +478,93 @@ class AuthService {
         return {
             success: true,
             message: 'Email verified successfully. Welcome to Clean Care Bangladesh!'
+        };
+    }
+    // Verify phone with OTP code
+    async verifyPhoneWithCode(phone, code) {
+        const user = await prisma_1.default.user.findUnique({
+            where: { phone }
+        });
+        if (!user) {
+            throw new Error('User not found');
+        }
+        if (user.phoneVerified) {
+            return {
+                success: true,
+                message: 'Phone number is already verified. You can login now.'
+            };
+        }
+        const verificationToken = await prisma_1.default.phoneVerificationToken.findFirst({
+            where: {
+                userId: user.id,
+                code: code,
+                expiresAt: { gt: new Date() },
+                used: false
+            },
+            include: { user: true }
+        });
+        if (!verificationToken) {
+            throw new Error('Invalid or expired verification code');
+        }
+        await prisma_1.default.user.update({
+            where: { id: verificationToken.userId },
+            data: {
+                phoneVerified: true,
+                status: 'ACTIVE'
+            }
+        });
+        await prisma_1.default.phoneVerificationToken.update({
+            where: { id: verificationToken.id },
+            data: { used: true }
+        });
+        // Send welcome SMS
+        await sms_service_1.default.sendWelcomeMessage(user.phone, user.firstName);
+        return {
+            success: true,
+            message: 'Phone verified successfully. Welcome to Clean Care Bangladesh!'
+        };
+    }
+    // Resend verification phone code
+    async resendVerificationPhone(phone, method = 'sms') {
+        const user = await prisma_1.default.user.findUnique({
+            where: { phone }
+        });
+        if (!user || user.phoneVerified) {
+            return {
+                success: true,
+                message: 'If your phone number needs verification, a new verification code has been sent.'
+            };
+        }
+        const verificationToken = (0, jwt_1.generateSecureToken)();
+        const verificationCode = (0, jwt_1.generateOTP)(6); // Generate 6-digit OTP
+        // Mark old tokens as used
+        await prisma_1.default.phoneVerificationToken.updateMany({
+            where: {
+                userId: user.id,
+                used: false
+            },
+            data: {
+                used: true
+            }
+        });
+        // Create new verification token with OTP code
+        await prisma_1.default.phoneVerificationToken.create({
+            data: {
+                token: verificationToken,
+                code: verificationCode,
+                userId: user.id,
+                expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes expiry for OTP
+            }
+        });
+        if (method === 'whatsapp') {
+            await sms_service_1.default.sendWhatsAppOTP(user.phone, verificationCode);
+        }
+        else {
+            await sms_service_1.default.sendOTP(user.phone, verificationCode);
+        }
+        return {
+            success: true,
+            message: `A new verification code has been sent via ${method === 'whatsapp' ? 'WhatsApp' : 'SMS'} to your phone number.`
         };
     }
     // Verify email (legacy - for backward compatibility with token URLs)

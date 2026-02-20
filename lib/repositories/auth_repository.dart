@@ -186,6 +186,43 @@ class AuthRepository {
     }
   }
 
+  Future<void> verifyPhone(String phone, String code) async {
+    try {
+      final data = await api.post('/api/auth/verify-phone-code', {
+        'phone': phone,
+        'code': code,
+      });
+
+      if (data['success'] != true) {
+        throw Exception(data['message'] ?? 'Verification failed');
+      }
+    } on ApiException catch (e) {
+      throw Exception(e.message);
+    } catch (e) {
+      throw Exception('Phone verification failed: ${e.toString()}');
+    }
+  }
+
+  Future<void> resendPhoneVerificationCode(
+    String phone, {
+    String method = 'sms',
+  }) async {
+    try {
+      final data = await api.post('/api/auth/resend-phone-code', {
+        'phone': phone,
+        'method': method,
+      });
+
+      if (data['success'] != true) {
+        throw Exception(data['message'] ?? 'Failed to resend code');
+      }
+    } on ApiException catch (e) {
+      throw Exception(e.message);
+    } catch (e) {
+      throw Exception('Failed to resend verification code: ${e.toString()}');
+    }
+  }
+
   Future<List<CityCorporation>> getActiveCityCorporations() async {
     try {
       final data = await api.get('/api/city-corporations/active');
@@ -280,7 +317,9 @@ class AuthRepository {
     }
   }
 
-  Future<List<Ward>> getWardsByCityCorporation(String cityCorporationCode) async {
+  Future<List<Ward>> getWardsByCityCorporation(
+    String cityCorporationCode,
+  ) async {
     try {
       final data = await api.get(
         '/api/city-corporations/$cityCorporationCode/wards',

@@ -326,3 +326,169 @@ export async function resendVerificationCode(req: AuthRequest, res: Response) {
     });
   }
 }
+
+// Phone Verification Schemas
+const verifyPhoneCodeSchema = z.object({
+  phone: z.string().min(11, 'Phone number must be at least 11 digits'),
+  code: z.string().length(6, 'Verification code must be 6 digits'),
+});
+
+const resendPhoneVerificationCodeSchema = z.object({
+  phone: z.string().min(11, 'Phone number must be at least 11 digits'),
+  method: z.enum(['sms', 'whatsapp']).optional().default('sms'),
+});
+
+// Verify phone with code endpoint
+export async function verifyPhoneWithCode(req: AuthRequest, res: Response) {
+  console.log('--- Verify Phone With Code Request ---');
+  console.log('Body:', JSON.stringify(req.body, null, 2));
+
+  try {
+    const body = verifyPhoneCodeSchema.parse(req.body);
+    let phone = body.phone;
+    
+    console.log(`Verifying phone: ${phone} with code: ${body.code}`);
+
+    try {
+        const result = await authService.verifyPhoneWithCode(phone, body.code);
+        console.log('Phone verification successful:', result);
+        return res.status(200).json(result);
+    } catch (primaryError: any) {
+        console.warn(`Primary phone verification failed for ${phone}: ${primaryError.message}`);
+
+        // If user not found, try alternative phone formats
+        if (primaryError.message === 'User not found') {
+            let alternativePhone = phone;
+            if (phone.startsWith('880')) {
+                alternativePhone = phone.substring(2);
+            } else if (phone.startsWith('01')) {
+                alternativePhone = '88' + phone;
+            }
+
+            if (alternativePhone !== phone) {
+                console.log(`Retrying phone verification with alternative phone: ${alternativePhone}`);
+                try {
+                    const result = await authService.verifyPhoneWithCode(alternativePhone, body.code);
+                    console.log('Phone verification successful with alternative phone:', result);
+                    return res.status(200).json(result);
+                } catch (secondaryError: any) {
+                    console.error(`Secondary phone verification failed for ${alternativePhone}: ${secondaryError.message}`);
+                    throw primaryError;
+                }
+            }
+        }
+        throw primaryError;
+    }
+  } catch (err: any) {
+    console.error('Phone Verification Error:', err);
+    if (err?.name === 'ZodError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        issues: err.issues
+      });
+    }
+    return res.status(400).json({
+      success: false,
+      message: err?.message ?? 'Phone verification failed'
+    });
+  }
+}
+
+// Resend phone verification code endpoint
+export async function resendPhoneVerificationCode(req: AuthRequest, res: Response) {
+  try {
+    const body = resendPhoneVerificationCodeSchema.parse(req.body);
+    const result = await authService.resendVerificationPhone(body.phone, body.method);
+    return res.status(200).json(result);
+  } catch (err: any) {
+    if (err?.name === 'ZodError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        issues: err.issues
+      });
+    }
+    return res.status(400).json({
+      success: false,
+      message: err?.message ?? 'Failed to resend verification code'
+    });
+  }
+}
+
+// Verification Registration Schema
+const verifyRegistrationSchema = z.object({
+  phone: z.string().min(11, 'Phone number must be at least 11 digits'),
+  code: z.string().length(6, 'Verification code must be 6 digits'),
+});
+
+// Verify Registration OTP and Create User
+export async function verifyRegistration(req: AuthRequest, res: Response) {
+  console.log('--- Verify Registration Request ---');
+  console.log('Body:', JSON.stringify(req.body, null, 2));
+  
+  try {
+    const body = verifyRegistrationSchema.parse(req.body);
+    
+    // Normalize phone number if needed (just in case frontend sends without 88)
+    let phone = body.phone;
+    
+    console.log(`Verifying registration for phone: ${phone} with code: ${body.code}`);
+
+    // Try verifying with the provided phone number
+    try {
+        const result = await authService.verifyRegistration({
+            phone: phone,
+            code: body.code
+        });
+        console.log('Verification successful:', result);
+        return res.status(200).json(result);
+    } catch (primaryError: any) {
+        console.warn(`Primary verification failed for ${phone}: ${primaryError.message}`);
+        
+        // If the error is "Registration session not found", try alternative phone formats
+        if (primaryError.message.includes('Registration session not found')) {
+            let alternativePhone = phone;
+            // If starts with 880, try removing 88
+            if (phone.startsWith('880')) {
+                alternativePhone = phone.substring(2);
+            } 
+            // If starts with 01, try adding 88
+            else if (phone.startsWith('01')) {
+                alternativePhone = '88' + phone;
+            }
+            
+            if (alternativePhone !== phone) {
+                console.log(`Retrying verification with alternative phone: ${alternativePhone}`);
+                try {
+                    const result = await authService.verifyRegistration({
+                        phone: alternativePhone,
+                        code: body.code
+                    });
+                    console.log('Verification successful with alternative phone:', result);
+                    return res.status(200).json(result);
+                } catch (secondaryError: any) {
+                    console.error(`Secondary verification failed for ${alternativePhone}: ${secondaryError.message}`);
+                    // Throw the original error to the user, or a generic one
+                    throw primaryError; 
+                }
+            }
+        }
+        throw primaryError;
+    }
+
+  } catch (err: any) {
+    console.error('Verification Error:', err);
+    if (err?.name === 'ZodError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        issues: err.issues
+      });
+    }
+    return res.status(400).json({
+      success: false,
+      message: err?.message ?? 'Verification failed'
+    });
+  }
+}

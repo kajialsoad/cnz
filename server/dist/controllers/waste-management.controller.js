@@ -85,6 +85,18 @@ class WasteManagementController {
             res.status(500).json({ error: 'Failed to delete post' });
         }
     }
+    // Admin: Reorder posts
+    async reorder(req, res) {
+        try {
+            const { orders } = req.body;
+            await waste_management_service_1.wasteManagementService.reorder(orders);
+            res.json({ success: true, message: 'Posts reordered successfully' });
+        }
+        catch (error) {
+            console.error('Error reordering waste posts:', error);
+            res.status(500).json({ error: 'Failed to reorder posts' });
+        }
+    }
     // Admin: Get all posts
     async getAllPostsForAdmin(req, res) {
         try {

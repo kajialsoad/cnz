@@ -13,6 +13,9 @@ import {
     Stack,
     Skeleton,
     TextField,
+    Switch,
+    FormControlLabel,
+    Divider,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import SaveOutlined from '@mui/icons-material/SaveOutlined';
@@ -53,6 +56,43 @@ const SystemControlPage: React.FC = () => {
     const [dailyLimit, setDailyLimit] = useState('20');
     const [wardImageLimit, setWardImageLimit] = useState('10');
     const [liveChatLimit, setLiveChatLimit] = useState('120');
+    
+    // Verification Settings State
+    const [smsEnabled, setSmsEnabled] = useState(true);
+    const [emailEnabled, setEmailEnabled] = useState(true);
+    const [whatsappEnabled, setWhatsappEnabled] = useState(true);
+    const [truecallerEnabled, setTruecallerEnabled] = useState(false);
+    
+    // API Configuration State
+    const [smsApiUrl, setSmsApiUrl] = useState('');
+    const [smsApiKey, setSmsApiKey] = useState('');
+    const [smsApiSecret, setSmsApiSecret] = useState('');
+    const [smsClientId, setSmsClientId] = useState('');
+    const [smsPassword, setSmsPassword] = useState('');
+    const [smsSenderId, setSmsSenderId] = useState('');
+    const [whatsappApiUrl, setWhatsappApiUrl] = useState('');
+    const [truecallerAppKey, setTruecallerAppKey] = useState('');
+    const [truecallerPartnerKey, setTruecallerPartnerKey] = useState('');
+    
+    // Advanced Settings State
+    const [verificationCodeExpiry, setVerificationCodeExpiry] = useState('15');
+    const [verificationCodeLength, setVerificationCodeLength] = useState('6');
+    const [pendingCleanupHours, setPendingCleanupHours] = useState('24');
+
+    // SMTP Configuration State
+    const [smtpHost, setSmtpHost] = useState('smtp.gmail.com');
+    const [smtpPort, setSmtpPort] = useState('587');
+    const [smtpSecure, setSmtpSecure] = useState(false);
+    const [smtpUser, setSmtpUser] = useState('');
+    const [smtpPass, setSmtpPass] = useState('');
+    const [smtpFromName, setSmtpFromName] = useState('Clean Care Bangladesh');
+    const [smtpFromEmail, setSmtpFromEmail] = useState('');
+
+    // Rate Limiting State
+    const [verificationRequestLimit, setVerificationRequestLimit] = useState('3');
+    const [verificationRequestWindow, setVerificationRequestWindow] = useState('15');
+    const [verificationAttemptLimit, setVerificationAttemptLimit] = useState('5');
+
     const [limitsLoading, setLimitsLoading] = useState(true);
     const [limitsSaving, setLimitsSaving] = useState(false);
 
@@ -100,6 +140,121 @@ const SystemControlPage: React.FC = () => {
             if (liveChatResponse.success && liveChatResponse.data) {
                 setLiveChatLimit(liveChatResponse.data.value);
             }
+
+            // Fetch Verification Settings
+            const smsResponse = await systemConfigService.getConfig('verification_sms_enabled');
+            if (smsResponse.success && smsResponse.data) {
+                setSmsEnabled(smsResponse.data.value !== 'false');
+            }
+
+            const emailResponse = await systemConfigService.getConfig('verification_email_enabled');
+            if (emailResponse.success && emailResponse.data) {
+                setEmailEnabled(emailResponse.data.value !== 'false');
+            }
+
+            const whatsappResponse = await systemConfigService.getConfig('verification_whatsapp_enabled');
+            if (whatsappResponse.success && whatsappResponse.data) {
+                setWhatsappEnabled(whatsappResponse.data.value !== 'false');
+            }
+
+            const truecallerResponse = await systemConfigService.getConfig('verification_truecaller_enabled');
+            if (truecallerResponse.success && truecallerResponse.data) {
+                setTruecallerEnabled(truecallerResponse.data.value === 'true');
+            }
+
+            // Fetch Advanced Settings
+            const expiryResponse = await systemConfigService.getConfig('verification_code_expiry_minutes');
+            if (expiryResponse.success && expiryResponse.data) {
+                setVerificationCodeExpiry(expiryResponse.data.value);
+            }
+
+            const lengthResponse = await systemConfigService.getConfig('verification_code_length');
+            if (lengthResponse.success && lengthResponse.data) {
+                setVerificationCodeLength(lengthResponse.data.value);
+            }
+
+            const cleanupResponse = await systemConfigService.getConfig('pending_account_cleanup_hours');
+            if (cleanupResponse.success && cleanupResponse.data) {
+                setPendingCleanupHours(cleanupResponse.data.value);
+            }
+
+            // Fetch API Configurations
+            const smsApiUrlResponse = await systemConfigService.getConfig('verification_sms_api_url');
+            if (smsApiUrlResponse.success && smsApiUrlResponse.data) {
+                setSmsApiUrl(smsApiUrlResponse.data.value);
+            }
+
+            const smsApiKeyResponse = await systemConfigService.getConfig('verification_sms_api_key');
+            if (smsApiKeyResponse.success && smsApiKeyResponse.data) {
+                setSmsApiKey(smsApiKeyResponse.data.value);
+            }
+
+            const smsApiSecretResponse = await systemConfigService.getConfig('verification_sms_api_secret');
+            if (smsApiSecretResponse.success && smsApiSecretResponse.data) {
+                setSmsApiSecret(smsApiSecretResponse.data.value);
+            }
+
+            const smsClientIdResponse = await systemConfigService.getConfig('verification_sms_client_id');
+            if (smsClientIdResponse.success && smsClientIdResponse.data) {
+                setSmsClientId(smsClientIdResponse.data.value);
+            }
+
+            const smsPasswordResponse = await systemConfigService.getConfig('verification_sms_password');
+            if (smsPasswordResponse.success && smsPasswordResponse.data) {
+                setSmsPassword(smsPasswordResponse.data.value);
+            }
+
+            const smsSenderIdResponse = await systemConfigService.getConfig('verification_sms_sender_id');
+            if (smsSenderIdResponse.success && smsSenderIdResponse.data) {
+                setSmsSenderId(smsSenderIdResponse.data.value);
+            }
+
+            const whatsappApiUrlResponse = await systemConfigService.getConfig('verification_whatsapp_api_url');
+            if (whatsappApiUrlResponse.success && whatsappApiUrlResponse.data) {
+                setWhatsappApiUrl(whatsappApiUrlResponse.data.value);
+            }
+
+            const truecallerAppKeyResponse = await systemConfigService.getConfig('verification_truecaller_app_key');
+            if (truecallerAppKeyResponse.success && truecallerAppKeyResponse.data) {
+                setTruecallerAppKey(truecallerAppKeyResponse.data.value);
+            }
+
+            const truecallerPartnerKeyResponse = await systemConfigService.getConfig('verification_truecaller_partner_key');
+            if (truecallerPartnerKeyResponse.success && truecallerPartnerKeyResponse.data) {
+                setTruecallerPartnerKey(truecallerPartnerKeyResponse.data.value);
+            }
+
+            // Fetch SMTP Settings
+            const smtpHostResponse = await systemConfigService.getConfig('smtp_host');
+            if (smtpHostResponse.success && smtpHostResponse.data) setSmtpHost(smtpHostResponse.data.value);
+
+            const smtpPortResponse = await systemConfigService.getConfig('smtp_port');
+            if (smtpPortResponse.success && smtpPortResponse.data) setSmtpPort(smtpPortResponse.data.value);
+
+            const smtpSecureResponse = await systemConfigService.getConfig('smtp_secure');
+            if (smtpSecureResponse.success && smtpSecureResponse.data) setSmtpSecure(smtpSecureResponse.data.value === 'true');
+
+            const smtpUserResponse = await systemConfigService.getConfig('smtp_user');
+            if (smtpUserResponse.success && smtpUserResponse.data) setSmtpUser(smtpUserResponse.data.value);
+
+            const smtpPassResponse = await systemConfigService.getConfig('smtp_pass');
+            if (smtpPassResponse.success && smtpPassResponse.data) setSmtpPass(smtpPassResponse.data.value);
+
+            const smtpFromNameResponse = await systemConfigService.getConfig('smtp_from_name');
+            if (smtpFromNameResponse.success && smtpFromNameResponse.data) setSmtpFromName(smtpFromNameResponse.data.value);
+
+            const smtpFromEmailResponse = await systemConfigService.getConfig('smtp_from_email');
+            if (smtpFromEmailResponse.success && smtpFromEmailResponse.data) setSmtpFromEmail(smtpFromEmailResponse.data.value);
+
+            // Fetch Rate Limiting Settings
+            const requestLimitResponse = await systemConfigService.getConfig('verification_request_limit');
+            if (requestLimitResponse.success && requestLimitResponse.data) setVerificationRequestLimit(requestLimitResponse.data.value);
+
+            const requestWindowResponse = await systemConfigService.getConfig('verification_request_window_minutes');
+            if (requestWindowResponse.success && requestWindowResponse.data) setVerificationRequestWindow(requestWindowResponse.data.value);
+
+            const attemptLimitResponse = await systemConfigService.getConfig('verification_attempt_limit');
+            if (attemptLimitResponse.success && attemptLimitResponse.data) setVerificationAttemptLimit(attemptLimitResponse.data.value);
         } catch (err) {
             console.error('Error loading complaint limits:', err);
         } finally {
@@ -227,7 +382,120 @@ const SystemControlPage: React.FC = () => {
                 'Maximum number of messages to load in live chat'
             );
 
-            toast.success('System limits updated successfully');
+            // Save Verification Settings
+            await systemConfigService.updateConfig(
+                'verification_sms_enabled',
+                String(smsEnabled),
+                'Enable/Disable SMS verification'
+            );
+
+            await systemConfigService.updateConfig(
+                'verification_email_enabled',
+                String(emailEnabled),
+                'Enable/Disable Email verification'
+            );
+
+            await systemConfigService.updateConfig(
+                'verification_whatsapp_enabled',
+                String(whatsappEnabled),
+                'Enable/Disable WhatsApp verification'
+            );
+
+            await systemConfigService.updateConfig(
+                'verification_truecaller_enabled',
+                String(truecallerEnabled),
+                'Enable/Disable Truecaller verification'
+            );
+
+            // Save Advanced Settings
+            await systemConfigService.updateConfig(
+                'verification_code_expiry_minutes',
+                verificationCodeExpiry,
+                'OTP Expiry in Minutes'
+            );
+
+            await systemConfigService.updateConfig(
+                'verification_code_length',
+                verificationCodeLength,
+                'OTP Length (4-10)'
+            );
+
+            await systemConfigService.updateConfig(
+                'pending_account_cleanup_hours',
+                pendingCleanupHours,
+                'Hours before unverified accounts are deleted'
+            );
+
+            // Save API Configurations
+            await systemConfigService.updateConfig(
+                'verification_sms_api_url',
+                smsApiUrl,
+                'SMS Gateway API URL'
+            );
+
+            await systemConfigService.updateConfig(
+                'verification_sms_api_key',
+                smsApiKey,
+                'SMS Gateway API Key'
+            );
+
+            await systemConfigService.updateConfig(
+                'verification_sms_api_secret',
+                smsApiSecret,
+                'SMS Gateway API Secret'
+            );
+
+            await systemConfigService.updateConfig(
+                'verification_sms_client_id',
+                smsClientId,
+                'SMS Gateway Client ID'
+            );
+
+            await systemConfigService.updateConfig(
+                'verification_sms_password',
+                smsPassword,
+                'SMS Gateway Password'
+            );
+
+            await systemConfigService.updateConfig(
+                'verification_sms_sender_id',
+                smsSenderId,
+                'SMS Gateway Sender ID (Optional)'
+            );
+
+            await systemConfigService.updateConfig(
+                'verification_whatsapp_api_url',
+                whatsappApiUrl,
+                'WhatsApp Gateway API URL'
+            );
+
+            await systemConfigService.updateConfig(
+                'verification_truecaller_app_key',
+                truecallerAppKey,
+                'Truecaller App Key'
+            );
+
+            await systemConfigService.updateConfig(
+                'verification_truecaller_partner_key',
+                truecallerPartnerKey,
+                'Truecaller Partner Key'
+            );
+
+            // Save SMTP Settings
+            await systemConfigService.updateConfig('smtp_host', smtpHost, 'SMTP Host');
+            await systemConfigService.updateConfig('smtp_port', smtpPort, 'SMTP Port');
+            await systemConfigService.updateConfig('smtp_secure', String(smtpSecure), 'SMTP Secure');
+            await systemConfigService.updateConfig('smtp_user', smtpUser, 'SMTP User');
+            await systemConfigService.updateConfig('smtp_pass', smtpPass, 'SMTP Password');
+            await systemConfigService.updateConfig('smtp_from_name', smtpFromName, 'SMTP From Name');
+            await systemConfigService.updateConfig('smtp_from_email', smtpFromEmail, 'SMTP From Email');
+
+            // Save Rate Limiting Settings
+            await systemConfigService.updateConfig('verification_request_limit', verificationRequestLimit, 'Verification Request Limit');
+            await systemConfigService.updateConfig('verification_request_window_minutes', verificationRequestWindow, 'Verification Window (Minutes)');
+            await systemConfigService.updateConfig('verification_attempt_limit', verificationAttemptLimit, 'Verification Attempt Limit');
+
+            toast.success('System settings updated successfully');
         } catch (err) {
             console.error('Error saving complaint limits:', err);
             toast.error('Failed to save complaint limits');
@@ -566,6 +834,321 @@ const SystemControlPage: React.FC = () => {
                                                     }
                                                 }}
                                             />
+                                        </Box>
+
+                                        <Divider />
+
+                                        <Box>
+                                            <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
+                                                যাচাইকরণ সেটিংস (Verification Settings)
+                                            </Typography>
+                                            <Stack spacing={2}>
+                                                <FormControlLabel
+                                                    control={
+                                                        <Switch
+                                                            checked={emailEnabled}
+                                                            onChange={(e) => setEmailEnabled(e.target.checked)}
+                                                            disabled={limitsSaving}
+                                                        />
+                                                    }
+                                                    label="Email Verification (Enable/Disable)"
+                                                />
+                                                <FormControlLabel
+                                                    control={
+                                                        <Switch
+                                                            checked={smsEnabled}
+                                                            onChange={(e) => setSmsEnabled(e.target.checked)}
+                                                            disabled={limitsSaving}
+                                                        />
+                                                    }
+                                                    label="SMS Verification (Enable/Disable)"
+                                                />
+                                                <FormControlLabel
+                                                    control={
+                                                        <Switch
+                                                            checked={whatsappEnabled}
+                                                            onChange={(e) => setWhatsappEnabled(e.target.checked)}
+                                                            disabled={limitsSaving}
+                                                        />
+                                                    }
+                                                    label="WhatsApp Verification (Enable/Disable)"
+                                                />
+                                                <FormControlLabel
+                                                    control={
+                                                        <Switch
+                                                            checked={truecallerEnabled}
+                                                            onChange={(e) => setTruecallerEnabled(e.target.checked)}
+                                                            disabled={limitsSaving}
+                                                        />
+                                                    }
+                                                    label="Truecaller Verification (Enable/Disable)"
+                                                />
+                                            </Stack>
+                                        </Box>
+
+                                        <Divider />
+
+                                        <Box>
+                                            <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
+                                                উন্নত সেটিংস (Advanced Settings)
+                                            </Typography>
+                                            <Stack spacing={3}>
+                                                <TextField
+                                                    fullWidth
+                                                    label="Verification Code Expiry (Minutes)"
+                                                    value={verificationCodeExpiry}
+                                                    onChange={(e) => setVerificationCodeExpiry(e.target.value)}
+                                                    type="number"
+                                                    helperText="Enter the number of minutes before OTP expires"
+                                                    disabled={limitsSaving}
+                                                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                                                />
+                                                <TextField
+                                                    fullWidth
+                                                    label="Verification Code Length"
+                                                    value={verificationCodeLength}
+                                                    onChange={(e) => setVerificationCodeLength(e.target.value)}
+                                                    type="number"
+                                                    helperText="Length of the OTP (4-10 digits)"
+                                                    disabled={limitsSaving}
+                                                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                                                />
+                                                <TextField
+                                                    fullWidth
+                                                    label="Pending Account Cleanup (Hours)"
+                                                    value={pendingCleanupHours}
+                                                    onChange={(e) => setPendingCleanupHours(e.target.value)}
+                                                    type="number"
+                                                    helperText="How many hours unverified accounts stay before deletion"
+                                                    disabled={limitsSaving}
+                                                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                                                />
+                                            </Stack>
+                                        </Box>
+
+                                        <Divider />
+
+                                        <Box>
+                                            <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
+                                                SMS Gateway Configuration
+                                            </Typography>
+                                            <Stack spacing={3}>
+                                                <TextField
+                                                    fullWidth
+                                                    label="SMS API URL"
+                                                    value={smsApiUrl}
+                                                    onChange={(e) => setSmsApiUrl(e.target.value)}
+                                                    helperText="Full URL (e.g. http://portal.khudebarta.com/api/v3/sms/send)"
+                                                    disabled={limitsSaving}
+                                                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                                                />
+                                                <TextField
+                                                    fullWidth
+                                                    label="SMS API Key"
+                                                    value={smsApiKey}
+                                                    onChange={(e) => setSmsApiKey(e.target.value)}
+                                                    helperText="API Key for authentication"
+                                                    disabled={limitsSaving}
+                                                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                                                />
+                                                <TextField
+                                                    fullWidth
+                                                    label="SMS API Secret (Optional)"
+                                                    value={smsApiSecret}
+                                                    onChange={(e) => setSmsApiSecret(e.target.value)}
+                                                    helperText="Secret Key for authentication (if required)"
+                                                    disabled={limitsSaving}
+                                                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                                                />
+                                                <TextField
+                                                    fullWidth
+                                                    label="Client ID (Optional)"
+                                                    value={smsClientId}
+                                                    onChange={(e) => setSmsClientId(e.target.value)}
+                                                    helperText="Client ID for authentication (if required)"
+                                                    disabled={limitsSaving}
+                                                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                                                />
+                                                <TextField
+                                                    fullWidth
+                                                    label="Password (Optional)"
+                                                    value={smsPassword}
+                                                    onChange={(e) => setSmsPassword(e.target.value)}
+                                                    helperText="Password for authentication (if required)"
+                                                    disabled={limitsSaving}
+                                                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                                                />
+                                                <TextField
+                                                    fullWidth
+                                                    label="Sender ID (Optional)"
+                                                    value={smsSenderId}
+                                                    onChange={(e) => setSmsSenderId(e.target.value)}
+                                                    helperText="Sender ID / Caller ID (if required)"
+                                                    disabled={limitsSaving}
+                                                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                                                />
+                                            </Stack>
+                                        </Box>
+
+                                        <Divider />
+
+                                        <Box>
+                                            <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
+                                                WhatsApp Gateway Configuration
+                                            </Typography>
+                                            <Stack spacing={3}>
+                                                <TextField
+                                                    fullWidth
+                                                    label="WhatsApp API URL"
+                                                    value={whatsappApiUrl}
+                                                    onChange={(e) => setWhatsappApiUrl(e.target.value)}
+                                                    helperText="Full URL for the WhatsApp Gateway API"
+                                                    disabled={limitsSaving}
+                                                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                                                />
+                                            </Stack>
+                                        </Box>
+
+                                        <Divider />
+
+                                        <Box>
+                                            <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
+                                                Truecaller Configuration
+                                            </Typography>
+                                            <Stack spacing={3}>
+                                                <TextField
+                                                    fullWidth
+                                                    label="Truecaller App Key"
+                                                    value={truecallerAppKey}
+                                                    onChange={(e) => setTruecallerAppKey(e.target.value)}
+                                                    helperText="App Key from Truecaller Developer Portal"
+                                                    disabled={limitsSaving}
+                                                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                                                />
+                                                <TextField
+                                                    fullWidth
+                                                    label="Truecaller Partner Key"
+                                                    value={truecallerPartnerKey}
+                                                    onChange={(e) => setTruecallerPartnerKey(e.target.value)}
+                                                    helperText="Partner Key from Truecaller"
+                                                    disabled={limitsSaving}
+                                                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                                                />
+                                            </Stack>
+                                        </Box>
+                                        <Divider />
+
+                                        <Box>
+                                            <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
+                                                ইমেইল কনফিগারেশন (Email Configuration - SMTP)
+                                            </Typography>
+                                            <Stack spacing={3}>
+                                                <TextField
+                                                    fullWidth
+                                                    label="SMTP Host"
+                                                    value={smtpHost}
+                                                    onChange={(e) => setSmtpHost(e.target.value)}
+                                                    helperText="e.g., smtp.gmail.com"
+                                                    disabled={limitsSaving}
+                                                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                                                />
+                                                <TextField
+                                                    fullWidth
+                                                    label="SMTP Port"
+                                                    value={smtpPort}
+                                                    onChange={(e) => setSmtpPort(e.target.value)}
+                                                    helperText="e.g., 587"
+                                                    disabled={limitsSaving}
+                                                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                                                />
+                                                <FormControlLabel
+                                                    control={
+                                                        <Switch
+                                                            checked={smtpSecure}
+                                                            onChange={(e) => setSmtpSecure(e.target.checked)}
+                                                            disabled={limitsSaving}
+                                                        />
+                                                    }
+                                                    label="SMTP Secure (Enable for SSL/TLS)"
+                                                />
+                                                <TextField
+                                                    fullWidth
+                                                    label="SMTP User"
+                                                    value={smtpUser}
+                                                    onChange={(e) => setSmtpUser(e.target.value)}
+                                                    helperText="Email address for SMTP authentication"
+                                                    disabled={limitsSaving}
+                                                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                                                />
+                                                <TextField
+                                                    fullWidth
+                                                    label="SMTP Password"
+                                                    value={smtpPass}
+                                                    onChange={(e) => setSmtpPass(e.target.value)}
+                                                    helperText="Password or App Password for SMTP"
+                                                    disabled={limitsSaving}
+                                                    type="password"
+                                                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                                                />
+                                                <TextField
+                                                    fullWidth
+                                                    label="Sender Name"
+                                                    value={smtpFromName}
+                                                    onChange={(e) => setSmtpFromName(e.target.value)}
+                                                    helperText="Name displayed in emails"
+                                                    disabled={limitsSaving}
+                                                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                                                />
+                                                <TextField
+                                                    fullWidth
+                                                    label="Sender Email"
+                                                    value={smtpFromEmail}
+                                                    onChange={(e) => setSmtpFromEmail(e.target.value)}
+                                                    helperText="Email address displayed as sender"
+                                                    disabled={limitsSaving}
+                                                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                                                />
+                                            </Stack>
+                                        </Box>
+
+                                        <Divider />
+
+                                        <Box>
+                                            <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
+                                                রেট লিমিটিং (Rate Limiting)
+                                            </Typography>
+                                            <Stack spacing={3}>
+                                                <TextField
+                                                    fullWidth
+                                                    label="Verification Request Limit"
+                                                    value={verificationRequestLimit}
+                                                    onChange={(e) => setVerificationRequestLimit(e.target.value)}
+                                                    type="number"
+                                                    helperText="Max verification requests allowed in the window (e.g., 3)"
+                                                    disabled={limitsSaving}
+                                                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                                                />
+                                                <TextField
+                                                    fullWidth
+                                                    label="Request Window (Minutes)"
+                                                    value={verificationRequestWindow}
+                                                    onChange={(e) => setVerificationRequestWindow(e.target.value)}
+                                                    type="number"
+                                                    helperText="Time window for rate limiting in minutes (e.g., 15)"
+                                                    disabled={limitsSaving}
+                                                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                                                />
+                                                <TextField
+                                                    fullWidth
+                                                    label="Verification Attempt Limit"
+                                                    value={verificationAttemptLimit}
+                                                    onChange={(e) => setVerificationAttemptLimit(e.target.value)}
+                                                    type="number"
+                                                    helperText="Max incorrect attempts before lockout (e.g., 5)"
+                                                    disabled={limitsSaving}
+                                                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                                                />
+                                            </Stack>
                                         </Box>
 
                                         <Box>

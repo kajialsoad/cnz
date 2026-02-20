@@ -6,6 +6,7 @@ const notice_controller_1 = require("../controllers/notice.controller");
 const router = (0, express_1.Router)();
 // Admin routes (protected) - MUST come before public routes to avoid conflicts
 router.post('/', auth_middleware_1.authGuard, notice_controller_1.createNotice);
+router.post('/reorder', auth_middleware_1.authGuard, notice_controller_1.reorderNotices);
 router.get('/analytics/stats', auth_middleware_1.authGuard, notice_controller_1.getAnalytics);
 router.get('/', auth_middleware_1.authGuard, notice_controller_1.getAllNotices);
 router.put('/:id', auth_middleware_1.authGuard, notice_controller_1.updateNotice);

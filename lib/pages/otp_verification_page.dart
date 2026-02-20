@@ -3,18 +3,24 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../config/api_config.dart';
+import '../repositories/auth_repository.dart';
 import '../services/api_client.dart';
+import '../services/system_config_service.dart';
 
 class OtpVerificationPage extends StatefulWidget {
-  final String email;
+  final String? email;
+  final String? phone;
 
-  const OtpVerificationPage({super.key, required this.email});
+  const OtpVerificationPage({super.key, this.email, this.phone});
 
   @override
   State<OtpVerificationPage> createState() => _OtpVerificationPageState();
 }
 
 class _OtpVerificationPageState extends State<OtpVerificationPage> {
+  late final AuthRepository _auth;
+  late final SystemConfigService _systemConfig;
+
   final List<TextEditingController> _controllers = List.generate(
     6,
     (index) => TextEditingController(),
@@ -24,10 +30,37 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
   bool _canResend = false;
   int _resendCountdown = 60;
 
+  // Verification Options Configuration
+  bool _smsEnabled = true;
+  bool _whatsappEnabled = true;
+  bool _truecallerEnabled = false;
+
   @override
   void initState() {
     super.initState();
+    final apiClient = ApiClient(ApiConfig.baseUrl);
+    _auth = AuthRepository(apiClient);
+    _systemConfig = SystemConfigService(apiClient);
     _startResendCountdown();
+    _fetchVerificationConfigs();
+  }
+
+  Future<void> _fetchVerificationConfigs() async {
+    try {
+      final configs = await _systemConfig.getConfigs();
+      if (mounted) {
+        setState(() {
+          _smsEnabled = configs['verification_sms_enabled'] != 'false';
+          _whatsappEnabled =
+              configs['verification_whatsapp_enabled'] != 'false';
+          _truecallerEnabled =
+              configs['verification_truecaller_enabled'] == 'true';
+        });
+      }
+    } catch (e) {
+      print('Failed to fetch verification configs: $e');
+      // Fallback to defaults (already set)
+    }
   }
 
   @override
@@ -87,104 +120,97 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
     setState(() => _isLoading = true);
 
     try {
-      final apiClient = ApiClient(ApiConfig.baseUrl);
-      final response = await apiClient.post(
-        '/api/auth/verify-email-code',
-        {
-          'email': widget.email,
-          'code': code,
-        },
-      );
+      if (widget.phone != null) {
+        await _auth.verifyPhone(widget.phone!, code);
+      } else if (widget.email != null) {
+        await _auth.verifyEmail(widget.email!, code);
+      } else {
+        throw Exception('No phone or email provided');
+      }
 
       if (!mounted) return;
 
-      if (response['success'] == true) {
-        // Show success dialog
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) => AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF2E8B57),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.check,
-                    color: Colors.white,
-                    size: 50,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  '✅ সফল!',
-                  style: GoogleFonts.notoSansBengali(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: const Color(0xFF2E8B57),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'আপনার ইমেইল ভেরিফাই হয়েছে',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.notoSansBengali(
-                    fontSize: 16,
-                    color: Colors.grey[800],
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'এখন আপনি লগইন করতে পারবেন',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.notoSansBengali(
-                    fontSize: 14,
-                    color: Colors.grey[600],
-                  ),
-                ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.of(context).pop(); // Close dialog
-                      Navigator.pushNamedAndRemoveUntil(
-                        context,
-                        '/login',
-                        (route) => false,
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2E8B57),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: Text(
-                      'লগইন করুন',
-                      style: GoogleFonts.notoSansBengali(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+      // Show success dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
           ),
-        );
-      } else {
-        throw Exception(response['message'] ?? 'Verification failed');
-      }
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 80,
+                height: 80,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF2E8B57),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.check, color: Colors.white, size: 50),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                '✅ সফল!',
+                style: GoogleFonts.notoSansBengali(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFF2E8B57),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                widget.phone != null
+                    ? 'আপনার ফোন নম্বর ভেরিফাই হয়েছে'
+                    : 'আপনার ইমেইল ভেরিফাই হয়েছে',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.notoSansBengali(
+                  fontSize: 16,
+                  color: Colors.grey[800],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'এখন আপনি লগইন করতে পারবেন',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.notoSansBengali(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).pop(); // Close dialog
+                    Navigator.pushNamedAndRemoveUntil(
+                      context,
+                      '/login',
+                      (route) => false,
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2E8B57),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(
+                    'লগইন করুন',
+                    style: GoogleFonts.notoSansBengali(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
 
@@ -192,11 +218,11 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
       final errorStr = e.toString();
 
       if (errorStr.contains('expired')) {
-        errorMessage = 'কোডের মেয়াদ শেষ হয়েছে। নতুন কোড পাঠান।';
+        errorMessage = 'কোডের মেয়াদ শেষ। নতুন কোড পাঠান।';
       } else if (errorStr.contains('Invalid')) {
         errorMessage = 'ভুল কোড। আবার চেষ্টা করুন।';
       } else if (errorStr.contains('already verified')) {
-        errorMessage = 'ইমেইল ইতিমধ্যে ভেরিফাই করা হয়েছে';
+        errorMessage = 'ইতোমধ্যে ভেরিফাই করা হয়েছে';
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -213,20 +239,24 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
     }
   }
 
-  Future<void> _resendCode() async {
+  Future<void> _resendCode({String method = 'sms'}) async {
     try {
-      final apiClient = ApiClient(ApiConfig.baseUrl);
-      await apiClient.post(
-        '/api/auth/resend-verification',
-        {'email': widget.email},
-      );
+      if (widget.phone != null) {
+        await _auth.resendPhoneVerificationCode(widget.phone!, method: method);
+      } else if (widget.email != null) {
+        await _auth.resendVerificationCode(widget.email!);
+      } else {
+        throw Exception('No phone or email provided');
+      }
 
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'নতুন কোড পাঠানো হয়েছে! ইনবক্স চেক করুন।',
+            method == 'whatsapp'
+                ? 'WhatsApp-এ নতুন কোড পাঠানো হয়েছে!'
+                : 'নতুন কোড পাঠানো হয়েছে! চেক করুন।',
             style: GoogleFonts.notoSansBengali(),
           ),
           backgroundColor: Colors.green,
@@ -234,7 +264,7 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
       );
 
       _startResendCountdown();
-      
+
       // Clear all fields
       for (var controller in _controllers) {
         controller.clear();
@@ -255,13 +285,27 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
     }
   }
 
+  Future<void> _verifyWithTruecaller() async {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Truecaller ভেরিফিকেশন শীঘ্রই আসছে...',
+          style: GoogleFonts.notoSansBengali(),
+        ),
+        backgroundColor: Colors.blue,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isPhone = widget.phone != null;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
         title: Text(
-          'ইমেইল ভেরিফিকেশন',
+          isPhone ? 'ফোন ভেরিফিকেশন' : 'ইমেইল ভেরিফিকেশন',
           style: GoogleFonts.notoSansBengali(
             fontSize: 20,
             fontWeight: FontWeight.w600,
@@ -298,10 +342,10 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                   ),
                 ],
               ),
-              child: const Icon(
-                Icons.email_outlined,
+              child: Icon(
+                isPhone ? Icons.phone_android : Icons.email_outlined,
                 size: 50,
-                color: Color(0xFF2E8B57),
+                color: const Color(0xFF2E8B57),
               ),
             ),
 
@@ -342,7 +386,7 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    widget.email,
+                    isPhone ? widget.phone! : widget.email!,
                     textAlign: TextAlign.center,
                     style: GoogleFonts.notoSansBengali(
                       fontSize: 14,
@@ -360,49 +404,57 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: List.generate(6, (index) {
-                return SizedBox(
-                  width: 50,
-                  height: 60,
-                  child: TextField(
-                    controller: _controllers[index],
-                    focusNode: _focusNodes[index],
-                    keyboardType: TextInputType.number,
-                    textAlign: TextAlign.center,
-                    maxLength: 1,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF2E8B57),
-                    ),
-                    decoration: InputDecoration(
-                      counterText: '',
-                      filled: true,
-                      fillColor: Colors.white,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Colors.grey, width: 2),
+                return Expanded(
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    height: 60,
+                    child: TextField(
+                      controller: _controllers[index],
+                      focusNode: _focusNodes[index],
+                      keyboardType: TextInputType.number,
+                      textAlign: TextAlign.center,
+                      maxLength: 1,
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF2E8B57),
                       ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(
-                          color: Color(0xFF2E8B57),
-                          width: 2,
+                      decoration: InputDecoration(
+                        counterText: '',
+                        filled: true,
+                        fillColor: Colors.white,
+                        contentPadding: EdgeInsets.zero, // Adjust padding
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(
+                            8,
+                          ), // Slightly smaller radius
+                          borderSide: const BorderSide(
+                            color: Colors.grey,
+                            width: 1,
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(
+                            color: Color(0xFF2E8B57),
+                            width: 2,
+                          ),
                         ),
                       ),
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      onChanged: (value) {
+                        if (value.isNotEmpty && index < 5) {
+                          _focusNodes[index + 1].requestFocus();
+                        } else if (value.isEmpty && index > 0) {
+                          _focusNodes[index - 1].requestFocus();
+                        }
+
+                        // Auto-verify when all 6 digits entered
+                        if (index == 5 && value.isNotEmpty) {
+                          _verifyOtp();
+                        }
+                      },
                     ),
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    onChanged: (value) {
-                      if (value.isNotEmpty && index < 5) {
-                        _focusNodes[index + 1].requestFocus();
-                      } else if (value.isEmpty && index > 0) {
-                        _focusNodes[index - 1].requestFocus();
-                      }
-                      
-                      // Auto-verify when all 6 digits entered
-                      if (index == 5 && value.isNotEmpty) {
-                        _verifyOtp();
-                      }
-                    },
                   ),
                 );
               }),
@@ -428,7 +480,9 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white,
+                          ),
                           strokeWidth: 2,
                         ),
                       )
@@ -445,30 +499,60 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
             const SizedBox(height: 24),
 
             // Resend Code
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'কোড পাননি? ',
-                  style: GoogleFonts.notoSansBengali(
-                    fontSize: 14,
-                    color: Colors.grey[700],
-                  ),
-                ),
-                if (_canResend)
-                  GestureDetector(
-                    onTap: _resendCode,
-                    child: Text(
-                      'নতুন কোড পাঠান',
-                      style: GoogleFonts.notoSansBengali(
-                        fontSize: 14,
-                        color: const Color(0xFF2E8B57),
-                        fontWeight: FontWeight.bold,
-                        decoration: TextDecoration.underline,
-                      ),
+            if (_canResend)
+              Column(
+                children: [
+                  Text(
+                    'কোড পাননি?',
+                    style: GoogleFonts.notoSansBengali(
+                      fontSize: 14,
+                      color: Colors.grey[700],
                     ),
-                  )
-                else
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: [
+                      if (_smsEnabled)
+                        _buildOptionButton(
+                          onPressed: () => _resendCode(method: 'sms'),
+                          icon: isPhone ? Icons.sms : Icons.email,
+                          label: isPhone ? 'SMS' : 'Email',
+                          color: const Color(0xFF2E8B57),
+                        ),
+                      if (isPhone) ...[
+                        if (_whatsappEnabled)
+                          _buildOptionButton(
+                            onPressed: () => _resendCode(method: 'whatsapp'),
+                            icon: Icons.message,
+                            label: 'WhatsApp',
+                            color: const Color(0xFF25D366),
+                          ),
+                        if (_truecallerEnabled)
+                          _buildOptionButton(
+                            onPressed: _verifyWithTruecaller,
+                            icon: Icons.call,
+                            label: 'Truecaller',
+                            color: Colors.blue,
+                          ),
+                      ],
+                    ],
+                  ),
+                ],
+              )
+            else
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'কোড পাননি? ',
+                    style: GoogleFonts.notoSansBengali(
+                      fontSize: 14,
+                      color: Colors.grey[700],
+                    ),
+                  ),
                   Text(
                     '($_resendCountdown সেকেন্ড)',
                     style: GoogleFonts.notoSansBengali(
@@ -476,8 +560,8 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                       color: Colors.grey[500],
                     ),
                   ),
-              ],
-            ),
+                ],
+              ),
 
             const SizedBox(height: 24),
 
@@ -494,7 +578,11 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.lightbulb_outline, color: Colors.amber[800], size: 20),
+                      Icon(
+                        Icons.lightbulb_outline,
+                        color: Colors.amber[800],
+                        size: 20,
+                      ),
                       const SizedBox(width: 8),
                       Text(
                         'টিপস:',
@@ -507,7 +595,7 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  _buildTip('• স্প্যাম/জাঙ্ক ফোল্ডার চেক করুন'),
+                  if (!isPhone) _buildTip('• স্প্যাম/জাঙ্ক ফোল্ডার চেক করুন'),
                   _buildTip('• কোড ১০ মিনিটের জন্য বৈধ'),
                   _buildTip('• ৬ সংখ্যার কোড ব্যবহার করুন'),
                 ],
@@ -529,6 +617,31 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
           color: Colors.amber[900],
           height: 1.5,
         ),
+      ),
+    );
+  }
+
+  Widget _buildOptionButton({
+    required VoidCallback onPressed,
+    required IconData icon,
+    required String label,
+    required Color color,
+  }) {
+    return OutlinedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 18),
+      label: Text(
+        label,
+        style: GoogleFonts.notoSansBengali(
+          fontWeight: FontWeight.w600,
+          color: color,
+        ),
+      ),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: color,
+        side: BorderSide(color: color),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
     );
   }

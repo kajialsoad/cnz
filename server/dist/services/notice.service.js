@@ -1,7 +1,9 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-const client_1 = require("@prisma/client");
-const prisma = new client_1.PrismaClient();
+const prisma_1 = __importDefault(require("../utils/prisma"));
 const publicNoticeSelect = {
     id: true,
     title: true,
@@ -42,7 +44,7 @@ const adminNoticeSelect = {
 class NoticeService {
     // Admin: Create notice
     async createNotice(data, createdBy) {
-        const notice = await prisma.notice.create({
+        const notice = await prisma_1.default.notice.create({
             data: {
                 ...data,
                 createdBy,
@@ -81,7 +83,7 @@ class NoticeService {
         else if (targetCities && targetCities.length > 0) {
             where.cityCorporationCode = { in: targetCities };
         }
-        const users = await prisma.user.findMany({
+        const users = await prisma_1.default.user.findMany({
             where,
             select: { id: true },
         });
@@ -95,7 +97,7 @@ class NoticeService {
             type: 'NOTICE',
             metadata: JSON.stringify({ noticeId: notice.id }),
         }));
-        await prisma.notification.createMany({
+        await prisma_1.default.notification.createMany({
             data: notificationData,
         });
         console.log(`✅ Created ${users.length} notifications for notice: ${notice.title}`);
@@ -121,17 +123,18 @@ class NoticeService {
             ];
         }
         const [notices, total] = await Promise.all([
-            prisma.notice.findMany({
+            prisma_1.default.notice.findMany({
                 where,
                 select: adminNoticeSelect,
                 orderBy: [
+                    { displayOrder: 'asc' },
                     { priority: 'desc' },
                     { publishDate: 'desc' },
                 ],
                 skip,
                 take: limit,
             }),
-            prisma.notice.count({ where }),
+            prisma_1.default.notice.count({ where }),
         ]);
         return {
             notices,
@@ -179,17 +182,18 @@ class NoticeService {
             ];
         }
         const [notices, total] = await Promise.all([
-            prisma.notice.findMany({
+            prisma_1.default.notice.findMany({
                 where,
                 select: publicNoticeSelect,
                 orderBy: [
+                    { displayOrder: 'asc' },
                     { priority: 'desc' },
                     { publishDate: 'desc' },
                 ],
                 skip,
                 take: limit,
             }),
-            prisma.notice.count({ where }),
+            prisma_1.default.notice.count({ where }),
         ]);
         // Fetch interactions for these notices
         const noticeIds = notices.map(n => n.id);
@@ -210,7 +214,7 @@ class NoticeService {
     }
     // Get notice by ID
     async getNoticeById(id, userId) {
-        const notice = await prisma.notice.findUnique({
+        const notice = await prisma_1.default.notice.findUnique({
             where: { id },
             select: adminNoticeSelect,
         });
@@ -233,7 +237,7 @@ class NoticeService {
                 targetZones: data.targetZones,
                 targetWards: data.targetWards
             });
-            const notice = await prisma.notice.update({
+            const notice = await prisma_1.default.notice.update({
                 where: { id },
                 data,
                 select: adminNoticeSelect,
@@ -255,17 +259,17 @@ class NoticeService {
     }
     // Toggle notice active status
     async toggleNoticeStatus(id) {
-        const notice = await prisma.notice.findUnique({ where: { id } });
+        const notice = await prisma_1.default.notice.findUnique({ where: { id } });
         if (!notice)
             throw new Error('Notice not found');
-        return await prisma.notice.update({
+        return await prisma_1.default.notice.update({
             where: { id },
             data: { isActive: !notice.isActive },
         });
     }
     // Delete notice
     async deleteNotice(id) {
-        return await prisma.notice.delete({
+        return await prisma_1.default.notice.delete({
             where: { id },
         });
     }
@@ -273,7 +277,7 @@ class NoticeService {
     async incrementViewCount(id, userId) {
         if (userId) {
             try {
-                await prisma.noticeInteraction.upsert({
+                await prisma_1.default.noticeInteraction.upsert({
                     where: {
                         noticeId_userId_type: {
                             noticeId: id,
@@ -293,7 +297,7 @@ class NoticeService {
                 console.error('Failed to record view interaction:', error);
             }
         }
-        return await prisma.notice.update({
+        return await prisma_1.default.notice.update({
             where: { id },
             data: {
                 viewCount: { increment: 1 },
@@ -304,7 +308,7 @@ class NoticeService {
     async incrementReadCount(id, userId) {
         if (userId) {
             try {
-                await prisma.noticeInteraction.upsert({
+                await prisma_1.default.noticeInteraction.upsert({
                     where: {
                         noticeId_userId_type: {
                             noticeId: id,
@@ -324,7 +328,7 @@ class NoticeService {
                 console.error('Failed to record read interaction:', error);
             }
         }
-        return await prisma.notice.update({
+        return await prisma_1.default.notice.update({
             where: { id },
             data: {
                 readCount: { increment: 1 },
@@ -333,7 +337,7 @@ class NoticeService {
     }
     // Admin: Get user notice interactions
     async getUserInteractionsByUserId(userId) {
-        return await prisma.noticeInteraction.findMany({
+        return await prisma_1.default.noticeInteraction.findMany({
             where: { userId },
             include: {
                 notice: {
@@ -356,26 +360,26 @@ class NoticeService {
     // Get analytics
     async getAnalytics() {
         const [totalNotices, activeNotices, expiredNotices, urgentNotices, totalViews, totalReads, categoryStats, interactionStats,] = await Promise.all([
-            prisma.notice.count(),
-            prisma.notice.count({ where: { isActive: true } }),
-            prisma.notice.count({
+            prisma_1.default.notice.count(),
+            prisma_1.default.notice.count({ where: { isActive: true } }),
+            prisma_1.default.notice.count({
                 where: {
                     expiryDate: { lt: new Date() },
                 },
             }),
-            prisma.notice.count({
+            prisma_1.default.notice.count({
                 where: {
                     type: 'URGENT',
                     isActive: true,
                 },
             }),
-            prisma.notice.aggregate({
+            prisma_1.default.notice.aggregate({
                 _sum: { viewCount: true },
             }),
-            prisma.notice.aggregate({
+            prisma_1.default.notice.aggregate({
                 _sum: { readCount: true },
             }),
-            prisma.notice.groupBy({
+            prisma_1.default.notice.groupBy({
                 by: ['categoryId'],
                 _count: true,
                 _sum: {
@@ -383,7 +387,7 @@ class NoticeService {
                     readCount: true,
                 },
             }),
-            prisma.noticeInteraction.groupBy({
+            prisma_1.default.noticeInteraction.groupBy({
                 by: ['type'],
                 _count: true,
             }),
@@ -401,7 +405,7 @@ class NoticeService {
     }
     // Toggle Interaction (Like, Love, RSVP)
     async toggleInteraction(noticeId, userId, type) {
-        const notice = await prisma.notice.findUnique({
+        const notice = await prisma_1.default.notice.findUnique({
             where: { id: noticeId },
             select: { id: true },
         });
@@ -409,7 +413,7 @@ class NoticeService {
             throw new Error('Notice not found');
         }
         // Fetch all interactions for this user and notice to handle mutual exclusivity
-        const userInteractions = await prisma.noticeInteraction.findMany({
+        const userInteractions = await prisma_1.default.noticeInteraction.findMany({
             where: {
                 noticeId,
                 userId,
@@ -418,7 +422,7 @@ class NoticeService {
         const existingInteraction = userInteractions.find(i => i.type === type);
         if (existingInteraction) {
             // If strictly same type exists, toggle it off (remove)
-            await prisma.noticeInteraction.delete({
+            await prisma_1.default.noticeInteraction.delete({
                 where: { id: existingInteraction.id },
             });
             return { action: 'removed', type };
@@ -428,7 +432,7 @@ class NoticeService {
             const conflictingTypes = ['LIKE', 'LOVE'];
             const conflictingInteraction = userInteractions.find(i => conflictingTypes.includes(i.type));
             if (conflictingInteraction) {
-                await prisma.noticeInteraction.delete({
+                await prisma_1.default.noticeInteraction.delete({
                     where: { id: conflictingInteraction.id },
                 });
             }
@@ -438,7 +442,7 @@ class NoticeService {
             const rsvpTypes = ['RSVP_YES', 'RSVP_NO', 'RSVP_MAYBE'];
             const conflictingRsvps = userInteractions.filter(i => rsvpTypes.includes(i.type));
             if (conflictingRsvps.length > 0) {
-                await prisma.noticeInteraction.deleteMany({
+                await prisma_1.default.noticeInteraction.deleteMany({
                     where: {
                         id: { in: conflictingRsvps.map(i => i.id) },
                     },
@@ -446,7 +450,7 @@ class NoticeService {
             }
         }
         // Create new interaction
-        await prisma.noticeInteraction.create({
+        await prisma_1.default.noticeInteraction.create({
             data: {
                 noticeId,
                 userId,
@@ -458,12 +462,12 @@ class NoticeService {
     // Get interactions for a notice
     async getNoticeInteractions(noticeId, userId) {
         const [counts, userInteractions] = await Promise.all([
-            prisma.noticeInteraction.groupBy({
+            prisma_1.default.noticeInteraction.groupBy({
                 by: ['type'],
                 where: { noticeId },
                 _count: true,
             }),
-            userId ? prisma.noticeInteraction.findMany({
+            userId ? prisma_1.default.noticeInteraction.findMany({
                 where: { noticeId, userId },
                 select: { type: true },
             }) : Promise.resolve([]),
@@ -477,10 +481,19 @@ class NoticeService {
             userInteractions: userInteractions.map(i => i.type),
         };
     }
+    // Admin: Reorder notices
+    async reorderNotices(orders) {
+        const updates = orders.map((item) => prisma_1.default.notice.update({
+            where: { id: item.id },
+            data: { displayOrder: item.displayOrder },
+        }));
+        await prisma_1.default.$transaction(updates);
+        return { success: true, message: 'Notices reordered successfully' };
+    }
     // Auto-archive expired notices (Cron Job)
     async archiveExpiredNotices() {
         const now = new Date();
-        return await prisma.notice.updateMany({
+        return await prisma_1.default.notice.updateMany({
             where: {
                 isActive: true,
                 expiryDate: { lt: now },

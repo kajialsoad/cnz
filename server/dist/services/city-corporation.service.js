@@ -1,7 +1,9 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-const client_1 = require("@prisma/client");
-const prisma = new client_1.PrismaClient();
+const prisma_1 = __importDefault(require("../utils/prisma"));
 class CityCorporationService {
     /**
      * Get all city corporations with optional status filter
@@ -11,7 +13,7 @@ class CityCorporationService {
         if (status && status !== 'ALL') {
             where.status = status;
         }
-        const cityCorporations = await prisma.cityCorporation.findMany({
+        const cityCorporations = await prisma_1.default.cityCorporation.findMany({
             where,
             orderBy: {
                 code: 'asc',
@@ -39,7 +41,7 @@ class CityCorporationService {
         const cityCorporationsWithStats = [];
         for (const cc of cityCorporations) {
             // Get total complaints
-            const totalComplaints = await prisma.complaint.count({
+            const totalComplaints = await prisma_1.default.complaint.count({
                 where: {
                     user: {
                         cityCorporationCode: cc.code,
@@ -47,14 +49,14 @@ class CityCorporationService {
                 },
             });
             // Get active zones count
-            const activeZones = await prisma.zone.count({
+            const activeZones = await prisma_1.default.zone.count({
                 where: {
                     cityCorporationId: cc.id,
                     status: 'ACTIVE',
                 },
             });
             // Get total wards count (using direct relation for better performance)
-            const totalWards = await prisma.ward.count({
+            const totalWards = await prisma_1.default.ward.count({
                 where: {
                     cityCorporationId: cc.id,
                 },
@@ -74,7 +76,7 @@ class CityCorporationService {
      * Get single city corporation by code
      */
     async getCityCorporationByCode(code) {
-        const cityCorporation = await prisma.cityCorporation.findUnique({
+        const cityCorporation = await prisma_1.default.cityCorporation.findUnique({
             where: { code },
             select: {
                 id: true,
@@ -106,7 +108,7 @@ class CityCorporationService {
             throw new Error(`City Corporation with code ${code} not found`);
         }
         // Get actual max zone and ward numbers from database
-        const maxExistingZone = await prisma.zone.findFirst({
+        const maxExistingZone = await prisma_1.default.zone.findFirst({
             where: {
                 cityCorporationId: cityCorporation.id,
             },
@@ -117,7 +119,7 @@ class CityCorporationService {
                 zoneNumber: true,
             },
         });
-        const maxExistingWard = await prisma.ward.findFirst({
+        const maxExistingWard = await prisma_1.default.ward.findFirst({
             where: {
                 cityCorporationId: cityCorporation.id,
             },
@@ -153,13 +155,13 @@ class CityCorporationService {
             throw new Error('minZone must be at least 1');
         }
         // Check if code already exists
-        const existing = await prisma.cityCorporation.findUnique({
+        const existing = await prisma_1.default.cityCorporation.findUnique({
             where: { code: data.code },
         });
         if (existing) {
             throw new Error(`City Corporation with code ${data.code} already exists`);
         }
-        const cityCorporation = await prisma.cityCorporation.create({
+        const cityCorporation = await prisma_1.default.cityCorporation.create({
             data: {
                 code: data.code,
                 name: data.name,
@@ -189,7 +191,7 @@ class CityCorporationService {
                 throw new Error('minWard must be at least 1');
             }
             // Check if there are existing wards beyond the new maxWard
-            const maxExistingWard = await prisma.ward.findFirst({
+            const maxExistingWard = await prisma_1.default.ward.findFirst({
                 where: {
                     cityCorporationId: existing.id,
                 },
@@ -215,7 +217,7 @@ class CityCorporationService {
                 throw new Error('minZone must be at least 1');
             }
             // Check if there are existing zones beyond the new maxZone
-            const maxExistingZone = await prisma.zone.findFirst({
+            const maxExistingZone = await prisma_1.default.zone.findFirst({
                 where: {
                     cityCorporationId: existing.id,
                 },
@@ -230,7 +232,7 @@ class CityCorporationService {
                 throw new Error(`Cannot set maximum zone to ${maxZone}. Zone ${maxExistingZone.zoneNumber} already exists. Please set maximum zone to at least ${maxExistingZone.zoneNumber} or delete existing zones first.`);
             }
         }
-        const cityCorporation = await prisma.cityCorporation.update({
+        const cityCorporation = await prisma_1.default.cityCorporation.update({
             where: { code },
             data,
         });
@@ -243,13 +245,13 @@ class CityCorporationService {
         // Verify city corporation exists
         await this.getCityCorporationByCode(code);
         // Get total users
-        const totalUsers = await prisma.user.count({
+        const totalUsers = await prisma_1.default.user.count({
             where: {
                 cityCorporationCode: code,
             },
         });
         // Get total complaints (through user relationship)
-        const totalComplaints = await prisma.complaint.count({
+        const totalComplaints = await prisma_1.default.complaint.count({
             where: {
                 user: {
                     cityCorporationCode: code,
@@ -257,7 +259,7 @@ class CityCorporationService {
             },
         });
         // Get resolved complaints
-        const resolvedComplaints = await prisma.complaint.count({
+        const resolvedComplaints = await prisma_1.default.complaint.count({
             where: {
                 user: {
                     cityCorporationCode: code,
@@ -266,7 +268,7 @@ class CityCorporationService {
             },
         });
         // Get active zones count
-        const activeZones = await prisma.zone.count({
+        const activeZones = await prisma_1.default.zone.count({
             where: {
                 cityCorporation: {
                     code: code,
@@ -295,7 +297,7 @@ class CityCorporationService {
      * Check if city corporation is active
      */
     async isActive(code) {
-        const cityCorporation = await prisma.cityCorporation.findUnique({
+        const cityCorporation = await prisma_1.default.cityCorporation.findUnique({
             where: { code },
             select: { status: true },
         });
@@ -308,13 +310,13 @@ class CityCorporationService {
         // Check if city corporation exists
         const cityCorporation = await this.getCityCorporationByCode(code);
         // Check if city corporation has zones
-        const zoneCount = await prisma.zone.count({
+        const zoneCount = await prisma_1.default.zone.count({
             where: { cityCorporationId: cityCorporation.id },
         });
         if (zoneCount > 0) {
             throw new Error(`Cannot delete city corporation. It has ${zoneCount} zone(s) assigned. Please remove all zones first.`);
         }
-        await prisma.cityCorporation.delete({
+        await prisma_1.default.cityCorporation.delete({
             where: { code },
         });
     }

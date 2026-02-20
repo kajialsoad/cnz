@@ -4,14 +4,13 @@ import { authGuard as authenticate } from '../middlewares/auth.middleware';
 
 const router = express.Router();
 
-// Get all public configs
+// Get all public configs (Open access)
 router.get(
     '/',
-    authenticate,
     systemConfigController.getPublicConfigs
 );
 
-// Get specific config
+// Get specific config (Authenticated)
 router.get(
     '/:key',
     authenticate,

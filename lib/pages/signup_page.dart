@@ -310,19 +310,25 @@ class _SignUpPageState extends State<SignUpPage> {
 
       if (!mounted) return;
 
-      // Check if email verification is required from backend response
-      final requiresVerification =
-          response['data']?['requiresVerification'] ?? false;
+      // Check if verification is required from backend response
+      final data = response['data'] as Map<String, dynamic>?;
+      final requiresVerification = data?['requiresVerification'] ?? false;
 
       if (requiresVerification) {
-        // Email verification is enabled - navigate to verification page
+        // Verification is enabled - navigate to verification page
+        final responseEmail = data?['email'] as String?;
+        final responsePhone = data?['phone'] as String?;
+
         Navigator.pushReplacementNamed(
           context,
           '/verify-otp',
-          arguments: email,
+          arguments: {
+            'email': responseEmail ?? email,
+            'phone': responsePhone ?? phone,
+          },
         );
       } else {
-        // Email verification is disabled - navigate to home page
+        // Verification is disabled - navigate to home page
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(

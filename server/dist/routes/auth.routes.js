@@ -49,6 +49,9 @@ const registrationRateLimiter = (0, auth_middleware_1.createRateLimiter)(60 * 60
 const resendVerificationRateLimiter = (0, auth_middleware_1.createEmailRateLimiter)(15 * 60 * 1000, 3, 'Too many verification code requests. Please try again in 15 minutes.');
 // 5 attempts per 15 minutes per email for verification
 const verifyEmailRateLimiter = (0, auth_middleware_1.createCodeRateLimiter)(15 * 60 * 1000, 5, 'Too many verification attempts. Please try again in 15 minutes.');
+// Phone verification rate limiters
+const resendPhoneVerificationRateLimiter = (0, auth_middleware_1.createPhoneRateLimiter)(15 * 60 * 1000, 3, 'Too many verification code requests. Please try again in 15 minutes.');
+const verifyPhoneRateLimiter = (0, auth_middleware_1.createPhoneRateLimiter)(15 * 60 * 1000, 5, 'Too many verification attempts. Please try again in 15 minutes.');
 // Register endpoint
 router.post('/register', registrationRateLimiter, async (req, res) => {
     try {
@@ -300,6 +303,9 @@ router.post('/resend-verification', async (req, res) => {
 router.post('/verify-email-code', verifyEmailRateLimiter, authController.verifyEmailWithCode);
 // Resend verification code endpoint
 router.post('/resend-verification-code', resendVerificationRateLimiter, authController.resendVerificationCode);
+// Phone verification endpoints
+router.post('/verify-phone-code', verifyPhoneRateLimiter, authController.verifyPhoneWithCode);
+router.post('/resend-phone-code', resendPhoneVerificationRateLimiter, authController.resendPhoneVerificationCode);
 // Test email service connection endpoint (for development/testing)
 router.get('/test-email', async (req, res) => {
     try {

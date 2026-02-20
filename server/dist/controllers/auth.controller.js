@@ -12,6 +12,8 @@ exports.updateProfile = updateProfile;
 exports.resendVerificationEmail = resendVerificationEmail;
 exports.verifyEmailWithCode = verifyEmailWithCode;
 exports.resendVerificationCode = resendVerificationCode;
+exports.verifyPhoneWithCode = verifyPhoneWithCode;
+exports.resendPhoneVerificationCode = resendPhoneVerificationCode;
 const auth_service_1 = require("../services/auth.service");
 const zod_1 = require("zod");
 const registerSchema = zod_1.z.object({
@@ -289,6 +291,57 @@ async function resendVerificationCode(req, res) {
     try {
         const body = resendVerificationCodeSchema.parse(req.body);
         const result = await auth_service_1.authService.resendVerificationEmail(body.email);
+        return res.status(200).json(result);
+    }
+    catch (err) {
+        if (err?.name === 'ZodError') {
+            return res.status(400).json({
+                success: false,
+                message: 'Validation error',
+                issues: err.issues
+            });
+        }
+        return res.status(400).json({
+            success: false,
+            message: err?.message ?? 'Failed to resend verification code'
+        });
+    }
+}
+// Phone Verification Schemas
+const verifyPhoneCodeSchema = zod_1.z.object({
+    phone: zod_1.z.string().min(11, 'Phone number must be at least 11 digits'),
+    code: zod_1.z.string().length(6, 'Verification code must be 6 digits'),
+});
+const resendPhoneVerificationCodeSchema = zod_1.z.object({
+    phone: zod_1.z.string().min(11, 'Phone number must be at least 11 digits'),
+    method: zod_1.z.enum(['sms', 'whatsapp']).optional().default('sms'),
+});
+// Verify phone with code endpoint
+async function verifyPhoneWithCode(req, res) {
+    try {
+        const body = verifyPhoneCodeSchema.parse(req.body);
+        const result = await auth_service_1.authService.verifyPhoneWithCode(body.phone, body.code);
+        return res.status(200).json(result);
+    }
+    catch (err) {
+        if (err?.name === 'ZodError') {
+            return res.status(400).json({
+                success: false,
+                message: 'Validation error',
+                issues: err.issues
+            });
+        }
+        return res.status(400).json({
+            success: false,
+            message: err?.message ?? 'Phone verification failed'
+        });
+    }
+}
+// Resend phone verification code endpoint
+async function resendPhoneVerificationCode(req, res) {
+    try {
+        const body = resendPhoneVerificationCodeSchema.parse(req.body);
+        const result = await auth_service_1.authService.resendVerificationPhone(body.phone, body.method);
         return res.status(200).json(result);
     }
     catch (err) {

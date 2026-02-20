@@ -4,6 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createNotice = createNotice;
+exports.reorderNotices = reorderNotices;
 exports.getAllNotices = getAllNotices;
 exports.getActiveNotices = getActiveNotices;
 exports.getNoticeById = getNoticeById;
@@ -31,6 +32,21 @@ async function createNotice(req, res) {
     catch (error) {
         console.error('Create notice error:', error);
         res.status(400).json({ error: error.message });
+    }
+}
+// Admin: Reorder notices
+async function reorderNotices(req, res) {
+    try {
+        const { orders } = req.body;
+        if (!Array.isArray(orders)) {
+            return res.status(400).json({ error: 'orders must be an array' });
+        }
+        const result = await notice_service_1.default.reorderNotices(orders);
+        res.json(result);
+    }
+    catch (error) {
+        console.error('Reorder notices error:', error);
+        res.status(500).json({ error: error.message });
     }
 }
 // Admin: Get all notices

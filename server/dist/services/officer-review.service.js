@@ -1,12 +1,14 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.officerReviewService = exports.OfficerReviewService = void 0;
-const client_1 = require("@prisma/client");
-const prisma = new client_1.PrismaClient();
+const prisma_1 = __importDefault(require("../utils/prisma"));
 class OfficerReviewService {
     // Get all active officer reviews with messages
     async getAllActive() {
-        return await prisma.officerReview.findMany({
+        return await prisma_1.default.officerReview.findMany({
             where: { isActive: true },
             include: {
                 messages: {
@@ -18,7 +20,7 @@ class OfficerReviewService {
     }
     // Get all officer reviews (admin)
     async getAll() {
-        return await prisma.officerReview.findMany({
+        return await prisma_1.default.officerReview.findMany({
             include: {
                 messages: {
                     orderBy: { displayOrder: 'asc' },
@@ -29,7 +31,7 @@ class OfficerReviewService {
     }
     // Get single officer review by ID
     async getById(id) {
-        return await prisma.officerReview.findUnique({
+        return await prisma_1.default.officerReview.findUnique({
             where: { id },
             include: {
                 messages: {
@@ -40,7 +42,7 @@ class OfficerReviewService {
     }
     // Create officer review
     async create(data) {
-        return await prisma.officerReview.create({
+        return await prisma_1.default.officerReview.create({
             data: {
                 name: data.name,
                 nameBn: data.nameBn,
@@ -67,11 +69,11 @@ class OfficerReviewService {
     async update(id, data) {
         // If messages are provided, delete existing and create new ones
         if (data.messages) {
-            await prisma.officerReviewMessage.deleteMany({
+            await prisma_1.default.officerReviewMessage.deleteMany({
                 where: { officerReviewId: id },
             });
         }
-        return await prisma.officerReview.update({
+        return await prisma_1.default.officerReview.update({
             where: { id },
             data: {
                 ...(data.name && { name: data.name }),
@@ -100,30 +102,30 @@ class OfficerReviewService {
     }
     // Delete officer review
     async delete(id) {
-        return await prisma.officerReview.delete({
+        return await prisma_1.default.officerReview.delete({
             where: { id },
         });
     }
     // Toggle active status
     async toggleActive(id) {
-        const review = await prisma.officerReview.findUnique({
+        const review = await prisma_1.default.officerReview.findUnique({
             where: { id },
         });
         if (!review) {
             throw new Error('Officer review not found');
         }
-        return await prisma.officerReview.update({
+        return await prisma_1.default.officerReview.update({
             where: { id },
             data: { isActive: !review.isActive },
         });
     }
     // Reorder officer reviews
     async reorder(orders) {
-        const updates = orders.map((order) => prisma.officerReview.update({
+        const updates = orders.map((order) => prisma_1.default.officerReview.update({
             where: { id: order.id },
             data: { displayOrder: order.displayOrder },
         }));
-        await prisma.$transaction(updates);
+        await prisma_1.default.$transaction(updates);
         return { success: true };
     }
 }

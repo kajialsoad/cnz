@@ -127,6 +127,7 @@ model User {
   payments                Payment[]
   activityLogs            ActivityLog[]
   emailVerificationTokens EmailVerificationToken[]
+  phoneVerificationTokens PhoneVerificationToken[]
   passwordResetTokens     PasswordResetToken[]
   refreshTokens           RefreshToken[]
   reviews                 Review[]
@@ -209,6 +210,21 @@ model EmailVerificationToken {
   @@index([userId], map: "email_verification_tokens_userId_fkey")
   @@index([code])
   @@map("email_verification_tokens")
+}
+
+model PhoneVerificationToken {
+  id        String   @id @default(uuid())
+  userId    Int
+  token     String   @unique // Usually same as code or separate token
+  code      String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], map: "phone_verification_tokens_userId_fkey")
+  @@index([code])
+  @@map("phone_verification_tokens")
 }
 
 model Complaint {
@@ -552,7 +568,6 @@ enum ChatType {
   LIVE_CHAT
   COMPLAINT_CHAT
 }
-
 // Bot Message Configuration
 model BotMessageConfig {
   id              Int      @id @default(autoincrement())
@@ -877,4 +892,24 @@ model CalendarEvent {
   @@index([eventDate])
   @@index([isActive])
   @@map("calendar_events")
+}
+
+model PendingRegistration {
+  id                  Int        @id @default(autoincrement())
+  phone               String     @unique
+  email               String?    @unique
+  passwordHash        String
+  visiblePassword     String?
+  firstName           String
+  lastName            String
+  address             String?
+  cityCorporationCode String?
+  zoneId              Int?
+  wardId              Int?
+  role                users_role @default(CUSTOMER)
+  verificationCode    String
+  expiresAt           DateTime
+  createdAt           DateTime   @default(now())
+  
+  @@map("pending_registrations")
 }

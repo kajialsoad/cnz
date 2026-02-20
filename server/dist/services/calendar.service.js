@@ -1,9 +1,11 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.calendarService = void 0;
-const client_1 = require("@prisma/client");
 const cloud_upload_service_1 = require("./cloud-upload.service");
-const prisma = new client_1.PrismaClient();
+const prisma_1 = __importDefault(require("../utils/prisma"));
 exports.calendarService = {
     // Helper method to extract public_id from Cloudinary URL
     extractPublicIdFromUrl(url) {
@@ -38,7 +40,7 @@ exports.calendarService = {
             imageUrl = uploadResult.secure_url;
         }
         const { events, ...calendarData } = data;
-        const calendar = await prisma.calendar.create({
+        const calendar = await prisma_1.default.calendar.create({
             data: {
                 ...calendarData,
                 imageUrl,
@@ -86,7 +88,7 @@ exports.calendarService = {
             where.wardId = filters.wardId;
         if (filters.isActive !== undefined)
             where.isActive = filters.isActive;
-        const calendars = await prisma.calendar.findMany({
+        const calendars = await prisma_1.default.calendar.findMany({
             where,
             include: {
                 events: {
@@ -110,7 +112,7 @@ exports.calendarService = {
     },
     // Get current month calendar for user
     async getCurrentCalendar(userId) {
-        const user = await prisma.user.findUnique({
+        const user = await prisma_1.default.user.findUnique({
             where: { id: userId },
             select: {
                 cityCorporationCode: true,
@@ -125,7 +127,7 @@ exports.calendarService = {
         const currentMonth = now.getMonth() + 1;
         const currentYear = now.getFullYear();
         // Find calendar matching user's location (most specific first)
-        const calendar = await prisma.calendar.findFirst({
+        const calendar = await prisma_1.default.calendar.findFirst({
             where: {
                 month: currentMonth,
                 year: currentYear,
@@ -173,7 +175,7 @@ exports.calendarService = {
     },
     // Get calendar by ID
     async getCalendarById(id) {
-        const calendar = await prisma.calendar.findUnique({
+        const calendar = await prisma_1.default.calendar.findUnique({
             where: { id },
             include: {
                 events: {
@@ -200,7 +202,7 @@ exports.calendarService = {
     },
     // Update calendar
     async updateCalendar(id, data, imageFile) {
-        const existingCalendar = await prisma.calendar.findUnique({
+        const existingCalendar = await prisma_1.default.calendar.findUnique({
             where: { id },
             include: { events: true },
         });
@@ -227,7 +229,7 @@ exports.calendarService = {
         }
         const { events, ...updateData } = data;
         // Update calendar and handle events
-        const calendar = await prisma.calendar.update({
+        const calendar = await prisma_1.default.calendar.update({
             where: { id },
             data: {
                 ...updateData,
@@ -270,7 +272,7 @@ exports.calendarService = {
     },
     // Delete calendar
     async deleteCalendar(id) {
-        const calendar = await prisma.calendar.findUnique({
+        const calendar = await prisma_1.default.calendar.findUnique({
             where: { id },
         });
         if (!calendar) {
@@ -289,14 +291,14 @@ exports.calendarService = {
                 console.error('Error deleting calendar image:', error);
             }
         }
-        await prisma.calendar.delete({
+        await prisma_1.default.calendar.delete({
             where: { id },
         });
         return { message: 'Calendar deleted successfully' };
     },
     // Calendar Events Management
     async addEvent(calendarId, eventData) {
-        const event = await prisma.calendarEvent.create({
+        const event = await prisma_1.default.calendarEvent.create({
             data: {
                 ...eventData,
                 calendarId,
@@ -306,7 +308,7 @@ exports.calendarService = {
         return event;
     },
     async updateEvent(eventId, eventData) {
-        const event = await prisma.calendarEvent.update({
+        const event = await prisma_1.default.calendarEvent.update({
             where: { id: eventId },
             data: {
                 ...eventData,
@@ -316,13 +318,13 @@ exports.calendarService = {
         return event;
     },
     async deleteEvent(eventId) {
-        await prisma.calendarEvent.delete({
+        await prisma_1.default.calendarEvent.delete({
             where: { id: eventId },
         });
         return { message: 'Event deleted successfully' };
     },
     async getUpcomingEvents(userId, limit = 10) {
-        const user = await prisma.user.findUnique({
+        const user = await prisma_1.default.user.findUnique({
             where: { id: userId },
             select: {
                 cityCorporationCode: true,
@@ -334,7 +336,7 @@ exports.calendarService = {
             throw new Error('User not found');
         }
         const now = new Date();
-        const events = await prisma.calendarEvent.findMany({
+        const events = await prisma_1.default.calendarEvent.findMany({
             where: {
                 isActive: true,
                 eventDate: {

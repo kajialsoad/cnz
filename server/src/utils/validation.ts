@@ -51,9 +51,9 @@ export const registerSchema = Joi.object({
     .messages({
       'string.max': 'ঠিকানা সর্বোচ্চ ২৫৫ অক্ষরের হতে হবে',
     }),
-  role: Joi.string().valid('ADMIN', 'SUPER_ADMIN', 'MASTER_ADMIN').optional()
+  role: Joi.string().valid('CUSTOMER', 'SERVICE_PROVIDER', 'ADMIN', 'SUPER_ADMIN', 'MASTER_ADMIN').optional()
     .messages({
-      'any.only': 'রোল ADMIN, SUPER_ADMIN অথবা MASTER_ADMIN হতে হবে',
+      'any.only': 'রোল CUSTOMER, SERVICE_PROVIDER, ADMIN, SUPER_ADMIN অথবা MASTER_ADMIN হতে হবে',
     }),
 }).rename('CityCorporationCode', 'cityCorporationCode', { ignoreUndefined: true });
 

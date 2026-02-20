@@ -412,14 +412,24 @@ class _MyAppState extends State<MyApp> {
           );
         }
 
-        // Handle /verify-otp route with email parameter
+        // Handle /verify-otp route with email/phone parameter
         if (settings.name == '/verify-otp') {
-          final email = settings.arguments as String?;
-          if (email == null) {
+          final args = settings.arguments;
+          String? email;
+          String? phone;
+
+          if (args is Map<String, dynamic>) {
+            email = args['email'] as String?;
+            phone = args['phone'] as String?;
+          } else if (args is String) {
+            email = args;
+          }
+
+          if (email == null && phone == null) {
             return MaterialPageRoute(builder: (_) => const LoginPage());
           }
           return MaterialPageRoute(
-            builder: (_) => OtpVerificationPage(email: email),
+            builder: (_) => OtpVerificationPage(email: email, phone: phone),
           );
         }
 

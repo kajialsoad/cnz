@@ -1,7 +1,9 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-const client_1 = require("@prisma/client");
-const prisma = new client_1.PrismaClient();
+const prisma_1 = __importDefault(require("../utils/prisma"));
 class ZoneService {
     /**
      * Get zones by city corporation with optional status filter
@@ -13,7 +15,7 @@ class ZoneService {
         if (status && status !== 'ALL') {
             where.status = status;
         }
-        const zones = await prisma.zone.findMany({
+        const zones = await prisma_1.default.zone.findMany({
             where,
             include: {
                 cityCorporation: {
@@ -40,7 +42,7 @@ class ZoneService {
      * Get single zone by ID
      */
     async getZoneById(id) {
-        const zone = await prisma.zone.findUnique({
+        const zone = await prisma_1.default.zone.findUnique({
             where: { id },
             include: {
                 cityCorporation: {
@@ -76,7 +78,7 @@ class ZoneService {
      */
     async createZone(data) {
         // Validate city corporation exists and get limits
-        const cityCorporation = await prisma.cityCorporation.findUnique({
+        const cityCorporation = await prisma_1.default.cityCorporation.findUnique({
             where: { id: data.cityCorporationId },
         });
         if (!cityCorporation) {
@@ -89,7 +91,7 @@ class ZoneService {
             throw new Error(`Zone number must be between ${minZone} and ${maxZone} for ${cityCorporation.name}`);
         }
         // Check if zone number already exists for this city corporation
-        const existing = await prisma.zone.findFirst({
+        const existing = await prisma_1.default.zone.findFirst({
             where: {
                 zoneNumber: data.zoneNumber,
                 cityCorporationId: data.cityCorporationId,
@@ -98,7 +100,7 @@ class ZoneService {
         if (existing) {
             throw new Error(`Zone ${data.zoneNumber} already exists in ${cityCorporation.name}`);
         }
-        const zone = await prisma.zone.create({
+        const zone = await prisma_1.default.zone.create({
             data: {
                 zoneNumber: data.zoneNumber,
                 number: data.zoneNumber, // Required field
@@ -128,7 +130,7 @@ class ZoneService {
     async updateZone(id, data) {
         // Check if zone exists
         await this.getZoneById(id);
-        const zone = await prisma.zone.update({
+        const zone = await prisma_1.default.zone.update({
             where: { id },
             data,
             include: {
@@ -156,13 +158,13 @@ class ZoneService {
         // Check if zone exists
         const zone = await this.getZoneById(id);
         // Check if zone has wards
-        const wardCount = await prisma.ward.count({
+        const wardCount = await prisma_1.default.ward.count({
             where: { zoneId: id },
         });
         if (wardCount > 0) {
             throw new Error(`Cannot delete zone. It has ${wardCount} ward(s) assigned. Please remove all wards first.`);
         }
-        await prisma.zone.delete({
+        await prisma_1.default.zone.delete({
             where: { id },
         });
     }
@@ -173,19 +175,19 @@ class ZoneService {
         // Verify zone exists
         await this.getZoneById(id);
         // Get total wards
-        const totalWards = await prisma.ward.count({
+        const totalWards = await prisma_1.default.ward.count({
             where: {
                 zoneId: id,
             },
         });
         // Get total users
-        const totalUsers = await prisma.user.count({
+        const totalUsers = await prisma_1.default.user.count({
             where: {
                 zoneId: id,
             },
         });
         // Get total complaints (through user relationship)
-        const totalComplaints = await prisma.complaint.count({
+        const totalComplaints = await prisma_1.default.complaint.count({
             where: {
                 user: {
                     zoneId: id,
@@ -203,7 +205,7 @@ class ZoneService {
      */
     async getAvailableZoneNumbers(cityCorporationId) {
         // Validate city corporation exists and get limits
-        const cityCorporation = await prisma.cityCorporation.findUnique({
+        const cityCorporation = await prisma_1.default.cityCorporation.findUnique({
             where: { id: cityCorporationId },
         });
         if (!cityCorporation) {
@@ -213,7 +215,7 @@ class ZoneService {
         const minZone = cityCorporation.minZone || 1;
         const maxZone = cityCorporation.maxZone || 20;
         // Get existing zone numbers for this city corporation
-        const existingZones = await prisma.zone.findMany({
+        const existingZones = await prisma_1.default.zone.findMany({
             where: { cityCorporationId },
             select: { zoneNumber: true },
         });
@@ -232,7 +234,7 @@ class ZoneService {
      */
     async validateZoneNumber(cityCorporationId, zoneNumber) {
         // Get city corporation limits
-        const cityCorporation = await prisma.cityCorporation.findUnique({
+        const cityCorporation = await prisma_1.default.cityCorporation.findUnique({
             where: { id: cityCorporationId },
         });
         if (!cityCorporation) {
@@ -245,7 +247,7 @@ class ZoneService {
             return false;
         }
         // Check if zone number already exists for this city corporation
-        const existing = await prisma.zone.findFirst({
+        const existing = await prisma_1.default.zone.findFirst({
             where: {
                 zoneNumber,
                 cityCorporationId,
@@ -258,7 +260,7 @@ class ZoneService {
      * Check if zone is active
      */
     async isActive(id) {
-        const zone = await prisma.zone.findUnique({
+        const zone = await prisma_1.default.zone.findUnique({
             where: { id },
             select: { status: true },
         });
@@ -268,7 +270,7 @@ class ZoneService {
      * Validate zone belongs to city corporation
      */
     async validateZoneBelongsToCityCorporation(zoneId, cityCorporationId) {
-        const zone = await prisma.zone.findUnique({
+        const zone = await prisma_1.default.zone.findUnique({
             where: { id: zoneId },
             select: {
                 cityCorporationId: true,
@@ -289,7 +291,7 @@ class ZoneService {
         if (officerData.officerName !== undefined && officerData.officerName.trim() === '') {
             throw new Error('Officer name cannot be empty');
         }
-        const zone = await prisma.zone.update({
+        const zone = await prisma_1.default.zone.update({
             where: { id },
             data: {
                 officerName: officerData.officerName,
@@ -313,7 +315,7 @@ class ZoneService {
      * Get zone officer information
      */
     async getZoneOfficer(id) {
-        const zone = await prisma.zone.findUnique({
+        const zone = await prisma_1.default.zone.findUnique({
             where: { id },
             select: {
                 id: true,
@@ -400,7 +402,7 @@ class ZoneService {
      * Get zones accessible by a specific user based on their role and assignments
      */
     async getAccessibleZones(userId) {
-        const user = await prisma.user.findUnique({
+        const user = await prisma_1.default.user.findUnique({
             where: { id: userId },
             include: {
                 cityCorporation: true,

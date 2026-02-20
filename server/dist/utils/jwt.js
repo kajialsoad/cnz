@@ -15,8 +15,7 @@ exports.decodeToken = decodeToken;
 exports.isTokenExpired = isTokenExpired;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const env_1 = __importDefault(require("../config/env"));
-const client_1 = require("@prisma/client");
-const prisma = new client_1.PrismaClient();
+const prisma_1 = __importDefault(require("./prisma"));
 function signAccessToken(payload) {
     const secret = env_1.default.JWT_ACCESS_SECRET;
     const options = {
@@ -88,7 +87,7 @@ function generateOTP(length = 6) {
  */
 async function validateUserSession(userId) {
     try {
-        const user = await prisma.user.findUnique({
+        const user = await prisma_1.default.user.findUnique({
             where: { id: userId },
             select: {
                 id: true,

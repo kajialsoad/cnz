@@ -33,6 +33,7 @@ const env = {
     PASSWORD_RESET_TTL: process.env.PASSWORD_RESET_TTL ?? '1h',
     EMAIL_VERIFICATION_TTL: process.env.EMAIL_VERIFICATION_TTL ?? '24h',
     EMAIL_VERIFICATION_ENABLED: process.env.EMAIL_VERIFICATION_ENABLED === 'true',
+    PHONE_VERIFICATION_ENABLED: process.env.PHONE_VERIFICATION_ENABLED === 'true',
     // TTL in seconds for calculations
     ACCESS_TTL_SECONDS: 7 * 24 * 60 * 60, // 7 days (increased for mobile app)
     REFRESH_TTL_SECONDS: 30 * 24 * 60 * 60, // 30 days
