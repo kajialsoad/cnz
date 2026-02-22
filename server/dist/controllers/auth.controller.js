@@ -14,6 +14,7 @@ exports.verifyEmailWithCode = verifyEmailWithCode;
 exports.resendVerificationCode = resendVerificationCode;
 exports.verifyPhoneWithCode = verifyPhoneWithCode;
 exports.resendPhoneVerificationCode = resendPhoneVerificationCode;
+exports.verifyRegistration = verifyRegistration;
 const auth_service_1 = require("../services/auth.service");
 const zod_1 = require("zod");
 const registerSchema = zod_1.z.object({
@@ -318,12 +319,46 @@ const resendPhoneVerificationCodeSchema = zod_1.z.object({
 });
 // Verify phone with code endpoint
 async function verifyPhoneWithCode(req, res) {
+    console.log('--- Verify Phone With Code Request ---');
+    console.log('Body:', JSON.stringify(req.body, null, 2));
     try {
         const body = verifyPhoneCodeSchema.parse(req.body);
-        const result = await auth_service_1.authService.verifyPhoneWithCode(body.phone, body.code);
-        return res.status(200).json(result);
+        let phone = body.phone;
+        console.log(`Verifying phone: ${phone} with code: ${body.code}`);
+        try {
+            const result = await auth_service_1.authService.verifyPhoneWithCode(phone, body.code);
+            console.log('Phone verification successful:', result);
+            return res.status(200).json(result);
+        }
+        catch (primaryError) {
+            console.warn(`Primary phone verification failed for ${phone}: ${primaryError.message}`);
+            // If user not found, try alternative phone formats
+            if (primaryError.message === 'User not found') {
+                let alternativePhone = phone;
+                if (phone.startsWith('880')) {
+                    alternativePhone = phone.substring(2);
+                }
+                else if (phone.startsWith('01')) {
+                    alternativePhone = '88' + phone;
+                }
+                if (alternativePhone !== phone) {
+                    console.log(`Retrying phone verification with alternative phone: ${alternativePhone}`);
+                    try {
+                        const result = await auth_service_1.authService.verifyPhoneWithCode(alternativePhone, body.code);
+                        console.log('Phone verification successful with alternative phone:', result);
+                        return res.status(200).json(result);
+                    }
+                    catch (secondaryError) {
+                        console.error(`Secondary phone verification failed for ${alternativePhone}: ${secondaryError.message}`);
+                        throw primaryError;
+                    }
+                }
+            }
+            throw primaryError;
+        }
     }
     catch (err) {
+        console.error('Phone Verification Error:', err);
         if (err?.name === 'ZodError') {
             return res.status(400).json({
                 success: false,
@@ -355,6 +390,77 @@ async function resendPhoneVerificationCode(req, res) {
         return res.status(400).json({
             success: false,
             message: err?.message ?? 'Failed to resend verification code'
+        });
+    }
+}
+// Verification Registration Schema
+const verifyRegistrationSchema = zod_1.z.object({
+    phone: zod_1.z.string().min(11, 'Phone number must be at least 11 digits'),
+    code: zod_1.z.string().length(6, 'Verification code must be 6 digits'),
+});
+// Verify Registration OTP and Create User
+async function verifyRegistration(req, res) {
+    console.log('--- Verify Registration Request ---');
+    console.log('Body:', JSON.stringify(req.body, null, 2));
+    try {
+        const body = verifyRegistrationSchema.parse(req.body);
+        // Normalize phone number if needed (just in case frontend sends without 88)
+        let phone = body.phone;
+        console.log(`Verifying registration for phone: ${phone} with code: ${body.code}`);
+        // Try verifying with the provided phone number
+        try {
+            const result = await auth_service_1.authService.verifyRegistration({
+                phone: phone,
+                code: body.code
+            });
+            console.log('Verification successful:', result);
+            return res.status(200).json(result);
+        }
+        catch (primaryError) {
+            console.warn(`Primary verification failed for ${phone}: ${primaryError.message}`);
+            // If the error is "Registration session not found", try alternative phone formats
+            if (primaryError.message.includes('Registration session not found')) {
+                let alternativePhone = phone;
+                // If starts with 880, try removing 88
+                if (phone.startsWith('880')) {
+                    alternativePhone = phone.substring(2);
+                }
+                // If starts with 01, try adding 88
+                else if (phone.startsWith('01')) {
+                    alternativePhone = '88' + phone;
+                }
+                if (alternativePhone !== phone) {
+                    console.log(`Retrying verification with alternative phone: ${alternativePhone}`);
+                    try {
+                        const result = await auth_service_1.authService.verifyRegistration({
+                            phone: alternativePhone,
+                            code: body.code
+                        });
+                        console.log('Verification successful with alternative phone:', result);
+                        return res.status(200).json(result);
+                    }
+                    catch (secondaryError) {
+                        console.error(`Secondary verification failed for ${alternativePhone}: ${secondaryError.message}`);
+                        // Throw the original error to the user, or a generic one
+                        throw primaryError;
+                    }
+                }
+            }
+            throw primaryError;
+        }
+    }
+    catch (err) {
+        console.error('Verification Error:', err);
+        if (err?.name === 'ZodError') {
+            return res.status(400).json({
+                success: false,
+                message: 'Validation error',
+                issues: err.issues
+            });
+        }
+        return res.status(400).json({
+            success: false,
+            message: err?.message ?? 'Verification failed'
         });
     }
 }

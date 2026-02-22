@@ -8,7 +8,15 @@ class SystemConfigController {
         try {
             const { key } = req.params;
             // Whitelist allowed keys for public/user access
-            const allowedKeys = ['daily_complaint_limit', 'ward_image_limit'];
+            const allowedKeys = [
+                'daily_complaint_limit',
+                'ward_image_limit',
+                'verification_sms_enabled',
+                'verification_email_enabled',
+                'verification_whatsapp_enabled',
+                'verification_truecaller_enabled',
+                'maintenance_mode'
+            ];
             if (!allowedKeys.includes(key)) {
                 return res.status(403).json({
                     success: false,
@@ -17,8 +25,13 @@ class SystemConfigController {
             }
             // Default values
             const defaultValues = {
-                'daily_complaint_limit': '20',
-                'ward_image_limit': '10'
+                'daily_complaint_limit': process.env.DAILY_COMPLAINT_LIMIT || '20',
+                'ward_image_limit': process.env.WARD_IMAGE_LIMIT || '10',
+                'verification_sms_enabled': process.env.VERIFICATION_SMS_ENABLED || 'true',
+                'verification_email_enabled': process.env.VERIFICATION_EMAIL_ENABLED || 'true',
+                'verification_whatsapp_enabled': process.env.VERIFICATION_WHATSAPP_ENABLED || 'true',
+                'verification_truecaller_enabled': process.env.VERIFICATION_TRUECALLER_ENABLED || 'false',
+                'maintenance_mode': process.env.MAINTENANCE_MODE || 'false'
             };
             const value = await system_config_service_1.systemConfigService.get(key, defaultValues[key]);
             res.status(200).json({
@@ -40,12 +53,23 @@ class SystemConfigController {
     // Get all user accessible configs at once
     async getPublicConfigs(req, res) {
         try {
-            const allowedKeys = ['daily_complaint_limit', 'ward_image_limit'];
+            const allowedKeys = [
+                'daily_complaint_limit',
+                'ward_image_limit',
+                'verification_sms_enabled',
+                'verification_email_enabled',
+                'verification_whatsapp_enabled',
+                'verification_truecaller_enabled'
+            ];
             const configs = {};
             // Default values
             const defaultValues = {
-                'daily_complaint_limit': '20',
-                'ward_image_limit': '10'
+                'daily_complaint_limit': process.env.DAILY_COMPLAINT_LIMIT || '20',
+                'ward_image_limit': process.env.WARD_IMAGE_LIMIT || '10',
+                'verification_sms_enabled': process.env.VERIFICATION_SMS_ENABLED || 'true',
+                'verification_email_enabled': process.env.VERIFICATION_EMAIL_ENABLED || 'true',
+                'verification_whatsapp_enabled': process.env.VERIFICATION_WHATSAPP_ENABLED || 'true',
+                'verification_truecaller_enabled': process.env.VERIFICATION_TRUECALLER_ENABLED || 'false'
             };
             for (const key of allowedKeys) {
                 configs[key] = await system_config_service_1.systemConfigService.get(key, defaultValues[key]);

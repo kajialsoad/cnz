@@ -119,6 +119,9 @@ model User {
   preferredLanguage       String?                  @default("bn") // "bn" for Bangla, "en" for English
   whatsapp                String?
   visiblePassword         String?
+  deletionReason          String?
+  customReason            String?
+  deletionDate            DateTime?
   receivedMessages        ChatMessage[]            @relation("ReceivedMessages")
   sentMessages            ChatMessage[]            @relation("SentMessages")
   assignedComplaints      Complaint[]              @relation("AssignedComplaints")
@@ -490,6 +493,7 @@ enum UserStatus {
   INACTIVE
   SUSPENDED
   PENDING
+  DELETED
 }
 
 enum PaymentStatus {

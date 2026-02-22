@@ -98,7 +98,24 @@ export async function me(req: AuthRequest, res: Response) {
     const user = await authService.getProfile(req.user.sub.toString());
     return res.status(200).json({ user });
   } catch (err: any) {
-    return res.status(400).json({ message: err?.message ?? 'Failed to load user' });
+    return res.status(401).json({ message: err?.message ?? 'Unauthorized' });
+  }
+}
+
+export async function deleteAccount(req: AuthRequest, res: Response) {
+  try {
+    if (!req.user) return res.status(401).json({ message: 'Unauthorized' });
+    const { reason, customReason } = req.body;
+    
+    if (!reason) {
+      return res.status(400).json({ message: 'Reason is required' });
+    }
+
+    const userId = parseInt(req.user.sub.toString());
+    const result = await authService.deleteAccount(userId, reason, customReason);
+    return res.status(200).json(result);
+  } catch (err: any) {
+    return res.status(400).json({ message: err?.message ?? 'Delete account failed' });
   }
 }
 

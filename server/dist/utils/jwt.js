@@ -9,6 +9,7 @@ exports.verifyAccessToken = verifyAccessToken;
 exports.verifyRefreshToken = verifyRefreshToken;
 exports.generateSecureToken = generateSecureToken;
 exports.generateOTP = generateOTP;
+exports.generateDynamicOTP = generateDynamicOTP;
 exports.validateUserSession = validateUserSession;
 exports.generateSessionId = generateSessionId;
 exports.decodeToken = decodeToken;
@@ -16,6 +17,7 @@ exports.isTokenExpired = isTokenExpired;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const env_1 = __importDefault(require("../config/env"));
 const prisma_1 = __importDefault(require("./prisma"));
+const system_config_service_1 = require("../services/system-config.service");
 function signAccessToken(payload) {
     const secret = env_1.default.JWT_ACCESS_SECRET;
     const options = {
@@ -80,6 +82,22 @@ function generateOTP(length = 6) {
         otp += digits[Math.floor(Math.random() * digits.length)];
     }
     return otp;
+}
+/**
+ * Async wrapper for generating OTP to support dynamic length from DB
+ */
+async function generateDynamicOTP() {
+    let length = 6;
+    try {
+        const lengthStr = await system_config_service_1.systemConfigService.get('verification_code_length', process.env.VERIFICATION_CODE_LENGTH || '6');
+        length = parseInt(lengthStr, 10);
+        if (isNaN(length) || length < 4 || length > 10)
+            length = 6;
+    }
+    catch (e) {
+        console.warn('Failed to fetch OTP length config, using default 6');
+    }
+    return generateOTP(length);
 }
 /**
  * Validate user session and check if user is still active

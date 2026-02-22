@@ -366,7 +366,7 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
 
         // Check if status is being changed to a destructive state
         const isStatusChanging = formData.status !== user?.status;
-        const isDestructiveStatus = formData.status === 'SUSPENDED' || formData.status === 'INACTIVE';
+        const isDestructiveStatus = formData.status === 'SUSPENDED' || formData.status === 'INACTIVE' || formData.status === 'DELETED';
 
         if (isStatusChanging && isDestructiveStatus && !skipConfirmation) {
             setShowConfirmDialog(true);
@@ -840,6 +840,7 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
                                 <MenuItem value="INACTIVE">Inactive</MenuItem>
                                 <MenuItem value="SUSPENDED">Suspended</MenuItem>
                                 <MenuItem value="PENDING">Pending</MenuItem>
+                                <MenuItem value="DELETED">Deleted</MenuItem>
                             </TextField>
                         </Box>
                     </Box>
@@ -873,13 +874,21 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
             {/* Confirmation Dialog for Destructive Status Changes */}
             <ConfirmDialog
                 open={showConfirmDialog}
-                title={formData.status === 'SUSPENDED' ? 'Suspend User' : 'Deactivate User'}
+                title={
+                    formData.status === 'DELETED'
+                        ? 'Delete User'
+                        : formData.status === 'SUSPENDED'
+                        ? 'Suspend User'
+                        : 'Deactivate User'
+                }
                 message={
-                    formData.status === 'SUSPENDED'
+                    formData.status === 'DELETED'
+                        ? `Are you sure you want to mark ${user?.firstName} ${user?.lastName} as DELETED? This user will not be able to login.`
+                        : formData.status === 'SUSPENDED'
                         ? `Are you sure you want to suspend ${user?.firstName} ${user?.lastName}? This will immediately block their access to the system.`
                         : `Are you sure you want to deactivate ${user?.firstName} ${user?.lastName}? They will not be able to access the system.`
                 }
-                confirmText="Confirm"
+                confirmText={formData.status === 'DELETED' ? 'Delete' : 'Confirm'}
                 cancelText="Cancel"
                 severity="warning"
                 onConfirm={handleConfirmStatusChange}

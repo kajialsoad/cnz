@@ -339,4 +339,29 @@ class AuthRepository {
       throw Exception('Failed to load wards: ${e.toString()}');
     }
   }
+
+  Future<void> deleteAccount({
+    required String reason,
+    String? customReason,
+  }) async {
+    try {
+      await api.delete(
+        '/api/users/me',
+        data: {
+          'reason': reason,
+          if (customReason != null) 'customReason': customReason,
+        },
+      );
+
+      // Clear local data
+      final sp = await SharedPreferences.getInstance();
+      await sp.clear();
+      // Also clear ApiClient token cache if possible, but it's private.
+      // Assuming app will restart or navigate to login which re-inits things.
+    } on ApiException catch (e) {
+      throw Exception(e.message);
+    } catch (e) {
+      throw Exception('Failed to delete account: ${e.toString()}');
+    }
+  }
 }

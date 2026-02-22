@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 import '../components/custom_bottom_nav.dart';
+import 'delete_account_page.dart';
 import '../config/api_config.dart';
 import '../models/user_model.dart';
 import '../pages/edit_profile_page.dart';
@@ -279,6 +280,10 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
 
                         // Logout Button
                         _buildLogoutButton(),
+                        const SizedBox(height: 10),
+
+                        // Delete Account Button
+                        _buildDeleteAccountButton(),
                         const SizedBox(height: 20),
 
                         // Footer
@@ -956,6 +961,35 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
         ),
         style: OutlinedButton.styleFrom(
           side: const BorderSide(color: Colors.red),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          padding: const EdgeInsets.symmetric(vertical: 16),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDeleteAccountButton() {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      child: ElevatedButton.icon(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const DeleteAccountPage()),
+          );
+        },
+        icon: const Icon(Icons.delete_forever, color: Colors.white, size: 20),
+        label: const Text(
+          'Delete Account',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.black,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           padding: const EdgeInsets.symmetric(vertical: 16),
         ),

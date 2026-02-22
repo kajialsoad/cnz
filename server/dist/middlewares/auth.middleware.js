@@ -12,6 +12,7 @@ exports.cityCorporationGuard = cityCorporationGuard;
 exports.zoneGuard = zoneGuard;
 exports.wardGuard = wardGuard;
 const jwt_1 = require("../utils/jwt");
+const system_config_service_1 = require("../services/system-config.service");
 /**
  * Enhanced authentication guard with session validation
  * Requirements: 12.1, 12.2, 12.3, 12.17
@@ -133,9 +134,31 @@ function createRateLimiter(windowMs, max, message) {
     };
 }
 // Phone-based rate limiting middleware
-function createPhoneRateLimiter(windowMs, max, message) {
+function createPhoneRateLimiter(windowMs, max, message, configType) {
     const requests = new Map();
-    return (req, res, next) => {
+    return async (req, res, next) => {
+        let dynamicMax = max;
+        let dynamicWindowMs = windowMs;
+        try {
+            if (configType) {
+                const windowStr = await system_config_service_1.systemConfigService.get('verification_request_window_minutes');
+                if (windowStr)
+                    dynamicWindowMs = parseInt(windowStr, 10) * 60 * 1000;
+                if (configType === 'request') {
+                    const limitStr = await system_config_service_1.systemConfigService.get('verification_request_limit');
+                    if (limitStr)
+                        dynamicMax = parseInt(limitStr, 10);
+                }
+                else if (configType === 'attempt') {
+                    const limitStr = await system_config_service_1.systemConfigService.get('verification_attempt_limit');
+                    if (limitStr)
+                        dynamicMax = parseInt(limitStr, 10);
+                }
+            }
+        }
+        catch (e) {
+            // Fallback to static defaults
+        }
         const phone = req.body?.phone || req.query?.phone;
         if (!phone) {
             return res.status(400).json({
@@ -147,10 +170,10 @@ function createPhoneRateLimiter(windowMs, max, message) {
         const now = Date.now();
         const current = requests.get(key);
         if (!current || now > current.resetTime) {
-            requests.set(key, { count: 1, resetTime: now + windowMs });
+            requests.set(key, { count: 1, resetTime: now + dynamicWindowMs });
             return next();
         }
-        if (current.count >= max) {
+        if (current.count >= dynamicMax) {
             return res.status(429).json({
                 success: false,
                 message,
@@ -162,9 +185,31 @@ function createPhoneRateLimiter(windowMs, max, message) {
     };
 }
 // Email-based rate limiting middleware for verification code requests
-function createEmailRateLimiter(windowMs, max, message) {
+function createEmailRateLimiter(windowMs, max, message, configType) {
     const requests = new Map();
-    return (req, res, next) => {
+    return async (req, res, next) => {
+        let dynamicMax = max;
+        let dynamicWindowMs = windowMs;
+        try {
+            if (configType) {
+                const windowStr = await system_config_service_1.systemConfigService.get('verification_request_window_minutes');
+                if (windowStr)
+                    dynamicWindowMs = parseInt(windowStr, 10) * 60 * 1000;
+                if (configType === 'request') {
+                    const limitStr = await system_config_service_1.systemConfigService.get('verification_request_limit');
+                    if (limitStr)
+                        dynamicMax = parseInt(limitStr, 10);
+                }
+                else if (configType === 'attempt') {
+                    const limitStr = await system_config_service_1.systemConfigService.get('verification_attempt_limit');
+                    if (limitStr)
+                        dynamicMax = parseInt(limitStr, 10);
+                }
+            }
+        }
+        catch (e) {
+            // Fallback to static defaults
+        }
         const email = req.body?.email || req.query?.email;
         if (!email) {
             return res.status(400).json({
@@ -176,10 +221,10 @@ function createEmailRateLimiter(windowMs, max, message) {
         const now = Date.now();
         const current = requests.get(key);
         if (!current || now > current.resetTime) {
-            requests.set(key, { count: 1, resetTime: now + windowMs });
+            requests.set(key, { count: 1, resetTime: now + dynamicWindowMs });
             return next();
         }
-        if (current.count >= max) {
+        if (current.count >= dynamicMax) {
             return res.status(429).json({
                 success: false,
                 message,
@@ -191,9 +236,31 @@ function createEmailRateLimiter(windowMs, max, message) {
     };
 }
 // Code-based rate limiting middleware for verification attempts
-function createCodeRateLimiter(windowMs, max, message) {
+function createCodeRateLimiter(windowMs, max, message, configType) {
     const requests = new Map();
-    return (req, res, next) => {
+    return async (req, res, next) => {
+        let dynamicMax = max;
+        let dynamicWindowMs = windowMs;
+        try {
+            if (configType) {
+                const windowStr = await system_config_service_1.systemConfigService.get('verification_request_window_minutes');
+                if (windowStr)
+                    dynamicWindowMs = parseInt(windowStr, 10) * 60 * 1000;
+                if (configType === 'request') {
+                    const limitStr = await system_config_service_1.systemConfigService.get('verification_request_limit');
+                    if (limitStr)
+                        dynamicMax = parseInt(limitStr, 10);
+                }
+                else if (configType === 'attempt') {
+                    const limitStr = await system_config_service_1.systemConfigService.get('verification_attempt_limit');
+                    if (limitStr)
+                        dynamicMax = parseInt(limitStr, 10);
+                }
+            }
+        }
+        catch (e) {
+            // Fallback to static defaults
+        }
         const email = req.body?.email;
         if (!email) {
             return res.status(400).json({
@@ -205,10 +272,10 @@ function createCodeRateLimiter(windowMs, max, message) {
         const now = Date.now();
         const current = requests.get(key);
         if (!current || now > current.resetTime) {
-            requests.set(key, { count: 1, resetTime: now + windowMs });
+            requests.set(key, { count: 1, resetTime: now + dynamicWindowMs });
             return next();
         }
-        if (current.count >= max) {
+        if (current.count >= dynamicMax) {
             return res.status(429).json({
                 success: false,
                 message,

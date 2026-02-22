@@ -40,6 +40,9 @@ export interface UserWithStats {
     passwordHash?: string | null;
     visiblePassword?: string | null;
     status: UserStatus;
+    deletionReason?: string | null;
+    customReason?: string | null;
+    deletionDate?: Date | null;
     emailVerified: boolean;
     phoneVerified: boolean;
     createdAt: Date;
@@ -232,6 +235,9 @@ export class AdminUserService {
                 passwordHash: true,
                 visiblePassword: true,
                 status: true,
+                deletionReason: true,
+                customReason: true,
+                deletionDate: true,
                 emailVerified: true,
                 phoneVerified: true,
                 createdAt: true,
@@ -444,6 +450,9 @@ export class AdminUserService {
                 passwordHash: true,
                 visiblePassword: true,
                 status: true,
+                deletionReason: true,
+                customReason: true,
+                deletionDate: true,
                 emailVerified: true,
                 phoneVerified: true,
                 createdAt: true,

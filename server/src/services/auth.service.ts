@@ -54,7 +54,18 @@ export class AuthService {
     });
 
     if (existingUserByPhone) {
-      throw new Error('User already exists with this phone number');
+      if (existingUserByPhone.status === 'DELETED') {
+        // Archive the deleted user to free up the phone number
+        await prisma.user.update({
+          where: { id: existingUserByPhone.id },
+          data: {
+            phone: `${existingUserByPhone.phone}_deleted_${Date.now()}`,
+            email: existingUserByPhone.email ? `${existingUserByPhone.email}_deleted_${Date.now()}` : existingUserByPhone.email
+          }
+        });
+      } else {
+        throw new Error('User already exists with this phone number');
+      }
     }
 
     // Check if user exists by email (if provided)
@@ -64,7 +75,27 @@ export class AuthService {
       });
 
       if (existingUserByEmail) {
-        throw new Error('User already exists with this email');
+        if (existingUserByEmail.status === 'DELETED') {
+          // Archive the deleted user to free up the email
+          // Note: If we already archived this user in the phone check above, existingUserByEmail might be different or same.
+          // If it's the same user, it might already be updated? 
+          // Wait, findUnique runs before the update above. 
+          // So if phone matches User A and email matches User B?
+          // If phone matches User A (DELETED), we updated User A.
+          // If email matches User B (DELETED), we update User B.
+          
+          // Re-fetch to be safe or just update if ID is different?
+          // Simplest is to just update.
+          await prisma.user.update({
+            where: { id: existingUserByEmail.id },
+            data: {
+              email: `${existingUserByEmail.email}_deleted_${Date.now()}`,
+              phone: existingUserByEmail.phone.includes('_deleted_') ? existingUserByEmail.phone : `${existingUserByEmail.phone}_deleted_${Date.now()}`
+            }
+          });
+        } else {
+          throw new Error('User already exists with this email');
+        }
       }
     }
 
@@ -403,6 +434,10 @@ export class AuthService {
       // Track failed login attempt
       await trackLoginAttempt(identifier, false, ip);
       throw new Error('Invalid credentials');
+    }
+
+    if (user.status === 'DELETED') {
+      throw new Error('This account has been deleted. Please contact support if you believe this is an error.');
     }
 
     if (user.status === 'SUSPENDED') {
@@ -1280,6 +1315,33 @@ export class AuthService {
     }
 
     return { count: 0 };
+  }
+
+  // Delete user account (Soft delete)
+  async deleteAccount(userId: number, reason: string, customReason?: string) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    // Update user status to DELETED and save reason
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        status: 'DELETED', // Ensure 'DELETED' is added to UserStatus enum in schema.prisma
+        deletionReason: reason,
+        customReason: customReason,
+        deletionDate: new Date()
+      }
+    });
+
+    return {
+      success: true,
+      message: 'Account deleted successfully'
+    };
   }
 }
 

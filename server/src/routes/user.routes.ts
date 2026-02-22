@@ -2,10 +2,14 @@ import { Router } from 'express';
 import { AuthRequest } from '../types/auth';
 import { authService } from '../services/auth.service';
 import { authGuard, rbacGuard } from '../middlewares/auth.middleware';
+import { deleteAccount } from '../controllers/auth.controller';
 import { validateInput } from '../utils/validation';
 import { updateProfileSchema, changePasswordSchema } from '../utils/validation';
 
 const router = Router();
+
+// Delete current user account
+router.delete('/me', authGuard, deleteAccount);
 
 // Get current user profile (alias for /profile)
 router.get('/me', authGuard, async (req: AuthRequest, res) => {
