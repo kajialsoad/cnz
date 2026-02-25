@@ -6,6 +6,9 @@ import '../repositories/auth_repository.dart';
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
 import '../services/connectivity_service.dart';
+import '../services/system_config_service.dart';
+
+import 'forgot_password_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -20,11 +23,25 @@ class _LoginPageState extends State<LoginPage> {
   final _passwordController = TextEditingController();
   bool _obscure = true;
   late final AuthRepository _auth;
+  late final SystemConfigService _systemConfig;
+  bool _isForgotPasswordEnabled = true;
 
   @override
   void initState() {
     super.initState();
-    _auth = AuthRepository(ApiClient(ApiConfig.baseUrl));
+    final apiClient = ApiClient(ApiConfig.baseUrl);
+    _auth = AuthRepository(apiClient);
+    _systemConfig = SystemConfigService(apiClient);
+    _loadConfig();
+  }
+
+  Future<void> _loadConfig() async {
+    final enabled = await _systemConfig.getConfig('forgot_password_system', 'true');
+    if (mounted) {
+      setState(() {
+        _isForgotPasswordEnabled = enabled != 'false';
+      });
+    }
   }
 
   @override
@@ -245,19 +262,27 @@ class _LoginPageState extends State<LoginPage> {
                       },
                     ),
                     const SizedBox(height: 12),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () {},
-                        child: const Text(
-                          'Forgot Password?',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
+                    if (_isForgotPasswordEnabled)
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const ForgotPasswordPage(),
+                              ),
+                            );
+                          },
+                          child: const Text(
+                            'Forgot Password?',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ),
-                    ),
                     const SizedBox(height: 24),
                     // Debug: Clear expired tokens button
                     if (kDebugMode)

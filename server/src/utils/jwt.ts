@@ -39,6 +39,17 @@ export function signRefreshToken(payload: JwtPayload) {
   return jwt.sign(payload, secret, options);
 }
 
+export function signResetToken(userId: number) {
+  const secret: Secret = env.JWT_ACCESS_SECRET as Secret; 
+  const options: SignOptions = {
+    expiresIn: '5m', 
+    issuer: 'clean-care-app',
+    audience: 'clean-care-users',
+    subject: userId.toString(),
+  };
+  return jwt.sign({ purpose: 'password_reset' }, secret, options);
+}
+
 export function verifyAccessToken(token: string): JwtPayload {
   try {
     return jwt.verify(token, env.JWT_ACCESS_SECRET, {
@@ -66,6 +77,28 @@ export function verifyRefreshToken(token: string): JwtPayload {
       throw new Error('Refresh token expired');
     } else if (error instanceof jwt.JsonWebTokenError) {
       throw new Error('Invalid refresh token');
+    }
+    throw error;
+  }
+}
+
+export function verifyResetToken(token: string): JwtPayload {
+  try {
+    const payload = jwt.verify(token, env.JWT_ACCESS_SECRET, {
+      issuer: 'clean-care-app',
+      audience: 'clean-care-users'
+    }) as any;
+    
+    if (payload.purpose !== 'password_reset') {
+      throw new Error('Invalid token purpose');
+    }
+    
+    return payload as JwtPayload;
+  } catch (error) {
+    if (error instanceof jwt.TokenExpiredError) {
+      throw new Error('Reset token expired');
+    } else if (error instanceof jwt.JsonWebTokenError) {
+      throw new Error('Invalid reset token');
     }
     throw error;
   }

@@ -509,3 +509,104 @@ export async function verifyRegistration(req: AuthRequest, res: Response) {
     });
   }
 }
+
+// Forgot Password (Phone) Schemas
+const forgotPasswordPhoneSchema = z.object({
+  phone: z.string().min(11, 'Phone number must be at least 11 digits'),
+});
+
+const verifyForgotPasswordOTPSchema = z.object({
+  phone: z.string().min(11, 'Phone number must be at least 11 digits'),
+  code: z.string().length(6, 'Verification code must be 6 digits'),
+});
+
+const resetPasswordPhoneSchema = z.object({
+  resetToken: z.string().min(1),
+  newPassword: z.string().min(6, 'Password must be at least 6 characters'),
+  confirmPassword: z.string().min(6),
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
+
+// Initiate Forgot Password (Phone)
+export async function initiateForgotPasswordPhone(req: AuthRequest, res: Response) {
+  try {
+    const body = forgotPasswordPhoneSchema.parse(req.body);
+    let phone = body.phone;
+    
+    // Normalize phone (optional, but good practice if frontend sends different formats)
+    // Removed strict normalization here to allow service to handle multiple formats
+    /*
+    if (phone.startsWith('01')) {
+        phone = '88' + phone;
+    }
+    */
+
+    const result = await authService.initiateForgotPassword(phone);
+    return res.status(200).json(result);
+  } catch (err: any) {
+    if (err?.name === 'ZodError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        issues: err.issues
+      });
+    }
+    return res.status(400).json({
+      success: false,
+      message: err?.message ?? 'Failed to initiate forgot password'
+    });
+  }
+}
+
+// Verify Forgot Password OTP
+export async function verifyForgotPasswordOTP(req: AuthRequest, res: Response) {
+  try {
+    const body = verifyForgotPasswordOTPSchema.parse(req.body);
+    let phone = body.phone;
+    // Removed strict normalization here to allow service to handle multiple formats
+    /*
+    if (phone.startsWith('01')) {
+        phone = '88' + phone;
+    }
+    */
+
+    const result = await authService.verifyForgotPasswordOTP(phone, body.code);
+    return res.status(200).json(result);
+  } catch (err: any) {
+    if (err?.name === 'ZodError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        issues: err.issues
+      });
+    }
+    return res.status(400).json({
+      success: false,
+      message: err?.message ?? 'Failed to verify OTP'
+    });
+  }
+}
+
+// Reset Password (Phone flow)
+export async function resetPasswordPhone(req: AuthRequest, res: Response) {
+  try {
+    const body = resetPasswordPhoneSchema.parse(req.body);
+    
+    const result = await authService.resetPasswordWithToken(body.resetToken, body.newPassword);
+    return res.status(200).json(result);
+  } catch (err: any) {
+    if (err?.name === 'ZodError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        issues: err.issues
+      });
+    }
+    return res.status(400).json({
+      success: false,
+      message: err?.message ?? 'Failed to reset password'
+    });
+  }
+}

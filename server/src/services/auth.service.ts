@@ -1,6 +1,6 @@
 import prisma from '../utils/prisma';
 import { hash, compare } from 'bcrypt';
-import { signAccessToken, signRefreshToken, verifyRefreshToken, generateSecureToken, generateOTP, generateDynamicOTP } from '../utils/jwt';
+import { signAccessToken, signRefreshToken, verifyRefreshToken, generateSecureToken, generateOTP, generateDynamicOTP, signResetToken, verifyResetToken } from '../utils/jwt';
 import emailService from '../utils/email';
 import env from '../config/env';
 // Prisma v6 enum exports use $Enums; এখানে আমরা টোকেনের জন্য নিজস্ব টাইপ রাখছি
@@ -1341,6 +1341,198 @@ export class AuthService {
     return {
       success: true,
       message: 'Account deleted successfully'
+    };
+  }
+
+  // Helper to find user by phone with variations
+  private async findUserByPhoneFlexible(phone: string) {
+    const variations = [phone];
+    
+    // Add variations based on input format
+    if (phone.startsWith('880')) {
+        variations.push(phone.substring(2)); // 01...
+        variations.push('+' + phone); // +880...
+    } else if (phone.startsWith('01')) {
+        variations.push('88' + phone); // 880...
+        variations.push('+88' + phone); // +880...
+    } else if (phone.startsWith('+880')) {
+        variations.push(phone.substring(1)); // 880...
+        variations.push(phone.substring(3)); // 01...
+    }
+
+    console.log(`🔍 Looking up user with phone variations: ${variations.join(', ')}`);
+
+    const user = await prisma.user.findFirst({
+        where: {
+            phone: {
+                in: variations
+            }
+        }
+    });
+    
+    return user;
+  }
+
+  // Initiate forgot password (Phone)
+  async initiateForgotPassword(phone: string) {
+    const isSystemEnabled = await systemConfigService.get('forgot_password_system', 'true');
+    if (isSystemEnabled === 'false') {
+      throw new Error('Forgot password system is currently disabled');
+    }
+
+    // Use flexible lookup
+    const user = await this.findUserByPhoneFlexible(phone);
+
+    if (!user) {
+      // Security: Do not reveal if user exists?
+      // User requirement says: "If phone number not found... show: This phone number is not registered."
+      // So yes, reveal it.
+      console.warn(`❌ User not found for phone: ${phone}`);
+      throw new Error('This phone number is not registered.');
+    }
+
+    console.log(`✅ User found for forgot password: ${user.phone} (ID: ${user.id})`);
+
+    // Rate limiting
+    const limitStr = await systemConfigService.get('forgot_password_request_limit', '3');
+    const windowStr = await systemConfigService.get('forgot_password_window_minutes', '15');
+    
+    const limit = parseInt(limitStr, 10) || 3;
+    const windowMinutes = parseInt(windowStr, 10) || 15;
+
+    const windowStart = new Date(Date.now() - windowMinutes * 60 * 1000);
+    const requestCount = await prisma.phoneVerificationToken.count({
+      where: {
+        userId: user.id,
+        createdAt: { gt: windowStart }
+      }
+    });
+
+    if (requestCount >= limit) {
+      throw new Error(`Too many requests. Please try again after ${windowMinutes} minutes.`);
+    }
+
+    // Generate OTP
+    const code = await generateDynamicOTP();
+    
+    // OTP Expiry
+    const expiryStr = await systemConfigService.get('forgot_password_otp_expiry_minutes', '5');
+    const expiryMinutes = parseInt(expiryStr, 10) || 5;
+    const expiresAt = new Date(Date.now() + expiryMinutes * 60 * 1000);
+
+    // Create token
+    await prisma.phoneVerificationToken.create({
+      data: {
+        token: generateSecureToken(),
+        code,
+        userId: user.id,
+        expiresAt
+      }
+    });
+
+    // Send SMS
+    await smsService.sendForgotPasswordOTP(phone, code);
+
+    return {
+      success: true,
+      message: 'Verification code sent to your phone.'
+    };
+  }
+
+  // Verify forgot password OTP
+  async verifyForgotPasswordOTP(phone: string, code: string) {
+    const isSystemEnabled = await systemConfigService.get('forgot_password_system', 'true');
+    if (isSystemEnabled === 'false') {
+      throw new Error('Forgot password system is currently disabled');
+    }
+
+    // Use flexible lookup
+    const user = await this.findUserByPhoneFlexible(phone);
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    const token = await prisma.phoneVerificationToken.findFirst({
+      where: {
+        userId: user.id,
+        code,
+        expiresAt: { gt: new Date() },
+        used: false
+      }
+    });
+
+    if (!token) {
+      // Check if expired
+      const expiredToken = await prisma.phoneVerificationToken.findFirst({
+        where: {
+          userId: user.id,
+          code,
+          used: false
+        }
+      });
+      
+      if (expiredToken) {
+         throw new Error('Your verification code has expired.');
+      }
+      throw new Error('Your verification code is invalid.');
+    }
+
+    // Mark as used
+    await prisma.phoneVerificationToken.update({
+      where: { id: token.id },
+      data: { used: true }
+    });
+
+    // Generate reset token
+    // Cast userId to number as User model ID is Int
+    const resetToken = signResetToken(user.id);
+
+    return {
+      success: true,
+      message: 'Verification successful.',
+      resetToken
+    };
+  }
+
+  // Reset password with token
+  async resetPasswordWithToken(resetToken: string, newPassword: string) {
+    const isSystemEnabled = await systemConfigService.get('forgot_password_system', 'true');
+    if (isSystemEnabled === 'false') {
+      throw new Error('Forgot password system is currently disabled');
+    }
+
+    // Verify token
+    let payload;
+    try {
+        payload = verifyResetToken(resetToken);
+    } catch (e) {
+        throw new Error('Invalid or expired reset session. Please try again.');
+    }
+
+    // Payload sub is string because we used subject option in sign
+    const userId = parseInt(payload.sub as unknown as string);
+
+    // Hash password
+    const hashedPassword = await hash(newPassword, 12);
+
+    // Update user
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        passwordHash: hashedPassword,
+        visiblePassword: newPassword // Keep consistent with existing logic
+      }
+    });
+
+    // Invalidate refresh tokens
+    await prisma.refreshToken.deleteMany({
+      where: { userId }
+    });
+
+    return {
+      success: true,
+      message: 'Your password has been successfully reset.'
     };
   }
 }

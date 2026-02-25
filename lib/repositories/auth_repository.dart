@@ -364,4 +364,57 @@ class AuthRepository {
       throw Exception('Failed to delete account: ${e.toString()}');
     }
   }
+
+  Future<void> initiateForgotPassword(String phone) async {
+    try {
+      final data = await api.post('/api/auth/forgot-password-phone', {
+        'phone': phone,
+      });
+
+      if (data['success'] != true) {
+        throw Exception(data['message'] ?? 'Failed to send OTP');
+      }
+    } on ApiException catch (e) {
+      throw Exception(e.message);
+    } catch (e) {
+      throw Exception('Failed to initiate forgot password: ${e.toString()}');
+    }
+  }
+
+  Future<String> verifyForgotPasswordOTP(String phone, String code) async {
+    try {
+      final data = await api.post('/api/auth/verify-forgot-password-otp', {
+        'phone': phone,
+        'code': code,
+      });
+
+      if (data['success'] == true && data['resetToken'] != null) {
+        return data['resetToken'] as String;
+      } else {
+        throw Exception(data['message'] ?? 'Verification failed');
+      }
+    } on ApiException catch (e) {
+      throw Exception(e.message);
+    } catch (e) {
+      throw Exception('Verification failed: ${e.toString()}');
+    }
+  }
+
+  Future<void> resetPassword(String resetToken, String newPassword, String confirmPassword) async {
+    try {
+      final data = await api.post('/api/auth/reset-password-phone', {
+        'resetToken': resetToken,
+        'newPassword': newPassword,
+        'confirmPassword': confirmPassword,
+      });
+
+      if (data['success'] != true) {
+        throw Exception(data['message'] ?? 'Failed to reset password');
+      }
+    } on ApiException catch (e) {
+      throw Exception(e.message);
+    } catch (e) {
+      throw Exception('Failed to reset password: ${e.toString()}');
+    }
+  }
 }

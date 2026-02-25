@@ -62,7 +62,13 @@ const SystemControlPage: React.FC = () => {
     const [emailEnabled, setEmailEnabled] = useState(true);
     const [whatsappEnabled, setWhatsappEnabled] = useState(true);
     const [truecallerEnabled, setTruecallerEnabled] = useState(false);
+    const [forgotPasswordEnabled, setForgotPasswordEnabled] = useState(true);
     
+    // Forgot Password Settings State
+    const [forgotPasswordRequestLimit, setForgotPasswordRequestLimit] = useState('3');
+    const [forgotPasswordWindowMinutes, setForgotPasswordWindowMinutes] = useState('15');
+    const [forgotPasswordOtpExpiryMinutes, setForgotPasswordOtpExpiryMinutes] = useState('5');
+
     // API Configuration State
     const [smsApiUrl, setSmsApiUrl] = useState('');
     const [smsApiKey, setSmsApiKey] = useState('');
@@ -160,6 +166,26 @@ const SystemControlPage: React.FC = () => {
             const truecallerResponse = await systemConfigService.getConfig('verification_truecaller_enabled');
             if (truecallerResponse.success && truecallerResponse.data) {
                 setTruecallerEnabled(truecallerResponse.data.value === 'true');
+            }
+
+            const forgotPasswordResponse = await systemConfigService.getConfig('forgot_password_system');
+            if (forgotPasswordResponse.success && forgotPasswordResponse.data) {
+                setForgotPasswordEnabled(forgotPasswordResponse.data.value !== 'false');
+            }
+
+            const forgotPasswordRequestLimitResponse = await systemConfigService.getConfig('forgot_password_request_limit');
+            if (forgotPasswordRequestLimitResponse.success && forgotPasswordRequestLimitResponse.data) {
+                setForgotPasswordRequestLimit(forgotPasswordRequestLimitResponse.data.value);
+            }
+
+            const forgotPasswordWindowMinutesResponse = await systemConfigService.getConfig('forgot_password_window_minutes');
+            if (forgotPasswordWindowMinutesResponse.success && forgotPasswordWindowMinutesResponse.data) {
+                setForgotPasswordWindowMinutes(forgotPasswordWindowMinutesResponse.data.value);
+            }
+
+            const forgotPasswordOtpExpiryMinutesResponse = await systemConfigService.getConfig('forgot_password_otp_expiry_minutes');
+            if (forgotPasswordOtpExpiryMinutesResponse.success && forgotPasswordOtpExpiryMinutesResponse.data) {
+                setForgotPasswordOtpExpiryMinutes(forgotPasswordOtpExpiryMinutesResponse.data.value);
             }
 
             // Fetch Advanced Settings
@@ -405,6 +431,30 @@ const SystemControlPage: React.FC = () => {
                 'verification_truecaller_enabled',
                 String(truecallerEnabled),
                 'Enable/Disable Truecaller verification'
+            );
+
+            await systemConfigService.updateConfig(
+                'forgot_password_system',
+                String(forgotPasswordEnabled),
+                'Enable/Disable Forgot Password System'
+            );
+
+            await systemConfigService.updateConfig(
+                'forgot_password_request_limit',
+                forgotPasswordRequestLimit,
+                'Forgot Password Request Limit'
+            );
+
+            await systemConfigService.updateConfig(
+                'forgot_password_window_minutes',
+                forgotPasswordWindowMinutes,
+                'Forgot Password Request Window (Minutes)'
+            );
+
+            await systemConfigService.updateConfig(
+                'forgot_password_otp_expiry_minutes',
+                forgotPasswordOtpExpiryMinutes,
+                'Forgot Password OTP Expiry (Minutes)'
             );
 
             // Save Advanced Settings
@@ -882,6 +932,54 @@ const SystemControlPage: React.FC = () => {
                                                         />
                                                     }
                                                     label="Truecaller Verification (Enable/Disable)"
+                                                />
+                                                <FormControlLabel
+                                                    control={
+                                                        <Switch
+                                                            checked={forgotPasswordEnabled}
+                                                            onChange={(e) => setForgotPasswordEnabled(e.target.checked)}
+                                                            disabled={limitsSaving}
+                                                        />
+                                                    }
+                                                    label="Forgot Password System (Enable/Disable)"
+                                                />
+                                            </Stack>
+                                        </Box>
+                                        <Divider />
+                                        <Box>
+                                            <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
+                                                Forgot Password Settings
+                                            </Typography>
+                                            <Stack spacing={3}>
+                                                <TextField
+                                                    fullWidth
+                                                    label="Request Limit (requests per window)"
+                                                    value={forgotPasswordRequestLimit}
+                                                    onChange={(e) => setForgotPasswordRequestLimit(e.target.value)}
+                                                    type="number"
+                                                    helperText="Maximum requests allowed in the time window (e.g., 3)"
+                                                    disabled={limitsSaving}
+                                                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                                                />
+                                                <TextField
+                                                    fullWidth
+                                                    label="Request Window (Minutes)"
+                                                    value={forgotPasswordWindowMinutes}
+                                                    onChange={(e) => setForgotPasswordWindowMinutes(e.target.value)}
+                                                    type="number"
+                                                    helperText="Time window for request limiting in minutes (e.g., 15)"
+                                                    disabled={limitsSaving}
+                                                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                                                />
+                                                <TextField
+                                                    fullWidth
+                                                    label="OTP Expiry (Minutes)"
+                                                    value={forgotPasswordOtpExpiryMinutes}
+                                                    onChange={(e) => setForgotPasswordOtpExpiryMinutes(e.target.value)}
+                                                    type="number"
+                                                    helperText="OTP expiration time in minutes (e.g., 5)"
+                                                    disabled={limitsSaving}
+                                                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                                                 />
                                             </Stack>
                                         </Box>
