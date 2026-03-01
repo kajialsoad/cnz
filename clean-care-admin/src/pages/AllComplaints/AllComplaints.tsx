@@ -1300,10 +1300,10 @@ const AllComplaints: React.FC = () => {
                       <TableCell>
                         <Box>
                           <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                            {complaint.user.firstName} {complaint.user.lastName}
+                            {complaint.user ? `${complaint.user.firstName} ${complaint.user.lastName}` : 'Deleted User'}
                           </Typography>
                           <Typography variant="caption" color="text.secondary">
-                            {complaint.user.phone || 'N/A'}
+                            {complaint.user?.phone || 'N/A'}
                           </Typography>
                         </Box>
                       </TableCell>

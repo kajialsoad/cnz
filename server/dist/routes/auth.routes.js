@@ -311,4 +311,10 @@ router.get('/test-email', async (req, res) => {
         });
     }
 });
+// Forgot Password (Phone) - Step 1: Request OTP
+router.post('/forgot-password-phone', authRateLimiter, authController.initiateForgotPasswordPhone);
+// Forgot Password (Phone) - Step 2: Verify OTP
+router.post('/verify-forgot-password-otp', verifyPhoneRateLimiter, authController.verifyForgotPasswordOTP);
+// Forgot Password (Phone) - Step 3: Reset Password
+router.post('/reset-password-phone', authController.resetPasswordPhone);
 exports.default = router;

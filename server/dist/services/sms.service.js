@@ -126,6 +126,110 @@ class SmsService {
         }
     }
     /**
+     * Send Forgot Password OTP
+     */
+    async sendForgotPasswordOTP(phone, code) {
+        try {
+            const isEnabled = await system_config_service_1.systemConfigService.get('verification_sms_enabled', 'true');
+            if (isEnabled === 'false') {
+                throw new Error('SMS verification is currently disabled');
+            }
+            const apiKey = await system_config_service_1.systemConfigService.get('verification_sms_api_key', '');
+            const apiUrl = await system_config_service_1.systemConfigService.get('verification_sms_api_url', '');
+            const apiSecret = await system_config_service_1.systemConfigService.get('verification_sms_api_secret', '');
+            const apiClientId = await system_config_service_1.systemConfigService.get('verification_sms_client_id', '');
+            const apiPassword = await system_config_service_1.systemConfigService.get('verification_sms_password', '');
+            const apiSenderId = await system_config_service_1.systemConfigService.get('verification_sms_sender_id', '');
+            const expiryStr = await system_config_service_1.systemConfigService.get('forgot_password_otp_expiry_minutes', '5');
+            // Normalize phone number
+            let normalizedPhone = phone;
+            if (phone.startsWith('01')) {
+                normalizedPhone = '88' + phone;
+            }
+            else if (phone.startsWith('+88')) {
+                normalizedPhone = phone.substring(1);
+            }
+            const message = `Your password reset verification code is: ${code}. This code will expire in ${expiryStr} minutes.`;
+            // If API URL is configured, use the gateway
+            if (apiUrl && apiUrl.startsWith('http')) {
+                console.log(`🚀 Sending Forgot Password SMS via Gateway: ${apiUrl}`);
+                const params = {
+                    apikey: apiKey,
+                    secretkey: apiSecret,
+                    callerID: apiSenderId,
+                    toUser: normalizedPhone,
+                    messageContent: message,
+                    to: normalizedPhone,
+                    phone: normalizedPhone,
+                    mobile: normalizedPhone,
+                    contact: normalizedPhone,
+                    contacts: normalizedPhone,
+                    recipient: normalizedPhone,
+                    destination: normalizedPhone,
+                    destinationID: normalizedPhone,
+                    DestinationID: normalizedPhone,
+                    msisdn: normalizedPhone,
+                    number: normalizedPhone,
+                    message: message,
+                    msg: message,
+                    text: message,
+                    content: message,
+                    api_key: apiKey,
+                    secret_key: apiSecret,
+                    sender_id: apiSenderId,
+                    client_id: apiClientId,
+                    password: apiPassword,
+                    type: 'forgot_password', // As requested by user
+                };
+                try {
+                    const urlParams = new URLSearchParams();
+                    Object.keys(params).forEach(key => {
+                        if (params[key] !== undefined && params[key] !== null) {
+                            urlParams.append(key, String(params[key]));
+                        }
+                    });
+                    const response = await axios_1.default.post(apiUrl, urlParams, {
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+                    });
+                    if (response.data && (String(response.data.Status) === '-55' || String(response.data.Status) === '-1')) {
+                        console.error(`❌ Gateway returned error: ${JSON.stringify(response.data)}`);
+                        throw new Error(`Gateway Error: ${response.data.StatusDescription || response.data.Status}`);
+                    }
+                    console.log(`✅ Forgot Password SMS sent successfully to ${normalizedPhone}. Response:`, response.data);
+                    return;
+                }
+                catch (postError) {
+                    console.error('❌ External SMS API failed (POST), trying GET:', postError);
+                    try {
+                        const getResponse = await axios_1.default.get(apiUrl, { params });
+                        if (getResponse.data && (String(getResponse.data.Status) === '-55' || String(getResponse.data.Status) === '-1')) {
+                            throw new Error(`Gateway Error: ${getResponse.data.StatusDescription || getResponse.data.Status}`);
+                        }
+                        console.log(`✅ Forgot Password SMS sent successfully to ${normalizedPhone} (via GET).`);
+                        return;
+                    }
+                    catch (getError) {
+                        console.error('❌ External SMS API failed (GET):', getError);
+                        throw new Error('Failed to send SMS via provider');
+                    }
+                }
+            }
+            // Fallback to Development Mode
+            console.log('==================================================');
+            console.log(`📱 [DEVELOPMENT MODE] FORGOT PASSWORD SMS SIMULATION`);
+            console.log(`📨 TO: ${phone}`);
+            console.log(`🔑 OTP CODE: ${code}`);
+            console.log(`💬 MESSAGE: ${message}`);
+            console.log('==================================================');
+            await new Promise(resolve => setTimeout(resolve, 500));
+            return;
+        }
+        catch (error) {
+            console.error('Error sending Forgot Password SMS:', error);
+            throw new Error('Failed to send verification code');
+        }
+    }
+    /**
      * Send OTP via WhatsApp
      */
     async sendWhatsAppOTP(phone, code) {

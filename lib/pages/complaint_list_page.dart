@@ -793,13 +793,17 @@ class _ComplaintListPageState extends State<ComplaintListPage> {
         Navigator.pushReplacementNamed(context, '/home');
         break;
       case 1:
-        Navigator.pushReplacementNamed(context, '/emergency');
+        // Already on complaint list page
         break;
       case 2:
-        Navigator.pushReplacementNamed(context, '/waste-management');
+        // Removed waste management
         break;
       case 3:
-        Navigator.pushReplacementNamed(context, '/gallery');
+        // Removed gallery
+        break;
+      case 4:
+        // Camera/Add Complaint
+        Navigator.pushNamed(context, '/others');
         break;
     }
   }

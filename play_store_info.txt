@@ -1,0 +1,87 @@
+
+=====================================================
+GOOGLE PLAY STORE LISTING INFO - CLEAN CARE BANGLADESH
+=====================================================
+
+---
+APP NAME (30 characters max)
+---
+Clean Care Bangladesh
+
+---
+SHORT DESCRIPTION (80 characters max)
+---
+Smart city services: complaints, waste management, emergency & community support.
+
+---
+FULL DESCRIPTION (4000 characters max)
+---
+Clean Care Bangladesh is a comprehensive smart city application designed to improve urban living and community engagement in Bangladesh. Our platform connects citizens directly with city services, ensuring a cleaner, safer, and more organized environment for everyone.
+
+KEY FEATURES:
+
+📢 Smart Complaint Management
+Easily report issues like road damage, garbage pile-ups, or street light failures. Take a photo, add details, and track the status of your complaint in real-time.
+
+🚛 Waste Management
+Schedule waste collection, view collection timings, and learn about proper waste disposal practices to keep your neighborhood clean.
+
+🆘 Emergency Services
+Quick access to emergency contacts including police, fire service, and ambulance. Get help when you need it most with just a tap.
+
+📅 Government Calendar & Notices
+Stay updated with the latest government holidays, official notices, and important announcements directly from city authorities.
+
+👮 Officer Reviews
+Provide feedback on service officers to ensure accountability and improve the quality of public services.
+
+💬 Live Chat Support
+Connect with our support team instantly for any queries or assistance regarding the app or services.
+
+📸 Gallery & Events
+Browse through photos of community events, successful clean-up drives, and other city activities.
+
+👤 User Profile & Settings
+Manage your profile, view your activity history, and customize app settings for a personalized experience.
+
+Join us in making Bangladesh cleaner and smarter. Download Clean Care Bangladesh today!
+
+---
+RELEASE NOTES (What's New in this Release)
+---
+Initial Release v1.0.0:
+- Launch of Clean Care Bangladesh App
+- Smart Complaint Reporting System
+- Waste Management Services
+- Emergency Contact Directory
+- Government Notice Board & Calendar
+- Live Chat Support
+- User-friendly Interface in English & Bangla
+
+---
+GRAPHICS ASSETS REQUIRED
+---
+1. App Icon: 512 x 512 px (32-bit PNG)
+2. Feature Graphic: 1024 x 500 px (JPG or 24-bit PNG)
+3. Phone Screenshots: At least 2 screenshots (JPG or 24-bit PNG)
+   - Aspect ratio 16:9 or 9:16
+   - Min dimension: 320px, Max dimension: 3840px
+4. 7-inch Tablet Screenshots (Optional but recommended)
+5. 10-inch Tablet Screenshots (Optional but recommended)
+
+---
+PRIVACY POLICY
+---
+You will need to provide a URL to your privacy policy. If you don't have one hosted yet, you can use a service like Google Sites or a free privacy policy generator to create one and host it. Ensure it covers:
+- Camera usage (for complaint photos)
+- Location access (for complaint location)
+- Storage access (for uploading photos)
+- User data collection (Name, Phone, Email)
+
+---
+CONTACT DETAILS
+---
+Ensure you have the following ready:
+- Email address
+- Phone number (optional)
+- Website URL (optional)

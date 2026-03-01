@@ -454,7 +454,23 @@ class _PaymentPageState extends State<PaymentPage>
               width: double.infinity,
               height: 56,
               child: ElevatedButton(
-                onPressed: _processPayment,
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('শীঘ্রই আসছে'),
+                      content: const Text(
+                        'এই ফিচারটি শীঘ্রই চালু হবে। আমাদের সাথে থাকার জন্য ধন্যবাদ।',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('ঠিক আছে'),
+                        ),
+                      ],
+                    ),
+                  );
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF4CAF50),
                   shape: RoundedRectangleBorder(
@@ -1044,7 +1060,23 @@ class _PaymentPageState extends State<PaymentPage>
             width: double.infinity,
             height: 56,
             child: ElevatedButton(
-              onPressed: _processDonation,
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('শীঘ্রই আসছে'),
+                    content: const Text(
+                      'এই ফিচারটি শীঘ্রই চালু হবে। আমাদের সাথে থাকার জন্য ধন্যবাদ।',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('ঠিক আছে'),
+                      ),
+                    ],
+                  ),
+                );
+              },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF2E8B57),
                 shape: RoundedRectangleBorder(

@@ -5,8 +5,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.signAccessToken = signAccessToken;
 exports.signRefreshToken = signRefreshToken;
+exports.signResetToken = signResetToken;
 exports.verifyAccessToken = verifyAccessToken;
 exports.verifyRefreshToken = verifyRefreshToken;
+exports.verifyResetToken = verifyResetToken;
 exports.generateSecureToken = generateSecureToken;
 exports.generateOTP = generateOTP;
 exports.generateDynamicOTP = generateDynamicOTP;
@@ -36,6 +38,16 @@ function signRefreshToken(payload) {
         jwtid: generateSecureToken(16) // Add unique ID to ensure token uniqueness
     };
     return jsonwebtoken_1.default.sign(payload, secret, options);
+}
+function signResetToken(userId) {
+    const secret = env_1.default.JWT_ACCESS_SECRET;
+    const options = {
+        expiresIn: '5m',
+        issuer: 'clean-care-app',
+        audience: 'clean-care-users',
+        subject: userId.toString(),
+    };
+    return jsonwebtoken_1.default.sign({ purpose: 'password_reset' }, secret, options);
 }
 function verifyAccessToken(token) {
     try {
@@ -67,6 +79,27 @@ function verifyRefreshToken(token) {
         }
         else if (error instanceof jsonwebtoken_1.default.JsonWebTokenError) {
             throw new Error('Invalid refresh token');
+        }
+        throw error;
+    }
+}
+function verifyResetToken(token) {
+    try {
+        const payload = jsonwebtoken_1.default.verify(token, env_1.default.JWT_ACCESS_SECRET, {
+            issuer: 'clean-care-app',
+            audience: 'clean-care-users'
+        });
+        if (payload.purpose !== 'password_reset') {
+            throw new Error('Invalid token purpose');
+        }
+        return payload;
+    }
+    catch (error) {
+        if (error instanceof jsonwebtoken_1.default.TokenExpiredError) {
+            throw new Error('Reset token expired');
+        }
+        else if (error instanceof jsonwebtoken_1.default.JsonWebTokenError) {
+            throw new Error('Invalid reset token');
         }
         throw error;
     }

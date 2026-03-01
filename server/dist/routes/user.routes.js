@@ -3,9 +3,12 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const auth_service_1 = require("../services/auth.service");
 const auth_middleware_1 = require("../middlewares/auth.middleware");
+const auth_controller_1 = require("../controllers/auth.controller");
 const validation_1 = require("../utils/validation");
 const validation_2 = require("../utils/validation");
 const router = (0, express_1.Router)();
+// Delete current user account
+router.delete('/me', auth_middleware_1.authGuard, auth_controller_1.deleteAccount);
 // Get current user profile (alias for /profile)
 router.get('/me', auth_middleware_1.authGuard, async (req, res) => {
     try {

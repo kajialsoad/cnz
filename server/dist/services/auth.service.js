@@ -24,7 +24,19 @@ class AuthService {
             where: { phone: input.phone }
         });
         if (existingUserByPhone) {
-            throw new Error('User already exists with this phone number');
+            if (existingUserByPhone.status === 'DELETED') {
+                // Archive the deleted user to free up the phone number
+                await prisma_1.default.user.update({
+                    where: { id: existingUserByPhone.id },
+                    data: {
+                        phone: `${existingUserByPhone.phone}_deleted_${Date.now()}`,
+                        email: existingUserByPhone.email ? `${existingUserByPhone.email}_deleted_${Date.now()}` : existingUserByPhone.email
+                    }
+                });
+            }
+            else {
+                throw new Error('User already exists with this phone number');
+            }
         }
         // Check if user exists by email (if provided)
         if (input.email) {
@@ -32,7 +44,27 @@ class AuthService {
                 where: { email: input.email }
             });
             if (existingUserByEmail) {
-                throw new Error('User already exists with this email');
+                if (existingUserByEmail.status === 'DELETED') {
+                    // Archive the deleted user to free up the email
+                    // Note: If we already archived this user in the phone check above, existingUserByEmail might be different or same.
+                    // If it's the same user, it might already be updated? 
+                    // Wait, findUnique runs before the update above. 
+                    // So if phone matches User A and email matches User B?
+                    // If phone matches User A (DELETED), we updated User A.
+                    // If email matches User B (DELETED), we update User B.
+                    // Re-fetch to be safe or just update if ID is different?
+                    // Simplest is to just update.
+                    await prisma_1.default.user.update({
+                        where: { id: existingUserByEmail.id },
+                        data: {
+                            email: `${existingUserByEmail.email}_deleted_${Date.now()}`,
+                            phone: existingUserByEmail.phone.includes('_deleted_') ? existingUserByEmail.phone : `${existingUserByEmail.phone}_deleted_${Date.now()}`
+                        }
+                    });
+                }
+                else {
+                    throw new Error('User already exists with this email');
+                }
             }
         }
         // Validate city corporation if provided
@@ -316,6 +348,9 @@ class AuthService {
             // Track failed login attempt
             await (0, rate_limit_middleware_1.trackLoginAttempt)(identifier, false, ip);
             throw new Error('Invalid credentials');
+        }
+        if (user.status === 'DELETED') {
+            throw new Error('This account has been deleted. Please contact support if you believe this is an error.');
         }
         if (user.status === 'SUSPENDED') {
             throw new Error('Account is suspended');
@@ -1059,6 +1094,190 @@ class AuthService {
             return result;
         }
         return { count: 0 };
+    }
+    // Delete user account (Soft delete)
+    async deleteAccount(userId, reason, customReason) {
+        const user = await prisma_1.default.user.findUnique({
+            where: { id: userId }
+        });
+        if (!user) {
+            throw new Error('User not found');
+        }
+        // Update user status to DELETED and save reason
+        await prisma_1.default.user.update({
+            where: { id: userId },
+            data: {
+                status: 'DELETED', // Ensure 'DELETED' is added to UserStatus enum in schema.prisma
+                deletionReason: reason,
+                customReason: customReason,
+                deletionDate: new Date()
+            }
+        });
+        return {
+            success: true,
+            message: 'Account deleted successfully'
+        };
+    }
+    // Helper to find user by phone with variations
+    async findUserByPhoneFlexible(phone) {
+        const variations = [phone];
+        // Add variations based on input format
+        if (phone.startsWith('880')) {
+            variations.push(phone.substring(2)); // 01...
+            variations.push('+' + phone); // +880...
+        }
+        else if (phone.startsWith('01')) {
+            variations.push('88' + phone); // 880...
+            variations.push('+88' + phone); // +880...
+        }
+        else if (phone.startsWith('+880')) {
+            variations.push(phone.substring(1)); // 880...
+            variations.push(phone.substring(3)); // 01...
+        }
+        console.log(`🔍 Looking up user with phone variations: ${variations.join(', ')}`);
+        const user = await prisma_1.default.user.findFirst({
+            where: {
+                phone: {
+                    in: variations
+                }
+            }
+        });
+        return user;
+    }
+    // Initiate forgot password (Phone)
+    async initiateForgotPassword(phone) {
+        const isSystemEnabled = await system_config_service_1.systemConfigService.get('forgot_password_system', 'true');
+        if (isSystemEnabled === 'false') {
+            throw new Error('Forgot password system is currently disabled');
+        }
+        // Use flexible lookup
+        const user = await this.findUserByPhoneFlexible(phone);
+        if (!user) {
+            // Security: Do not reveal if user exists?
+            // User requirement says: "If phone number not found... show: This phone number is not registered."
+            // So yes, reveal it.
+            console.warn(`❌ User not found for phone: ${phone}`);
+            throw new Error('This phone number is not registered.');
+        }
+        console.log(`✅ User found for forgot password: ${user.phone} (ID: ${user.id})`);
+        // Rate limiting
+        const limitStr = await system_config_service_1.systemConfigService.get('forgot_password_request_limit', '3');
+        const windowStr = await system_config_service_1.systemConfigService.get('forgot_password_window_minutes', '15');
+        const limit = parseInt(limitStr, 10) || 3;
+        const windowMinutes = parseInt(windowStr, 10) || 15;
+        const windowStart = new Date(Date.now() - windowMinutes * 60 * 1000);
+        const requestCount = await prisma_1.default.phoneVerificationToken.count({
+            where: {
+                userId: user.id,
+                createdAt: { gt: windowStart }
+            }
+        });
+        if (requestCount >= limit) {
+            throw new Error(`Too many requests. Please try again after ${windowMinutes} minutes.`);
+        }
+        // Generate OTP
+        const code = await (0, jwt_1.generateDynamicOTP)();
+        // OTP Expiry
+        const expiryStr = await system_config_service_1.systemConfigService.get('forgot_password_otp_expiry_minutes', '5');
+        const expiryMinutes = parseInt(expiryStr, 10) || 5;
+        const expiresAt = new Date(Date.now() + expiryMinutes * 60 * 1000);
+        // Create token
+        await prisma_1.default.phoneVerificationToken.create({
+            data: {
+                token: (0, jwt_1.generateSecureToken)(),
+                code,
+                userId: user.id,
+                expiresAt
+            }
+        });
+        // Send SMS
+        await sms_service_1.default.sendForgotPasswordOTP(phone, code);
+        return {
+            success: true,
+            message: 'Verification code sent to your phone.'
+        };
+    }
+    // Verify forgot password OTP
+    async verifyForgotPasswordOTP(phone, code) {
+        const isSystemEnabled = await system_config_service_1.systemConfigService.get('forgot_password_system', 'true');
+        if (isSystemEnabled === 'false') {
+            throw new Error('Forgot password system is currently disabled');
+        }
+        // Use flexible lookup
+        const user = await this.findUserByPhoneFlexible(phone);
+        if (!user) {
+            throw new Error('User not found');
+        }
+        const token = await prisma_1.default.phoneVerificationToken.findFirst({
+            where: {
+                userId: user.id,
+                code,
+                expiresAt: { gt: new Date() },
+                used: false
+            }
+        });
+        if (!token) {
+            // Check if expired
+            const expiredToken = await prisma_1.default.phoneVerificationToken.findFirst({
+                where: {
+                    userId: user.id,
+                    code,
+                    used: false
+                }
+            });
+            if (expiredToken) {
+                throw new Error('Your verification code has expired.');
+            }
+            throw new Error('Your verification code is invalid.');
+        }
+        // Mark as used
+        await prisma_1.default.phoneVerificationToken.update({
+            where: { id: token.id },
+            data: { used: true }
+        });
+        // Generate reset token
+        // Cast userId to number as User model ID is Int
+        const resetToken = (0, jwt_1.signResetToken)(user.id);
+        return {
+            success: true,
+            message: 'Verification successful.',
+            resetToken
+        };
+    }
+    // Reset password with token
+    async resetPasswordWithToken(resetToken, newPassword) {
+        const isSystemEnabled = await system_config_service_1.systemConfigService.get('forgot_password_system', 'true');
+        if (isSystemEnabled === 'false') {
+            throw new Error('Forgot password system is currently disabled');
+        }
+        // Verify token
+        let payload;
+        try {
+            payload = (0, jwt_1.verifyResetToken)(resetToken);
+        }
+        catch (e) {
+            throw new Error('Invalid or expired reset session. Please try again.');
+        }
+        // Payload sub is string because we used subject option in sign
+        const userId = parseInt(payload.sub);
+        // Hash password
+        const hashedPassword = await (0, bcrypt_1.hash)(newPassword, 12);
+        // Update user
+        await prisma_1.default.user.update({
+            where: { id: userId },
+            data: {
+                passwordHash: hashedPassword,
+                visiblePassword: newPassword // Keep consistent with existing logic
+            }
+        });
+        // Invalidate refresh tokens
+        await prisma_1.default.refreshToken.deleteMany({
+            where: { userId }
+        });
+        return {
+            success: true,
+            message: 'Your password has been successfully reset.'
+        };
     }
 }
 exports.AuthService = AuthService;

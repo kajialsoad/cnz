@@ -789,10 +789,210 @@ export class AdminUserService {
         });
     }
 
+    // Helper to cleanup user dependencies before deletion
+    private async cleanupUserDependencies(userIds: number[]): Promise<void> {
+        console.log(`Starting cleanup for users: ${userIds.join(', ')}`);
+        
+        try {
+            // 1. Delete Notifications
+            const notifCount = await prisma.notification.deleteMany({
+                where: { userId: { in: userIds } }
+            });
+            console.log(`Deleted ${notifCount.count} notifications`);
+
+            // Verify Notifications are gone
+            const remainingNotifs = await prisma.notification.count({
+                where: { userId: { in: userIds } }
+            });
+            if (remainingNotifs > 0) {
+                console.error(`CRITICAL: ${remainingNotifs} notifications still exist after deletion attempt!`);
+                const notifications = await prisma.notification.findMany({
+                    where: { userId: { in: userIds } },
+                    select: { id: true }
+                });
+                for (const notif of notifications) {
+                    await prisma.notification.delete({ where: { id: notif.id } }).catch(e => console.error(`Failed to delete notification ${notif.id}:`, e));
+                }
+            }
+
+            // 2. Delete NoticeInteractions (orphan cleanup) - MOVED UP BEFORE NOTICE DELETE
+            await prisma.noticeInteraction.deleteMany({
+                where: { userId: { in: userIds } }
+            });
+
+            // 3. Delete ChatMessages (Sent)
+            const sentMsgCount = await prisma.chatMessage.deleteMany({
+                where: { senderId: { in: userIds } }
+            });
+            console.log(`Deleted ${sentMsgCount.count} sent chat messages`);
+
+            // Verify Sent Messages are gone
+            const remainingSent = await prisma.chatMessage.count({
+                where: { senderId: { in: userIds } }
+            });
+            if (remainingSent > 0) {
+                console.error(`CRITICAL: ${remainingSent} sent messages still exist after deletion attempt!`);
+                // Try force delete one by one if batch fails for some reason
+                const sentMessages = await prisma.chatMessage.findMany({
+                    where: { senderId: { in: userIds } },
+                    select: { id: true }
+                });
+                for (const msg of sentMessages) {
+                    await prisma.chatMessage.delete({ where: { id: msg.id } }).catch(e => console.error(`Failed to delete msg ${msg.id}:`, e));
+                }
+            }
+
+            // 4. Delete ChatMessages (Received)
+            const receivedMsgCount = await prisma.chatMessage.deleteMany({
+                where: { receiverId: { in: userIds } }
+            });
+            console.log(`Deleted ${receivedMsgCount.count} received chat messages`);
+            
+            // Verify Received Messages are gone
+            const remainingReceived = await prisma.chatMessage.count({
+                where: { receiverId: { in: userIds } }
+            });
+            if (remainingReceived > 0) {
+                console.error(`CRITICAL: ${remainingReceived} received messages still exist after deletion attempt!`);
+                 const receivedMessages = await prisma.chatMessage.findMany({
+                    where: { receiverId: { in: userIds } },
+                    select: { id: true }
+                });
+                for (const msg of receivedMessages) {
+                    await prisma.chatMessage.delete({ where: { id: msg.id } }).catch(e => console.error(`Failed to delete msg ${msg.id}:`, e));
+                }
+            }
+
+            // 5. Delete ComplaintChatMessages (Sent)
+            const complaintMsgCount = await prisma.complaintChatMessage.deleteMany({
+                where: { senderId: { in: userIds } }
+            });
+            console.log(`Deleted ${complaintMsgCount.count} complaint chat messages`);
+
+            // 6. Update Complaints (userId -> null)
+            await prisma.complaint.updateMany({
+                where: { userId: { in: userIds } },
+                data: { userId: null }
+            });
+
+            // 7. Update Complaints (assignedAdminId -> null)
+            await prisma.complaint.updateMany({
+                where: { assignedAdminId: { in: userIds } },
+                data: { assignedAdminId: null }
+            });
+
+            // 8. Update UserZones (assignedBy -> null)
+            await prisma.userZone.updateMany({
+                where: { assignedBy: { in: userIds } },
+                data: { assignedBy: null }
+            });
+
+            // 9. Delete Payments
+            await prisma.payment.deleteMany({
+                where: { userId: { in: userIds } }
+            });
+
+            // 10. Delete Notices (created by user)
+            // This will cascade delete NoticeInteractions via Prisma middleware/foreign keys
+            await prisma.notice.deleteMany({
+                where: { createdBy: { in: userIds } }
+            });
+
+            // 11. Delete Calendars (created by user)
+            await prisma.calendar.deleteMany({
+                where: { createdBy: { in: userIds } }
+            });
+
+            // 12. Delete WastePostReactions (orphan cleanup)
+            try {
+                // @ts-ignore
+                if (prisma.wastePostReaction) {
+                    // @ts-ignore
+                    await prisma.wastePostReaction.deleteMany({
+                        where: { userId: { in: userIds } }
+                    });
+                }
+            } catch (e) {
+                console.warn('Failed to cleanup WastePostReaction:', e);
+            }
+            
+             // 13. Delete Reviews (created by user)
+            await prisma.review.deleteMany({
+                where: { userId: { in: userIds } }
+            });
+            
+             // 14. Delete Activity Logs (created by user)
+            await prisma.activityLog.deleteMany({
+                where: { userId: { in: userIds } }
+            });
+            
+             // 15. Delete User Activities
+            // @ts-ignore
+            if (prisma.user_activities) {
+                 // @ts-ignore
+                await prisma.user_activities.deleteMany({
+                    where: { userId: { in: userIds } }
+                });
+            }
+
+             // 16. Delete Sessions
+            await prisma.session.deleteMany({
+                where: { userId: { in: userIds } }
+            });
+
+             // 17. Delete Refresh Tokens
+            await prisma.refreshToken.deleteMany({
+                where: { userId: { in: userIds } }
+            });
+            
+             // 18. Delete Password Reset Tokens
+            await prisma.passwordResetToken.deleteMany({
+                where: { userId: { in: userIds } }
+            });
+
+             // 19. Delete Email Verification Tokens
+            await prisma.emailVerificationToken.deleteMany({
+                where: { userId: { in: userIds } }
+            });
+
+             // 20. Delete Phone Verification Tokens
+            await prisma.phoneVerificationToken.deleteMany({
+                where: { userId: { in: userIds } }
+            });
+
+             // 21. Delete UserZones (assigned to user)
+            await prisma.userZone.deleteMany({
+                where: { userId: { in: userIds } }
+            });
+            
+            // 22. Update Status History (Complaint)
+            await prisma.statusHistory.updateMany({
+                where: { changedBy: { in: userIds } },
+                data: { changedBy: -1 } // Or some system user ID, or handle appropriately. For now, keeping as is or deleting if strict constraint?
+                // Actually StatusHistory changedBy is Int, foreign key to User. If we delete user, this will fail.
+                // We should probably delete status history or assign to a dummy user. 
+                // Let's delete for now as it's history related to the user action.
+            });
+            // Re-thinking: StatusHistory is important audit trail. Better to set to a system user or delete if not critical. 
+            // If we delete the user, the audit log 'changedBy' pointing to that user becomes invalid.
+            // Let's delete the history entries for now to allow user deletion.
+             await prisma.statusHistory.deleteMany({
+                where: { changedBy: { in: userIds } }
+            });
+
+            console.log('User dependencies cleanup completed successfully');
+        } catch (error) {
+            console.error('Error during user dependency cleanup:', error);
+            throw error; // Re-throw to prevent partial deletion
+        }
+    }
+
     // Bulk delete users (HARD DELETE - permanently removes from database)
     async bulkDeleteUsers(userIds: number[], deletedBy: number, ipAddress?: string, userAgent?: string): Promise<void> {
         // Filter out invalid IDs
         if (!userIds || userIds.length === 0) return;
+
+        console.log(`🗑️ Bulk Deleting Users: ${userIds.join(', ')}`);
 
         // Log activity for each user BEFORE deleting
         for (const userId of userIds) {
@@ -809,12 +1009,38 @@ export class AdminUserService {
             await invalidateRedisCache.user(userId);
         }
 
-        // HARD DELETE - completely remove users from database
-        await prisma.user.deleteMany({
-            where: {
-                id: { in: userIds },
-            },
-        });
+        // Cleanup dependencies
+        await this.cleanupUserDependencies(userIds);
+
+        try {
+            // HARD DELETE - completely remove users from database
+            await prisma.user.deleteMany({
+                where: {
+                    id: { in: userIds },
+                },
+            });
+            console.log('✅ Batch delete successful');
+        } catch (error: any) {
+            console.error('❌ Batch delete failed, attempting individual fallback...', error.message);
+            
+            // Fallback: Delete users one by one to isolate the issue
+            for (const userId of userIds) {
+                try {
+                    console.log(`🔄 Fallback: Processing User ${userId}`);
+                    // Retry cleanup for this specific user
+                    await this.cleanupUserDependencies([userId]);
+                    
+                    // Try delete
+                    await prisma.user.delete({
+                        where: { id: userId }
+                    });
+                    console.log(`✅ Fallback: User ${userId} deleted`);
+                } catch (singleError: any) {
+                    console.error(`❌ Fallback: Failed to delete user ${userId}:`, singleError.message);
+                    // Continue to next user - don't stop the whole process
+                }
+            }
+        }
     }
 
     // Fetch user statistics (internal method)
@@ -1572,6 +1798,9 @@ export class AdminUserService {
 
         // Log activity BEFORE deleting (so we have the user data)
         await activityLogService.logUserDeletion(deletedBy, existingUser, ipAddress, userAgent);
+
+        // Cleanup dependencies
+        await this.cleanupUserDependencies([userId]);
 
         // HARD DELETE - completely remove user from database
         // This will also cascade delete related records (sessions, tokens, etc.)

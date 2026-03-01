@@ -5,6 +5,7 @@ export { default as ErrorBoundary } from './ErrorBoundary';
 export { default as PageLoadingBar } from './PageLoadingBar';
 export { default as LazyImage } from './LazyImage';
 export { default as ComplaintCardSkeleton } from './ComplaintCardSkeleton';
+export { default as ConfirmDialog } from './ConfirmDialog';
 export { default as MultiZoneSelector } from './MultiZoneSelector';
 
 // Responsive components

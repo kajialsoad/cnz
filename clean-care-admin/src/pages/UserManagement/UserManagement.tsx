@@ -39,8 +39,9 @@ import {
   PersonOff as PersonOffIcon,
   SearchOff as SearchOffIcon,
   ChatBubbleOutline,
+  Delete as DeleteIcon,
 } from '@mui/icons-material';
-import { ZoneFilter } from '../../components/common';
+import { ZoneFilter, ConfirmDialog } from '../../components/common';
 import MainLayout from '../../components/common/Layout/MainLayout';
 import UserDetailsModal from '../../components/UserManagement/UserDetailsModal';
 import UserEditModal from '../../components/UserManagement/UserEditModal';
@@ -132,6 +133,19 @@ const UserManagement: React.FC = () => {
   }>({
     viewUser: null,
     statusChange: null,
+  });
+
+  // State for confirm dialog
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  }>({
+    open: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
   });
 
   // Debounce search term
@@ -557,22 +571,28 @@ const UserManagement: React.FC = () => {
     setSelectedChatUser(null);
   };
 
-  const handleBulkDelete = async () => {
+  const handleBulkDelete = () => {
     if (selectedIds.length === 0) return;
 
-    if (!window.confirm(`Are you sure you want to delete ${selectedIds.length} users?`)) {
-      return;
-    }
-
-    try {
-      await userManagementService.bulkDeleteUsers(selectedIds);
-      showToast('Users deleted successfully', 'success');
-      setSelectedIds([]);
-      fetchUsers();
-      fetchStatistics();
-    } catch (error: any) {
-      showToast(error.message || 'Failed to delete users', 'error');
-    }
+    setConfirmDialog({
+      open: true,
+      title: 'Delete Users',
+      message: `Are you sure you want to delete ${selectedIds.length} users? This action cannot be undone.`,
+      onConfirm: async () => {
+        try {
+          await userManagementService.bulkDeleteUsers(selectedIds);
+          showToast('Users deleted successfully', 'success');
+          setSelectedIds([]);
+          // Force refresh
+          const updatedUsers = users.filter(u => !selectedIds.includes(u.id));
+          setUsers(updatedUsers);
+          setConfirmDialog(prev => ({ ...prev, open: false }));
+        } catch (error: any) {
+          showToast(error.message || 'Failed to delete users', 'error');
+          setConfirmDialog(prev => ({ ...prev, open: false }));
+        }
+      },
+    });
   };
 
   const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -1427,6 +1447,17 @@ const UserManagement: React.FC = () => {
             onClose={handleCloseChat}
           />
         )}
+
+        {/* Confirm Dialog */}
+        <ConfirmDialog
+          open={confirmDialog.open}
+          title={confirmDialog.title}
+          message={confirmDialog.message}
+          onConfirm={confirmDialog.onConfirm}
+          onCancel={() => setConfirmDialog(prev => ({ ...prev, open: false }))}
+          severity="error"
+          confirmText="Delete"
+        />
 
         {/* Toast Notification */}
         <Snackbar

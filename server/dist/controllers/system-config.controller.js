@@ -15,7 +15,11 @@ class SystemConfigController {
                 'verification_email_enabled',
                 'verification_whatsapp_enabled',
                 'verification_truecaller_enabled',
-                'maintenance_mode'
+                'maintenance_mode',
+                'forgot_password_system',
+                'forgot_password_request_limit',
+                'forgot_password_window_minutes',
+                'forgot_password_otp_expiry_minutes'
             ];
             if (!allowedKeys.includes(key)) {
                 return res.status(403).json({
@@ -31,7 +35,11 @@ class SystemConfigController {
                 'verification_email_enabled': process.env.VERIFICATION_EMAIL_ENABLED || 'true',
                 'verification_whatsapp_enabled': process.env.VERIFICATION_WHATSAPP_ENABLED || 'true',
                 'verification_truecaller_enabled': process.env.VERIFICATION_TRUECALLER_ENABLED || 'false',
-                'maintenance_mode': process.env.MAINTENANCE_MODE || 'false'
+                'maintenance_mode': process.env.MAINTENANCE_MODE || 'false',
+                'forgot_password_system': 'true',
+                'forgot_password_request_limit': '3',
+                'forgot_password_window_minutes': '15',
+                'forgot_password_otp_expiry_minutes': '5'
             };
             const value = await system_config_service_1.systemConfigService.get(key, defaultValues[key]);
             res.status(200).json({
@@ -59,7 +67,11 @@ class SystemConfigController {
                 'verification_sms_enabled',
                 'verification_email_enabled',
                 'verification_whatsapp_enabled',
-                'verification_truecaller_enabled'
+                'verification_truecaller_enabled',
+                'forgot_password_system',
+                'forgot_password_request_limit',
+                'forgot_password_window_minutes',
+                'forgot_password_otp_expiry_minutes'
             ];
             const configs = {};
             // Default values
@@ -69,7 +81,11 @@ class SystemConfigController {
                 'verification_sms_enabled': process.env.VERIFICATION_SMS_ENABLED || 'true',
                 'verification_email_enabled': process.env.VERIFICATION_EMAIL_ENABLED || 'true',
                 'verification_whatsapp_enabled': process.env.VERIFICATION_WHATSAPP_ENABLED || 'true',
-                'verification_truecaller_enabled': process.env.VERIFICATION_TRUECALLER_ENABLED || 'false'
+                'verification_truecaller_enabled': process.env.VERIFICATION_TRUECALLER_ENABLED || 'false',
+                'forgot_password_system': 'true',
+                'forgot_password_request_limit': '3',
+                'forgot_password_window_minutes': '15',
+                'forgot_password_otp_expiry_minutes': '5'
             };
             for (const key of allowedKeys) {
                 configs[key] = await system_config_service_1.systemConfigService.get(key, defaultValues[key]);

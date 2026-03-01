@@ -20,7 +20,9 @@ const ChatListItem: React.FC<ChatListItemProps> = ({ chat, isSelected, onClick }
      * Get initials from citizen name
      */
     const getInitials = () => {
-        return `${chat.citizen.firstName.charAt(0)}${chat.citizen.lastName.charAt(0)}`;
+        const firstName = chat.citizen?.firstName || '';
+        const lastName = chat.citizen?.lastName || '';
+        return `${firstName.charAt(0)}${lastName.charAt(0)}`;
     };
 
     /**

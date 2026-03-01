@@ -20,7 +20,8 @@ class _OthersPageState extends State<OthersPage> with TickerProviderStateMixin {
   void didChangeDependencies() {
     super.didChangeDependencies();
     // Check if an image path was passed from complaint page
-    final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    final args =
+        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
     if (args != null && args.containsKey('imagePath')) {
       capturedImagePath = args['imagePath'] as String;
     }
@@ -131,11 +132,7 @@ class _OthersPageState extends State<OthersPage> with TickerProviderStateMixin {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFE8F5E9),
-              Color(0xFFF1F8E9),
-              Color(0xFFE8F5E9),
-            ],
+            colors: [Color(0xFFE8F5E9), Color(0xFFF1F8E9), Color(0xFFE8F5E9)],
           ),
         ),
         child: Column(
@@ -185,9 +182,7 @@ class _OthersPageState extends State<OthersPage> with TickerProviderStateMixin {
         right: 16,
         bottom: 16,
       ),
-      decoration: const BoxDecoration(
-        color: Color(0xFF4CAF50),
-      ),
+      decoration: const BoxDecoration(color: Color(0xFF4CAF50)),
       child: Row(
         children: [
           IconButton(
@@ -260,16 +255,42 @@ class _OthersPageState extends State<OthersPage> with TickerProviderStateMixin {
       final specialColor = category['specialColor'] as Color;
       // Use different opacity levels based on category for optimal appearance
       final isOfficeCategory = category['id'] == 'office';
-      
-      final gradientTopOpacity = isOfficeCategory ? 0.10 : 0.10; // All categories now use 10%
-      final gradientBottomOpacity = isOfficeCategory ? 0.05 : 0.05; // All categories now use 5%
-      final cornerOpacity = isOfficeCategory ? 0.08 : 0.08; // All categories now use 8%
-      
-      final colorGradientTop = Color.fromRGBO(specialColor.red, specialColor.green, specialColor.blue, gradientTopOpacity);
-      final colorGradientBottom = Color.fromRGBO(specialColor.red, specialColor.green, specialColor.blue, gradientBottomOpacity);
-      final color19Opacity = Color.fromRGBO(specialColor.red, specialColor.green, specialColor.blue, 0.19);
-      final colorCorner = Color.fromRGBO(specialColor.red, specialColor.green, specialColor.blue, cornerOpacity);
-      
+
+      final gradientTopOpacity = isOfficeCategory
+          ? 0.10
+          : 0.10; // All categories now use 10%
+      final gradientBottomOpacity = isOfficeCategory
+          ? 0.05
+          : 0.05; // All categories now use 5%
+      final cornerOpacity = isOfficeCategory
+          ? 0.08
+          : 0.08; // All categories now use 8%
+
+      final colorGradientTop = Color.fromRGBO(
+        specialColor.red,
+        specialColor.green,
+        specialColor.blue,
+        gradientTopOpacity,
+      );
+      final colorGradientBottom = Color.fromRGBO(
+        specialColor.red,
+        specialColor.green,
+        specialColor.blue,
+        gradientBottomOpacity,
+      );
+      final color19Opacity = Color.fromRGBO(
+        specialColor.red,
+        specialColor.green,
+        specialColor.blue,
+        0.19,
+      );
+      final colorCorner = Color.fromRGBO(
+        specialColor.red,
+        specialColor.green,
+        specialColor.blue,
+        cornerOpacity,
+      );
+
       // Special styling for house, road, and business categories
       return GestureDetector(
         onTap: () => _selectCategory(category['id']),
@@ -279,8 +300,7 @@ class _OthersPageState extends State<OthersPage> with TickerProviderStateMixin {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             curve: Curves.easeInOut,
-            transform: Matrix4.identity()
-              ..scale(isHovered ? 1.05 : 1.0),
+            transform: Matrix4.identity()..scale(isHovered ? 1.05 : 1.0),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
@@ -291,10 +311,7 @@ class _OthersPageState extends State<OthersPage> with TickerProviderStateMixin {
                 ],
               ),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: specialColor,
-                width: 1.33,
-              ),
+              border: Border.all(color: specialColor, width: 1.33),
               boxShadow: [],
             ),
             child: Stack(
@@ -388,13 +405,14 @@ class _OthersPageState extends State<OthersPage> with TickerProviderStateMixin {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             curve: Curves.easeInOut,
-            transform: Matrix4.identity()
-              ..scale(isHovered ? 1.05 : 1.0),
+            transform: Matrix4.identity()..scale(isHovered ? 1.05 : 1.0),
             decoration: BoxDecoration(
               color: category['color'],
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: isSelected ? const Color(0xFF4CAF50) : Colors.transparent,
+                color: isSelected
+                    ? const Color(0xFF4CAF50)
+                    : Colors.transparent,
                 width: 2,
               ),
               boxShadow: [
@@ -485,10 +503,7 @@ class _OthersPageState extends State<OthersPage> with TickerProviderStateMixin {
           const SizedBox(height: 4),
           Text(
             'Select a category that matches your issue type',
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[500],
-            ),
+            style: TextStyle(fontSize: 12, color: Colors.grey[500]),
             textAlign: TextAlign.center,
           ),
         ],
@@ -502,7 +517,9 @@ class _OthersPageState extends State<OthersPage> with TickerProviderStateMixin {
     });
 
     // Find the selected category data
-    final categoryData = categories.firstWhere((cat) => cat['id'] == categoryId);
+    final categoryData = categories.firstWhere(
+      (cat) => cat['id'] == categoryId,
+    );
 
     // Navigate to category selection page with section data
     Future.delayed(const Duration(milliseconds: 300), () {
@@ -533,7 +550,7 @@ class _OthersPageState extends State<OthersPage> with TickerProviderStateMixin {
         break;
       case 4:
         // Camera
-        Navigator.pushNamed(context, '/camera');
+        Navigator.pushNamed(context, '/others');
         break;
     }
   }

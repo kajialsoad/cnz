@@ -712,7 +712,24 @@ class _DonationPageState extends State<DonationPage>
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: () => Navigator.pushNamed(context, '/payment'),
+        onPressed: () {
+          // Show coming soon dialog
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('শীঘ্রই আসছে'),
+              content: const Text(
+                'এই ফিচারটি শীঘ্রই চালু হবে। আমাদের সাথে থাকার জন্য ধন্যবাদ।',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('ঠিক আছে'),
+                ),
+              ],
+            ),
+          );
+        },
         style:
             ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),

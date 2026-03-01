@@ -5,6 +5,7 @@ exports.login = login;
 exports.refresh = refresh;
 exports.logout = logout;
 exports.me = me;
+exports.deleteAccount = deleteAccount;
 exports.forgotPassword = forgotPassword;
 exports.resetPassword = resetPassword;
 exports.verifyEmail = verifyEmail;
@@ -15,6 +16,9 @@ exports.resendVerificationCode = resendVerificationCode;
 exports.verifyPhoneWithCode = verifyPhoneWithCode;
 exports.resendPhoneVerificationCode = resendPhoneVerificationCode;
 exports.verifyRegistration = verifyRegistration;
+exports.initiateForgotPasswordPhone = initiateForgotPasswordPhone;
+exports.verifyForgotPasswordOTP = verifyForgotPasswordOTP;
+exports.resetPasswordPhone = resetPasswordPhone;
 const auth_service_1 = require("../services/auth.service");
 const zod_1 = require("zod");
 const registerSchema = zod_1.z.object({
@@ -113,7 +117,23 @@ async function me(req, res) {
         return res.status(200).json({ user });
     }
     catch (err) {
-        return res.status(400).json({ message: err?.message ?? 'Failed to load user' });
+        return res.status(401).json({ message: err?.message ?? 'Unauthorized' });
+    }
+}
+async function deleteAccount(req, res) {
+    try {
+        if (!req.user)
+            return res.status(401).json({ message: 'Unauthorized' });
+        const { reason, customReason } = req.body;
+        if (!reason) {
+            return res.status(400).json({ message: 'Reason is required' });
+        }
+        const userId = parseInt(req.user.sub.toString());
+        const result = await auth_service_1.authService.deleteAccount(userId, reason, customReason);
+        return res.status(200).json(result);
+    }
+    catch (err) {
+        return res.status(400).json({ message: err?.message ?? 'Delete account failed' });
     }
 }
 const forgotPasswordSchema = zod_1.z.object({
@@ -461,6 +481,100 @@ async function verifyRegistration(req, res) {
         return res.status(400).json({
             success: false,
             message: err?.message ?? 'Verification failed'
+        });
+    }
+}
+// Forgot Password (Phone) Schemas
+const forgotPasswordPhoneSchema = zod_1.z.object({
+    phone: zod_1.z.string().min(11, 'Phone number must be at least 11 digits'),
+});
+const verifyForgotPasswordOTPSchema = zod_1.z.object({
+    phone: zod_1.z.string().min(11, 'Phone number must be at least 11 digits'),
+    code: zod_1.z.string().length(6, 'Verification code must be 6 digits'),
+});
+const resetPasswordPhoneSchema = zod_1.z.object({
+    resetToken: zod_1.z.string().min(1),
+    newPassword: zod_1.z.string().min(6, 'Password must be at least 6 characters'),
+    confirmPassword: zod_1.z.string().min(6),
+}).refine((data) => data.newPassword === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
+});
+// Initiate Forgot Password (Phone)
+async function initiateForgotPasswordPhone(req, res) {
+    try {
+        const body = forgotPasswordPhoneSchema.parse(req.body);
+        let phone = body.phone;
+        // Normalize phone (optional, but good practice if frontend sends different formats)
+        // Removed strict normalization here to allow service to handle multiple formats
+        /*
+        if (phone.startsWith('01')) {
+            phone = '88' + phone;
+        }
+        */
+        const result = await auth_service_1.authService.initiateForgotPassword(phone);
+        return res.status(200).json(result);
+    }
+    catch (err) {
+        if (err?.name === 'ZodError') {
+            return res.status(400).json({
+                success: false,
+                message: 'Validation error',
+                issues: err.issues
+            });
+        }
+        return res.status(400).json({
+            success: false,
+            message: err?.message ?? 'Failed to initiate forgot password'
+        });
+    }
+}
+// Verify Forgot Password OTP
+async function verifyForgotPasswordOTP(req, res) {
+    try {
+        const body = verifyForgotPasswordOTPSchema.parse(req.body);
+        let phone = body.phone;
+        // Removed strict normalization here to allow service to handle multiple formats
+        /*
+        if (phone.startsWith('01')) {
+            phone = '88' + phone;
+        }
+        */
+        const result = await auth_service_1.authService.verifyForgotPasswordOTP(phone, body.code);
+        return res.status(200).json(result);
+    }
+    catch (err) {
+        if (err?.name === 'ZodError') {
+            return res.status(400).json({
+                success: false,
+                message: 'Validation error',
+                issues: err.issues
+            });
+        }
+        return res.status(400).json({
+            success: false,
+            message: err?.message ?? 'Failed to verify OTP'
+        });
+    }
+}
+// Reset Password (Phone flow)
+async function resetPasswordPhone(req, res) {
+    try {
+        const body = resetPasswordPhoneSchema.parse(req.body);
+        const result = await auth_service_1.authService.resetPasswordWithToken(body.resetToken, body.newPassword);
+        return res.status(200).json(result);
+    }
+    catch (err) {
+        if (err?.name === 'ZodError') {
+            return res.status(400).json({
+                success: false,
+                message: 'Validation error',
+                issues: err.issues
+            });
+        }
+        return res.status(400).json({
+            success: false,
+            message: err?.message ?? 'Failed to reset password'
         });
     }
 }
